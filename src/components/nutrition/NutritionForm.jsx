@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import axiosInstance from "../../services/api";
 import NutritionAnalytics from '../Analytics/NutritionAnalytics';
-import BarcodeScanner from '../camera/BarcodeScanner';
+import BarcodeScanner from '../Camera/BarcodeScanner';
 import '../../index.css';
 
 // إعداد أنواع الوجبات مع دعم الترجمة
