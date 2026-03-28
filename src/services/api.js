@@ -1,11 +1,12 @@
-// api.js - النسخة المعدلة للعمل مع Vite proxy
+// api.js - نسخة معدلة للعمل مع Vite proxy و Render
 import axios from 'axios';
 
+// ✅ تحديد عنوان الـ API من متغير البيئة
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 const axiosInstance = axios.create({
-    // ✅ استخدم مسار نسبي بدلاً من baseURL فارغ
-    // هذا سيجعل الطلبات تمر عبر proxy Vite
-    baseURL: '', // اتركها فارغة للمسارات النسبية
-    timeout: 30000, // خفض timeout إلى 30 ثانية
+    baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : '/api',
+    timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
     }
@@ -21,29 +22,24 @@ axiosInstance.interceptors.request.use(
             console.log(`🔑 Token added for: ${config.url}`);
         }
         
-        // ✅ تأكد من أن URL يبدأ بـ / لاستخدام proxy
-        if (config.url && !config.url.startsWith('http')) {
-            console.log(`🌐 Request将通过 Vite proxy: ${config.url}`);
-        }
+        console.log(`🌐 Request: ${config.baseURL}${config.url}`);
         
         return config;
     },
     (error) => Promise.reject(error)
 );
 
-// ✅ interceptor للردود
+// interceptor للردود
 axiosInstance.interceptors.response.use(
     (response) => {
         console.log(`✅ API Response from ${response.config.url}:`, response.status);
         return response;
     },
     (error) => {
-        // تحسين رسائل الخطأ
         if (error.code === 'ECONNABORTED') {
             console.error('⏰ Timeout: Server is taking too long to respond');
         } else if (error.code === 'ERR_NETWORK') {
-            console.error('❌ Cannot connect to server. Make sure Django backend is running on 192.168.8.187:8000');
-            console.error('   Also check if Vite proxy is configured correctly');
+            console.error('❌ Cannot connect to server. Make sure backend is running');
         }
         
         if (error.response?.status === 401) {
@@ -54,12 +50,8 @@ axiosInstance.interceptors.response.use(
             window.location.href = '/';
         }
         
-        // عرض تفاصيل الخطأ للمساعدة في التصحيح
         if (error.response) {
             console.error(`❌ Server responded with ${error.response.status}:`, error.response.data);
-        } else if (error.request) {
-            console.error('❌ No response received from server. Check if backend is running');
-            console.error('   Request URL:', error.config?.url);
         }
         
         return Promise.reject(error);
