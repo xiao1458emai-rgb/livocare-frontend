@@ -111,7 +111,7 @@ function Login({ onLoginSuccess }) {
         
         // ✅ إضافة /api prefix للمسار
         const apiUrl = import.meta.env.VITE_API_URL || '';
-        const tokenUrl = apiUrl ? `${apiUrl}/api/auth/token/` : '/api/auth/token/';
+        const tokenUrl = 'https://livocare.onrender.com/api/auth/token/';
 
         try {
             const response = await axios.post(tokenUrl, {
