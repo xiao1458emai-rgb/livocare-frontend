@@ -109,12 +109,15 @@ function Login({ onLoginSuccess }) {
             return;
         }
         
+        // ✅ إضافة /api prefix للمسار
+        const apiUrl = import.meta.env.VITE_API_URL || '';
+        const tokenUrl = apiUrl ? `${apiUrl}/api/auth/token/` : '/api/auth/token/';
 
         try {
-            const response = await axios.post('/auth/token/', {
+            const response = await axios.post(tokenUrl, {
                 username,
                 password
-                });
+            });
 
             const { access, refresh } = response.data;
             localStorage.setItem('access_token', access);
@@ -132,27 +135,28 @@ function Login({ onLoginSuccess }) {
             setMessage(t('login.success'));
             setMessageType('success');
             
-            // تأخير قليل لإظهار رسالة النجاح
+            // ✅ تأخير قصير ثم الانتقال
             setTimeout(() => {
                 if (onLoginSuccess) {
                     onLoginSuccess();
+                } else {
+                    // ✅ إذا لم تكن الدالة موجودة، انتقل يدوياً
+                    window.location.href = '/dashboard';
                 }
-            }, 1500);
+            }, 1000);
             
         } catch (error) {
             console.error('Login error:', error.response?.data);
             
             let errorMessage = t('login.failed');
             
-            if (error.response?.status === 400) {
+            if (error.response?.status === 401) {
                 errorMessage = t('login.invalidCredentials');
-            } else if (error.response?.status === 401) {
-                errorMessage = t('login.unauthorized');
             } else if (error.response?.status === 404) {
                 errorMessage = t('login.serverNotFound');
             } else if (error.response?.status === 500) {
                 errorMessage = t('login.serverError');
-            } else if (!navigator.onLine) {
+            } else if (error.code === 'ERR_NETWORK') {
                 errorMessage = t('login.networkError');
             }
             
@@ -255,7 +259,6 @@ function Login({ onLoginSuccess }) {
                                     disabled={loading}
                                     autoComplete="username"
                                     aria-required="true"
-                                    aria-invalid={messageType === 'error' && !username}
                                 />
                             </div>
                         </div>
@@ -276,7 +279,6 @@ function Login({ onLoginSuccess }) {
                                     disabled={loading}
                                     autoComplete="current-password"
                                     aria-required="true"
-                                    aria-invalid={messageType === 'error' && !password}
                                 />
                                 <button
                                     type="button"
