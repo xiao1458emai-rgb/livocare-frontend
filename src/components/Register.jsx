@@ -168,70 +168,82 @@ function Register({ onRegisterSuccess }) {
         return t('register.passwordStrong');
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setMessage('');
-        setMessageType('');
+const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    setMessageType('');
 
-        const validationError = validateForm();
-        if (validationError) {
-            setMessage(validationError);
-            setMessageType('error');
-            setLoading(false);
-            return;
-        }
+    const validationError = validateForm();
+    if (validationError) {
+        setMessage(validationError);
+        setMessageType('error');
+        setLoading(false);
+        return;
+    }
 
-        try {
-            const response = await axios.post('http://127.0.0.1:8000/auth/register/', formData);
-            
-            console.log('✅ Registration successful:', response.data);
-            setMessage(t('register.success'));
-            setMessageType('success');
-            
-            // تسجيل الدخول تلقائياً بعد التسجيل
-            setTimeout(async () => {
-                try {
-                    const loginResponse = await axios.post('http://127.0.0.1:8000/auth/token/', {
-                        username: formData.username,
-                        password: formData.password
-                    });
-                    
-                    const { access, refresh } = loginResponse.data;
-                    localStorage.setItem('access_token', access);
-                    localStorage.setItem('refresh_token', refresh);
-                    localStorage.setItem('username', formData.username);
-                    
-                    if (onRegisterSuccess) {
-                        onRegisterSuccess();
-                    }
-                } catch (loginErr) {
-                    // إذا فشل تسجيل الدخول التلقائي، وجه المستخدم إلى صفحة login
-                    window.location.href = '/login';
+    try {
+        // ✅ استخدم المسار النسبي (يتعامل معه الـ proxy)
+        const response = await axios.post('/api/auth/register/', {
+            username: formData.username,
+            password: formData.password,
+            password2: formData.password2,
+            email: formData.email,
+            first_name: formData.first_name,
+            last_name: formData.last_name
+        });
+        
+        console.log('✅ Registration successful:', response.data);
+        setMessage(t('register.success'));
+        setMessageType('success');
+        
+        // تسجيل الدخول تلقائياً بعد التسجيل
+        setTimeout(async () => {
+            try {
+                const loginResponse = await axios.post('/api/auth/token/', {
+                    username: formData.username,
+                    password: formData.password
+                });
+                
+                const { access, refresh } = loginResponse.data;
+                localStorage.setItem('access_token', access);
+                localStorage.setItem('refresh_token', refresh);
+                localStorage.setItem('username', formData.username);
+                
+                if (onRegisterSuccess) {
+                    onRegisterSuccess();
+                } else {
+                    window.location.href = '/dashboard';
                 }
-            }, 2000);
-            
-        } catch (error) {
-            console.error('Registration error:', error.response?.data);
-            
-            let errorMessage = t('register.failed');
-            
-            if (error.response?.data?.username) {
-                errorMessage = t('register.usernameExists');
-            } else if (error.response?.data?.email) {
-                errorMessage = t('register.emailExists');
-            } else if (error.response?.status === 400) {
-                errorMessage = t('register.invalidData');
-            } else if (!navigator.onLine) {
-                errorMessage = t('register.networkError');
+            } catch (loginErr) {
+                console.error('Auto-login failed:', loginErr);
+                window.location.hrcf = '/login';
             }
-            
-            setMessage(errorMessage);
-            setMessageType('error');
-        } finally {
-            setLoading(false);
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Registration error:', error.response?.data);
+        
+        let errorMessage = t('register.failed');
+        
+        if (error.response?.data?.username) {
+            errorMessage = t('register.usernameExists');
+        } else if (error.response?.data?.email) {
+            errorMessage = t('register.emailExists');
+        } else if (error.response?.data?.password2) {
+            errorMessage = t('register.passwordMismatch');
+        } else if (error.response?.status === 400) {
+            errorMessage = t('register.invalidData');
+        } else if (!navigator.onLine) {
+            errorMessage = t('register.networkError');
         }
-    };
+        
+        setMessage(errorMessage);
+        setMessageType('error');
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         <div className={`register-container ${darkMode ? 'dark-mode' : ''} ${reducedMotion ? 'reduce-motion' : ''}`}>
