@@ -1,0 +1,1036 @@
+/* ===========================================
+   Chat.css - النسخة المحسنة والمطورة
+   نظام دردشة ذكي متكامل مع دعم كامل للثيمات
+   =========================================== */
+
+/* ===========================================
+   I. المتغيرات الخاصة بالدردشة
+   =========================================== */
+:root {
+    --chat-gradient-start: #667eea;
+    --chat-gradient-end: #764ba2;
+    --chat-bubble-user: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --chat-bubble-bot: #ffffff;
+    --chat-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    --chat-typing-dot: var(--primary-color);
+}
+
+.dark-mode {
+    --chat-gradient-start: #8b7bf5;
+    --chat-gradient-end: #9d7bf5;
+    --chat-bubble-user: linear-gradient(135deg, #8b7bf5 0%, #9d7bf5 100%);
+    --chat-bubble-bot: #2d2d2d;
+    --chat-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    --chat-typing-dot: var(--primary-light);
+}
+
+/* ===========================================
+   II. الحاوية الرئيسية
+   =========================================== */
+.chat-container {
+    background: var(--card-bg);
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-xl);
+    display: flex;
+    flex-direction: column;
+    height: 600px;
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+    position: relative;
+}
+
+.chat-container::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: var(--primary-gradient);
+    border-radius: calc(var(--radius-2xl) + 2px);
+    opacity: 0;
+    transition: opacity var(--transition-medium);
+    z-index: -1;
+}
+
+.chat-container:hover::before {
+    opacity: 0.3;
+}
+
+.chat-container::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--primary-gradient);
+    transform: scaleX(0);
+    transition: transform var(--transition-medium);
+    transform-origin: left;
+}
+
+.chat-container:hover::after {
+    transform: scaleX(1);
+}
+
+/* ===========================================
+   III. الهيدر
+   =========================================== */
+.chat-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--secondary-bg);
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.chat-header::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-gradient);
+    animation: gradientShift 3s infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+.chat-header-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.bot-avatar {
+    font-size: 2.5rem;
+    animation: float 3s infinite, breathe 3s infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.chat-header-text h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.bot-status {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.bot-status::before {
+    content: '●';
+    color: var(--success-color);
+    font-size: 0.8rem;
+    animation: statusPulse 1.5s infinite;
+}
+
+@keyframes statusPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ===========================================
+   IV. أزرار الإجراءات
+   =========================================== */
+.chat-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.clear-chat-btn {
+    background: var(--tertiary-bg);
+    border: 1px solid var(--border-light);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.6rem;
+    border-radius: 50%;
+    transition: all var(--transition-medium);
+    color: var(--text-secondary);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.clear-chat-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: var(--error-bg);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s, height 0.4s;
+    z-index: 0;
+}
+
+.clear-chat-btn:hover::before {
+    width: 100px;
+    height: 100px;
+}
+
+.clear-chat-btn:hover {
+    color: var(--error-color);
+    transform: rotate(90deg) scale(1.1);
+    border-color: var(--error-color);
+}
+
+.clear-chat-btn span {
+    position: relative;
+    z-index: 1;
+}
+
+/* ===========================================
+   V. منطقة الرسائل
+   =========================================== */
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-lg);
+    background: var(--primary-bg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    scroll-behavior: smooth;
+}
+
+.chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: var(--border-light);
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: var(--primary-gradient);
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+}
+
+/* ===========================================
+   VI. رسالة الترحيب
+   =========================================== */
+.chat-welcome {
+    text-align: center;
+    padding: var(--spacing-2xl) var(--spacing-xl);
+    color: var(--text-secondary);
+    position: relative;
+    overflow: hidden;
+}
+
+.chat-welcome::before {
+    content: '🤖';
+    position: absolute;
+    font-size: 12rem;
+    opacity: 0.05;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: rotateBackground 20s linear infinite;
+}
+
+@keyframes rotateBackground {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.welcome-icon {
+    font-size: 5rem;
+    margin-bottom: var(--spacing-lg);
+    animation: bounce 2s infinite;
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+}
+
+.welcome-text {
+    position: relative;
+    z-index: 1;
+}
+
+.welcome-text h3 {
+    color: var(--text-primary);
+    font-size: 1.3rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.welcome-text p {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xl);
+}
+
+/* ===========================================
+   VII. الأسئلة المقترحة
+   =========================================== */
+.suggested-questions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-lg);
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+}
+
+.suggested-questions button {
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-full);
+    padding: 0.7rem 1.3rem;
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+}
+
+.suggested-questions button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--primary-gradient);
+    opacity: 0;
+    transition: opacity var(--transition-medium);
+    z-index: 0;
+}
+
+.suggested-questions button:hover::before {
+    opacity: 0.1;
+}
+
+.suggested-questions button:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-light);
+}
+
+.suggested-questions button span {
+    position: relative;
+    z-index: 1;
+}
+
+/* ===========================================
+   VIII. الرسالة الفردية
+   =========================================== */
+.message {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--spacing-sm);
+    max-width: 80%;
+    position: relative;
+    transition: all var(--transition-medium);
+    animation: messageSlide 0.3s ease;
+    counter-increment: message-counter;
+}
+
+@keyframes messageSlide {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message:hover {
+    transform: translateY(-2px);
+}
+
+.message::before {
+    content: counter(message-counter);
+    position: absolute;
+    font-size: 0.5rem;
+    color: var(--text-tertiary);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.message:hover::before {
+    opacity: 0.5;
+}
+
+.bot-message {
+    align-self: flex-start;
+}
+
+.user-message {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+/* أيقونات الرسائل */
+.bot-icon,
+.user-icon {
+    font-size: 1.8rem;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    transition: all var(--transition-medium);
+}
+
+.message:hover .bot-icon {
+    transform: rotate(5deg) scale(1.1);
+}
+
+.message:hover .user-icon {
+    transform: rotate(-5deg) scale(1.1);
+}
+
+/* محتوى الرسالة */
+.message-content {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-xl);
+    position: relative;
+    word-wrap: break-word;
+    max-width: 100%;
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-medium);
+}
+
+.message:hover .message-content {
+    box-shadow: var(--shadow-lg);
+}
+
+/* رسالة البوت */
+.bot-message .message-content {
+    background: var(--chat-bubble-bot);
+    color: var(--text-primary);
+    border-bottom-left-radius: var(--radius-xs);
+    border: 1px solid var(--border-light);
+}
+
+/* رسالة المستخدم */
+.user-message .message-content {
+    background: var(--chat-bubble-user);
+    color: white;
+    border-bottom-right-radius: var(--radius-xs);
+}
+
+/* تلوين حسب المشاعر */
+.message.bot-message[data-mood="positive"] .message-content {
+    border-left: 4px solid var(--success-color);
+}
+
+.message.bot-message[data-mood="negative"] .message-content {
+    border-left: 4px solid var(--error-color);
+}
+
+.message.bot-message[data-mood="neutral"] .message-content {
+    border-left: 4px solid var(--warning-color);
+}
+
+/* شارة AI */
+.ai-badge {
+    background: var(--primary-gradient);
+    color: white;
+    font-size: 0.6rem;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    margin-left: var(--spacing-sm);
+    display: inline-block;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    animation: badgePulse 2s infinite;
+}
+
+@keyframes badgePulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; transform: scale(1.05); }
+}
+
+.message.bot-message::after {
+    content: 'AI';
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    font-size: 0.5rem;
+    background: var(--primary-gradient);
+    color: white;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transition: opacity var(--transition-medium);
+    box-shadow: var(--shadow-sm);
+}
+
+.message.bot-message:hover::after {
+    opacity: 1;
+}
+
+/* وقت الرسالة */
+.message-time {
+    font-size: 0.6rem;
+    opacity: 0.7;
+    margin-top: var(--spacing-xs);
+    display: block;
+    text-align: right;
+}
+
+/* زر حذف الرسالة */
+.delete-message-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--error-bg);
+    border: 2px solid var(--card-bg);
+    color: var(--error-color);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all var(--transition-medium);
+    z-index: 10;
+    box-shadow: var(--shadow-md);
+}
+
+.message:hover .delete-message-btn {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.delete-message-btn:hover {
+    background: var(--error-color);
+    color: white;
+    transform: scale(1.1) !important;
+}
+
+/* ===========================================
+   IX. مؤشر الكتابة
+   =========================================== */
+.typing {
+    opacity: 0.8;
+}
+
+.typing-indicator {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding: 0.8rem 1.2rem;
+    background: var(--card-bg);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-light);
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: var(--primary-gradient);
+    border-radius: 50%;
+    animation: typingWave 1.5s infinite;
+}
+
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingWave {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-10px); opacity: 1; }
+}
+
+/* ===========================================
+   X. نصائح ذكية
+   =========================================== */
+.smart-tip {
+    background: var(--info-bg);
+    border: 1px solid var(--info-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    margin: var(--spacing-md) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    animation: tipGlow 2s infinite;
+    position: relative;
+    overflow: hidden;
+}
+
+.smart-tip::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--primary-gradient);
+    opacity: 0.05;
+    pointer-events: none;
+}
+
+@keyframes tipGlow {
+    0%, 100% { box-shadow: 0 0 10px rgba(102, 126, 234, 0.3); }
+    50% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.5); }
+}
+
+.smart-tip-icon {
+    font-size: 2rem;
+    animation: bounce 2s infinite;
+}
+
+.smart-tip-text {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    flex: 1;
+}
+
+/* ===========================================
+   XI. بطاقات المعلومات الصحية
+   =========================================== */
+.health-info-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin: var(--spacing-md) 0;
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+    position: relative;
+    overflow: hidden;
+}
+
+.health-info-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary-gradient);
+    transform: translateX(-100%);
+    transition: transform var(--transition-medium);
+}
+
+.health-info-card:hover::after {
+    transform: translateX(0);
+}
+
+.health-info-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+}
+
+.health-info-card .card-title {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.health-info-card .card-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.health-info-card .stat-item {
+    text-align: center;
+    padding: var(--spacing-sm);
+    background: var(--tertiary-bg);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.health-info-card .stat-item:hover {
+    transform: scale(1.05);
+    background: var(--hover-bg);
+}
+
+.health-info-card .stat-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    display: block;
+}
+
+.health-info-card .stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+/* ===========================================
+   XII. نموذج الإدخال
+   =========================================== */
+.chat-input-form {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-light);
+    position: relative;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 0.9rem 1.2rem;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-full);
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    transition: all var(--transition-medium);
+    font-size: 0.9rem;
+}
+
+.chat-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    transform: translateY(-1px);
+}
+
+.chat-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.send-btn {
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    background: var(--primary-gradient);
+    color: white;
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+}
+
+.send-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s, height 0.4s;
+}
+
+.send-btn:hover:not(:disabled)::before {
+    width: 100px;
+    height: 100px;
+}
+
+.send-btn:hover:not(:disabled) {
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: var(--shadow-lg);
+}
+
+.send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===========================================
+   XIII. RTL دعم كامل
+   =========================================== */
+[dir="rtl"] .bot-message .message-content {
+    border-bottom-left-radius: var(--radius-xl);
+    border-bottom-right-radius: var(--radius-xs);
+}
+
+[dir="rtl"] .user-message .message-content {
+    border-bottom-right-radius: var(--radius-xl);
+    border-bottom-left-radius: var(--radius-xs);
+}
+
+[dir="rtl"] .message-time {
+    text-align: left;
+}
+
+[dir="rtl"] .delete-message-btn {
+    right: auto;
+    left: -8px;
+}
+
+[dir="rtl"] .message.bot-message::after {
+    left: auto;
+    right: 0;
+}
+
+[dir="rtl"] .message.bot-message[data-mood] .message-content {
+    border-left: none;
+    border-right: 4px solid;
+}
+
+[dir="rtl"] .bot-status::before {
+    margin-left: var(--spacing-xs);
+    margin-right: 0;
+}
+
+[dir="rtl"] .health-info-card .card-title {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .suggested-questions button {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .chat-container::after {
+    transform-origin: right;
+}
+
+[dir="rtl"] .health-info-card::after {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+}
+
+[dir="rtl"] .health-info-card:hover::after {
+    transform: translateX(0);
+}
+
+/* ===========================================
+   XIV. تصميم متجاوب
+   =========================================== */
+@media (max-width: 768px) {
+    .chat-container {
+        height: 500px;
+        border-radius: var(--radius-xl);
+    }
+    
+    .message {
+        max-width: 90%;
+    }
+    
+    .suggested-questions {
+        flex-direction: column;
+    }
+    
+    .suggested-questions button {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .health-info-card .card-content {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .chat-header {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    
+    .bot-avatar {
+        font-size: 2rem;
+    }
+    
+    .chat-header-text h2 {
+        font-size: 1rem;
+    }
+    
+    .chat-actions {
+        gap: var(--spacing-xs);
+    }
+    
+    .clear-chat-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .chat-container {
+        height: 450px;
+    }
+    
+    .chat-messages {
+        padding: var(--spacing-md);
+    }
+    
+    .message-content {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: 0.85rem;
+    }
+    
+    .bot-icon,
+    .user-icon {
+        font-size: 1.5rem;
+    }
+    
+    .suggested-questions button {
+        padding: 0.6rem 1rem;
+        font-size: 0.8rem;
+    }
+    
+    .health-info-card .card-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .chat-input-form {
+        padding: var(--spacing-sm);
+    }
+    
+    .chat-input {
+        padding: 0.8rem 1rem;
+    }
+    
+    .send-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 1.2rem;
+    }
+    
+    .smart-tip {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .chat-welcome::before {
+        font-size: 8rem;
+    }
+    
+    .welcome-icon {
+        font-size: 4rem;
+    }
+}
+
+/* ===========================================
+   XV. دعم الحركة المخفضة
+   =========================================== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .message {
+        animation: none;
+    }
+    
+    .suggested-questions button:hover,
+    .health-info-card:hover {
+        transform: none;
+    }
+}
+
+/* ===========================================
+   XVI. دعم التباين العالي
+   =========================================== */
+@media (prefers-contrast: high) {
+    .chat-container {
+        border-width: 2px;
+    }
+    
+    .message-content {
+        border-width: 2px;
+    }
+    
+    .suggested-questions button {
+        border-width: 2px;
+    }
+    
+    .health-info-card {
+        border-width: 2px;
+    }
+    
+    .chat-input {
+        border-width: 2px;
+    }
+    
+    .send-btn {
+        border: 2px solid white;
+    }
+}
+
+/* ===========================================
+   XVII. تأثيرات إضافية
+   =========================================== */
+/* تأثير الكتابة المحسن */
+@keyframes typewriter {
+    from { width: 0; }
+    to { width: 100%; }
+}
+
+.message.bot-message .message-content {
+    animation: typewriter 0.5s steps(40) 1s 1 normal both;
+    overflow: hidden;
+    white-space: normal;
+}
+
+/* تحسينات الوضع المظلم */
+.dark-mode .chat-container {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.dark-mode .message.bot-message .message-content {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .chat-input {
+    background: var(--secondary-bg);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .suggested-questions button {
+    background: var(--secondary-bg);
+}
+
+.dark-mode .health-info-card .stat-item {
+    background: var(--card-bg);
+}

@@ -1,0 +1,1091 @@
+// src/components/HabitTracker.jsx
+'use client'
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import axiosInstance from '../services/api';
+import HabitAnalytics from './Analytics/HabitAnalytics';
+import BarcodeScanner from '../components/Camera/BarcodeScanner';
+import '../index.css';
+
+// دالة لتقريب الأرقام
+const roundNumber = (num, decimals = 1) => {
+    if (isNaN(num)) return 0;
+    return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
+};
+
+// دالة لحساب النقاط
+const calculatePoints = (habitName, isCompleted) => {
+    if (!isCompleted) return 0;
+    
+    // نقاط حسب نوع العادة
+    const pointsMap = {
+        'sleep': 15,
+        'water': 10,
+        'exercise': 20,
+        'medication': 10,
+        'reading': 10,
+        'meditation': 15,
+        'walk': 15,
+        'healthy_meal': 10
+    };
+    
+    for (const [key, points] of Object.entries(pointsMap)) {
+        if (habitName.toLowerCase().includes(key)) {
+            return points;
+        }
+    }
+    return 5; // نقاط افتراضية
+};
+
+function HabitTracker({ isAuthReady }) {
+    const { t, i18n } = useTranslation();
+    
+    const [definitions, setDefinitions] = useState([]);
+    const [newHabitName, setNewHabitName] = useState('');
+    const [newHabitDescription, setNewHabitDescription] = useState('');
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState('');
+    const [isError, setIsError] = useState(false);
+    const [refreshAnalytics, setRefreshAnalytics] = useState(0);
+    const [darkMode, setDarkMode] = useState(false);
+    const [showScanner, setShowScanner] = useState(false);
+    const [userPoints, setUserPoints] = useState(0);
+    const [weeklyPoints, setWeeklyPoints] = useState(0);
+    const [streakDays, setStreakDays] = useState(0);
+
+    // تحميل إعدادات الوضع المظلم
+    useEffect(() => {
+        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
+                             window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setDarkMode(savedDarkMode);
+    }, []);
+
+    useEffect(() => {
+        const handleThemeChange = (e) => {
+            setDarkMode(e.detail?.darkMode ?? false);
+        };
+        window.addEventListener('themeChange', handleThemeChange);
+        return () => window.removeEventListener('themeChange', handleThemeChange);
+    }, []);
+
+    // حساب النقاط والسلسلة المتتالية
+    useEffect(() => {
+        if (logs.length === 0) return;
+        
+        // حساب نقاط اليوم
+        const today = new Date().toDateString();
+        const todayLogs = logs.filter(log => {
+            const logDate = new Date(log.log_date).toDateString();
+            return logDate === today;
+        });
+        
+        const todayPoints = todayLogs.reduce((sum, log) => {
+            const habit = definitions.find(d => d.id === log.habit);
+            if (habit && log.is_completed) {
+                return sum + calculatePoints(habit.name, true);
+            }
+            return sum;
+        }, 0);
+        
+        // حساب نقاط الأسبوع
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        
+        const weekPoints = logs.reduce((sum, log) => {
+            const logDate = new Date(log.log_date);
+            if (logDate >= weekAgo && log.is_completed) {
+                const habit = definitions.find(d => d.id === log.habit);
+                if (habit) {
+                    return sum + calculatePoints(habit.name, true);
+                }
+            }
+            return sum;
+        }, 0);
+        
+        setUserPoints(todayPoints);
+        setWeeklyPoints(weekPoints);
+        
+        // حساب السلسلة المتتالية
+        let streak = 0;
+        const checkDate = new Date();
+        
+        while (true) {
+            const dateStr = checkDate.toDateString();
+            const hasLogOnDate = logs.some(log => {
+                const logDate = new Date(log.log_date).toDateString();
+                return logDate === dateStr && log.is_completed;
+            });
+            
+            if (hasLogOnDate) {
+                streak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+            } else {
+                break;
+            }
+        }
+        
+        setStreakDays(streak);
+    }, [logs, definitions]);
+
+    const fetchHabitDefinitions = async () => {
+        setLoading(true);
+        try {
+            const response = await axiosInstance.get('/habit-definitions/');
+            const definitionsData = Array.isArray(response.data) ? response.data : 
+                                   (response.data?.data ? response.data.data : []);
+            setDefinitions(definitionsData);
+            
+            const logResponse = await axiosInstance.get('/habit-logs/');
+            const logsData = Array.isArray(logResponse.data) ? logResponse.data : 
+                            (logResponse.data?.data ? logResponse.data.data : []);
+            setLogs(logsData);
+
+        } catch (error) {
+            console.error('Failed to fetch habits:', error);
+            if (error.response && error.response.status === 401) {
+                setMessage(t('habits.authError'));
+            } else {
+                setMessage(t('habits.fetchError'));
+            }
+            setIsError(true);
+            setDefinitions([]);
+            setLogs([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    useEffect(() => {
+        if (isAuthReady) {
+            fetchHabitDefinitions();
+        } else {
+            setDefinitions([]);
+            setLogs([]);
+        }
+    }, [isAuthReady]);
+
+    const handleProductFound = (product) => {
+        if (product) {
+            setNewHabitName(product.name);
+            
+            // تنسيق الوصف بدون placeholders
+            const descriptionParts = [];
+            if (product.brand) descriptionParts.push(product.brand);
+            if (product.calories) descriptionParts.push(`${t('habits.calories')}: ${product.calories} ${t('habits.per100g')}`);
+            if (product.protein) descriptionParts.push(`${t('habits.protein')}: ${product.protein}g`);
+            if (product.carbs) descriptionParts.push(`${t('habits.carbs')}: ${product.carbs}g`);
+            if (product.fat) descriptionParts.push(`${t('habits.fat')}: ${product.fat}g`);
+            
+            setNewHabitDescription(descriptionParts.join(' | '));
+            
+            setMessage(t('habits.scanSuccess', { name: product.name }));
+            setIsError(false);
+            
+            setTimeout(() => {
+                setShowScanner(false);
+            }, 2000);
+        }
+    };
+
+    const handleAddDefinition = async (e) => {
+        e.preventDefault();
+        
+        if (!isAuthReady) {
+            setMessage(t('habits.loginRequired'));
+            setIsError(true);
+            return;
+        }
+
+        // التحقق من عدم التكرار
+        const existingHabit = definitions.find(d => 
+            d.name.toLowerCase() === newHabitName.trim().toLowerCase()
+        );
+        
+        if (existingHabit) {
+            setMessage(t('habits.duplicateHabit', { name: newHabitName }));
+            setIsError(true);
+            return;
+        }
+
+        if (!newHabitName.trim() || !newHabitDescription.trim()) {
+            setMessage(t('habits.emptyFields'));
+            setIsError(true);
+            return;
+        }
+
+        setLoading(true);
+        setMessage('');
+        setIsError(false);
+
+        try {
+            await axiosInstance.post('/habit-definitions/', { 
+                name: newHabitName.trim(), 
+                description: newHabitDescription.trim(),
+            });
+            
+            setMessage(t('habits.addSuccess', { name: newHabitName }));
+            setNewHabitName('');
+            setNewHabitDescription('');
+            await fetchHabitDefinitions();
+            
+            setRefreshAnalytics(prev => prev + 1);
+            
+        } catch (error) {
+            console.error('Failed to add habit:', error.response?.data);
+            setMessage(t('habits.addError'));
+            setIsError(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    const handleToggleLog = async (habitId) => {
+        if (!isAuthReady) {
+            setMessage(t('habits.loginRequired'));
+            setIsError(true);
+            return;
+        }
+        
+        const existingLog = logs.find(log => log.habit === habitId);
+        const habit = definitions.find(d => d.id === habitId);
+        
+        setLoading(true);
+        setMessage('');
+        setIsError(false);
+
+        try {
+            if (existingLog) {
+                await axiosInstance.delete(`/habit-logs/${existingLog.id}/`);
+                setMessage(t('habits.logRemoved', { name: habit?.name || '' }));
+            } else {
+                await axiosInstance.post('/habit-logs/', {
+                    habit: habitId,
+                    log_date: new Date().toISOString().split('T')[0],
+                    is_completed: true
+                });
+                
+                const points = calculatePoints(habit?.name || '', true);
+                setMessage(t('habits.logAdded', { name: habit?.name || '', points }));
+            }
+            await fetchHabitDefinitions();
+            
+            setRefreshAnalytics(prev => prev + 1);
+            
+        } catch (error) {
+            console.error('Failed to update habit log:', error.response?.data);
+            setMessage(t('habits.updateError'));
+            setIsError(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const safeDefinitions = Array.isArray(definitions) ? definitions : [];
+    const safeLogs = Array.isArray(logs) ? logs : [];
+    
+    const completedToday = safeDefinitions.filter(habit => 
+        safeLogs.some(log => log.habit === habit.id)
+    ).length;
+
+    const completionPercentage = safeDefinitions.length > 0 
+        ? Math.round((completedToday / safeDefinitions.length) * 100) 
+        : 0;
+
+    return (
+        <div className={`habit-tracker-container ${darkMode ? 'dark-mode' : ''}`}>
+            {/* رأس الصفحة */}
+            <div className="page-header">
+                <h2>
+                    <span className="header-icon">💊</span>
+                    {t('habits.title')}
+                </h2>
+                <div className="header-date">
+                    {new Date().toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    })}
+                </div>
+            </div>
+
+            {/* نقاط المستخدم */}
+            {(userPoints > 0 || weeklyPoints > 0 || streakDays > 0) && (
+                <div className="points-card">
+                    <div className="points-header">
+                        <span className="points-icon">🏆</span>
+                        <span className="points-title">{t('habits.points.title', 'نقاطك')}</span>
+                    </div>
+                    <div className="points-stats">
+                        <div className="points-stat">
+                            <div className="points-value">{userPoints}</div>
+                            <div className="points-label">{t('habits.points.today', 'نقاط اليوم')}</div>
+                        </div>
+                        <div className="points-stat">
+                            <div className="points-value">{weeklyPoints}</div>
+                            <div className="points-label">{t('habits.points.week', 'نقاط الأسبوع')}</div>
+                        </div>
+                        <div className="points-stat">
+                            <div className="points-value">{streakDays}</div>
+                            <div className="points-label">{t('habits.points.streak', 'أيام متتالية')}</div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* رسائل الإشعارات */}
+            {message && (
+                <div className={`message ${isError ? 'error' : 'success'}`}>
+                    <span className="message-icon">{isError ? '⚠️' : '✅'}</span>
+                    <span className="message-text">{message}</span>
+                    <button className="message-close" onClick={() => setMessage('')}>✕</button>
+                </div>
+            )}
+
+            {/* بطاقة الإحصائيات */}
+            {isAuthReady && safeDefinitions.length > 0 && (
+                <div className="stats-card">
+                    <div className="stats-header">
+                        <div className="stats-title">
+                            <span className="stats-icon">📊</span>
+                            <h4>{t('habits.todayStats')}</h4>
+                        </div>
+                        <div className="stats-badge">
+                            <span className="completion-rate">{completionPercentage}%</span>
+                        </div>
+                    </div>
+                    <div className="stats-content">
+                        <p className="stats-text">
+                            <span className="stats-highlight">{completedToday}</span> {t('habits.of')} 
+                            <span className="stats-highlight">{safeDefinitions.length}</span> {t('habits.completed')}
+                        </p>
+                        <div className="progress-container">
+                            <div className="progress-bar">
+                                <div 
+                                    className="progress-fill"
+                                    style={{ width: `${completionPercentage}%` }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* إضافة عادة جديدة */}
+            <div className="habit-form-card">
+                <div className="card-header">
+                    <h3>
+                        <span className="card-icon">➕</span>
+                        {t('habits.newHabit')}
+                    </h3>
+                    
+                    <button 
+                        type="button"
+                        onClick={() => setShowScanner(true)}
+                        className="scan-btn"
+                        title={t('habits.scanBarcode')}
+                    >
+                        📷 {t('habits.scanBarcode')}
+                    </button>
+                </div>
+                
+                <form onSubmit={handleAddDefinition} className="habit-form">
+                    <div className="form-group">
+                        <label htmlFor="newHabitName">
+                            <span className="label-icon">📝</span>
+                            {t('habits.habitName')}:
+                        </label>
+                        <input
+                            type="text"
+                            id="newHabitName"
+                            value={newHabitName}
+                            onChange={(e) => setNewHabitName(e.target.value)}
+                            placeholder={t('habits.namePlaceholder')}
+                            required
+                            disabled={!isAuthReady || loading}
+                        />
+                    </div>
+                    
+                    <div className="form-group">
+                        <label htmlFor="newHabitDescription">
+                            <span className="label-icon">📋</span>
+                            {t('habits.habitDescription')}:
+                        </label>
+                        <textarea
+                            id="newHabitDescription"
+                            value={newHabitDescription}
+                            onChange={(e) => setNewHabitDescription(e.target.value)}
+                            placeholder={t('habits.descriptionPlaceholder')}
+                            required
+                            rows="3"
+                            disabled={!isAuthReady || loading}
+                        />
+                    </div>
+                    
+                    <button 
+                        type="submit" 
+                        disabled={loading || !isAuthReady}
+                        className="submit-btn"
+                    >
+                        {loading ? (
+                            <>
+                                <span className="spinner-small"></span>
+                                {t('common.saving')}
+                            </>
+                        ) : (
+                            <>
+                                <span>➕</span>
+                                {t('habits.addHabit')}
+                            </>
+                        )}
+                    </button>
+                </form>
+            </div>
+
+            {/* ماسح الباركود */}
+            {showScanner && (
+                <div className="scanner-modal">
+                    <div className="scanner-modal-content">
+                        <div className="scanner-header">
+                            <h3>📷 {t('habits.scanBarcode')}</h3>
+                            <button 
+                                onClick={() => setShowScanner(false)}
+                                className="close-btn"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        
+                        <BarcodeScanner onProductFound={handleProductFound} />
+                        
+                        <div className="scanner-footer">
+                            <p>{t('habits.scanInstructions')}</p>
+                            <button 
+                                onClick={() => setShowScanner(false)}
+                                className="cancel-btn"
+                            >
+                                {t('common.cancel')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* قائمة العادات */}
+            <div className="habits-list-card">
+                <div className="card-header">
+                    <h3>
+                        <span className="card-icon">📝</span>
+                        {t('habits.todayTracking')}
+                    </h3>
+                    {safeDefinitions.length > 0 && (
+                        <div className="habits-count">
+                            <span className="count-number">{safeDefinitions.length}</span>
+                            <span className="count-label">{t('habits.habits')}</span>
+                        </div>
+                    )}
+                </div>
+                
+                {loading && isAuthReady && (
+                    <div className="loading-state">
+                        <div className="spinner"></div>
+                        <p>{t('common.loading')}</p>
+                    </div>
+                )}
+                
+                {isAuthReady && safeDefinitions.length === 0 && !loading ? (
+                    <div className="empty-state">
+                        <div className="empty-icon">📋</div>
+                        <h4>{t('habits.noHabits')}</h4>
+                        <p>{t('habits.addFirstHabit')}</p>
+                        <button 
+                            onClick={() => setShowScanner(true)}
+                            className="empty-scan-btn"
+                        >
+                            📷 {t('habits.scanBarcode')}
+                        </button>
+                    </div>
+                ) : (
+                    <ul className="habit-list">
+                        {safeDefinitions.map((habit) => {
+                            const isCompleted = safeLogs.some(log => log.habit === habit.id);
+                            const points = calculatePoints(habit.name, isCompleted);
+                            
+                            return (
+                                <li 
+                                    key={habit.id} 
+                                    className={`habit-item ${isCompleted ? 'completed' : ''}`}
+                                >
+                                    <div className="habit-info">
+                                        <div className="habit-main">
+                                            <span className="habit-name">{habit.name}</span>
+                                            {isCompleted && (
+                                                <span className="completed-badge">✅ +{points}</span>
+                                            )}
+                                        </div>
+                                        {habit.description && (
+                                            <p className="habit-description">{habit.description}</p>
+                                        )}
+                                    </div>
+                                    <button 
+                                        onClick={() => handleToggleLog(habit.id)}
+                                        disabled={loading || !isAuthReady}
+                                        className={`habit-btn ${isCompleted ? 'btn-undo' : 'btn-complete'}`}
+                                    >
+                                        {isCompleted ? (
+                                            <>
+                                                <span>↩️</span>
+                                                {t('habits.undo')}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span>✅</span>
+                                                {t('habits.complete')}
+                                            </>
+                                        )}
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+            </div>
+
+            {/* تحليلات العادات */}
+            <div className="analytics-wrapper">
+                <HabitAnalytics refreshTrigger={refreshAnalytics} />
+            </div>
+
+            <style jsx>{`
+                .habit-tracker-container {
+                    max-width: 900px;
+                    margin: 0 auto;
+                    padding: 24px;
+                    background: var(--bg-primary);
+                    min-height: 100vh;
+                }
+
+                /* رأس الصفحة */
+                .page-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 24px;
+                    flex-wrap: wrap;
+                    gap: 16px;
+                }
+
+                .page-header h2 {
+                    margin: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    font-size: 1.6rem;
+                    color: var(--text-primary);
+                }
+
+                .header-icon {
+                    font-size: 2rem;
+                }
+
+                .header-date {
+                    color: var(--text-secondary);
+                    font-size: 0.9rem;
+                    background: var(--bg-secondary);
+                    padding: 6px 12px;
+                    border-radius: 40px;
+                }
+
+                /* بطاقة النقاط */
+                .points-card {
+                    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+                    border-radius: 20px;
+                    padding: 20px;
+                    margin-bottom: 20px;
+                    color: white;
+                }
+
+                .points-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 16px;
+                }
+
+                .points-icon {
+                    font-size: 1.5rem;
+                }
+
+                .points-title {
+                    font-weight: bold;
+                    font-size: 1rem;
+                }
+
+                .points-stats {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 16px;
+                    text-align: center;
+                }
+
+                .points-stat {
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 16px;
+                    padding: 12px;
+                }
+
+                .points-value {
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                }
+
+                .points-label {
+                    font-size: 0.7rem;
+                    opacity: 0.9;
+                }
+
+                /* الرسائل */
+                .message {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 12px;
+                    border-radius: 12px;
+                    margin-bottom: 20px;
+                }
+
+                .message.success {
+                    background: var(--success-bg);
+                    color: var(--success-color);
+                    border: 1px solid var(--success-color);
+                }
+
+                .message.error {
+                    background: var(--error-bg);
+                    color: var(--error-color);
+                    border: 1px solid var(--error-color);
+                }
+
+                .message-icon {
+                    font-size: 1.1rem;
+                }
+
+                .message-text {
+                    flex: 1;
+                }
+
+                .message-close {
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    font-size: 1rem;
+                    color: inherit;
+                }
+
+                /* بطاقة الإحصائيات */
+                .stats-card {
+                    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+                    border-radius: 20px;
+                    padding: 20px;
+                    margin-bottom: 20px;
+                    color: white;
+                }
+
+                .stats-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 12px;
+                }
+
+                .stats-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .stats-icon {
+                    font-size: 1.2rem;
+                }
+
+                .stats-header h4 {
+                    margin: 0;
+                }
+
+                .stats-badge {
+                    background: rgba(255,255,255,0.2);
+                    padding: 4px 12px;
+                    border-radius: 40px;
+                }
+
+                .completion-rate {
+                    font-weight: bold;
+                }
+
+                .stats-text {
+                    margin-bottom: 12px;
+                }
+
+                .stats-highlight {
+                    font-size: 1.2rem;
+                    font-weight: bold;
+                }
+
+                .progress-container {
+                    width: 100%;
+                }
+
+                .progress-bar {
+                    height: 8px;
+                    background: rgba(255,255,255,0.3);
+                    border-radius: 4px;
+                    overflow: hidden;
+                }
+
+                .progress-fill {
+                    height: 100%;
+                    background: white;
+                    border-radius: 4px;
+                    transition: width 0.3s;
+                }
+
+                /* بطاقات العادات */
+                .habit-form-card,
+                .habits-list-card {
+                    background: var(--bg-secondary);
+                    border-radius: 20px;
+                    padding: 20px;
+                    margin-bottom: 20px;
+                }
+
+                .card-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                    flex-wrap: wrap;
+                    gap: 12px;
+                }
+
+                .card-header h3 {
+                    margin: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 1.1rem;
+                    color: var(--text-primary);
+                }
+
+                .card-icon {
+                    font-size: 1.2rem;
+                }
+
+                .scan-btn {
+                    padding: 8px 16px;
+                    background: var(--primary-color);
+                    color: white;
+                    border: none;
+                    border-radius: 40px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 0.85rem;
+                }
+
+                .habits-count {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    background: var(--bg-primary);
+                    padding: 4px 12px;
+                    border-radius: 40px;
+                }
+
+                .count-number {
+                    font-weight: bold;
+                    color: var(--primary-color);
+                }
+
+                /* النموذج */
+                .habit-form {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 16px;
+                }
+
+                .form-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+
+                .form-group label {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-weight: 500;
+                    color: var(--text-primary);
+                }
+
+                .form-group input,
+                .form-group textarea {
+                    padding: 10px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 12px;
+                    background: var(--bg-primary);
+                    color: var(--text-primary);
+                }
+
+                .submit-btn {
+                    padding: 12px;
+                    background: var(--primary-color);
+                    color: white;
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    font-weight: 600;
+                }
+
+                /* قائمة العادات */
+                .habit-list {
+                    list-style: none;
+                    padding: 0;
+                    margin: 0;
+                }
+
+                .habit-item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 12px;
+                    border-bottom: 1px solid var(--border-color);
+                    gap: 12px;
+                }
+
+                .habit-item.completed {
+                    background: var(--success-bg);
+                    border-radius: 12px;
+                }
+
+                .habit-info {
+                    flex: 1;
+                }
+
+                .habit-main {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
+
+                .habit-name {
+                    font-weight: 600;
+                    color: var(--text-primary);
+                }
+
+                .completed-badge {
+                    font-size: 0.7rem;
+                    background: var(--success-color);
+                    color: white;
+                    padding: 2px 8px;
+                    border-radius: 20px;
+                }
+
+                .habit-description {
+                    margin: 4px 0 0;
+                    font-size: 0.8rem;
+                    color: var(--text-secondary);
+                }
+
+                .habit-btn {
+                    padding: 8px 16px;
+                    border: none;
+                    border-radius: 40px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 0.85rem;
+                    white-space: nowrap;
+                }
+
+                .btn-complete {
+                    background: var(--success-color);
+                    color: white;
+                }
+
+                .btn-undo {
+                    background: var(--warning-color);
+                    color: white;
+                }
+
+                /* ماسح الباركود */
+                .scanner-modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0,0,0,0.85);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                }
+
+                .scanner-modal-content {
+                    background: var(--bg-primary);
+                    border-radius: 20px;
+                    width: 90%;
+                    max-width: 500px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    padding: 20px;
+                }
+
+                .scanner-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 16px;
+                }
+
+                .close-btn {
+                    background: none;
+                    border: none;
+                    font-size: 1.2rem;
+                    cursor: pointer;
+                    color: var(--text-secondary);
+                }
+
+                .scanner-footer {
+                    margin-top: 16px;
+                    text-align: center;
+                }
+
+                .cancel-btn {
+                    margin-top: 12px;
+                    padding: 8px 20px;
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border-color);
+                    border-radius: 40px;
+                    cursor: pointer;
+                }
+
+                /* حالات فارغة */
+                .empty-state {
+                    text-align: center;
+                    padding: 40px;
+                }
+
+                .empty-icon {
+                    font-size: 3rem;
+                    margin-bottom: 12px;
+                    opacity: 0.5;
+                }
+
+                .empty-state h4 {
+                    margin: 0 0 8px;
+                    color: var(--text-primary);
+                }
+
+                .empty-state p {
+                    margin: 0 0 16px;
+                    color: var(--text-secondary);
+                }
+
+                .empty-scan-btn {
+                    padding: 8px 20px;
+                    background: var(--primary-color);
+                    color: white;
+                    border: none;
+                    border-radius: 40px;
+                    cursor: pointer;
+                }
+
+                .loading-state {
+                    text-align: center;
+                    padding: 40px;
+                }
+
+                .spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid var(--border-color);
+                    border-top-color: var(--primary-color);
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 12px;
+                }
+
+                .spinner-small {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    display: inline-block;
+                }
+
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+
+                .analytics-wrapper {
+                    margin-top: 20px;
+                }
+
+                /* الثيم المظلم */
+                .dark-mode {
+                    --bg-primary: #1a1a2e;
+                    --bg-secondary: #16213e;
+                    --text-primary: #eee;
+                    --text-secondary: #aaa;
+                    --border-color: #2a2a3e;
+                    --primary-color: #8b5cf6;
+                    --success-color: #10b981;
+                    --success-bg: rgba(16, 185, 129, 0.2);
+                    --error-color: #ef4444;
+                    --error-bg: rgba(239, 68, 68, 0.2);
+                    --warning-color: #f59e0b;
+                }
+
+                /* استجابة */
+                @media (max-width: 768px) {
+                    .habit-tracker-container {
+                        padding: 16px;
+                    }
+                    
+                    .page-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+                    
+                    .habit-item {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+                    
+                    .habit-btn {
+                        width: 100%;
+                        justify-content: center;
+                    }
+                    
+                    .points-stats {
+                        grid-template-columns: 1fr;
+                        gap: 8px;
+                    }
+                }
+            `}</style>
+        </div>
+    );
+}
+
+export default HabitTracker;

@@ -1,0 +1,1808 @@
+// src/components/ProfileManager.jsx
+'use client'
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import axiosInstance from '../services/api';
+import '../index.css';
+
+// دالة لتقريب الأرقام
+const roundNumber = (num, decimals = 1) => {
+    if (isNaN(num)) return 0;
+    return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
+};
+
+// دالة لحساب BMI
+const calculateBMI = (weight, height) => {
+    if (!weight || !height) return null;
+    const heightInMeters = height / 100;
+    return roundNumber(weight / (heightInMeters * heightInMeters), 1);
+};
+
+// دالة للحصول على تصنيف BMI
+const getBMICategory = (bmi, t) => {
+    if (bmi < 18.5) return { category: t('profile.bmi.underweight'), color: '#f59e0b', icon: '⚠️' };
+    if (bmi < 25) return { category: t('profile.bmi.normal'), color: '#10b981', icon: '✅' };
+    if (bmi < 30) return { category: t('profile.bmi.overweight'), color: '#f97316', icon: '⚠️' };
+    return { category: t('profile.bmi.obese'), color: '#ef4444', icon: '🔴' };
+};
+
+// دالة لحساب التقدم نحو الهدف
+const calculateGoalProgress = (goal, currentData) => {
+    if (!goal || !currentData) return { progress: 0, remaining: 0, status: 'unknown', daysLeft: 0 };
+    
+    let currentValue = 0;
+    let targetValue = parseFloat(goal.target_value);
+    let unit = goal.unit;
+    
+    // تحديد القيمة الحالية حسب نوع الهدف
+    if (goal.title.includes('وزن') || goal.title.includes('weight')) {
+        currentValue = currentData.weight || 0;
+    } else if (goal.title.includes('نوم') || goal.title.includes('sleep')) {
+        currentValue = currentData.sleep || 0;
+    } else if (goal.title.includes('نشاط') || goal.title.includes('activity')) {
+        currentValue = currentData.activity || 0;
+    } else if (goal.title.includes('سعرات') || goal.title.includes('calories')) {
+        currentValue = currentData.calories || 0;
+    } else {
+        currentValue = goal.current_value || 0;
+    }
+    
+    if (currentValue === 0 || targetValue === 0) return { progress: 0, remaining: targetValue, status: 'no_data', daysLeft: 0 };
+    
+    // حساب التقدم
+    let progress = 0;
+    let status = '';
+    
+    if (goal.type === 'weight_loss') {
+        // خسارة وزن: القيمة الحالية أقل = أفضل
+        if (currentValue <= targetValue) {
+            progress = 100;
+            status = 'achieved';
+        } else {
+            progress = Math.min(100, Math.round(((goal.start_value - currentValue) / (goal.start_value - targetValue)) * 100));
+            status = progress > 0 ? 'on_track' : 'off_track';
+        }
+    } else if (goal.type === 'weight_gain') {
+        // زيادة وزن
+        if (currentValue >= targetValue) {
+            progress = 100;
+            status = 'achieved';
+        } else {
+            progress = Math.min(100, Math.round(((currentValue - goal.start_value) / (targetValue - goal.start_value)) * 100));
+            status = progress > 0 ? 'on_track' : 'off_track';
+        }
+    } else {
+        // أهداف عادية (زيادة = أفضل)
+        if (currentValue >= targetValue) {
+            progress = 100;
+            status = 'achieved';
+        } else {
+            progress = Math.min(100, Math.round((currentValue / targetValue) * 100));
+            status = progress > 0 ? 'on_track' : 'off_track';
+        }
+    }
+    
+    // حساب الأيام المتبقية
+    const targetDate = new Date(goal.target_date);
+    const today = new Date();
+    const daysLeft = Math.max(0, Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24)));
+    
+    // حساب المعدل المطلوب يومياً
+    let dailyRate = 0;
+    if (daysLeft > 0 && progress < 100) {
+        const remaining = Math.abs(targetValue - currentValue);
+        dailyRate = roundNumber(remaining / daysLeft, 1);
+    }
+    
+    return {
+        progress: Math.min(100, Math.max(0, progress)),
+        remaining: Math.abs(targetValue - currentValue),
+        status,
+        daysLeft,
+        dailyRate,
+        currentValue,
+        targetValue
+    };
+};
+
+function ProfileManager({ isAuthReady }) {
+    const { t, i18n } = useTranslation();
+    
+    const [userData, setUserData] = useState({
+        username: '',
+        email: '',
+        date_of_birth: '',
+        gender: '',
+        phone_number: '',
+        initial_weight: '',
+        height: '',
+        occupation_status: ''
+    });
+    
+    const [healthGoals, setHealthGoals] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [message, setMessage] = useState('');
+    const [messageType, setMessageType] = useState('');
+    const [activeTab, setActiveTab] = useState('profile');
+    const [healthData, setHealthData] = useState({
+        weight: null,
+        sleep: null,
+        activity: null,
+        calories: null,
+        mood: null
+    });
+    
+    const [newGoal, setNewGoal] = useState({
+        title: '',
+        type: 'general',
+        target_value: '',
+        unit: 'kg',
+        target_date: '',
+        start_value: ''
+    });
+
+    const [settings, setSettings] = useState({
+        autoUpdate: true,
+        notifications: true,
+        darkMode: false,
+        language: i18n.language,
+        updateInterval: 30
+    });
+
+    const [achievements, setAchievements] = useState([]);
+    const [exporting, setExporting] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [darkMode, setDarkMode] = useState(false);
+    const [lastBackup, setLastBackup] = useState(null);
+    const [reducedMotion, setReducedMotion] = useState(false);
+
+    // تحميل إعدادات الوضع المظلم
+    useEffect(() => {
+        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
+                             window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setDarkMode(savedDarkMode);
+        setSettings(prev => ({ ...prev, darkMode: savedDarkMode }));
+        
+        const motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        setReducedMotion(motionMediaQuery.matches);
+        
+        const handleMotionChange = (e) => setReducedMotion(e.matches);
+        motionMediaQuery.addEventListener('change', handleMotionChange);
+        
+        return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
+    }, []);
+
+    useEffect(() => {
+        if (isAuthReady) {
+            fetchUserData();
+            fetchHealthGoals();
+            fetchCurrentHealthData();
+            loadAchievements();
+            loadSavedSettings();
+        }
+    }, [isAuthReady]);
+
+    // حساب BMI والملف الذكي
+    const smartProfile = useMemo(() => {
+        const weight = parseFloat(userData.initial_weight) || healthData.weight;
+        const height = parseFloat(userData.height);
+        
+        if (!weight || !height) return null;
+        
+        const bmi = calculateBMI(weight, height);
+        const bmiCategory = bmi ? getBMICategory(bmi, t) : null;
+        
+        // حساب العمر
+        let age = null;
+        if (userData.date_of_birth) {
+            const birthDate = new Date(userData.date_of_birth);
+            const today = new Date();
+            age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+        }
+        
+        // تقييم مستوى الصحة
+        let healthScore = 65;
+        let recommendations = [];
+        
+        if (bmi) {
+            if (bmi >= 18.5 && bmi <= 24.9) healthScore += 15;
+            else if (bmi >= 25 && bmi <= 29.9) healthScore -= 5;
+            else if (bmi >= 30) healthScore -= 15;
+            else if (bmi < 18.5) healthScore -= 10;
+        }
+        
+        if (healthData.sleep) {
+            if (healthData.sleep >= 7 && healthData.sleep <= 8) healthScore += 15;
+            else if (healthData.sleep >= 6) healthScore += 5;
+            else healthScore -= 10;
+        }
+        
+        if (healthData.activity) {
+            if (healthData.activity >= 150) healthScore += 15;
+            else if (healthData.activity >= 75) healthScore += 5;
+            else healthScore -= 5;
+        }
+        
+        healthScore = Math.min(100, Math.max(0, healthScore));
+        
+        // توليد توصيات ذكية
+        if (bmi && (bmi < 18.5 || bmi > 25)) {
+            recommendations.push({
+                icon: '⚖️',
+                text: bmi < 18.5 ? t('profile.recommendations.weightGain') : t('profile.recommendations.weightLoss'),
+                priority: 'high'
+            });
+        }
+        
+        if (healthData.sleep && healthData.sleep < 7) {
+            recommendations.push({
+                icon: '😴',
+                text: t('profile.recommendations.sleepMore', { hours: 8 - healthData.sleep }),
+                priority: 'high'
+            });
+        }
+        
+        if (healthData.activity && healthData.activity < 150) {
+            recommendations.push({
+                icon: '🏃',
+                text: t('profile.recommendations.activityMore', { minutes: 150 - healthData.activity }),
+                priority: 'medium'
+            });
+        }
+        
+        return {
+            bmi,
+            bmiCategory,
+            age,
+            healthScore,
+            recommendations,
+            weight,
+            height
+        };
+    }, [userData.initial_weight, userData.height, userData.date_of_birth, healthData, t]);
+
+    const loadSavedSettings = () => {
+        try {
+            const savedSettings = localStorage.getItem('appSettings');
+            if (savedSettings) {
+                const parsedSettings = JSON.parse(savedSettings);
+                setSettings(prev => ({ ...prev, ...parsedSettings }));
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+        }
+    };
+
+    const fetchCurrentHealthData = async () => {
+        try {
+            const [sleepRes, activitiesRes, mealsRes, moodRes] = await Promise.all([
+                axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
+                axiosInstance.get('/activities/').catch(() => ({ data: [] })),
+                axiosInstance.get('/meals/').catch(() => ({ data: [] })),
+                axiosInstance.get('/mood-logs/').catch(() => ({ data: [] }))
+            ]);
+            
+            // حساب متوسط النوم
+            let avgSleep = 0;
+            if (sleepRes.data.length > 0) {
+                const hours = sleepRes.data.map(s => {
+                    const start = new Date(s.sleep_start || s.start_time);
+                    const end = new Date(s.sleep_end || s.end_time);
+                    return (end - start) / (1000 * 60 * 60);
+                }).filter(h => h > 0 && h < 24);
+                if (hours.length > 0) {
+                    avgSleep = roundNumber(hours.reduce((a, b) => a + b, 0) / hours.length, 1);
+                }
+            }
+            
+            // حساب النشاط الأسبوعي
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            const weeklyActivity = activitiesRes.data.filter(a => {
+                const date = new Date(a.date || a.created_at);
+                return date >= weekAgo;
+            }).reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
+            
+            // حساب متوسط السعرات
+            let avgCalories = 0;
+            if (mealsRes.data.length > 0) {
+                avgCalories = Math.round(mealsRes.data.reduce((sum, m) => sum + (m.total_calories || 0), 0) / mealsRes.data.length);
+            }
+            
+            // حساب متوسط المزاج
+            let avgMood = 0;
+            if (moodRes.data.length > 0) {
+                const getScore = (m) => {
+                    const map = { 'Excellent': 5, 'Good': 4, 'Neutral': 3, 'Stressed': 2, 'Anxious': 2, 'Sad': 1 };
+                    return map[m.mood] || 3;
+                };
+                avgMood = roundNumber(moodRes.data.reduce((sum, m) => sum + getScore(m), 0) / moodRes.data.length, 1);
+            }
+            
+            setHealthData({
+                weight: null,
+                sleep: avgSleep,
+                activity: weeklyActivity,
+                calories: avgCalories,
+                mood: avgMood
+            });
+            
+        } catch (error) {
+            console.error('Error fetching health data:', error);
+        }
+    };
+
+    const fetchUserData = async () => {
+        setLoading(true);
+        try {
+            const response = await axiosInstance.get('/users/me/');
+            
+            setUserData({
+                username: response.data.username || '',
+                email: response.data.email || '',
+                date_of_birth: response.data.date_of_birth || '',
+                gender: response.data.gender || '',
+                phone_number: response.data.phone_number || '',
+                initial_weight: response.data.initial_weight?.toString() || '',
+                height: response.data.height?.toString() || '',
+                occupation_status: response.data.occupation_status || ''
+            });
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            setMessage(t('profile.error.fetchUser'));
+            setMessageType('error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchHealthGoals = async () => {
+        try {
+            const response = await axiosInstance.get('/goals/');
+            let goalsData = [];
+            if (Array.isArray(response.data)) {
+                goalsData = response.data;
+            } else if (response.data && Array.isArray(response.data.results)) {
+                goalsData = response.data.results;
+            }
+            setHealthGoals(goalsData);
+        } catch (error) {
+            console.error('Error fetching health goals:', error);
+            setHealthGoals([]);
+        }
+    };
+
+    const loadAchievements = async () => {
+        try {
+            const response = await axiosInstance.get('/achievements/').catch(() => ({ data: [] }));
+            setAchievements(response.data || []);
+        } catch (error) {
+            console.error('Error loading achievements:', error);
+        }
+    };
+
+    const handleUserUpdate = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        setMessage('');
+        
+        try {
+            const updateData = {
+                email: userData.email || null,
+                date_of_birth: userData.date_of_birth || null,
+                gender: userData.gender || null,
+                phone_number: userData.phone_number || null,
+                initial_weight: userData.initial_weight ? parseFloat(userData.initial_weight) : null,
+                height: userData.height ? parseFloat(userData.height) : null,
+                occupation_status: userData.occupation_status || null
+            };
+            
+            Object.keys(updateData).forEach(key => {
+                if (updateData[key] === '' || updateData[key] === null) {
+                    delete updateData[key];
+                }
+            });
+            
+            await axiosInstance.patch('/users/me/', updateData);
+            setMessage(t('profile.profile.updated'));
+            setMessageType('success');
+            
+            // تحديث التحليل الذكي
+            await fetchCurrentHealthData();
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            setMessage(t('profile.error.updateProfile'));
+            setMessageType('error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleAddGoal = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        
+        try {
+            if (!newGoal.title || !newGoal.target_value || !newGoal.target_date) {
+                setMessage(t('profile.goals.requiredFields'));
+                setMessageType('error');
+                setSaving(false);
+                return;
+            }
+
+            // تحديد القيمة الحالية حسب نوع الهدف
+            let startValue = 0;
+            if (newGoal.type === 'weight_loss' || newGoal.type === 'weight_gain') {
+                startValue = parseFloat(userData.initial_weight) || healthData.weight || 0;
+            } else if (newGoal.type === 'sleep') {
+                startValue = healthData.sleep || 0;
+            } else if (newGoal.type === 'activity') {
+                startValue = healthData.activity || 0;
+            } else if (newGoal.type === 'calories') {
+                startValue = healthData.calories || 0;
+            } else {
+                startValue = newGoal.start_value ? parseFloat(newGoal.start_value) : 0;
+            }
+
+            const goalData = {
+                title: newGoal.title.trim(),
+                type: newGoal.type,
+                target_value: parseFloat(newGoal.target_value),
+                unit: newGoal.unit,
+                target_date: newGoal.target_date,
+                start_value: startValue,
+                current_value: startValue,
+                is_achieved: false,
+                start_date: new Date().toISOString().split('T')[0]
+            };
+
+            const response = await axiosInstance.post('/goals/', goalData);
+            
+            setHealthGoals(prev => [...prev, response.data]);
+            setNewGoal({ 
+                title: '', 
+                type: 'general',
+                target_value: '', 
+                unit: 'kg',
+                target_date: '',
+                start_value: ''
+            });
+            setMessage(t('profile.goals.added'));
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error adding goal:', error);
+            setMessage(t('profile.error.addGoal'));
+            setMessageType('error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const updateGoalProgress = async (goalId, currentValue) => {
+        try {
+            await axiosInstance.patch(`/goals/${goalId}/`, { current_value: currentValue });
+            setMessage(t('profile.goals.progressUpdated'));
+            setMessageType('success');
+            fetchHealthGoals();
+        } catch (error) {
+            console.error('Error updating goal:', error);
+            setMessage(t('profile.error.updateProgress'));
+            setMessageType('error');
+        }
+    };
+
+    const deleteGoal = async (goalId) => {
+        if (!confirm(t('profile.goals.deleteConfirm'))) return;
+        
+        try {
+            await axiosInstance.delete(`/goals/${goalId}/`);
+            setHealthGoals(prev => prev.filter(goal => goal.id !== goalId));
+            setMessage(t('profile.goals.deleted'));
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error deleting goal:', error);
+            setMessage(t('profile.error.deleteGoal'));
+            setMessageType('error');
+        }
+    };
+
+    const handleSaveSettings = async () => {
+        setSaving(true);
+        try {
+            localStorage.setItem('appSettings', JSON.stringify(settings));
+            setMessage(t('profile.settings.saved'));
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            setMessage(t('profile.settings.error'));
+            setMessageType('error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!confirm(t('profile.danger.deleteAccountConfirm'))) return;
+        
+        const confirmation = prompt(t('profile.danger.typeDelete'));
+        if (confirmation !== 'حذف') {
+            setMessage(t('profile.danger.cancelled'));
+            setMessageType('info');
+            return;
+        }
+        
+        setDeleting(true);
+        try {
+            await axiosInstance.delete('/users/me/');
+            localStorage.clear();
+            setMessage(t('profile.danger.accountDeleted'));
+            setMessageType('success');
+            setTimeout(() => {
+                window.location.href = '/register';
+            }, 3000);
+        } catch (error) {
+            console.error('Error deleting account:', error);
+            setMessage(t('profile.error.deleteAccount'));
+            setMessageType('error');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const handleExportData = async () => {
+        setExporting(true);
+        try {
+            const response = await axiosInstance.get('/export-data/');
+            const dataStr = JSON.stringify(response.data, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const fileName = `livocare-data-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', fileName);
+            linkElement.click();
+            
+            setMessage(t('profile.danger.exportSuccess'));
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error exporting data:', error);
+            setMessage(t('profile.error.exportData'));
+            setMessageType('error');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const handleFullBackup = async () => {
+        if (!confirm(t('profile.backup.confirm'))) return;
+        
+        setExporting(true);
+        try {
+            const [
+                profileRes,
+                healthRes,
+                mealsRes,
+                sleepRes,
+                moodRes,
+                activitiesRes,
+                goalsRes
+            ] = await Promise.all([
+                axiosInstance.get('/users/me/').catch(() => ({ data: null })),
+                axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
+                axiosInstance.get('/meals/').catch(() => ({ data: [] })),
+                axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
+                axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
+                axiosInstance.get('/activities/').catch(() => ({ data: [] })),
+                axiosInstance.get('/goals/').catch(() => ({ data: [] }))
+            ]);
+
+            const backupData = {
+                version: '1.0.0',
+                timestamp: new Date().toISOString(),
+                user: {
+                    profile: profileRes.data,
+                    settings
+                },
+                data: {
+                    health: healthRes.data || [],
+                    meals: mealsRes.data || [],
+                    sleep: sleepRes.data || [],
+                    mood: moodRes.data || [],
+                    activities: activitiesRes.data || [],
+                    goals: goalsRes.data || []
+                }
+            };
+
+            const dataStr = JSON.stringify(backupData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const fileName = `livocare-backup-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', fileName);
+            linkElement.click();
+            
+            setMessage(t('profile.backup.success'));
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error creating backup:', error);
+            setMessage(t('profile.backup.error'));
+            setMessageType('error');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const handleRestoreBackup = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (!confirm(t('profile.restore.confirm'))) {
+            event.target.value = '';
+            return;
+        }
+        
+        setLoading(true);
+        try {
+            const fileContent = await file.text();
+            const backupData = JSON.parse(fileContent);
+            
+            if (!backupData.version || !backupData.data) {
+                throw new Error('Invalid backup file');
+            }
+            
+            setMessage(t('profile.restore.success'));
+            setMessageType('success');
+            
+            fetchUserData();
+            fetchHealthGoals();
+            fetchCurrentHealthData();
+        } catch (error) {
+            console.error('Error restoring backup:', error);
+            setMessage(t('profile.restore.error'));
+            setMessageType('error');
+        } finally {
+            setLoading(false);
+            event.target.value = '';
+        }
+    };
+
+    if (loading && !userData.username) {
+        return (
+            <div className={`loading-container ${darkMode ? 'dark-mode' : ''}`}>
+                <div className="spinner"></div>
+                <p>{t('common.loading')}</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className={`profile-manager ${darkMode ? 'dark-mode' : ''} ${reducedMotion ? 'reduce-motion' : ''}`}>
+            {/* رأس الصفحة */}
+            <div className="profile-header">
+                <div className="header-icon-wrapper">
+                    <div className="header-icon">👤</div>
+                </div>
+                <div className="header-text">
+                    <h1>{t('profile.title')}</h1>
+                    <p>{t('profile.description')}</p>
+                </div>
+            </div>
+
+            {/* Smart Profile - الملف الذكي */}
+            {smartProfile && (
+                <div className="smart-profile-card">
+                    <div className="smart-profile-header">
+                        <span className="smart-icon">🧠</span>
+                        <span className="smart-title">{t('profile.smartProfile.title')}</span>
+                    </div>
+                    
+                    <div className="smart-profile-content">
+                        <div className="profile-stats">
+                            <div className="stat">
+                                <span className="stat-label">{t('profile.smartProfile.bmi')}</span>
+                                <span className="stat-value" style={{ color: smartProfile.bmiCategory?.color }}>
+                                    {smartProfile.bmi}
+                                </span>
+                                <span className="stat-category">{smartProfile.bmiCategory?.category}</span>
+                            </div>
+                            <div className="stat">
+                                <span className="stat-label">{t('profile.smartProfile.age')}</span>
+                                <span className="stat-value">{smartProfile.age || '—'}</span>
+                            </div>
+                            <div className="stat">
+                                <span className="stat-label">{t('profile.smartProfile.healthScore')}</span>
+                                <div className="score-container">
+                                    <div className="score-circle">
+                                        <span className="score-value">{smartProfile.healthScore}</span>
+                                    </div>
+                                    <div className="score-bar">
+                                        <div className="score-fill" style={{ width: `${smartProfile.healthScore}%` }} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {smartProfile.recommendations.length > 0 && (
+                            <div className="smart-recommendations">
+                                <strong>💡 {t('profile.smartProfile.recommendations')}:</strong>
+                                <ul>
+                                    {smartProfile.recommendations.map((rec, i) => (
+                                        <li key={i}>
+                                            <span className="rec-icon">{rec.icon}</span>
+                                            <span>{rec.text}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* التبويبات */}
+            <div className="tabs-navigation">
+                <button 
+                    className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('profile')}
+                >
+                    <span>📝</span>
+                    <span>{t('profile.tabs.profile')}</span>
+                </button>
+                <button 
+                    className={`tab-btn ${activeTab === 'goals' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('goals')}
+                >
+                    <span>🎯</span>
+                    <span>{t('profile.tabs.goals')}</span>
+                </button>
+                <button 
+                    className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('settings')}
+                >
+                    <span>⚙️</span>
+                    <span>{t('profile.tabs.settings')}</span>
+                </button>
+            </div>
+
+            {/* الرسائل */}
+            {message && (
+                <div className={`message ${messageType}`}>
+                    <span>{messageType === 'success' ? '✅' : messageType === 'error' ? '❌' : 'ℹ️'}</span>
+                    <span>{message}</span>
+                    <button onClick={() => setMessage('')}>✕</button>
+                </div>
+            )}
+
+            {/* محتوى التبويبات */}
+            <div className="tab-content">
+                
+                {/* تبويب الملف الشخصي */}
+                {activeTab === 'profile' && (
+                    <form onSubmit={handleUserUpdate} className="profile-form">
+                        <div className="form-section">
+                            <h3>📋 {t('profile.profile.basicInfo')}</h3>
+                            <div className="form-grid">
+                                <div className="form-group">
+                                    <label>{t('profile.profile.username')}</label>
+                                    <input type="text" value={userData.username} disabled />
+                                </div>
+                                <div className="form-group">
+                                    <label>{t('profile.profile.email')}</label>
+                                    <input type="email" value={userData.email} onChange={(e) => setUserData({...userData, email: e.target.value})} />
+                                </div>
+                                <div className="form-group">
+                                    <label>{t('profile.profile.birthDate')}</label>
+                                    <input type="date" value={userData.date_of_birth} onChange={(e) => setUserData({...userData, date_of_birth: e.target.value})} />
+                                </div>
+                                <div className="form-group">
+                                    <label>{t('profile.profile.gender')}</label>
+                                    <select value={userData.gender} onChange={(e) => setUserData({...userData, gender: e.target.value})}>
+                                        <option value="">{t('profile.profile.selectGender')}</option>
+                                        <option value="M">{t('profile.profile.male')}</option>
+                                        <option value="F">{t('profile.profile.female')}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="form-section">
+                            <h3>❤️ {t('profile.profile.healthInfo')}</h3>
+                            <div className="form-grid">
+                                <div className="form-group">
+                                    <label>{t('profile.profile.initialWeight')}</label>
+                                    <div className="input-with-unit">
+                                        <input type="number" step="0.1" value={userData.initial_weight} onChange={(e) => setUserData({...userData, initial_weight: e.target.value})} />
+                                        <span className="unit">{t('profile.units.kg')}</span>
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>{t('profile.profile.height')}</label>
+                                    <div className="input-with-unit">
+                                        <input type="number" step="0.1" value={userData.height} onChange={(e) => setUserData({...userData, height: e.target.value})} />
+                                        <span className="unit">{t('profile.units.cm')}</span>
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>{t('profile.profile.phone')}</label>
+                                    <input type="tel" value={userData.phone_number} onChange={(e) => setUserData({...userData, phone_number: e.target.value})} />
+                                </div>
+                                <div className="form-group">
+                                    <label>{t('profile.profile.occupation')}</label>
+                                    <select value={userData.occupation_status} onChange={(e) => setUserData({...userData, occupation_status: e.target.value})}>
+                                        <option value="">{t('profile.profile.selectOccupation')}</option>
+                                        <option value="Student">{t('profile.profile.student')}</option>
+                                        <option value="Full-Time">{t('profile.profile.fullTime')}</option>
+                                        <option value="Freelancer">{t('profile.profile.freelancer')}</option>
+                                        <option value="Other">{t('profile.profile.other')}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" disabled={saving} className="save-btn">
+                            {saving ? t('common.saving') : t('profile.profile.saveChanges')}
+                        </button>
+                    </form>
+                )}
+
+                {/* تبويب الأهداف الذكية */}
+                {activeTab === 'goals' && (
+                    <div className="goals-container">
+                        {/* إضافة هدف جديد */}
+                        <div className="add-goal-card">
+                            <h3>🎯 {t('profile.goals.addNew')}</h3>
+                            <form onSubmit={handleAddGoal} className="goal-form">
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>{t('profile.goals.title')}</label>
+                                        <input type="text" value={newGoal.title} onChange={(e) => setNewGoal({...newGoal, title: e.target.value})} placeholder={t('profile.goals.titlePlaceholder')} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>{t('profile.goals.type')}</label>
+                                        <select value={newGoal.type} onChange={(e) => setNewGoal({...newGoal, type: e.target.value})}>
+                                            <option value="general">{t('profile.goals.types.general')}</option>
+                                            <option value="weight_loss">{t('profile.goals.types.weightLoss')}</option>
+                                            <option value="weight_gain">{t('profile.goals.types.weightGain')}</option>
+                                            <option value="sleep">{t('profile.goals.types.sleep')}</option>
+                                            <option value="activity">{t('profile.goals.types.activity')}</option>
+                                            <option value="calories">{t('profile.goals.types.calories')}</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>{t('profile.goals.targetValue')}</label>
+                                        <div className="input-with-unit">
+                                            <input type="number" step="0.1" value={newGoal.target_value} onChange={(e) => setNewGoal({...newGoal, target_value: e.target.value})} required />
+                                            <select value={newGoal.unit} onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})} className="unit-select">
+                                                <option value="kg">kg</option>
+                                                <option value="cm">cm</option>
+                                                <option value="hours">{t('profile.units.hours')}</option>
+                                                <option value="minutes">{t('profile.units.minutes')}</option>
+                                                <option value="calories">{t('profile.units.calories')}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>{t('profile.goals.targetDate')}</label>
+                                        <input type="date" value={newGoal.target_date} onChange={(e) => setNewGoal({...newGoal, target_date: e.target.value})} required />
+                                    </div>
+                                </div>
+                                <button type="submit" disabled={saving} className="add-goal-btn">
+                                    {saving ? t('common.saving') : t('profile.goals.addGoal')}
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* إحصائيات الأهداف */}
+                        <div className="goals-stats">
+                            <div className="stat-card">
+                                <span className="stat-value">{healthGoals.length}</span>
+                                <span className="stat-label">{t('profile.goals.totalGoals')}</span>
+                            </div>
+                            <div className="stat-card">
+                                <span className="stat-value">
+                                    {healthGoals.filter(g => g.is_achieved).length}
+                                </span>
+                                <span className="stat-label">{t('profile.goals.completed')}</span>
+                            </div>
+                            <div className="stat-card">
+                                <span className="stat-value">
+                                    {Math.round(healthGoals.reduce((sum, g) => sum + (g.current_value / g.target_value * 100), 0) / (healthGoals.length || 1))}%
+                                </span>
+                                <span className="stat-label">{t('profile.goals.avgProgress')}</span>
+                            </div>
+                        </div>
+
+                        {/* قائمة الأهداف الذكية */}
+                        <div className="goals-list">
+                            <h3>📋 {t('profile.goals.myGoals')}</h3>
+                            {healthGoals.length > 0 ? (
+                                <div className="goals-grid">
+                                    {healthGoals.map((goal) => {
+                                        const progressData = calculateGoalProgress(goal, healthData);
+                                        const isCompleted = goal.is_achieved || progressData.progress >= 100;
+                                        
+                                        return (
+                                            <div key={goal.id} className={`goal-card ${isCompleted ? 'completed' : ''}`}>
+                                                <div className="goal-header">
+                                                    <div>
+                                                        <h4>{goal.title}</h4>
+                                                        <span className="goal-type">{t(`profile.goals.types.${goal.type}`)}</span>
+                                                    </div>
+                                                    <button onClick={() => deleteGoal(goal.id)} className="delete-btn" title={t('common.delete')}>🗑️</button>
+                                                </div>
+                                                
+                                                <div className="goal-progress">
+                                                    <div className="progress-info">
+                                                        <span className="current">{progressData.currentValue || 0}</span>
+                                                        <span className="separator">/</span>
+                                                        <span className="target">{goal.target_value} {goal.unit}</span>
+                                                    </div>
+                                                    <div className="progress-bar-container">
+                                                        <div className="progress-bar">
+                                                            <div className="progress-fill" style={{ width: `${progressData.progress}%` }} />
+                                                        </div>
+                                                        <span className="progress-percent">{progressData.progress}%</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="goal-dates">
+                                                    <div>📅 {t('profile.goals.start')}: {new Date(goal.start_date).toLocaleDateString()}</div>
+                                                    <div>🎯 {t('profile.goals.target')}: {new Date(goal.target_date).toLocaleDateString()}</div>
+                                                    {progressData.daysLeft > 0 && !isCompleted && (
+                                                        <div>⏰ {t('profile.goals.daysLeft')}: {progressData.daysLeft} {t('profile.goals.days')}</div>
+                                                    )}
+                                                </div>
+                                                
+                                                {progressData.dailyRate > 0 && !isCompleted && (
+                                                    <div className="goal-daily-rate">
+                                                        💡 {t('profile.goals.dailyRate')}: {progressData.dailyRate} {goal.unit}/{t('profile.goals.perDay')}
+                                                    </div>
+                                                )}
+                                                
+                                                {progressData.status === 'on_track' && !isCompleted && (
+                                                    <div className="goal-status on-track">✅ {t('profile.goals.onTrack')}</div>
+                                                )}
+                                                {progressData.status === 'off_track' && !isCompleted && (
+                                                    <div className="goal-status off-track">⚠️ {t('profile.goals.offTrack')}</div>
+                                                )}
+                                                {isCompleted && (
+                                                    <div className="goal-status achieved">🏆 {t('profile.goals.achieved')}</div>
+                                                )}
+                                                
+                                                {!isCompleted && (
+                                                    <div className="goal-update">
+                                                        <input
+                                                            type="number"
+                                                            step="0.1"
+                                                            placeholder={t('profile.goals.updateProgress')}
+                                                            onKeyPress={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    updateGoalProgress(goal.id, parseFloat(e.target.value));
+                                                                    e.target.value = '';
+                                                                }
+                                                            }}
+                                                        />
+                                                        <small>{t('profile.goals.pressEnter')}</small>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="empty-goals">
+                                    <div className="empty-icon">🎯</div>
+                                    <h4>{t('profile.goals.noGoals')}</h4>
+                                    <p>{t('profile.goals.startAdding')}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* تبويب الإعدادات */}
+                {activeTab === 'settings' && (
+                    <div className="settings-container">
+                        <div className="settings-card">
+                            <h3>⚙️ {t('profile.settings.title')}</h3>
+                            
+                            <div className="setting-item">
+                                <div>
+                                    <label>{t('profile.settings.darkMode')}</label>
+                                    <p>{t('profile.settings.darkModeDesc')}</p>
+                                </div>
+                                <label className="toggle">
+                                    <input type="checkbox" checked={settings.darkMode} onChange={(e) => setSettings({...settings, darkMode: e.target.checked})} />
+                                    <span className="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div className="setting-item">
+                                <div>
+                                    <label>{t('profile.settings.notifications')}</label>
+                                    <p>{t('profile.settings.notificationsDesc')}</p>
+                                </div>
+                                <label className="toggle">
+                                    <input type="checkbox" checked={settings.notifications} onChange={(e) => setSettings({...settings, notifications: e.target.checked})} />
+                                    <span className="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div className="setting-item">
+                                <div>
+                                    <label>{t('profile.settings.language')}</label>
+                                    <p>{t('profile.settings.languageDesc')}</p>
+                                </div>
+                                <select value={settings.language} onChange={(e) => setSettings({...settings, language: e.target.value})}>
+                                    <option value="ar">🇸🇦 العربية</option>
+                                    <option value="en">🇺🇸 English</option>
+                                </select>
+                            </div>
+
+                            <button onClick={handleSaveSettings} disabled={saving} className="save-settings-btn">
+                                {saving ? t('common.saving') : t('profile.settings.save')}
+                            </button>
+                        </div>
+
+                        {/* النسخ الاحتياطي */}
+                        <div className="backup-section">
+                            <h3>💾 {t('profile.backup.title')}</h3>
+                            <div className="backup-cards">
+                                <div className="backup-card full">
+                                    <div className="backup-icon">📦</div>
+                                    <h4>{t('profile.backup.fullBackup')}</h4>
+                                    <p>{t('profile.backup.fullBackupDesc')}</p>
+                                    <button onClick={handleFullBackup} disabled={exporting} className="backup-btn">
+                                        {exporting ? t('common.exporting') : t('profile.backup.download')}
+                                    </button>
+                                </div>
+                                <div className="backup-card restore">
+                                    <div className="backup-icon">🔄</div>
+                                    <h4>{t('profile.restore.title')}</h4>
+                                    <p>{t('profile.restore.desc')}</p>
+                                    <input type="file" accept=".json" onChange={handleRestoreBackup} id="restore-file" style={{ display: 'none' }} />
+                                    <label htmlFor="restore-file" className="restore-btn">{t('profile.restore.select')}</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* منطقة الخطر */}
+                        <div className="danger-zone">
+                            <h4>⚠️ {t('profile.danger.zone')}</h4>
+                            <p>{t('profile.danger.warning')}</p>
+                            <div className="danger-actions">
+                                <button onClick={handleExportData} disabled={exporting} className="danger-btn export">
+                                    📥 {t('profile.danger.exportData')}
+                                </button>
+                                <button onClick={handleDeleteAccount} disabled={deleting} className="danger-btn delete">
+                                    🗑️ {t('profile.danger.deleteAccount')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <style jsx>{`
+                .profile-manager {
+                    max-width: 1000px;
+                    margin: 0 auto;
+                    padding: 24px;
+                    background: var(--bg-primary);
+                    min-height: 100vh;
+                }
+
+                /* رأس الصفحة */
+                .profile-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 20px;
+                    margin-bottom: 32px;
+                }
+
+                .header-icon-wrapper {
+                    width: 80px;
+                    height: 80px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border-radius: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .header-icon {
+                    font-size: 2.5rem;
+                }
+
+                .header-text h1 {
+                    margin: 0;
+                    font-size: 1.8rem;
+                }
+
+                .header-text p {
+                    margin: 4px 0 0;
+                    color: var(--text-secondary);
+                }
+
+                /* Smart Profile Card */
+                .smart-profile-card {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border-radius: 20px;
+                    padding: 20px;
+                    margin-bottom: 24px;
+                    color: white;
+                }
+
+                .smart-profile-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 16px;
+                }
+
+                .smart-icon {
+                    font-size: 1.5rem;
+                }
+
+                .smart-title {
+                    font-weight: bold;
+                }
+
+                .profile-stats {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 20px;
+                    margin-bottom: 20px;
+                }
+
+                .stat {
+                    text-align: center;
+                }
+
+                .stat-label {
+                    display: block;
+                    font-size: 0.8rem;
+                    opacity: 0.8;
+                }
+
+                .stat-value {
+                    display: block;
+                    font-size: 1.8rem;
+                    font-weight: bold;
+                }
+
+                .stat-category {
+                    font-size: 0.7rem;
+                }
+
+                .score-container {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .score-circle {
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 25px;
+                    background: rgba(255,255,255,0.2);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .score-value {
+                    font-size: 1.2rem;
+                    font-weight: bold;
+                }
+
+                .score-bar {
+                    width: 100%;
+                    height: 4px;
+                    background: rgba(255,255,255,0.3);
+                    border-radius: 2px;
+                }
+
+                .score-fill {
+                    height: 100%;
+                    background: white;
+                    border-radius: 2px;
+                }
+
+                .smart-recommendations {
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    padding: 12px;
+                }
+
+                .smart-recommendations ul {
+                    margin: 8px 0 0;
+                    padding-left: 20px;
+                }
+
+                .smart-recommendations li {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 4px;
+                }
+
+                /* التبويبات */
+                .tabs-navigation {
+                    display: flex;
+                    gap: 8px;
+                    margin-bottom: 24px;
+                    background: var(--bg-secondary);
+                    padding: 6px;
+                    border-radius: 40px;
+                }
+
+                .tab-btn {
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    padding: 10px;
+                    border: none;
+                    background: transparent;
+                    border-radius: 32px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .tab-btn.active {
+                    background: var(--primary-color);
+                    color: white;
+                }
+
+                /* الرسائل */
+                .message {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 12px;
+                    border-radius: 12px;
+                    margin-bottom: 20px;
+                }
+
+                .message.success {
+                    background: rgba(16, 185, 129, 0.2);
+                    border: 1px solid #10b981;
+                }
+
+                .message.error {
+                    background: rgba(239, 68, 68, 0.2);
+                    border: 1px solid #ef4444;
+                }
+
+                .message button {
+                    margin-left: auto;
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                }
+
+                /* النماذج */
+                .form-section {
+                    background: var(--bg-secondary);
+                    border-radius: 20px;
+                    padding: 20px;
+                    margin-bottom: 20px;
+                }
+
+                .form-section h3 {
+                    margin: 0 0 20px 0;
+                }
+
+                .form-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 20px;
+                }
+
+                .form-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+
+                .form-group label {
+                    font-weight: 500;
+                }
+
+                .form-group input,
+                .form-group select {
+                    padding: 10px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 10px;
+                    background: var(--bg-primary);
+                    color: var(--text-primary);
+                }
+
+                .input-with-unit {
+                    display: flex;
+                    gap: 8px;
+                }
+
+                .input-with-unit input {
+                    flex: 1;
+                }
+
+                .unit, .unit-select {
+                    padding: 10px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 10px;
+                    background: var(--bg-primary);
+                }
+
+                .save-btn {
+                    width: 100%;
+                    padding: 12px;
+                    background: var(--primary-color);
+                    color: white;
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-weight: 600;
+                }
+
+                /* الأهداف */
+                .add-goal-card {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border-radius: 20px;
+                    padding: 20px;
+                    margin-bottom: 24px;
+                    color: white;
+                }
+
+                .add-goal-card h3 {
+                    margin: 0 0 20px 0;
+                }
+
+                .goal-form .form-group label {
+                    color: white;
+                }
+
+                .goal-form input,
+                .goal-form select {
+                    background: rgba(255,255,255,0.2);
+                    border-color: rgba(255,255,255,0.3);
+                    color: white;
+                }
+
+                .add-goal-btn {
+                    width: 100%;
+                    padding: 12px;
+                    background: white;
+                    color: #667eea;
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-weight: 600;
+                }
+
+                .goals-stats {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 16px;
+                    margin-bottom: 24px;
+                }
+
+                .stat-card {
+                    background: var(--bg-secondary);
+                    border-radius: 16px;
+                    padding: 16px;
+                    text-align: center;
+                }
+
+                .stat-value {
+                    display: block;
+                    font-size: 1.8rem;
+                    font-weight: bold;
+                    color: var(--primary-color);
+                }
+
+                .goals-grid {
+                    display: grid;
+                    gap: 16px;
+                }
+
+                .goal-card {
+                    background: var(--bg-secondary);
+                    border-radius: 16px;
+                    padding: 16px;
+                }
+
+                .goal-card.completed {
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    color: white;
+                }
+
+                .goal-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 12px;
+                }
+
+                .goal-header h4 {
+                    margin: 0;
+                }
+
+                .goal-type {
+                    font-size: 0.7rem;
+                    opacity: 0.7;
+                }
+
+                .delete-btn {
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    font-size: 1rem;
+                }
+
+                .goal-progress {
+                    margin-bottom: 12px;
+                }
+
+                .progress-info {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 4px;
+                    margin-bottom: 8px;
+                }
+
+                .current {
+                    font-size: 1.2rem;
+                    font-weight: bold;
+                }
+
+                .target {
+                    color: var(--text-secondary);
+                }
+
+                .goal-card.completed .target {
+                    color: rgba(255,255,255,0.7);
+                }
+
+                .progress-bar-container {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .progress-bar {
+                    flex: 1;
+                    height: 6px;
+                    background: var(--border-color);
+                    border-radius: 3px;
+                    overflow: hidden;
+                }
+
+                .progress-fill {
+                    height: 100%;
+                    background: var(--primary-color);
+                    border-radius: 3px;
+                }
+
+                .goal-card.completed .progress-fill {
+                    background: white;
+                }
+
+                .progress-percent {
+                    font-size: 0.8rem;
+                }
+
+                .goal-dates {
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                    margin-bottom: 12px;
+                }
+
+                .goal-card.completed .goal-dates {
+                    color: rgba(255,255,255,0.7);
+                }
+
+                .goal-daily-rate {
+                    background: rgba(0,0,0,0.05);
+                    padding: 8px;
+                    border-radius: 8px;
+                    font-size: 0.8rem;
+                    margin-bottom: 12px;
+                }
+
+                .goal-status {
+                    padding: 8px;
+                    border-radius: 8px;
+                    text-align: center;
+                    margin-bottom: 12px;
+                }
+
+                .goal-status.on-track {
+                    background: rgba(16, 185, 129, 0.2);
+                    color: #10b981;
+                }
+
+                .goal-status.off-track {
+                    background: rgba(239, 68, 68, 0.2);
+                    color: #ef4444;
+                }
+
+                .goal-status.achieved {
+                    background: rgba(16, 185, 129, 0.2);
+                    color: #10b981;
+                }
+
+                .goal-update input {
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 8px;
+                    background: var(--bg-primary);
+                    color: var(--text-primary);
+                    text-align: center;
+                }
+
+                .goal-update small {
+                    display: block;
+                    text-align: center;
+                    font-size: 0.7rem;
+                    margin-top: 4px;
+                    color: var(--text-secondary);
+                }
+
+                .empty-goals {
+                    text-align: center;
+                    padding: 40px;
+                    background: var(--bg-secondary);
+                    border-radius: 16px;
+                }
+
+                .empty-icon {
+                    font-size: 3rem;
+                    margin-bottom: 12px;
+                }
+
+                /* الإعدادات */
+                .settings-card {
+                    background: var(--bg-secondary);
+                    border-radius: 20px;
+                    padding: 20px;
+                    margin-bottom: 24px;
+                }
+
+                .setting-item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 16px;
+                    background: var(--bg-primary);
+                    border-radius: 12px;
+                    margin-bottom: 12px;
+                }
+
+                .setting-item label {
+                    font-weight: 500;
+                }
+
+                .setting-item p {
+                    margin: 4px 0 0;
+                    font-size: 0.8rem;
+                    color: var(--text-secondary);
+                }
+
+                .toggle {
+                    position: relative;
+                    display: inline-block;
+                    width: 50px;
+                    height: 24px;
+                }
+
+                .toggle input {
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+
+                .toggle-slider {
+                    position: absolute;
+                    cursor: pointer;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background-color: var(--border-color);
+                    border-radius: 24px;
+                }
+
+                .toggle-slider:before {
+                    position: absolute;
+                    content: "";
+                    height: 18px;
+                    width: 18px;
+                    left: 3px;
+                    bottom: 3px;
+                    background-color: white;
+                    border-radius: 50%;
+                    transition: 0.2s;
+                }
+
+                input:checked + .toggle-slider {
+                    background-color: var(--primary-color);
+                }
+
+                input:checked + .toggle-slider:before {
+                    transform: translateX(26px);
+                }
+
+                .save-settings-btn {
+                    width: 100%;
+                    padding: 12px;
+                    background: var(--primary-color);
+                    color: white;
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-weight: 600;
+                }
+
+                /* النسخ الاحتياطي */
+                .backup-section {
+                    margin-bottom: 24px;
+                }
+
+                .backup-cards {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 16px;
+                }
+
+                .backup-card {
+                    border-radius: 16px;
+                    padding: 20px;
+                    color: white;
+                }
+
+                .backup-card.full {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                }
+
+                .backup-card.restore {
+                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                }
+
+                .backup-icon {
+                    font-size: 2rem;
+                    margin-bottom: 12px;
+                }
+
+                .backup-card h4 {
+                    margin: 0 0 8px;
+                }
+
+                .backup-card p {
+                    margin: 0 0 16px;
+                    font-size: 0.85rem;
+                    opacity: 0.9;
+                }
+
+                .backup-btn, .restore-btn {
+                    width: 100%;
+                    padding: 10px;
+                    background: white;
+                    border: none;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    text-align: center;
+                    display: block;
+                }
+
+                .backup-btn {
+                    color: #667eea;
+                }
+
+                .restore-btn {
+                    color: #f5576c;
+                }
+
+                /* منطقة الخطر */
+                .danger-zone {
+                    border: 2px solid #ef4444;
+                    border-radius: 16px;
+                    padding: 20px;
+                    background: rgba(239, 68, 68, 0.05);
+                }
+
+                .danger-zone h4 {
+                    margin: 0 0 8px;
+                    color: #ef4444;
+                }
+
+                .danger-zone p {
+                    margin: 0 0 16px;
+                    color: var(--text-secondary);
+                }
+
+                .danger-actions {
+                    display: flex;
+                    gap: 12px;
+                }
+
+                .danger-btn {
+                    flex: 1;
+                    padding: 10px;
+                    border: none;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    font-weight: 600;
+                }
+
+                .danger-btn.export {
+                    background: #f59e0b;
+                    color: white;
+                }
+
+                .danger-btn.delete {
+                    background: #ef4444;
+                    color: white;
+                }
+
+                /* استجابة */
+                @media (max-width: 768px) {
+                    .profile-manager {
+                        padding: 16px;
+                    }
+                    
+                    .profile-header {
+                        flex-direction: column;
+                        text-align: center;
+                    }
+                    
+                    .form-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .profile-stats {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .goals-stats {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .backup-cards {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .danger-actions {
+                        flex-direction: column;
+                    }
+                    
+                    .tabs-navigation {
+                        flex-wrap: wrap;
+                    }
+                }
+
+                .dark-mode {
+                    --bg-primary: #1a1a2e;
+                    --bg-secondary: #16213e;
+                    --text-primary: #eee;
+                    --text-secondary: #aaa;
+                    --border-color: #2a2a3e;
+                    --primary-color: #667eea;
+                }
+            `}</style>
+        </div>
+    );
+}
+
+export default ProfileManager;

@@ -1,0 +1,149 @@
+{
+  "app": {
+    "title": "Livocare Health Tracker",
+    "logout": "Logout",
+    "loading": "Loading..."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Take Care of Your Health",
+    "sections": {
+      "active": "Active Sections",
+      "coverage": "Health Coverage"
+    }
+  },
+  "profileManager": {
+    "title": "Account & Goals Management",
+    "description": "Enter your personal information and set your health goals",
+    "tabs": {
+      "profile": "Profile",
+      "goals": "Health Goals",
+      "settings": "Settings"
+    }
+  },
+  "settings": {
+    "title": "Application Settings",
+    "darkMode": "Dark Mode",
+    "darkModeDesc": "Enable dark theme",
+    "language": "Application Language",
+    "notifications": "Notifications",
+    "notificationsDesc": "Receive reminder notifications",
+    "updateInterval": "Update Interval (seconds)",
+    "updateIntervalDesc": "Auto data refresh interval",
+    "save": "Save Settings"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "loading": "Loading..."
+  },
+  "nutrition": {
+    "mealsHistory": "Meals History",
+    "meals": "meals",
+    "noMeals": "No meals recorded",
+    "startAdding": "Start by adding your first meal",
+    "ingredients": "Ingredients",
+    "deleteConfirm": "Are you sure you want to delete this meal?",
+    "mealDeleted": "✅ Meal deleted successfully",
+    "deleteError": "❌ Failed to delete meal",
+    "mealUpdated": "✅ Meal updated successfully",
+    "updateFailed": "❌ Failed to update meal",
+    "fetchError": "❌ Failed to fetch meals",
+    "breakfast": "Breakfast",
+    "lunch": "Lunch",
+    "dinner": "Dinner",
+    "snack": "Snack",
+    "other": "Other"
+  },
+  "analytics": {
+    "common": {
+      "loading": "Loading...",
+      "error": "Failed to load analytics",
+      "retry": "Retry",
+      "noData": "Insufficient data for analysis",
+      "refresh": "Refresh",
+      "lastUpdate": "Last updated",
+      "now": "now",
+      "loginRequired": "Please login first",
+      "notFound": "URL not found - check server",
+      "recommendations": "💡 Personalized Recommendations",
+      "trend": {
+        "label": "Trend",
+        "improving": "Improving",
+        "declining": "Needs improvement",
+        "stable": "Stable",
+        "insufficient": "Insufficient data"
+      }
+    },
+    "activity": {
+      "title": "📊 Smart Activity Analytics",
+      "totalDuration": "Total Duration",
+      "totalCalories": "Calories Burned",
+      "activitiesCount": "Activities Count",
+      "avgDuration": "Average Duration",
+      "recommendations": "💡 Personalized Recommendations",
+      "minutes": "min"
+    },
+    "habit": {
+      "title": "💊 Smart Habit Analytics",
+      "totalHabits": "Total Habits",
+      "completedToday": "Completed Today",
+      "completionRate": "Completion Rate",
+      "topHabits": "🏆 Top Performing Habits",
+      "tips": "🌟 Golden Habit Building Tips",
+      "tip1": "Start with a tiny habit (just 2 minutes)",
+      "tip2": "Set a consistent daily time",
+      "tip3": "Track your progress daily",
+      "tip4": "Never miss two days in a row"
+    },
+    "mood": {
+      "title": "😊 Smart Mood Analytics",
+      "totalEntries": "Total Entries",
+      "totalDays": "Tracking Days",
+      "mostCommon": "Most Common Mood",
+      "distribution": "📊 Mood Distribution",
+      "patterns": "🔄 Recurring Patterns",
+      "times": "times",
+      "tips": "🌟 Mental Health Tips",
+      "tip1": "Meditate for 10 minutes daily",
+      "tip2": "Write 3 things you're grateful for",
+      "tip3": "Take a walk in nature",
+      "tip4": "Talk to a friend about your feelings"
+    },
+    "nutrition": {
+      "title": "🥗 Smart Nutrition Analytics",
+      "totalMeals": "Total Meals",
+      "avgCalories": "Average Calories",
+      "avgProtein": "Average Protein",
+      "mealDistribution": "📊 Meal Distribution",
+      "macros": "⚖️ Macronutrients",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "meals": "meals",
+      "tips": "🌟 Golden Nutrition Tips",
+      "tip1": "Eat vegetables with every meal",
+      "tip2": "Drink 8 glasses of water daily",
+      "tip3": "Never skip breakfast",
+      "tip4": "Plan your meals ahead"
+    },
+    "sleep": {
+      "title": "🌙 Smart Sleep Analytics",
+      "totalHours": "Total Sleep",
+      "avgHours": "Daily Average",
+      "avgQuality": "Average Quality",
+      "comparison": "📊 vs Last Week",
+      "hoursChange": "⏱️ Hours Change",
+      "qualityChange": "⭐ Quality Change",
+      "hours": "hours",
+      "tips": "🌟 Golden Sleep Tips",
+      "tip1": "Maintain consistent sleep schedule",
+      "tip2": "Avoid screens 1 hour before bed",
+      "tip3": "No caffeine 6 hours before sleep",
+      "tip4": "Keep room temperature comfortable"
+    }
+  }
+}
