@@ -380,15 +380,13 @@ function Login({ onLoginSuccess }) {
                     <div className="register-link">
                         <p>
                             {t('login.noAccount')} 
-                            <button 
-                                type="button"
-                                onClick={() => window.location.href = '/register'}
-                                className="register-button"
-                                aria-label="Register new account"
-                            >
-                                {t('login.register')}
-                                <span className="btn-arrow" aria-hidden="true">→</span>
-                            </button>
+<button 
+    type="button"
+    onClick={() => window.location.href = '/#/register'}
+    className="register-button"
+>
+    {t('login.register')}
+</button>
                         </p>
                     </div>
                 </div>
