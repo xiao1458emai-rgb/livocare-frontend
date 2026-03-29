@@ -148,6 +148,7 @@ const fetchHealthData = async () => {
         localStorage.setItem('livocare_language', lng);
         localStorage.setItem('language', lng);
         
+        
         window.dispatchEvent(new CustomEvent('languageChanged', { 
             detail: { language: lng, direction: lng === 'ar' ? 'rtl' : 'ltr' }
         }));
