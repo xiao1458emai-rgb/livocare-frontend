@@ -137,7 +137,7 @@ function Login({ onLoginSuccess }) {
             
             // ✅ تأخير قصير ثم الانتقال
 setTimeout(() => {
-    window.location.href = '/#/dashboard';
+    window.location.replace('/#/dashboard');
 }, 1000);
             
         } catch (error) {
