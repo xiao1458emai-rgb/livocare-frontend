@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'; // ✅ تغيير BrowserRouter إلى HashRouter
 import { useTranslation } from 'react-i18next';
 import './App.css';
 import Login from './components/Login';
@@ -128,9 +128,9 @@ function AppContent() {
 // المكون الرئيسي
 function App() {
     return (
-        <BrowserRouter>
+        <HashRouter>  {/* ✅ تغيير BrowserRouter إلى HashRouter */}
             <AppContent />
-        </BrowserRouter>
+        </HashRouter>
     );
 }
 
