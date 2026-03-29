@@ -136,14 +136,9 @@ function Login({ onLoginSuccess }) {
             setMessageType('success');
             
             // ✅ تأخير قصير ثم الانتقال
-            setTimeout(() => {
-                if (onLoginSuccess) {
-                    onLoginSuccess();
-                } else {
-                    // ✅ إذا لم تكن الدالة موجودة، انتقل يدوياً
-                    window.location.href = '/dashboard';
-                }
-            }, 1000);
+setTimeout(() => {
+    window.location.href = '/#/dashboard';
+}, 1000);
             
         } catch (error) {
             console.error('Login error:', error.response?.data);
