@@ -1,103 +1,21 @@
 // src/App.jsx
-import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import './App.css';
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
+import './App.css';
 
 function App() {
-    const { t, i18n } = useTranslation();
-    const [isLoading, setIsLoading] = useState(true);
-    const [darkMode, setDarkMode] = useState(false);
-
-    useEffect(() => {
-        console.log('📱 App mounted');
-        
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                             (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        setDarkMode(savedDarkMode);
-        
-        const applyDarkMode = (isDark) => {
-            const html = document.documentElement;
-            if (isDark) {
-                html.classList.add('dark-mode');
-            } else {
-                html.classList.remove('dark-mode');
-            }
-        };
-        applyDarkMode(savedDarkMode);
-        
-        const savedLanguage = localStorage.getItem('livocare_language') || 'ar';
-        if (i18n.language !== savedLanguage) {
-            i18n.changeLanguage(savedLanguage);
-        }
-        document.documentElement.lang = savedLanguage;
-        document.documentElement.dir = savedLanguage === 'ar' ? 'rtl' : 'ltr';
-        
-        setIsLoading(false);
-    }, [i18n]);
-
-    const toggleDarkMode = () => {
-        const newDarkMode = !darkMode;
-        setDarkMode(newDarkMode);
-        window.dispatchEvent(new CustomEvent('themeChange', { detail: { darkMode: newDarkMode } }));
-    };
-
-    const changeLanguage = (lng) => {
-        i18n.changeLanguage(lng);
-        localStorage.setItem('livocare_language', lng);
-        document.documentElement.lang = lng;
-        document.documentElement.dir = lng === 'ar' ? 'rtl' : 'ltr';
-        window.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: lng } }));
-    };
-
-    if (isLoading) {
-        return (
-            <div className="loading-app">
-                <div className="spinner"></div>
-                <p>{t('common.loading')}</p>
-            </div>
-        );
-    }
-
-    // ✅ التحقق من المصادقة مباشرة من localStorage
-    const isAuthenticated = !!localStorage.getItem('access_token');
-
     return (
-        <div className={`App ${darkMode ? 'dark-mode' : ''}`}>
-            <header className="app-header">
-                <div className="header-left">
-                    <h1>{t('app.title')}</h1>
-                    <div className="app-version">v1.0.0</div>
-                </div>
-                <div className="header-controls">
-                    <select value={i18n.language} onChange={(e) => changeLanguage(e.target.value)} className="language-select">
-                        <option value="ar">🇸🇦 العربية</option>
-                        <option value="en">🇺🇸 English</option>
-                    </select>
-                    <button className="theme-toggle" onClick={toggleDarkMode} title={darkMode ? t('app.switchToLight') : t('app.switchToDark')}>
-                        {darkMode ? '☀️' : '🌙'}
-                    </button>
-                </div>
-            </header>
-            
-            <main className="app-main">
-                <HashRouter>
-                    <Routes>
-                        <Route path="/" element={isAuthenticated ? <Dashboard /> : <Login />} />
-                        <Route path="/login" element={isAuthenticated ? <Dashboard /> : <Login />} />
-                        <Route path="/register" element={<Register />} />
-                        <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Login />} />
-                    </Routes>
-                </HashRouter>
-            </main>
-            
-            <footer className="app-footer">
-                <p>{t('app.footer')} © {new Date().getFullYear()}</p>
-            </footer>
-        </div>
+        <BrowserRouter>
+            <Routes>
+                <Route path="/" element={<Login />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+            </Routes>
+        </BrowserRouter>
     );
 }
 
