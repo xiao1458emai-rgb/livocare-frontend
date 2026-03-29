@@ -519,15 +519,15 @@ const handleSubmit = async (e) => {
                         <div className="login-link">
                             <p>
                                 {t('register.haveAccount')} 
-                                <button 
-                                    type="button"
-                                    onClick={() => window.location.href = '/login'}
-                                    className="login-button-link"
-                                    aria-label={t('register.login')}
-                                >
-                                    {t('register.login')}
-                                    <span className="btn-arrow" aria-hidden="true">→</span>
-                                </button>
+<button 
+    type="button"
+    onClick={() => window.location.href = '/#/login'}
+    className="login-button-link"
+    aria-label={t('register.login')}
+>
+    {t('register.login')}
+    <span className="btn-arrow" aria-hidden="true">→</span>
+</button>
                             </p>
                         </div>
                     </form>
