@@ -95,72 +95,70 @@ function Login({ onLoginSuccess }) {
         }));
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setMessage('');
-        setMessageType('');
+const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    setMessageType('');
 
-        // التحقق من صحة البيانات
-        if (!username.trim() || !password.trim()) {
-            setMessage(t('login.emptyFields'));
-            setMessageType('error');
-            setLoading(false);
-            return;
+    if (!username.trim() || !password.trim()) {
+        setMessage(t('login.emptyFields'));
+        setMessageType('error');
+        setLoading(false);
+        return;
+    }
+    
+    const tokenUrl = '/api/auth/token/';
+
+    try {
+        console.log('Sending login request to:', tokenUrl);
+        const response = await axios.post(tokenUrl, { username, password });
+        console.log('Login response:', response.data);
+        
+        const { access, refresh } = response.data;
+        console.log('Access token received:', access);
+        
+        localStorage.setItem('access_token', access);
+        localStorage.setItem('refresh_token', refresh);
+        
+        console.log('Token saved, checking:', localStorage.getItem('access_token'));
+        
+        if (rememberMe) {
+            localStorage.setItem('saved_username', username);
+        } else {
+            localStorage.removeItem('saved_username');
         }
         
-        // ✅ إضافة /api prefix للمسار
-        const apiUrl = import.meta.env.VITE_API_URL || '';
-        const tokenUrl = '/api/auth/token/';
-
-        try {
-            const response = await axios.post(tokenUrl, {
-                username,
-                password
-            });
-
-            const { access, refresh } = response.data;
-            localStorage.setItem('access_token', access);
-            localStorage.setItem('refresh_token', refresh);
-            
-            // حفظ اسم المستخدم إذا تم تذكرني
-            if (rememberMe) {
-                localStorage.setItem('saved_username', username);
-            } else {
-                localStorage.removeItem('saved_username');
-            }
-            
-            localStorage.setItem('username', username);
-            
-            setMessage(t('login.success'));
-            setMessageType('success');
-            
-            // ✅ تأخير قصير ثم الانتقال
-setTimeout(() => {
-    window.location.replace('/#/dashboard');
-}, 1000);
-            
-        } catch (error) {
-            console.error('Login error:', error.response?.data);
-            
-            let errorMessage = t('login.failed');
-            
-            if (error.response?.status === 401) {
-                errorMessage = t('login.invalidCredentials');
-            } else if (error.response?.status === 404) {
-                errorMessage = t('login.serverNotFound');
-            } else if (error.response?.status === 500) {
-                errorMessage = t('login.serverError');
-            } else if (error.code === 'ERR_NETWORK') {
-                errorMessage = t('login.networkError');
-            }
-            
-            setMessage(errorMessage);
-            setMessageType('error');
-        } finally {
-            setLoading(false);
+        localStorage.setItem('username', username);
+        
+        setMessage(t('login.success'));
+        setMessageType('success');
+        
+        setTimeout(() => {
+            window.location.replace('/#/dashboard');
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Login error:', error.response?.data);
+        
+        let errorMessage = t('login.failed');
+        
+        if (error.response?.status === 401) {
+            errorMessage = t('login.invalidCredentials');
+        } else if (error.response?.status === 404) {
+            errorMessage = t('login.serverNotFound');
+        } else if (error.response?.status === 500) {
+            errorMessage = t('login.serverError');
+        } else if (error.code === 'ERR_NETWORK') {
+            errorMessage = t('login.networkError');
         }
-    };
+        
+        setMessage(errorMessage);
+        setMessageType('error');
+    } finally {
+        setLoading(false);
+    }
+};
 
     // إعادة تعيين النموذج
     const resetForm = () => {
