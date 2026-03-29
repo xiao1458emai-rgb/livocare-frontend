@@ -47,13 +47,13 @@ function AppContent() {
     const handleLoginSuccess = () => {
         console.log('🔍 Login successful');
         setIsAuthenticated(true);
-        navigate('/dashboard');
+        window.location.href = '/#/dashboard';
     };
 
     const handleRegisterSuccess = () => {
         console.log('🔍 Register successful');
         setIsAuthenticated(true);
-        navigate('/dashboard');
+        window.location.href = '/#/dashboard';
     };
 
     const handleLogout = () => {
