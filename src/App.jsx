@@ -1,18 +1,17 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import './App.css';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 
-function AppContent() {
+function App() {
     const { t, i18n } = useTranslation();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [darkMode, setDarkMode] = useState(false);
-    const navigate = useNavigate();
 
     useEffect(() => {
         console.log('📱 App mounted');
@@ -41,26 +40,17 @@ function AppContent() {
         const token = localStorage.getItem('access_token');
         setIsAuthenticated(!!token);
         
-        // ✅ إعادة التوجيه بعد التحميل
-        if (token) {
-            navigate('/dashboard');
-        } else {
-            navigate('/login');
-        }
-        
         setIsLoading(false);
-    }, [i18n, navigate]);
+    }, [i18n]);
 
     const handleLoginSuccess = () => {
         console.log('🔍 Login successful');
         setIsAuthenticated(true);
-        navigate('/dashboard');
     };
 
     const handleRegisterSuccess = () => {
         console.log('🔍 Register successful');
         setIsAuthenticated(true);
-        navigate('/dashboard');
     };
 
     const handleLogout = () => {
@@ -68,7 +58,6 @@ function AppContent() {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         setIsAuthenticated(false);
-        navigate('/login');
     };
 
     const toggleDarkMode = () => {
@@ -116,25 +105,20 @@ function AppContent() {
             </header>
             
             <main className="app-main">
-                <Routes>
-                    <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
-                    <Route path="/register" element={<Register onRegisterSuccess={handleRegisterSuccess} />} />
-                    <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Login onLoginSuccess={handleLoginSuccess} />} />
-                </Routes>
+                <HashRouter>
+                    <Routes>
+                        <Route path="/" element={<Login onLoginSuccess={handleLoginSuccess} />} />
+                        <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
+                        <Route path="/register" element={<Register onRegisterSuccess={handleRegisterSuccess} />} />
+                        <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Login onLoginSuccess={handleLoginSuccess} />} />
+                    </Routes>
+                </HashRouter>
             </main>
             
             <footer className="app-footer">
                 <p>{t('app.footer')} © {new Date().getFullYear()}</p>
             </footer>
         </div>
-    );
-}
-
-function App() {
-    return (
-        <HashRouter>
-            <AppContent />
-        </HashRouter>
     );
 }
 
