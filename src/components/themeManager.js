@@ -1,5 +1,5 @@
 // src/utils/themeManager.js
-
+import { useState, useEffect } from 'react';
 class ThemeManager {
     constructor() {
         this.STORAGE_KEYS = {

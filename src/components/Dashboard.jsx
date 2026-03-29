@@ -19,12 +19,12 @@ import MoodTracker from './MoodTracker';
 import ProfileManager from './usermangment'; 
 import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
-import Notifications from './Notifications/Notifications';
-import Reports from './Reports';
+import Notifications from './Notifications/Notifications'
+import Reports from './Reports'
+// في أعلى الملف مع باقي الـ imports
 import AdvancedHealthInsights from './Analytics/AdvancedHealthInsights';
-
+import { im } from 'mathjs';
 function Dashboard() {
-    console.log('Dashboard component mounted!');
     const { t, i18n } = useTranslation();
     const isRTL = i18n.language === 'ar';
     
@@ -70,30 +70,43 @@ function Dashboard() {
         checkAuth();
     }, []);
 
-const fetchHealthData = async () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-        console.log('⏳ No token yet, waiting...');
-        setLoading(false);
-        return;
-    }
-    
-    try {
-        const response = await axiosInstance.get('/health_status/');
-        // ... باقي الكود
-    } catch (err) {
-        console.error('Error fetching health data:', err);
-        if (err.response?.status === 401) {
-            // Token غير صالح، ننتظر قليلاً
-            setTimeout(() => fetchHealthData(), 1000);
-            return;
+    const fetchHealthData = async () => {
+        try {
+            const response = await axiosInstance.get('/health_status/');
+            
+            if (Array.isArray(response.data) && response.data.length > 0) {
+                setHealthRecords(response.data);
+                
+                const sortedData = [...response.data].sort((a, b) => 
+                    new Date(b.recorded_at) - new Date(a.recorded_at)
+                );
+                
+                const latest = sortedData[0];
+                const latestData = {
+                    weight: latest.weight_kg,
+                    systolic: latest.systolic_pressure,
+                    diastolic: latest.diastolic_pressure,
+                    glucose: latest.blood_glucose,
+                    recorded_at: latest.recorded_at,
+                    date: new Date(latest.recorded_at).toLocaleDateString('ar-EG')
+                };
+                
+                setLatestHealthData(latestData);
+            } else {
+                setHealthRecords([]);
+                setLatestHealthData(null);
+            }
+            
+            setError(null);
+        } catch (err) {
+            console.error('Error fetching health data:', err);
+            setError(t('dashboard.fetchError'));
+            setHealthRecords([]);
+            setLatestHealthData(null);
+        } finally {
+            setLoading(false);
         }
-        setError(t('dashboard.fetchError'));
-    } finally {
-        setLoading(false);
-    }
-};
-
+    };
 
     useEffect(() => {
         if (isAuthReady) {
@@ -103,6 +116,7 @@ const fetchHealthData = async () => {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
+            // تعيين الاتجاه بناءً على اللغة
             document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
             document.documentElement.lang = i18n.language;
             
@@ -174,123 +188,123 @@ const fetchHealthData = async () => {
         setSidebarOpen(!sidebarOpen);
     };
 
-    const renderSectionContent = () => {
-        const healthSectionContent = (
-            <div className="health-section">
-                <div className="summary-section">
-                    <div className="summary-header">
-                        <h3>
-                            {latestHealthData 
-                                ? `📊 ${t('dashboard.dailySummary')}`
-                                : `📊 ${t('dashboard.dailySummary')}`
-                            }
-                        </h3>
-                        <span className="summary-date">{getTodayDate()}</span>
-                    </div>
-                    
-                    <div className="summary-cards">
-                        <div className="summary-card">
-                            <div className="card-icon">⚖️</div>
-                            <div className="card-content">
-                                <h4>{t('dashboard.lastWeight')}</h4>
-                                <p className="card-value">
-                                    {displayValue(latestHealthData?.weight, t('dashboard.kg'))}
-                                </p>
-                                {latestHealthData?.recorded_at && (
-                                    <div className="card-time">
-                                        {new Date(latestHealthData.recorded_at).toLocaleTimeString(
-                                            i18n.language === 'ar' ? 'ar-EG' : 'en-US',
-                                            { hour: '2-digit', minute: '2-digit' }
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="card-glow"></div>
-                        </div>
-                        
-                        <div className="summary-card">
-                            <div className="card-icon">❤️</div>
-                            <div className="card-content">
-                                <h4>{t('dashboard.bloodPressure')}</h4>
-                                <p className="card-value">
-                                    {displayBloodPressure(latestHealthData?.systolic, latestHealthData?.diastolic)}
-                                </p>
-                                <small>{t('dashboard.sysDia')}</small>
-                            </div>
-                            <div className="card-glow"></div>
-                        </div>
-                        
-                        <div className="summary-card">
-                            <div className="card-icon">🩸</div>
-                            <div className="card-content">
-                                <h4>{t('dashboard.bloodGlucose')}</h4>
-                                <p className="card-value">
-                                    {displayValue(latestHealthData?.glucose, t('mg/dl'))}
-                                </p>
-                                <small>{t('dashboard.glucoseLevel')}</small>
-                            </div>
-                            <div className="card-glow"></div>
-                        </div>
-                    </div>
-                    
-                    {!latestHealthData && healthRecords.length === 0 && (
-                        <div className="no-data-message">
-                            <div className="no-data-icon">📊</div>
-                            <h4>{t('dashboard.noDataTitle')}</h4>
-                            <p>{t('dashboard.noDataMessage')}</p>
-                            <button 
-                                onClick={() => document.querySelector('.health-form')?.scrollIntoView({ behavior: 'smooth' })}
-                                className="add-data-btn"
-                            >
-                                ➕ {t('dashboard.addFirstReading')}
-                            </button>
-                        </div>
-                    )}
+  const renderSectionContent = () => {
+    const healthSectionContent = (
+        <div className="health-section">
+            <div className="summary-section">
+                <div className="summary-header">
+                    <h3>
+                        {latestHealthData 
+                            ? `📊 ${t('dashboard.dailySummary')}`
+                            : `📊 ${t('dashboard.dailySummary')}`
+                        }
+                    </h3>
+                    <span className="summary-date">{getTodayDate()}</span>
                 </div>
                 
-                <div className="health-components">
-                    <div className="health-form">
-                        <HealthForm onDataSubmitted={handleDataSubmitted} />
+                <div className="summary-cards">
+                    <div className="summary-card">
+                        <div className="card-icon">⚖️</div>
+                        <div className="card-content">
+                            <h4>{t('dashboard.lastWeight')}</h4>
+                            <p className="card-value">
+                                {displayValue(latestHealthData?.weight, t('dashboard.kg'))}
+                            </p>
+                            {latestHealthData?.recorded_at && (
+                                <div className="card-time">
+                                    {new Date(latestHealthData.recorded_at).toLocaleTimeString(
+                                        i18n.language === 'ar' ? 'ar-EG' : 'en-US',
+                                        { hour: '2-digit', minute: '2-digit' }
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        <div className="card-glow"></div>
                     </div>
                     
-                    <ActivityForm onDataSubmitted={handleDataSubmitted} />
-                    
-                    <div className="activity-analytics-wrapper">
-                        <ActivityAnalytics refreshTrigger={refreshKey} />
-                        <AdvancedHealthInsights refreshTrigger={refreshKey} />
+                    <div className="summary-card">
+                        <div className="card-icon">❤️</div>
+                        <div className="card-content">
+                            <h4>{t('dashboard.bloodPressure')}</h4>
+                            <p className="card-value">
+                                {displayBloodPressure(latestHealthData?.systolic, latestHealthData?.diastolic)}
+                            </p>
+                            <small>{t('dashboard.sysDia')}</small>
+                        </div>
+                        <div className="card-glow"></div>
                     </div>
                     
-                    <HealthHistory refreshKey={refreshKey} onDataSubmitted={handleDataSubmitted} />
-                    <HealthCharts refreshKey={refreshKey} />
+                    <div className="summary-card">
+                        <div className="card-icon">🩸</div>
+                        <div className="card-content">
+                            <h4>{t('dashboard.bloodGlucose')}</h4>
+                            <p className="card-value">
+                                {displayValue(latestHealthData?.glucose, t('mg/dl'))}
+                            </p>
+                            <small>{t('dashboard.glucoseLevel')}</small>
+                        </div>
+                        <div className="card-glow"></div>
+                    </div>
                 </div>
+                
+                {!latestHealthData && healthRecords.length === 0 && (
+                    <div className="no-data-message">
+                        <div className="no-data-icon">📊</div>
+                        <h4>{t('dashboard.noDataTitle')}</h4>
+                        <p>{t('dashboard.noDataMessage')}</p>
+                        <button 
+                            onClick={() => document.querySelector('.health-form')?.scrollIntoView({ behavior: 'smooth' })}
+                            className="add-data-btn"
+                        >
+                            ➕ {t('dashboard.addFirstReading')}
+                        </button>
+                    </div>
+                )}
             </div>
-        );
+            
+            <div className="health-components">
+                <div className="health-form">
+                    <HealthForm onDataSubmitted={handleDataSubmitted} />
+                </div>
+                
+                <ActivityForm onDataSubmitted={handleDataSubmitted} />
+                
+                <div className="activity-analytics-wrapper">
+                    <ActivityAnalytics refreshTrigger={refreshKey} />
+                    <AdvancedHealthInsights refreshTrigger={refreshKey} />
+                </div>
+                
+                <HealthHistory refreshKey={refreshKey} onDataSubmitted={handleDataSubmitted} />
+                <HealthCharts refreshKey={refreshKey} />
+            </div>
+        </div>
+    );  // 👈 هذا القوس كان مفقوداً!
 
-        switch (activeSection) {
-            case 'health':
-                return healthSectionContent;
-            case 'nutrition':
-                return <NutritionMain onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
-            case 'sleep':
-                return <SleepTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
-            case 'habits':
-                return <HabitTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
-            case 'mood':
-                return <MoodTracker isAuthReady={isAuthReady} />;
-            case 'chat':
-                return <ChatInterface isAuthReady={isAuthReady} />;
-            case 'profile':
-                return <ProfileManager onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
-            case 'smart':
-                return <SmartDashboard />;
-            case 'notifications':
-                return <Notifications isAuthReady={isAuthReady} />;
-            case 'reports':
-                return <Reports isAuthReady={isAuthReady} />;
-            default:
-                return null;
-        }
-    };
+    switch (activeSection) {
+        case 'health':
+            return healthSectionContent;
+        case 'nutrition':
+            return <NutritionMain onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
+        case 'sleep':
+            return <SleepTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
+        case 'habits':
+            return <HabitTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
+        case 'mood':
+            return <MoodTracker isAuthReady={isAuthReady} />;
+        case 'chat':
+            return <ChatInterface isAuthReady={isAuthReady} />;
+        case 'profile':
+            return <ProfileManager onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
+        case 'smart':
+            return <SmartDashboard />;
+        case 'notifications':
+            return <Notifications isAuthReady={isAuthReady} />;
+        case 'reports':
+            return <Reports isAuthReady={isAuthReady} />;
+        default:
+            return null;
+    }
+};
 
     const getSectionTitle = (sectionKey) => {
         const titles = {
@@ -301,9 +315,7 @@ const fetchHealthData = async () => {
             'mood': `😊 ${t('dashboard.moodTitle')}`,
             'chat': `💬 ${t('dashboard.chatTitle')}`,
             'smart': `🧠 الميزات الذكية`,
-            'profile': `👤 ${t('dashboard.profileTitle')}`,
-            'reports': `📊 التقارير`,
-            'notifications': `🔔 الإشعارات`
+            'profile': `👤 ${t('dashboard.profileTitle')}`
         };
         return titles[sectionKey] || t('dashboard.dashboard');
     };
@@ -350,6 +362,7 @@ const fetchHealthData = async () => {
                 </div>
                 
                 <div className="control-right">
+                    
                     <button 
                         className="theme-toggle"
                         onClick={toggleDarkMode}

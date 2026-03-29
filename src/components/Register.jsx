@@ -1,7 +1,6 @@
-// src/components/Register.jsx (النسخة المحسنة بالكامل)
 import { useState, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
+import axiosInstance from '../services/api'; // ✅ تغيير: استخدم axiosInstance بدلاً من axios
 import '../index.css';
 
 function Register({ onRegisterSuccess }) {
@@ -22,9 +21,8 @@ function Register({ onRegisterSuccess }) {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState(0);
     const [touched, setTouched] = useState({});
-    const [reducedMotion, setReducedMotion] = useState(false);
 
-    // تحميل إعدادات الوضع المظلم وتفضيلات الحركة
+    // تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -33,15 +31,6 @@ function Register({ onRegisterSuccess }) {
         if (savedDarkMode) {
             document.documentElement.classList.add('dark-mode');
         }
-
-        // التحقق من تفضيلات الحركة المخفضة
-        const motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-        setReducedMotion(motionMediaQuery.matches);
-        
-        const handleMotionChange = (e) => setReducedMotion(e.matches);
-        motionMediaQuery.addEventListener('change', handleMotionChange);
-        
-        return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
     }, []);
 
     // استمع لتغييرات الوضع المظلم
@@ -72,9 +61,8 @@ function Register({ onRegisterSuccess }) {
         const password = formData.password;
         
         // الطول
-        if (password.length >= 12) strength += 25;
-        else if (password.length >= 8) strength += 20;
-        else if (password.length >= 6) strength += 10;
+        if (password.length >= 8) strength += 25;
+        else if (password.length >= 6) strength += 15;
         
         // أحرف كبيرة وصغيرة
         if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength += 25;
@@ -86,7 +74,7 @@ function Register({ onRegisterSuccess }) {
         // رموز خاصة
         if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 25;
         
-        setPasswordStrength(Math.min(strength, 100));
+        setPasswordStrength(strength);
     }, [formData.password]);
 
     const toggleDarkMode = () => {
@@ -168,85 +156,76 @@ function Register({ onRegisterSuccess }) {
         return t('register.passwordStrong');
     };
 
-const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-    setMessageType('');
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setMessage('');
+        setMessageType('');
 
-    const validationError = validateForm();
-    if (validationError) {
-        setMessage(validationError);
-        setMessageType('error');
-        setLoading(false);
-        return;
-    }
-
-    try {
-        // ✅ استخدم المسار النسبي (يتعامل معه الـ proxy)
-        const response = await axios.post('/api/auth/register/', {
-            username: formData.username,
-            password: formData.password,
-            password2: formData.password2,
-            email: formData.email,
-            first_name: formData.first_name,
-            last_name: formData.last_name
-        });
-        
-        console.log('✅ Registration successful:', response.data);
-        setMessage(t('register.success'));
-        setMessageType('success');
-        
-        // تسجيل الدخول تلقائياً بعد التسجيل
-        setTimeout(async () => {
-            try {
-                const loginResponse = await axios.post('/api/auth/token/', {
-                    username: formData.username,
-                    password: formData.password
-                });
-                
-                const { access, refresh } = loginResponse.data;
-                localStorage.setItem('access_token', access);
-                localStorage.setItem('refresh_token', refresh);
-                localStorage.setItem('username', formData.username);
-                
-                if (onRegisterSuccess) {
-                    onRegisterSuccess();
-                } else {
-                    window.location.href = '/dashboard';
-                }
-            } catch (loginErr) {
-                console.error('Auto-login failed:', loginErr);
-                window.location.hrcf = '/login';
-            }
-        }, 2000);
-        
-    } catch (error) {
-        console.error('Registration error:', error.response?.data);
-        
-        let errorMessage = t('register.failed');
-        
-        if (error.response?.data?.username) {
-            errorMessage = t('register.usernameExists');
-        } else if (error.response?.data?.email) {
-            errorMessage = t('register.emailExists');
-        } else if (error.response?.data?.password2) {
-            errorMessage = t('register.passwordMismatch');
-        } else if (error.response?.status === 400) {
-            errorMessage = t('register.invalidData');
-        } else if (!navigator.onLine) {
-            errorMessage = t('register.networkError');
+        const validationError = validateForm();
+        if (validationError) {
+            setMessage(validationError);
+            setMessageType('error');
+            setLoading(false);
+            return;
         }
-        
-        setMessage(errorMessage);
-        setMessageType('error');
-    } finally {
-        setLoading(false);
-    }
-};
+
+        try {
+            // ✅ تغيير: استخدم axiosInstance بدلاً من axios مع عنوان محلي
+            const response = await axiosInstance.post('/auth/register/', formData);
+            
+            console.log('✅ Registration successful:', response.data);
+            setMessage(t('register.success'));
+            setMessageType('success');
+            
+            // تسجيل الدخول تلقائياً بعد التسجيل
+            setTimeout(async () => {
+                try {
+                    // ✅ تغيير: استخدم axiosInstance
+                    const loginResponse = await axiosInstance.post('/auth/token/', {
+                        username: formData.username,
+                        password: formData.password
+                    });
+                    
+                    const { access, refresh } = loginResponse.data;
+                    localStorage.setItem('access_token', access);
+                    localStorage.setItem('refresh_token', refresh);
+                    localStorage.setItem('username', formData.username);
+                    
+                    if (onRegisterSuccess) {
+                        onRegisterSuccess();
+                    }
+                } catch (loginErr) {
+                    console.error('Auto-login error:', loginErr);
+                    // إذا فشل تسجيل الدخول التلقائي، وجه المستخدم إلى صفحة login
+                    window.location.href = '/';
+                }
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Registration error:', error.response?.data);
+            
+            let errorMessage = t('register.failed');
+            
+            if (error.response?.data?.username) {
+                errorMessage = t('register.usernameExists');
+            } else if (error.response?.data?.email) {
+                errorMessage = t('register.emailExists');
+            } else if (error.response?.status === 400) {
+                errorMessage = t('register.invalidData');
+            } else if (!navigator.onLine) {
+                errorMessage = t('register.networkError');
+            }
+            
+            setMessage(errorMessage);
+            setMessageType('error');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <div className={`register-container ${darkMode ? 'dark-mode' : ''} ${reducedMotion ? 'reduce-motion' : ''}`}>
+        <div className={`register-container ${darkMode ? 'dark-mode' : ''}`}>
             {/* خلفية متحركة */}
             <div className="register-background">
                 <div className="bg-shape bg-shape-1"></div>
@@ -259,7 +238,7 @@ const handleSubmit = async (e) => {
                 <div className="control-bar-content">
                     <div className="app-title">
                         <div className="logo-wrapper">
-                            <span className="logo-icon" aria-hidden="true">✨</span>
+                            <span className="logo-icon">✨</span>
                         </div>
                         <div className="title-text">
                             <h1>LivoCare</h1>
@@ -273,18 +252,16 @@ const handleSubmit = async (e) => {
                                 className={`lang-btn ${i18n.language === 'ar' ? 'active' : ''}`}
                                 onClick={() => changeLanguage('ar')}
                                 title="العربية"
-                                aria-label="Switch to Arabic"
                             >
-                                <span className="lang-flag" aria-hidden="true">🇸🇦</span>
+                                <span className="lang-flag">🇸🇦</span>
                                 <span className="lang-text">عربي</span>
                             </button>
                             <button 
                                 className={`lang-btn ${i18n.language === 'en' ? 'active' : ''}`}
                                 onClick={() => changeLanguage('en')}
                                 title="English"
-                                aria-label="Switch to English"
                             >
-                                <span className="lang-flag" aria-hidden="true">🇺🇸</span>
+                                <span className="lang-flag">🇺🇸</span>
                                 <span className="lang-text">EN</span>
                             </button>
                         </div>
@@ -293,9 +270,8 @@ const handleSubmit = async (e) => {
                             className="theme-toggle"
                             onClick={toggleDarkMode}
                             title={darkMode ? t('register.switchToLight') : t('register.switchToDark')}
-                            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
                         >
-                            <span aria-hidden="true">{darkMode ? '☀️' : '🌙'}</span>
+                            {darkMode ? '☀️' : '🌙'}
                         </button>
                     </div>
                 </div>
@@ -305,17 +281,17 @@ const handleSubmit = async (e) => {
                 <div className="register-form-card">
                     <div className="register-header">
                         <div className="register-icon-wrapper">
-                            <div className="register-icon" aria-hidden="true">✨</div>
+                            <div className="register-icon">✨</div>
                         </div>
                         <h2>{t('register.title')}</h2>
                         <p className="register-description">{t('register.description')}</p>
                     </div>
                     
-                    <form onSubmit={handleSubmit} className="register-form" noValidate>
+                    <form onSubmit={handleSubmit} className="register-form">
                         <div className="form-row">
                             <div className="form-group half">
                                 <label htmlFor="first_name">
-                                    <span className="label-icon" aria-hidden="true">👤</span>
+                                    <span className="label-icon">👤</span>
                                     {t('register.firstName')}
                                 </label>
                                 <input
@@ -327,13 +303,12 @@ const handleSubmit = async (e) => {
                                     onBlur={() => handleBlur('first_name')}
                                     placeholder={t('register.firstNamePlaceholder')}
                                     className={touched.first_name && !formData.first_name ? 'error' : ''}
-                                    aria-invalid={touched.first_name && !formData.first_name}
                                 />
                             </div>
                             
                             <div className="form-group half">
                                 <label htmlFor="last_name">
-                                    <span className="label-icon" aria-hidden="true">👤</span>
+                                    <span className="label-icon">👤</span>
                                     {t('register.lastName')}
                                 </label>
                                 <input
@@ -345,15 +320,14 @@ const handleSubmit = async (e) => {
                                     onBlur={() => handleBlur('last_name')}
                                     placeholder={t('register.lastNamePlaceholder')}
                                     className={touched.last_name && !formData.last_name ? 'error' : ''}
-                                    aria-invalid={touched.last_name && !formData.last_name}
                                 />
                             </div>
                         </div>
 
                         <div className="form-group">
                             <label htmlFor="username">
-                                <span className="label-icon" aria-hidden="true">🔑</span>
-                                {t('register.username')} <span className="required" aria-hidden="true">*</span>
+                                <span className="label-icon">🔑</span>
+                                {t('register.username')} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper">
                                 <input
@@ -366,19 +340,17 @@ const handleSubmit = async (e) => {
                                     required
                                     placeholder={t('register.usernamePlaceholder')}
                                     className={touched.username && (!formData.username || formData.username.length < 3) ? 'error' : ''}
-                                    aria-required="true"
-                                    aria-invalid={touched.username && (!formData.username || formData.username.length < 3)}
                                 />
                             </div>
                             {touched.username && formData.username && formData.username.length < 3 && (
-                                <p className="field-error" role="alert">{t('register.usernameTooShort')}</p>
+                                <p className="field-error">{t('register.usernameTooShort')}</p>
                             )}
                         </div>
 
                         <div className="form-group">
                             <label htmlFor="email">
-                                <span className="label-icon" aria-hidden="true">📧</span>
-                                {t('register.email')} <span className="required" aria-hidden="true">*</span>
+                                <span className="label-icon">📧</span>
+                                {t('register.email')} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper">
                                 <input
@@ -391,16 +363,14 @@ const handleSubmit = async (e) => {
                                     required
                                     placeholder={t('register.emailPlaceholder')}
                                     className={touched.email && (!formData.email || !formData.email.includes('@')) ? 'error' : ''}
-                                    aria-required="true"
-                                    aria-invalid={touched.email && (!formData.email || !formData.email.includes('@'))}
                                 />
                             </div>
                         </div>
 
                         <div className="form-group">
                             <label htmlFor="password">
-                                <span className="label-icon" aria-hidden="true">🔒</span>
-                                {t('register.password')} <span className="required" aria-hidden="true">*</span>
+                                <span className="label-icon">🔒</span>
+                                {t('register.password')} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper password-wrapper">
                                 <input
@@ -413,17 +383,14 @@ const handleSubmit = async (e) => {
                                     required
                                     placeholder={t('register.passwordPlaceholder')}
                                     className={touched.password && (!formData.password || formData.password.length < 6) ? 'error' : ''}
-                                    aria-required="true"
-                                    aria-invalid={touched.password && (!formData.password || formData.password.length < 6)}
                                 />
                                 <button
                                     type="button"
                                     className="password-toggle"
                                     onClick={() => setShowPassword(!showPassword)}
                                     tabIndex="-1"
-                                    aria-label={showPassword ? "Hide password" : "Show password"}
                                 >
-                                    <span aria-hidden="true">{showPassword ? '👁️' : '👁️‍🗨️'}</span>
+                                    {showPassword ? '👁️' : '👁️‍🗨️'}
                                 </button>
                             </div>
                             
@@ -448,8 +415,8 @@ const handleSubmit = async (e) => {
 
                         <div className="form-group">
                             <label htmlFor="password2">
-                                <span className="label-icon" aria-hidden="true">🔒</span>
-                                {t('register.confirmPassword')} <span className="required" aria-hidden="true">*</span>
+                                <span className="label-icon">🔒</span>
+                                {t('register.confirmPassword')} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper password-wrapper">
                                 <input
@@ -462,21 +429,18 @@ const handleSubmit = async (e) => {
                                     required
                                     placeholder={t('register.confirmPasswordPlaceholder')}
                                     className={touched.password2 && formData.password2 && formData.password !== formData.password2 ? 'error' : ''}
-                                    aria-required="true"
-                                    aria-invalid={touched.password2 && formData.password2 && formData.password !== formData.password2}
                                 />
                                 <button
                                     type="button"
                                     className="password-toggle"
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                     tabIndex="-1"
-                                    aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                                 >
-                                    <span aria-hidden="true">{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</span>
+                                    {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
                                 </button>
                             </div>
                             {touched.password2 && formData.password2 && formData.password !== formData.password2 && (
-                                <p className="field-error" role="alert">{t('register.passwordsDoNotMatch')}</p>
+                                <p className="field-error">{t('register.passwordsDoNotMatch')}</p>
                             )}
                         </div>
 
@@ -485,16 +449,15 @@ const handleSubmit = async (e) => {
                                 type="submit" 
                                 className="register-button"
                                 disabled={loading}
-                                aria-label={loading ? t('register.registering') : t('register.registerButton')}
                             >
                                 {loading ? (
                                     <>
-                                        <span className="spinner" aria-hidden="true"></span>
+                                        <span className="spinner"></span>
                                         {t('register.registering')}
                                     </>
                                 ) : (
                                     <>
-                                        <span className="btn-icon" aria-hidden="true">✨</span>
+                                        <span className="btn-icon">✨</span>
                                         {t('register.registerButton')}
                                     </>
                                 )}
@@ -505,11 +468,11 @@ const handleSubmit = async (e) => {
                         <div className="terms-info">
                             <p>
                                 {t('register.termsPrefix')}
-                                <button type="button" className="terms-link" aria-label={t('register.termsOfService')}>
+                                <button type="button" className="terms-link">
                                     {t('register.termsOfService')}
                                 </button>
                                 {t('register.and')}
-                                <button type="button" className="terms-link" aria-label={t('register.privacyPolicy')}>
+                                <button type="button" className="terms-link">
                                     {t('register.privacyPolicy')}
                                 </button>
                             </p>
@@ -519,24 +482,23 @@ const handleSubmit = async (e) => {
                         <div className="login-link">
                             <p>
                                 {t('register.haveAccount')} 
-<button 
-    type="button"
-    onClick={() => window.location.href = '/#/login'}
-    className="login-button-link"
-    aria-label={t('register.login')}
->
-    {t('register.login')}
-    <span className="btn-arrow" aria-hidden="true">→</span>
-</button>
+                                <button 
+                                    type="button"
+                                    onClick={() => window.location.href = '/'}
+                                    className="login-button-link"
+                                >
+                                    {t('register.login')}
+                                    <span className="btn-arrow">→</span>
+                                </button>
                             </p>
                         </div>
                     </form>
 
                     {/* رسائل التغذية الراجعة */}
                     {message && (
-                        <div className={`message ${messageType}`} role="alert" aria-live="polite">
+                        <div className={`message ${messageType}`}>
                             <div className="message-content">
-                                <span className="message-icon" aria-hidden="true">
+                                <span className="message-icon">
                                     {messageType === 'success' && '✅'}
                                     {messageType === 'error' && '❌'}
                                     {messageType === 'info' && 'ℹ️'}
@@ -551,35 +513,35 @@ const handleSubmit = async (e) => {
                                 className="dismiss-message"
                                 aria-label={t('register.dismiss')}
                             >
-                                <span aria-hidden="true">✕</span>
+                                ✕
                             </button>
                         </div>
                     )}
                 </div>
 
-                {/* معلومات إضافية محسنة */}
+                {/* معلومات إضافية */}
                 <div className="register-info">
                     <div className="info-card">
                         <h3>🌟 {t('register.benefitsTitle')}</h3>
                         <ul className="benefits-list">
                             <li>
-                                <span className="benefit-icon" aria-hidden="true">📊</span>
+                                <span className="benefit-icon">📊</span>
                                 <span className="benefit-text">{t('register.benefit1')}</span>
                             </li>
                             <li>
-                                <span className="benefit-icon" aria-hidden="true">🥗</span>
+                                <span className="benefit-icon">🥗</span>
                                 <span className="benefit-text">{t('register.benefit2')}</span>
                             </li>
                             <li>
-                                <span className="benefit-icon" aria-hidden="true">🌙</span>
+                                <span className="benefit-icon">🌙</span>
                                 <span className="benefit-text">{t('register.benefit3')}</span>
                             </li>
                             <li>
-                                <span className="benefit-icon" aria-hidden="true">😊</span>
+                                <span className="benefit-icon">😊</span>
                                 <span className="benefit-text">{t('register.benefit4')}</span>
                             </li>
                             <li>
-                                <span className="benefit-icon" aria-hidden="true">💊</span>
+                                <span className="benefit-icon">💊</span>
                                 <span className="benefit-text">{t('register.benefit5')}</span>
                             </li>
                         </ul>
@@ -590,26 +552,12 @@ const handleSubmit = async (e) => {
                             "{t('register.testimonial')}"
                         </p>
                         <div className="testimonial-author">
-                            <span className="author-avatar" aria-hidden="true">👤</span>
+                            <span className="author-avatar">👤</span>
                             <span className="author-name">{t('register.testimonialAuthor')}</span>
-                        </div>
-                    </div>
-
-                    {/* إضافة إحصائيات */}
-                    <div className="stats-card">
-                        <div className="stat-item">
-                            <span className="stat-number">10k+</span>
-                            <span className="stat-label">{t('register.activeUsers')}</span>
-                        </div>
-                        <div className="stat-divider" aria-hidden="true"></div>
-                        <div className="stat-item">
-                            <span className="stat-number">4.9</span>
-                            <span className="stat-label">{t('register.userRating')}</span>
                         </div>
                     </div>
                 </div>
             </div>
-
             <style jsx>{`
                 /* ===========================================
                    Register.css - النسخة المحسنة والمطورة

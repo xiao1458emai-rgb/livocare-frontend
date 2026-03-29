@@ -1,7 +1,7 @@
 // src/components/SmartFeatures/WeatherWidget.jsx
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import externalApis from '../../services/externalApis';
+import axiosInstance from '../../services/api'; // ✅ تغيير: استخدم axiosInstance مباشرة
 import './SmartFeatures.css';
 
 const WeatherWidget = () => {
@@ -25,20 +25,22 @@ const WeatherWidget = () => {
         fetchWeather(savedCity || 'Cairo');
     }, []);
 
+    // ✅ دالة جلب الطقس باستخدام axiosInstance مباشرة
     const fetchWeather = async (cityName = city) => {
         try {
             setLoading(true);
             setError(null);
-            const response = await externalApis.getWeather(cityName);
+            // ✅ استخدم المسار الصحيح (بدون /api مكرر)
+            const response = await axiosInstance.get(`/weather/?city=${encodeURIComponent(cityName)}`);
             
-            if (response.success) {
+            if (response.data && response.data.success !== false) {
                 setWeather(response.data);
                 // حفظ المدينة في localStorage
                 localStorage.setItem('weather_city', cityName);
                 setCity(cityName);
                 setError(null);
             } else {
-                setError(response.error || t('weather.error'));
+                setError(response.data?.error || t('weather.error'));
             }
         } catch (err) {
             console.error('Weather fetch error:', err);

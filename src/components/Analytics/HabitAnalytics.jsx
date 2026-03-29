@@ -86,7 +86,8 @@ const HabitAnalytics = ({ refreshTrigger }) => {
         setLoading(true);
         try {
             const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
-            const response = await axiosInstance.get('/api/analytics/smart-insights/', {
+            // ✅ إزالة /api المكرر
+            const response = await axiosInstance.get('/analytics/smart-insights/', {
                 params: { lang: currentLang }
             });
             
@@ -553,7 +554,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                     {t('analytics.habit.footer.lastUpdate')}: {new Date().toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}
                 </small>
             </div>
-
             <style jsx>{`
                 .habit-analytics {
                     background: var(--bg-primary);

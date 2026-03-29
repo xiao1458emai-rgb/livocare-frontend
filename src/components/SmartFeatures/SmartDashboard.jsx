@@ -113,7 +113,8 @@ const SmartDashboard = () => {
         setLoading(true);
         try {
             const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
-            const response = await axiosInstance.get('/api/analytics/smart-insights/', {
+            // ✅ إزالة /api المكرر
+            const response = await axiosInstance.get('/analytics/smart-insights/', {
                 params: { lang: currentLang }
             });
             setInsights(response.data);

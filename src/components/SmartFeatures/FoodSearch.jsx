@@ -1,7 +1,7 @@
 // src/components/SmartFeatures/FoodSearch.jsx
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import externalApis from '../../services/externalApis';
+import axiosInstance from '../../services/api'; // ✅ تغيير: استخدم axiosInstance مباشرة
 import './SmartFeatures.css';
 
 const FoodSearch = ({ onSelectFood }) => {
@@ -18,11 +18,13 @@ const FoodSearch = ({ onSelectFood }) => {
         setError(null);
         
         try {
-            const response = await externalApis.searchFood(query);
-            if (response.success) {
-                setResults(response.data);
+            // ✅ استخدم axiosInstance مباشرة مع المسار الصحيح
+            const response = await axiosInstance.get(`/food/search/?query=${encodeURIComponent(query)}`);
+            
+            if (response.data && response.data.success !== false) {
+                setResults(response.data.data || response.data.results || []);
             } else {
-                setError(response.error || t('foodSearch.searchFailed'));
+                setError(response.data?.error || t('foodSearch.searchFailed'));
             }
         } catch (err) {
             console.error('Food search error:', err);
@@ -73,7 +75,7 @@ const FoodSearch = ({ onSelectFood }) => {
                 <div className="search-results">
                     {results.map((food, index) => (
                         <div 
-                            key={index} 
+                            key={food.id || index} 
                             className="food-card"
                             onClick={() => onSelectFood && onSelectFood(food)}
                         >

@@ -186,7 +186,8 @@ const translateText = (text) => {
             const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
             console.log('📢 Sending language to backend:', currentLang);
             
-            const response = await axiosInstance.get('/api/advanced-insights/', {
+            // ✅ إزالة /api المكرر
+            const response = await axiosInstance.get('/advanced-insights/', {
                 params: { lang: currentLang }
             });
             

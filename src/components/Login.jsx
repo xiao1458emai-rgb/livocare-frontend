@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
+import axiosInstance from '../services/api'; // ✅ تغيير: استخدم axiosInstance
 import '../index.css';
 
 function Login({ onLoginSuccess }) {
@@ -16,7 +16,6 @@ function Login({ onLoginSuccess }) {
     const [darkMode, setDarkMode] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
-    const [reducedMotion, setReducedMotion] = useState(false);
 
     // تحميل إعدادات الوضع المظلم واللغة المحفوظة
     useEffect(() => {
@@ -33,15 +32,6 @@ function Login({ onLoginSuccess }) {
         if (savedDarkMode) {
             document.documentElement.classList.add('dark-mode');
         }
-
-        // التحقق من تفضيلات الحركة المخفضة
-        const motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-        setReducedMotion(motionMediaQuery.matches);
-        
-        const handleMotionChange = (e) => setReducedMotion(e.matches);
-        motionMediaQuery.addEventListener('change', handleMotionChange);
-        
-        return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
     }, []);
 
     // استمع لتغييرات الوضع المظلم
@@ -95,70 +85,73 @@ function Login({ onLoginSuccess }) {
         }));
     };
 
-const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-    setMessageType('');
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setMessage('');
+        setMessageType('');
 
-    if (!username.trim() || !password.trim()) {
-        setMessage(t('login.emptyFields'));
-        setMessageType('error');
-        setLoading(false);
-        return;
-    }
-    
-    const tokenUrl = '/api/auth/token/';
+        // التحقق من صحة البيانات
+        if (!username.trim() || !password.trim()) {
+            setMessage(t('login.emptyFields'));
+            setMessageType('error');
+            setLoading(false);
+            return;
+        }
 
-    try {
-        console.log('Sending login request to:', tokenUrl);
-        const response = await axios.post(tokenUrl, { username, password });
-        console.log('Login response:', response.data);
-        
-        const { access, refresh } = response.data;
-        console.log('Access token received:', access);
-        
-        localStorage.setItem('access_token', access);
-        localStorage.setItem('refresh_token', refresh);
-        
-        console.log('Token saved, checking:', localStorage.getItem('access_token'));
-        
-        if (rememberMe) {
-            localStorage.setItem('saved_username', username);
-        } else {
-            localStorage.removeItem('saved_username');
+        try {
+            // ✅ تغيير: استخدم axiosInstance بدلاً من axios مع عنوان محلي
+            const response = await axiosInstance.post('/auth/token/', {
+                username: username,
+                password: password
+            });
+
+            const { access, refresh } = response.data;
+            localStorage.setItem('access_token', access);
+            localStorage.setItem('refresh_token', refresh);
+            
+            // حفظ اسم المستخدم إذا تم تذكرني
+            if (rememberMe) {
+                localStorage.setItem('saved_username', username);
+            } else {
+                localStorage.removeItem('saved_username');
+            }
+            
+            localStorage.setItem('username', username);
+            
+            setMessage(t('login.success'));
+            setMessageType('success');
+            
+            // تأخير قليل لإظهار رسالة النجاح
+            setTimeout(() => {
+                if (onLoginSuccess) {
+                    onLoginSuccess();
+                }
+            }, 1500);
+            
+        } catch (error) {
+            console.error('Login error:', error.response?.data);
+            
+            let errorMessage = t('login.failed');
+            
+            if (error.response?.status === 400) {
+                errorMessage = t('login.invalidCredentials');
+            } else if (error.response?.status === 401) {
+                errorMessage = t('login.unauthorized');
+            } else if (error.response?.status === 404) {
+                errorMessage = t('login.serverNotFound');
+            } else if (error.response?.status === 500) {
+                errorMessage = t('login.serverError');
+            } else if (!navigator.onLine) {
+                errorMessage = t('login.networkError');
+            }
+            
+            setMessage(errorMessage);
+            setMessageType('error');
+        } finally {
+            setLoading(false);
         }
-        
-        localStorage.setItem('username', username);
-        
-        setMessage(t('login.success'));
-        setMessageType('success');
-        
-        setTimeout(() => {
-            window.location.replace('/#/dashboard');
-        }, 1000);
-        
-    } catch (error) {
-        console.error('Login error:', error.response?.data);
-        
-        let errorMessage = t('login.failed');
-        
-        if (error.response?.status === 401) {
-            errorMessage = t('login.invalidCredentials');
-        } else if (error.response?.status === 404) {
-            errorMessage = t('login.serverNotFound');
-        } else if (error.response?.status === 500) {
-            errorMessage = t('login.serverError');
-        } else if (error.code === 'ERR_NETWORK') {
-            errorMessage = t('login.networkError');
-        }
-        
-        setMessage(errorMessage);
-        setMessageType('error');
-    } finally {
-        setLoading(false);
-    }
-};
+    };
 
     // إعادة تعيين النموذج
     const resetForm = () => {
@@ -170,7 +163,7 @@ const handleSubmit = async (e) => {
     };
 
     return (
-        <div className={`login-container ${darkMode ? 'dark-mode' : ''} ${reducedMotion ? 'reduce-motion' : ''}`}>
+        <div className={`login-container ${darkMode ? 'dark-mode' : ''}`}>
             {/* خلفية متحركة */}
             <div className="login-background">
                 <div className="bg-shape bg-shape-1"></div>
@@ -197,18 +190,16 @@ const handleSubmit = async (e) => {
                                 className={`lang-btn ${i18n.language === 'ar' ? 'active' : ''}`}
                                 onClick={() => changeLanguage('ar')}
                                 title="العربية"
-                                aria-label="Switch to Arabic"
                             >
-                                <span className="lang-flag" aria-hidden="true">🇸🇦</span>
+                                <span className="lang-flag">🇸🇦</span>
                                 <span className="lang-text">عربي</span>
                             </button>
                             <button 
                                 className={`lang-btn ${i18n.language === 'en' ? 'active' : ''}`}
                                 onClick={() => changeLanguage('en')}
                                 title="English"
-                                aria-label="Switch to English"
                             >
-                                <span className="lang-flag" aria-hidden="true">🇺🇸</span>
+                                <span className="lang-flag">🇺🇸</span>
                                 <span className="lang-text">EN</span>
                             </button>
                         </div>
@@ -217,9 +208,8 @@ const handleSubmit = async (e) => {
                             className="theme-toggle"
                             onClick={toggleDarkMode}
                             title={darkMode ? t('login.switchToLight') : t('login.switchToDark')}
-                            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
                         >
-                            <span aria-hidden="true">{darkMode ? '☀️' : '🌙'}</span>
+                            {darkMode ? '☀️' : '🌙'}
                         </button>
                     </div>
                 </div>
@@ -229,16 +219,16 @@ const handleSubmit = async (e) => {
                 <div className="login-form-card">
                     <div className="login-header">
                         <div className="login-icon-wrapper">
-                            <div className="login-icon" aria-hidden="true">🔐</div>
+                            <div className="login-icon">🔐</div>
                         </div>
                         <h2>{t('login.title')}</h2>
                         <p className="login-description">{t('login.description')}</p>
                     </div>
                     
-                    <form onSubmit={handleSubmit} className="login-form" noValidate>
+                    <form onSubmit={handleSubmit} className="login-form">
                         <div className="form-group">
                             <label htmlFor="username">
-                                <span className="label-icon" aria-hidden="true">👤</span>
+                                <span className="label-icon">👤</span>
                                 {t('login.username')}
                             </label>
                             <div className="input-wrapper">
@@ -251,14 +241,13 @@ const handleSubmit = async (e) => {
                                     placeholder={t('login.usernamePlaceholder')}
                                     disabled={loading}
                                     autoComplete="username"
-                                    aria-required="true"
                                 />
                             </div>
                         </div>
                         
                         <div className="form-group">
                             <label htmlFor="password">
-                                <span className="label-icon" aria-hidden="true">🔑</span>
+                                <span className="label-icon">🔑</span>
                                 {t('login.password')}
                             </label>
                             <div className="input-wrapper password-wrapper">
@@ -271,16 +260,14 @@ const handleSubmit = async (e) => {
                                     placeholder={t('login.passwordPlaceholder')}
                                     disabled={loading}
                                     autoComplete="current-password"
-                                    aria-required="true"
                                 />
                                 <button
                                     type="button"
                                     className="password-toggle"
                                     onClick={() => setShowPassword(!showPassword)}
                                     tabIndex="-1"
-                                    aria-label={showPassword ? "Hide password" : "Show password"}
                                 >
-                                    <span aria-hidden="true">{showPassword ? '👁️' : '👁️‍🗨️'}</span>
+                                    {showPassword ? '👁️' : '👁️‍🗨️'}
                                 </button>
                             </div>
                         </div>
@@ -292,11 +279,10 @@ const handleSubmit = async (e) => {
                                     checked={rememberMe}
                                     onChange={(e) => setRememberMe(e.target.checked)}
                                     disabled={loading}
-                                    aria-label="Remember me"
                                 />
                                 <span className="checkbox-text">{t('login.rememberMe')}</span>
                             </label>
-                            <button type="button" className="forgot-password" aria-label="Forgot password">
+                            <button type="button" className="forgot-password">
                                 {t('login.forgotPassword')}
                             </button>
                         </div>
@@ -306,16 +292,15 @@ const handleSubmit = async (e) => {
                                 type="submit" 
                                 className="login-button"
                                 disabled={loading}
-                                aria-label={loading ? "Logging in..." : "Login"}
                             >
                                 {loading ? (
                                     <>
-                                        <span className="spinner" aria-hidden="true"></span>
+                                        <span className="spinner"></span>
                                         {t('login.loggingIn')}
                                     </>
                                 ) : (
                                     <>
-                                        <span className="btn-icon" aria-hidden="true">🔑</span>
+                                        <span className="btn-icon">🔑</span>
                                         {t('login.loginButton')}
                                     </>
                                 )}
@@ -326,9 +311,8 @@ const handleSubmit = async (e) => {
                                 onClick={resetForm}
                                 className="reset-button"
                                 disabled={loading}
-                                aria-label="Reset form"
                             >
-                                <span className="btn-icon" aria-hidden="true">🔄</span>
+                                <span className="btn-icon">🔄</span>
                                 {t('login.resetButton')}
                             </button>
                         </div>
@@ -336,11 +320,11 @@ const handleSubmit = async (e) => {
                         {/* معلومات إضافية */}
                         <div className="login-info">
                             <div className="info-item">
-                                <span className="info-icon" aria-hidden="true">💡</span>
+                                <span className="info-icon">💡</span>
                                 <p>{t('login.tip')}</p>
                             </div>
                             <div className="info-item">
-                                <span className="info-icon" aria-hidden="true">👤</span>
+                                <span className="info-icon">👤</span>
                                 <p>{t('login.demoInfo')}</p>
                             </div>
                         </div>
@@ -348,9 +332,9 @@ const handleSubmit = async (e) => {
                     
                     {/* رسائل التغذية الراجعة */}
                     {message && (
-                        <div className={`message ${messageType}`} role="alert" aria-live="polite">
+                        <div className={`message ${messageType}`}>
                             <div className="message-content">
-                                <span className="message-icon" aria-hidden="true">
+                                <span className="message-icon">
                                     {messageType === 'success' && '✅'}
                                     {messageType === 'error' && '❌'}
                                     {messageType === 'info' && 'ℹ️'}
@@ -365,7 +349,7 @@ const handleSubmit = async (e) => {
                                 className="dismiss-message"
                                 aria-label={t('login.dismiss')}
                             >
-                                <span aria-hidden="true">✕</span>
+                                ✕
                             </button>
                         </div>
                     )}
@@ -373,13 +357,14 @@ const handleSubmit = async (e) => {
                     <div className="register-link">
                         <p>
                             {t('login.noAccount')} 
-<button 
-    type="button"
-    onClick={() => window.location.href = '/#/register'}
-    className="register-button"
->
-    {t('login.register')}
-</button>
+                            <button 
+                                type="button"
+                                onClick={() => window.location.href = '/register'}
+                                className="register-button"
+                            >
+                                {t('login.register')}
+                                <span className="btn-arrow">→</span>
+                            </button>
                         </p>
                     </div>
                 </div>
@@ -388,28 +373,28 @@ const handleSubmit = async (e) => {
                 <div className="app-info">
                     <div className="app-info-header">
                         <h3>🌟 {t('login.featuresTitle')}</h3>
-                        <div className="header-decoration" aria-hidden="true"></div>
+                        <div className="header-decoration"></div>
                     </div>
                     
                     <ul className="features-list">
                         <li>
-                            <span className="feature-icon" aria-hidden="true">📊</span>
+                            <span className="feature-icon">📊</span>
                             <span className="feature-text">{t('login.feature1')}</span>
                         </li>
                         <li>
-                            <span className="feature-icon" aria-hidden="true">🥗</span>
+                            <span className="feature-icon">🥗</span>
                             <span className="feature-text">{t('login.feature2')}</span>
                         </li>
                         <li>
-                            <span className="feature-icon" aria-hidden="true">🌙</span>
+                            <span className="feature-icon">🌙</span>
                             <span className="feature-text">{t('login.feature3')}</span>
                         </li>
                         <li>
-                            <span className="feature-icon" aria-hidden="true">😊</span>
+                            <span className="feature-icon">😊</span>
                             <span className="feature-text">{t('login.feature4')}</span>
                         </li>
                         <li>
-                            <span className="feature-icon" aria-hidden="true">💊</span>
+                            <span className="feature-icon">💊</span>
                             <span className="feature-text">{t('login.feature5')}</span>
                         </li>
                     </ul>
@@ -419,7 +404,7 @@ const handleSubmit = async (e) => {
                             <span className="stat-value">10k+</span>
                             <span className="stat-label">{t('login.users')}</span>
                         </div>
-                        <div className="stat-divider" aria-hidden="true"></div>
+                        <div className="stat-divider"></div>
                         <div className="stat-item">
                             <span className="stat-value">4.8</span>
                             <span className="stat-label">{t('login.rating')}</span>
@@ -428,17 +413,16 @@ const handleSubmit = async (e) => {
                     
                     <div className="app-version">
                         <span className="version-info">
-                            <span className="version-icon" aria-hidden="true">📦</span>
+                            <span className="version-icon">📦</span>
                             {t('login.version')}: 2.0.0
                         </span>
                         <span className="app-status">
-                            <span className="status-dot" aria-hidden="true"></span>
+                            <span className="status-dot"></span>
                             {t('login.online')}
                         </span>
                     </div>
                 </div>
             </div>
-
             <style jsx>{`
                 /* ===========================================
                    Login.css - النسخة المحسنة والمطورة
