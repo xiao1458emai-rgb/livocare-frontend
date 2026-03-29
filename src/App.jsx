@@ -1,18 +1,16 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import './App.css';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 
-function AppContent() {
+function App() {
     const { t, i18n } = useTranslation();
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [darkMode, setDarkMode] = useState(false);
-    const navigate = useNavigate();
 
     useEffect(() => {
         console.log('📱 App mounted');
@@ -38,31 +36,8 @@ function AppContent() {
         document.documentElement.lang = savedLanguage;
         document.documentElement.dir = savedLanguage === 'ar' ? 'rtl' : 'ltr';
         
-        const token = localStorage.getItem('access_token');
-        setIsAuthenticated(!!token);
-        
         setIsLoading(false);
     }, [i18n]);
-
-    const handleLoginSuccess = () => {
-        console.log('🔍 Login successful');
-        setIsAuthenticated(true);
-        window.location.href = '/#/dashboard';
-    };
-
-    const handleRegisterSuccess = () => {
-        console.log('🔍 Register successful');
-        setIsAuthenticated(true);
-        window.location.href = '/#/dashboard';
-    };
-
-    const handleLogout = () => {
-        console.log('🔍 Logging out');
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        setIsAuthenticated(false);
-        navigate('/login');
-    };
 
     const toggleDarkMode = () => {
         const newDarkMode = !darkMode;
@@ -87,6 +62,9 @@ function AppContent() {
         );
     }
 
+    // ✅ التحقق من المصادقة مباشرة من localStorage
+    const isAuthenticated = !!localStorage.getItem('access_token');
+
     return (
         <div className={`App ${darkMode ? 'dark-mode' : ''}`}>
             <header className="app-header">
@@ -102,33 +80,24 @@ function AppContent() {
                     <button className="theme-toggle" onClick={toggleDarkMode} title={darkMode ? t('app.switchToLight') : t('app.switchToDark')}>
                         {darkMode ? '☀️' : '🌙'}
                     </button>
-                    {isAuthenticated && (
-                        <button onClick={handleLogout} className="logout-btn">{t('app.logout')}</button>
-                    )}
                 </div>
             </header>
             
             <main className="app-main">
-                <Routes>
-                    <Route path="/" element={<Login onLoginSuccess={handleLoginSuccess} />} />
-                    <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
-                    <Route path="/register" element={<Register onRegisterSuccess={handleRegisterSuccess} />} />
-                    <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Login onLoginSuccess={handleLoginSuccess} />} />
-                </Routes>
+                <HashRouter>
+                    <Routes>
+                        <Route path="/" element={isAuthenticated ? <Dashboard /> : <Login />} />
+                        <Route path="/login" element={isAuthenticated ? <Dashboard /> : <Login />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Login />} />
+                    </Routes>
+                </HashRouter>
             </main>
             
             <footer className="app-footer">
                 <p>{t('app.footer')} © {new Date().getFullYear()}</p>
             </footer>
         </div>
-    );
-}
-
-function App() {
-    return (
-        <HashRouter>
-            <AppContent />
-        </HashRouter>
     );
 }
 
