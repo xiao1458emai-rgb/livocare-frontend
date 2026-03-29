@@ -1,13 +1,12 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'; // ✅ تغيير BrowserRouter إلى HashRouter
+import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import './App.css';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 
-// مكون منفصل للمحتوى (يحتاج useNavigate)
 function AppContent() {
     const { t, i18n } = useTranslation();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -42,8 +41,15 @@ function AppContent() {
         const token = localStorage.getItem('access_token');
         setIsAuthenticated(!!token);
         
+        // ✅ إعادة التوجيه بعد التحقق من المصادقة
+        if (token) {
+            navigate('/dashboard');
+        } else {
+            navigate('/login');
+        }
+        
         setTimeout(() => setIsLoading(false), 500);
-    }, [i18n]);
+    }, [i18n, navigate]);
 
     const handleLoginSuccess = () => {
         console.log('🔍 Login successful');
@@ -111,10 +117,9 @@ function AppContent() {
             
             <main className="app-main">
                 <Routes>
-<Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
-<Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login onLoginSuccess={handleLoginSuccess} />} />
-<Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register onRegisterSuccess={handleRegisterSuccess} />} />
-<Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />} />
+                    <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
+                    <Route path="/register" element={<Register onRegisterSuccess={handleRegisterSuccess} />} />
+                    <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Login onLoginSuccess={handleLoginSuccess} />} />
                 </Routes>
             </main>
             
@@ -125,10 +130,9 @@ function AppContent() {
     );
 }
 
-// المكون الرئيسي
 function App() {
     return (
-        <HashRouter>  {/* ✅ تغيير BrowserRouter إلى HashRouter */}
+        <HashRouter>
             <AppContent />
         </HashRouter>
     );
