@@ -24,6 +24,7 @@ import Reports from './Reports';
 import AdvancedHealthInsights from './Analytics/AdvancedHealthInsights';
 
 function Dashboard() {
+    console.log('Dashboard component mounted!');
     const { t, i18n } = useTranslation();
     const isRTL = i18n.language === 'ar';
     
@@ -147,7 +148,6 @@ const fetchHealthData = async () => {
         i18n.changeLanguage(lng);
         localStorage.setItem('livocare_language', lng);
         localStorage.setItem('language', lng);
-        
         
         window.dispatchEvent(new CustomEvent('languageChanged', { 
             detail: { language: lng, direction: lng === 'ar' ? 'rtl' : 'ltr' }
