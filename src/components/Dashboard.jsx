@@ -69,43 +69,30 @@ function Dashboard() {
         checkAuth();
     }, []);
 
-    const fetchHealthData = async () => {
-        try {
-            const response = await axiosInstance.get('/health_status/');
-            
-            if (Array.isArray(response.data) && response.data.length > 0) {
-                setHealthRecords(response.data);
-                
-                const sortedData = [...response.data].sort((a, b) => 
-                    new Date(b.recorded_at) - new Date(a.recorded_at)
-                );
-                
-                const latest = sortedData[0];
-                const latestData = {
-                    weight: latest.weight_kg,
-                    systolic: latest.systolic_pressure,
-                    diastolic: latest.diastolic_pressure,
-                    glucose: latest.blood_glucose,
-                    recorded_at: latest.recorded_at,
-                    date: new Date(latest.recorded_at).toLocaleDateString('ar-EG')
-                };
-                
-                setLatestHealthData(latestData);
-            } else {
-                setHealthRecords([]);
-                setLatestHealthData(null);
-            }
-            
-            setError(null);
-        } catch (err) {
-            console.error('Error fetching health data:', err);
-            setError(t('dashboard.fetchError'));
-            setHealthRecords([]);
-            setLatestHealthData(null);
-        } finally {
-            setLoading(false);
+const fetchHealthData = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.log('⏳ No token yet, waiting...');
+        setLoading(false);
+        return;
+    }
+    
+    try {
+        const response = await axiosInstance.get('/health_status/');
+        // ... باقي الكود
+    } catch (err) {
+        console.error('Error fetching health data:', err);
+        if (err.response?.status === 401) {
+            // Token غير صالح، ننتظر قليلاً
+            setTimeout(() => fetchHealthData(), 1000);
+            return;
         }
-    };
+        setError(t('dashboard.fetchError'));
+    } finally {
+        setLoading(false);
+    }
+};
+
 
     useEffect(() => {
         if (isAuthReady) {
