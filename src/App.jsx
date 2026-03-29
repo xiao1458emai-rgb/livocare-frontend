@@ -43,15 +43,19 @@ function App() {
         setIsLoading(false);
     }, [i18n]);
 
-    const handleLoginSuccess = () => {
-        console.log('🔍 Login successful');
-        setIsAuthenticated(true);
+const handleLoginSuccess = () => {
+    console.log('🔍 Login successful');
+    setIsAuthenticated(true);
+    // ✅ إضافة إعادة التوجيه
+    window.location.href = '/#/dashboard';
     };
 
-    const handleRegisterSuccess = () => {
-        console.log('🔍 Register successful');
-        setIsAuthenticated(true);
-    };
+const handleRegisterSuccess = () => {
+    console.log('🔍 Register successful');
+    setIsAuthenticated(true);
+    // ✅ إضافة إعادة التوجيه
+    window.location.href = '/#/dashboard';
+};
 
     const handleLogout = () => {
         console.log('🔍 Logging out');
