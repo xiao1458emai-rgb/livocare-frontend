@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
@@ -13,8 +13,13 @@ function Sidebar({ activeSection, onSectionChange }) {
     const [reducedMotion, setReducedMotion] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [hoveredItem, setHoveredItem] = useState(null);
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const intervalRef = useRef(null);
+    const abortControllerRef = useRef(null);
 
-    // تحميل إعدادات الوضع المظلم وتفضيلات الحركة
+    // تحميل إعدادات الوضع المظلم وتفضيلات الحركة - مرة واحدة فقط
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -53,40 +58,82 @@ function Sidebar({ activeSection, onSectionChange }) {
 
     const sections = getSections();
 
-        const getSectionInfo = (sectionId) => ({
-            name: sectionId === 'reports' ? t('sidebar.sections.reports.name', 'Reports') : 
-                sectionId === 'smart' ? t('sidebar.sections.smart.name', 'Smart Features') : 
-                t(`sidebar.sections.${sectionId}.name`, sectionId.charAt(0).toUpperCase() + sectionId.slice(1)),
-            description: sectionId === 'reports' ? t('sidebar.sections.reports.description', 'Health reports and analytics') : 
-                        sectionId === 'smart' ? t('sidebar.sections.smart.description', 'Advanced recommendations & analytics') : 
-                        t(`sidebar.sections.${sectionId}.description`, '')
-        });
+    const getSectionInfo = (sectionId) => ({
+        name: sectionId === 'reports' ? t('sidebar.sections.reports.name', 'Reports') : 
+            sectionId === 'smart' ? t('sidebar.sections.smart.name', 'Smart Features') : 
+            t(`sidebar.sections.${sectionId}.name`, sectionId.charAt(0).toUpperCase() + sectionId.slice(1)),
+        description: sectionId === 'reports' ? t('sidebar.sections.reports.description', 'Health reports and analytics') : 
+                    sectionId === 'smart' ? t('sidebar.sections.smart.description', 'Advanced recommendations & analytics') : 
+                    t(`sidebar.sections.${sectionId}.description`, '')
+    });
 
-    const fetchNotificationCount = async () => {
+    // ✅ جلب عدد الإشعارات - مع useCallback لمنع إعادة الإنشاء
+    const fetchNotificationCount = useCallback(async () => {
+        // إلغاء الطلب السابق إذا كان قيد التنفيذ
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        
+        abortControllerRef.current = new AbortController();
+        
         try {
-            const response = await axiosInstance.get('/notifications/unread_count/');
-            setNotificationCount(response.data.count);
+            const response = await axiosInstance.get('/notifications/unread_count/', {
+                signal: abortControllerRef.current.signal
+            });
+            
+            if (isMountedRef.current) {
+                setNotificationCount(response.data.count);
+            }
         } catch (error) {
+            // تجاهل خطأ الإلغاء (AbortError)
+            if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+                return;
+            }
             console.error('Error fetching notification count:', error);
         }
-    };
+    }, []);
 
+    // ✅ جلب البيانات عند التحميل - مع تنظيف صحيح
     useEffect(() => {
+        // جلب أول مرة
         fetchNotificationCount();
         
+        // استماع لتحديثات الإشعارات
         const handleNotificationCount = (e) => {
-            setNotificationCount(e.detail.count);
+            if (isMountedRef.current) {
+                setNotificationCount(e.detail.count);
+            }
         };
         
         window.addEventListener('notificationCount', handleNotificationCount);
         
-        const interval = setInterval(() => {
+        // تحديث كل 60 ثانية بدلاً من 30
+        intervalRef.current = setInterval(() => {
             fetchNotificationCount();
-        }, 30000);
+        }, 60000);
         
         return () => {
             window.removeEventListener('notificationCount', handleNotificationCount);
-            clearInterval(interval);
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, [fetchNotificationCount]);
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
         };
     }, []);
 

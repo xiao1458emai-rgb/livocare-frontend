@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import { Line } from 'react-chartjs-2';
@@ -33,7 +33,12 @@ function HealthCharts({ refreshKey }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [darkMode, setDarkMode] = useState(false);
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const abortControllerRef = useRef(null);
 
+    // تحميل إعدادات الوضع المظلم - مرة واحدة فقط
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -49,12 +54,25 @@ function HealthCharts({ refreshKey }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    const fetchData = async () => {
+    // ✅ دالة جلب البيانات - مع useCallback لمنع إعادة الإنشاء
+    const fetchData = useCallback(async () => {
+        // إلغاء الطلب السابق إذا كان قيد التنفيذ
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        
+        // إنشاء AbortController جديد
+        abortControllerRef.current = new AbortController();
+        
         setLoading(true);
         setError(null);
         
         try {
-            const response = await axiosInstance.get('/health_status/');
+            const response = await axiosInstance.get('/health_status/', {
+                signal: abortControllerRef.current.signal
+            });
+            
+            if (!isMountedRef.current) return;
             
             // ✅ التحقق الصحيح من البيانات
             let data = [];
@@ -64,7 +82,6 @@ function HealthCharts({ refreshKey }) {
             } else if (response.data && Array.isArray(response.data.results)) {
                 data = response.data.results;
             } else if (response.data && typeof response.data === 'object') {
-                // إذا كان الكائن يحتوي على بيانات
                 data = Object.values(response.data).filter(item => item && typeof item === 'object');
             }
             
@@ -77,25 +94,53 @@ function HealthCharts({ refreshKey }) {
                  record.blood_glucose !== null)
             );
             
-            if (validData.length > 0) {
-                setHistory(validData);
-            } else {
-                setHistory([]);
-                console.log('No valid health data available');
+            if (isMountedRef.current) {
+                if (validData.length > 0) {
+                    setHistory(validData);
+                } else {
+                    setHistory([]);
+                    console.log('No valid health data available');
+                }
             }
             
         } catch (err) {
+            // تجاهل خطأ الإلغاء (AbortError)
+            if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+                return;
+            }
             console.error('Error fetching chart data:', err);
-            setError(t('charts.fetchError'));
-            setHistory([]);
+            if (isMountedRef.current) {
+                setError(t('charts.fetchError'));
+                setHistory([]);
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
         }
-    };
+    }, [t]);
 
+    // ✅ جلب البيانات عند التغيير - مع تنظيف صحيح
     useEffect(() => {
         fetchData();
-    }, [refreshKey]);
+        
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, [refreshKey, fetchData]);
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
 
     const processChartData = () => {
         if (!history || history.length === 0) {
@@ -400,7 +445,6 @@ function HealthCharts({ refreshKey }) {
                     </div>
                 )}
             </div>
-
             <style jsx>{`
  /* ===========================================
    HealthCharts.css - محسن للجوال والشاشات الكبيرة

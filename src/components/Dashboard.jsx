@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';  // ✅ أضف هذا إذا كنت بحاجة للتنقل
+import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/api'; 
 import '../index.css';
 // المكونات الأساسية
@@ -24,10 +24,14 @@ import Notifications from './Notifications/Notifications'
 import Reports from './Reports'
 import AdvancedHealthInsights from './Analytics/AdvancedHealthInsights';
 
-function Dashboard({ onLogout }) {  // ✅ استقبل onLogout من App
+function Dashboard({ onLogout }) {
     const { t, i18n } = useTranslation();
-    const navigate = useNavigate();  // ✅ للتنقل إذا لزم الأمر
+    const navigate = useNavigate();
     const isRTL = i18n.language === 'ar';
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const refreshIntervalRef = useRef(null);
     
     // الحالات
     const [healthRecords, setHealthRecords] = useState([]);
@@ -48,6 +52,7 @@ function Dashboard({ onLogout }) {  // ✅ استقبل onLogout من App
         return false;
     });
 
+    // ✅ تطبيق الوضع المظلم
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const html = document.documentElement;
@@ -61,24 +66,36 @@ function Dashboard({ onLogout }) {  // ✅ استقبل onLogout من App
         }
     }, [darkMode]);
 
+    // ✅ التحقق من المصادقة - مرة واحدة فقط
     useEffect(() => {
+        let isActive = true;
+        
         const checkAuth = () => {
             if (typeof window !== 'undefined') {
                 const token = localStorage.getItem('access_token');
-                setIsAuthReady(!!token);
-                
-                // ✅ إذا لم يكن هناك توكن، اذهب إلى صفحة login
-                if (!token) {
-                    navigate('/');
+                if (isActive) {
+                    setIsAuthReady(!!token);
+                    
+                    if (!token) {
+                        navigate('/');
+                    }
                 }
             }
         };
+        
         checkAuth();
+        
+        return () => { isActive = false; };
     }, [navigate]);
 
-    const fetchHealthData = async () => {
+    // ✅ جلب البيانات - مع useCallback لمنع إعادة الإنشاء
+    const fetchHealthData = useCallback(async () => {
+        if (!isAuthReady || !isMountedRef.current) return;
+        
         try {
             const response = await axiosInstance.get('/health_status/');
+            
+            if (!isMountedRef.current) return;
             
             if (Array.isArray(response.data) && response.data.length > 0) {
                 setHealthRecords(response.data);
@@ -106,20 +123,26 @@ function Dashboard({ onLogout }) {  // ✅ استقبل onLogout من App
             setError(null);
         } catch (err) {
             console.error('Error fetching health data:', err);
-            setError(t('dashboard.fetchError'));
-            setHealthRecords([]);
-            setLatestHealthData(null);
+            if (isMountedRef.current) {
+                setError(t('dashboard.fetchError'));
+                setHealthRecords([]);
+                setLatestHealthData(null);
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
         }
-    };
+    }, [isAuthReady, t]);
 
+    // ✅ جلب البيانات عند التغيير
     useEffect(() => {
         if (isAuthReady) {
             fetchHealthData();
         }
-    }, [refreshKey, isAuthReady]);
+    }, [refreshKey, isAuthReady, fetchHealthData]);
 
+    // ✅ إعدادات اللغة
     useEffect(() => {
         if (typeof window !== 'undefined') {
             document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
@@ -135,9 +158,20 @@ function Dashboard({ onLogout }) {  // ✅ استقبل onLogout من App
         }
     }, [isRTL, i18n.language]);
     
-    const handleDataSubmitted = () => {
-        setRefreshKey(prevKey => prevKey + 1); 
-    };
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (refreshIntervalRef.current) {
+                clearInterval(refreshIntervalRef.current);
+            }
+        };
+    }, []);
+    
+    const handleDataSubmitted = useCallback(() => {
+        setRefreshKey(prevKey => prevKey + 1);
+    }, []);
 
     const displayValue = (value, unit = '') => {
         if (value === null || value === undefined || value === '' || value === 'N/A') {

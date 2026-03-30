@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import '../../index.css';
@@ -43,8 +43,18 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         dailyCarbs: 250,
         dailyFat: 70
     });
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const autoRefreshRef = useRef(autoRefresh);
+    const intervalRef = useRef(null);
 
-    // تحميل إعدادات الوضع المظلم
+    // تحديث ref عند تغيير autoRefresh
+    useEffect(() => {
+        autoRefreshRef.current = autoRefresh;
+    }, [autoRefresh]);
+
+    // تحميل إعدادات الوضع المظلم - مرة واحدة فقط
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -59,37 +69,74 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // جلب التحليلات المتقدمة
-    useEffect(() => {
-        if (activeTab !== 'basic') {
-            fetchNutritionInsights();
-        }
-    }, [activeTab, refreshCounter]);
-
-    const fetchNutritionInsights = async () => {
+    // ✅ جلب التحليلات المتقدمة - مع منع التحديث المتكرر
+    const fetchNutritionInsights = useCallback(async () => {
+        if (!isMountedRef.current) return;
+        
         setLoadingInsights(true);
         try {
             const response = await axiosInstance.get('/analytics/nutrition-insights/');
-            setNutritionInsights(response.data);
+            if (isMountedRef.current) {
+                setNutritionInsights(response.data);
+            }
         } catch (error) {
             console.error('Error fetching nutrition insights:', error);
         } finally {
-            setLoadingInsights(false);
-        }
-    };
-
-    // تحديث تلقائي
-    useEffect(() => {
-        if (!autoRefresh) return;
-        const interval = setInterval(() => {
-            onRefresh();
-            if (activeTab !== 'basic') {
-                setRefreshCounter(prev => prev + 1);
+            if (isMountedRef.current) {
+                setLoadingInsights(false);
             }
-            setLastUpdate(new Date());
+        }
+    }, []);
+
+    // ✅ تحميل التحليلات فقط عند تغيير التبويب أو refreshCounter
+    useEffect(() => {
+        let isActive = true;
+        
+        if (activeTab !== 'basic') {
+            fetchNutritionInsights();
+        }
+        
+        return () => { isActive = false; };
+    }, [activeTab, refreshCounter, fetchNutritionInsights]);
+
+    // ✅ تحديث تلقائي - مع تنظيف صحيح
+    useEffect(() => {
+        if (!autoRefresh) {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+            return;
+        }
+
+        intervalRef.current = setInterval(() => {
+            if (autoRefreshRef.current && onRefresh) {
+                onRefresh();
+                if (activeTab !== 'basic') {
+                    setRefreshCounter(prev => prev + 1);
+                }
+                setLastUpdate(new Date());
+            }
         }, 60000);
-        return () => clearInterval(interval);
+
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
     }, [autoRefresh, onRefresh, activeTab]);
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, []);
 
     // الإحصائيات الأساسية
     const nutritionStats = useMemo(() => {
@@ -237,6 +284,7 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
 
     const prediction = getRealisticPrediction();
 
+    // ✅ تحميل مؤقت
     if (loading) {
         return (
             <div className="dashboard-loading-container">
@@ -515,7 +563,6 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                     </div>
                 )}
             </div>
-
             <style jsx>{`
                 .nutrition-dashboard-container {
                     max-width: 1000px;
