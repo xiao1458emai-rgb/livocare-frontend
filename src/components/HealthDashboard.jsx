@@ -42,7 +42,7 @@ function HealthDashboard({ refreshKey }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // ✅ دالة جلب البيانات من API - مع useCallback ومنع الطلبات المتزامنة
+    // ✅ دالة جلب آخر قراءة - مع useCallback ومنع الطلبات المتزامنة
     const fetchLatestReading = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
@@ -58,14 +58,27 @@ function HealthDashboard({ refreshKey }) {
         setError('');
         
         try {
-            const response = await axiosInstance.get('/health_status/latest/', {
+            // ✅ جلب جميع البيانات ثم أخذ آخر قراءة
+            const response = await axiosInstance.get('/health_status/', {
                 signal: abortControllerRef.current.signal
             });
             
             if (!isMountedRef.current) return;
             
-            if (response.data && response.data.id) {
-                setLatestReading(response.data);
+            // ✅ معالجة البيانات
+            let data = [];
+            if (Array.isArray(response.data)) {
+                data = response.data;
+            } else if (response.data && Array.isArray(response.data.results)) {
+                data = response.data.results;
+            }
+            
+            if (data.length > 0) {
+                // ✅ ترتيب حسب التاريخ وأخذ أحدث قراءة
+                const sortedData = [...data].sort((a, b) => 
+                    new Date(b.recorded_at) - new Date(a.recorded_at)
+                );
+                setLatestReading(sortedData[0]);
             } else {
                 setLatestReading(null);
             }
@@ -100,7 +113,6 @@ function HealthDashboard({ refreshKey }) {
         setInsightsError('');
         
         try {
-            // ✅ إزالة /api المكرر
             const response = await axiosInstance.get('/cross-insights/', {
                 signal: insightsAbortControllerRef.current.signal
             });
@@ -326,7 +338,7 @@ function HealthDashboard({ refreshKey }) {
         );
     }
 
-    const formattedDate = formatDateTime(latestReading.created_at);
+    const formattedDate = formatDateTime(latestReading.recorded_at);
 
     return (
         <div className={`health-dashboard ${darkMode ? 'dark-mode' : ''}`}>
