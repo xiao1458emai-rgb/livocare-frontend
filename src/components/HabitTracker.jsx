@@ -1,6 +1,6 @@
 // src/components/HabitTracker.jsx
 'use client'
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import HabitAnalytics from './Analytics/HabitAnalytics';
@@ -17,7 +17,6 @@ const roundNumber = (num, decimals = 1) => {
 const calculatePoints = (habitName, isCompleted) => {
     if (!isCompleted) return 0;
     
-    // نقاط حسب نوع العادة
     const pointsMap = {
         'sleep': 15,
         'water': 10,
@@ -34,11 +33,15 @@ const calculatePoints = (habitName, isCompleted) => {
             return points;
         }
     }
-    return 5; // نقاط افتراضية
+    return 5;
 };
 
 function HabitTracker({ isAuthReady }) {
     const { t, i18n } = useTranslation();
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const isFetchingRef = useRef(false);
     
     const [definitions, setDefinitions] = useState([]);
     const [newHabitName, setNewHabitName] = useState('');
@@ -69,7 +72,57 @@ function HabitTracker({ isAuthReady }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // حساب النقاط والسلسلة المتتالية
+    // ✅ جلب تعريفات العادات - مع useCallback
+    const fetchHabitDefinitions = useCallback(async () => {
+        if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
+        
+        isFetchingRef.current = true;
+        setLoading(true);
+        
+        try {
+            const response = await axiosInstance.get('/habit-definitions/');
+            const definitionsData = Array.isArray(response.data) ? response.data : 
+                                   (response.data?.data ? response.data.data : []);
+            
+            const logResponse = await axiosInstance.get('/habit-logs/');
+            const logsData = Array.isArray(logResponse.data) ? logResponse.data : 
+                            (logResponse.data?.data ? logResponse.data.data : []);
+            
+            if (isMountedRef.current) {
+                setDefinitions(definitionsData);
+                setLogs(logsData);
+            }
+        } catch (error) {
+            console.error('Failed to fetch habits:', error);
+            if (isMountedRef.current) {
+                if (error.response && error.response.status === 401) {
+                    setMessage(t('habits.authError'));
+                } else {
+                    setMessage(t('habits.fetchError'));
+                }
+                setIsError(true);
+                setDefinitions([]);
+                setLogs([]);
+            }
+        } finally {
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isFetchingRef.current = false;
+        }
+    }, [isAuthReady, t]);
+
+    // ✅ جلب البيانات عند تحميل المكون
+    useEffect(() => {
+        if (isAuthReady) {
+            fetchHabitDefinitions();
+        } else {
+            setDefinitions([]);
+            setLogs([]);
+        }
+    }, [isAuthReady, fetchHabitDefinitions]);
+
+    // ✅ حساب النقاط والسلسلة المتتالية - مع useMemo
     useEffect(() => {
         if (logs.length === 0) return;
         
@@ -128,48 +181,18 @@ function HabitTracker({ isAuthReady }) {
         setStreakDays(streak);
     }, [logs, definitions]);
 
-    const fetchHabitDefinitions = async () => {
-        setLoading(true);
-        try {
-            const response = await axiosInstance.get('/habit-definitions/');
-            const definitionsData = Array.isArray(response.data) ? response.data : 
-                                   (response.data?.data ? response.data.data : []);
-            setDefinitions(definitionsData);
-            
-            const logResponse = await axiosInstance.get('/habit-logs/');
-            const logsData = Array.isArray(logResponse.data) ? logResponse.data : 
-                            (logResponse.data?.data ? logResponse.data.data : []);
-            setLogs(logsData);
-
-        } catch (error) {
-            console.error('Failed to fetch habits:', error);
-            if (error.response && error.response.status === 401) {
-                setMessage(t('habits.authError'));
-            } else {
-                setMessage(t('habits.fetchError'));
-            }
-            setIsError(true);
-            setDefinitions([]);
-            setLogs([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-    
+    // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
-        if (isAuthReady) {
-            fetchHabitDefinitions();
-        } else {
-            setDefinitions([]);
-            setLogs([]);
-        }
-    }, [isAuthReady]);
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     const handleProductFound = (product) => {
         if (product) {
             setNewHabitName(product.name);
             
-            // تنسيق الوصف بدون placeholders
             const descriptionParts = [];
             if (product.brand) descriptionParts.push(product.brand);
             if (product.calories) descriptionParts.push(`${t('habits.calories')}: ${product.calories} ${t('habits.per100g')}`);
@@ -197,7 +220,6 @@ function HabitTracker({ isAuthReady }) {
             return;
         }
 
-        // التحقق من عدم التكرار
         const existingHabit = definitions.find(d => 
             d.name.toLowerCase() === newHabitName.trim().toLowerCase()
         );
@@ -228,7 +250,6 @@ function HabitTracker({ isAuthReady }) {
             setNewHabitName('');
             setNewHabitDescription('');
             await fetchHabitDefinitions();
-            
             setRefreshAnalytics(prev => prev + 1);
             
         } catch (error) {
@@ -269,7 +290,6 @@ function HabitTracker({ isAuthReady }) {
                 setMessage(t('habits.logAdded', { name: habit?.name || '', points }));
             }
             await fetchHabitDefinitions();
-            
             setRefreshAnalytics(prev => prev + 1);
             
         } catch (error) {

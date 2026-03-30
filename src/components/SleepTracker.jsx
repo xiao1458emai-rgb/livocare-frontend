@@ -1,5 +1,4 @@
-// src/components/SleepTracker.jsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
@@ -25,7 +24,6 @@ const calculateSleepDuration = (startTime, endTime) => {
         const durationMs = end - start;
         const durationHours = durationMs / (1000 * 60 * 60);
         
-        // فلترة القيم غير المنطقية
         if (durationHours < 1 || durationHours > 24) return null;
         
         return roundNumber(durationHours, 1);
@@ -100,6 +98,12 @@ function SleepTracker({ onDataSubmitted }) {
         return saved === 'true' || window.matchMedia('(prefers-color-scheme: dark)').matches;
     });
     const [reducedMotion, setReducedMotion] = useState(false);
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const isSubmittingRef = useRef(false);
+    const intervalRef = useRef(null);
+    const isFetchingHistoryRef = useRef(false);
 
     // التحقق من تفضيلات الحركة المخفضة
     useEffect(() => {
@@ -112,14 +116,40 @@ function SleepTracker({ onDataSubmitted }) {
         return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
     }, []);
 
-    // جلب سجل النوم عند التحميل
+    // ✅ جلب سجل النوم - مع useCallback ومنع الطلبات المتزامنة
+    const fetchSleepHistory = useCallback(async () => {
+        if (isFetchingHistoryRef.current || !isMountedRef.current) return;
+        
+        isFetchingHistoryRef.current = true;
+        setFetchingHistory(true);
+        
+        try {
+            const response = await axiosInstance.get('/sleep/?limit=20');
+            if (isMountedRef.current) {
+                const historyData = Array.isArray(response.data) ? response.data : [];
+                setSleepHistory(historyData);
+            }
+        } catch (err) {
+            console.error('Failed to fetch sleep history:', err);
+            if (isMountedRef.current) {
+                setSleepHistory([]);
+            }
+        } finally {
+            if (isMountedRef.current) {
+                setFetchingHistory(false);
+            }
+            isFetchingHistoryRef.current = false;
+        }
+    }, []);
+
+    // ✅ جلب سجل النوم عند التحميل
     useEffect(() => {
         fetchSleepHistory();
-    }, []);
+    }, [fetchSleepHistory]);
 
     // تحديث التحليلات
     useEffect(() => {
-        if (sleepHistory.length > 0) {
+        if (sleepHistory.length > 0 && isMountedRef.current) {
             setRefreshAnalytics(prev => prev + 1);
         }
     }, [sleepHistory]);
@@ -134,37 +164,35 @@ function SleepTracker({ onDataSubmitted }) {
         }
     }, [darkMode]);
 
-    // التحديث التلقائي
+    // ✅ التحديث التلقائي - مع تنظيف صحيح
     useEffect(() => {
-        if (!autoRefresh) return;
+        if (!autoRefresh) {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+            return;
+        }
 
-        const interval = setInterval(() => {
-            fetchSleepHistory();
-            setLastUpdate(new Date());
+        intervalRef.current = setInterval(() => {
+            if (isMountedRef.current) {
+                fetchSleepHistory();
+                setLastUpdate(new Date());
+            }
         }, 60000);
 
-        return () => clearInterval(interval);
-    }, [autoRefresh]);
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
+    }, [autoRefresh, fetchSleepHistory]);
 
     // حساب مدة النوم الحالية
     const currentDuration = useMemo(() => {
         return calculateSleepDuration(sleepData.start_time, sleepData.end_time);
     }, [sleepData.start_time, sleepData.end_time]);
-
-    // جلب سجل النوم
-    const fetchSleepHistory = useCallback(async () => {
-        try {
-            setFetchingHistory(true);
-            const response = await axiosInstance.get('/sleep/?limit=20');
-            const historyData = Array.isArray(response.data) ? response.data : [];
-            setSleepHistory(historyData);
-        } catch (err) {
-            console.error('Failed to fetch sleep history:', err);
-            setSleepHistory([]);
-        } finally {
-            setFetchingHistory(false);
-        }
-    }, []);
 
     // التحقق من صحة البيانات
     const validateSleepData = useCallback(() => {
@@ -201,20 +229,27 @@ function SleepTracker({ onDataSubmitted }) {
         return null;
     }, [sleepData.start_time, sleepData.end_time, t]);
 
-    // إرسال البيانات
+    // ✅ إرسال البيانات - مع منع الطلبات المتزامنة
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
+        
+        if (isSubmittingRef.current || !isMountedRef.current) return;
+        
         setMessage('');
         setIsError(false);
         setLoading(true);
 
         const validationError = validateSleepData();
         if (validationError) {
-            setMessage(validationError);
-            setIsError(true);
-            setLoading(false);
+            if (isMountedRef.current) {
+                setMessage(validationError);
+                setIsError(true);
+                setLoading(false);
+            }
             return;
         }
+
+        isSubmittingRef.current = true;
 
         const formattedData = {
             start_time: new Date(sleepData.start_time).toISOString(),
@@ -226,65 +261,80 @@ function SleepTracker({ onDataSubmitted }) {
         try {
             await axiosInstance.post('/sleep/', formattedData);
             
-            setMessage(t('sleep.success.message'));
-            setIsError(false);
-            
-            // إعادة تعيين النموذج
-            setSleepData({
-                start_time: '',
-                end_time: '',
-                quality_rating: 3,
-                notes: ''
-            });
-            
-            await fetchSleepHistory();
-            setRefreshAnalytics(prev => prev + 1);
-            setLastUpdate(new Date());
+            if (isMountedRef.current) {
+                setMessage(t('sleep.success.message'));
+                setIsError(false);
+                
+                setSleepData({
+                    start_time: '',
+                    end_time: '',
+                    quality_rating: 3,
+                    notes: ''
+                });
+                
+                await fetchSleepHistory();
+                setRefreshAnalytics(prev => prev + 1);
+                setLastUpdate(new Date());
 
-            if (onDataSubmitted) onDataSubmitted();
+                if (onDataSubmitted) onDataSubmitted();
 
-            setTimeout(() => setMessage(''), 5000);
-
+                setTimeout(() => {
+                    if (isMountedRef.current) setMessage('');
+                }, 5000);
+            }
         } catch (error) {
             console.error('Failed to log sleep:', error);
             
-            let errorMessage = t('sleep.error.general');
-            
-            if (error.response?.data?.detail) {
-                errorMessage = error.response.data.detail;
-            } else if (error.response?.status === 401) {
-                errorMessage = t('sleep.error.unauthorized');
-            } else if (error.response?.status === 500) {
-                errorMessage = t('sleep.error.server');
+            if (isMountedRef.current) {
+                let errorMessage = t('sleep.error.general');
+                
+                if (error.response?.data?.detail) {
+                    errorMessage = error.response.data.detail;
+                } else if (error.response?.status === 401) {
+                    errorMessage = t('sleep.error.unauthorized');
+                } else if (error.response?.status === 500) {
+                    errorMessage = t('sleep.error.server');
+                }
+                
+                setMessage(errorMessage);
+                setIsError(true);
             }
-            
-            setMessage(errorMessage);
-            setIsError(true);
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isSubmittingRef.current = false;
         }
     }, [sleepData, validateSleepData, fetchSleepHistory, onDataSubmitted, t]);
 
-    // حذف سجل
+    // ✅ حذف سجل
     const handleDeleteSleep = useCallback(async (sleepId) => {
         if (!window.confirm(t('sleep.deleteConfirm'))) return;
         
+        setLoading(true);
+        
         try {
-            setLoading(true);
             await axiosInstance.delete(`/sleep/${sleepId}/`);
             
-            await fetchSleepHistory();
-            setRefreshAnalytics(prev => prev + 1);
-            
-            setMessage(t('sleep.deleteSuccess'));
-            setIsError(false);
+            if (isMountedRef.current) {
+                await fetchSleepHistory();
+                setRefreshAnalytics(prev => prev + 1);
+                setMessage(t('sleep.deleteSuccess'));
+                setIsError(false);
+                setTimeout(() => {
+                    if (isMountedRef.current) setMessage('');
+                }, 3000);
+            }
         } catch (error) {
             console.error('Error deleting sleep:', error);
-            setMessage(t('sleep.deleteError'));
-            setIsError(true);
+            if (isMountedRef.current) {
+                setMessage(t('sleep.deleteError'));
+                setIsError(true);
+            }
         } finally {
-            setLoading(false);
-            setTimeout(() => setMessage(''), 3000);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
         }
     }, [fetchSleepHistory, t]);
 
@@ -342,6 +392,17 @@ function SleepTracker({ onDataSubmitted }) {
             totalNights: validCount
         };
     }, [sleepHistory]);
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, []);
 
     return (
         <div className={`sleep-tracker-container ${darkMode ? 'dark-mode' : ''} ${reducedMotion ? 'reduce-motion' : ''}`}>

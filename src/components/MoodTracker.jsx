@@ -1,6 +1,5 @@
-// src/components/MoodTracker.jsx
 'use client'
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import MoodAnalytics from './Analytics/MoodAnalytics';
@@ -103,7 +102,6 @@ const detectDepressionRisk = (moodData, t) => {
     let consecutiveBadDays = 0;
     let lastBadMood = null;
     
-    // ترتيب البيانات من الأقدم إلى الأحدث
     const sortedData = [...moodData].sort((a, b) => 
         new Date(a.entry_time) - new Date(b.entry_time)
     );
@@ -140,6 +138,13 @@ const detectDepressionRisk = (moodData, t) => {
 
 function MoodTracker({ isAuthReady }) {
     const { t, i18n } = useTranslation();
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const isFetchingRef = useRef(false);
+    const isSubmittingRef = useRef(false);
+    const intervalRef = useRef(null);
+    
     const [moodData, setMoodData] = useState([]);
     const [sleepData, setSleepData] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -172,52 +177,85 @@ function MoodTracker({ isAuthReady }) {
         return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
     }, []);
 
-    // جلب البيانات
+    // ✅ جلب البيانات - مع useCallback ومنع الطلبات المتزامنة
     const fetchMoodData = useCallback(async () => {
-        if (!isAuthReady) return;
+        if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
         
+        isFetchingRef.current = true;
         setLoading(true);
         setError(null);
+        
         try {
             const [moodResponse, sleepResponse] = await Promise.all([
                 axiosInstance.get('/mood-logs/'),
                 axiosInstance.get('/sleep/').catch(() => ({ data: [] }))
             ]);
             
+            if (!isMountedRef.current) return;
+            
             setMoodData(moodResponse.data || []);
             setSleepData(sleepResponse.data || []);
             setLastUpdate(new Date());
-            checkTodayMood(moodResponse.data || []);
+            
+            // تحديث مزاج اليوم
+            const today = new Date().toDateString();
+            const todayEntry = (moodResponse.data || []).find(entry => 
+                new Date(entry.entry_time).toDateString() === today
+            );
+            setTodayMood(todayEntry || null);
+            
         } catch (error) {
             console.error('Error fetching mood data:', error);
-            setError(t('mood.fetchError'));
+            if (isMountedRef.current) {
+                setError(t('mood.fetchError'));
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isFetchingRef.current = false;
         }
     }, [isAuthReady, t]);
 
-    const checkTodayMood = (data) => {
-        const today = new Date().toDateString();
-        const todayEntry = data.find(entry => 
-            new Date(entry.entry_time).toDateString() === today
-        );
-        setTodayMood(todayEntry || null);
-    };
-
+    // ✅ جلب البيانات عند تحميل المكون
     useEffect(() => {
         fetchMoodData();
     }, [fetchMoodData]);
 
-    // التحديث التلقائي
+    // ✅ التحديث التلقائي - مع تنظيف صحيح
     useEffect(() => {
-        if (!autoRefresh || !isAuthReady) return;
+        if (!autoRefresh || !isAuthReady) {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+            return;
+        }
 
-        const interval = setInterval(() => {
-            fetchMoodData();
+        intervalRef.current = setInterval(() => {
+            if (isMountedRef.current) {
+                fetchMoodData();
+            }
         }, 60000);
 
-        return () => clearInterval(interval);
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
     }, [autoRefresh, isAuthReady, fetchMoodData]);
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, []);
 
     // ربط المزاج بالنوم
     const sleepMoodCorrelation = useMemo(() => {
@@ -261,46 +299,69 @@ function MoodTracker({ isAuthReady }) {
         return detectDepressionRisk(moodData, t);
     }, [moodData, t]);
 
-    // إضافة مزاج جديد
-    const handleAddMood = async (e) => {
+    // ✅ إضافة مزاج جديد - مع منع الطلبات المتزامنة
+    const handleAddMood = useCallback(async (e) => {
         e.preventDefault();
+        
+        if (isSubmittingRef.current || !isMountedRef.current) return;
+        
+        isSubmittingRef.current = true;
         setLoading(true);
+        
         try {
             const response = await axiosInstance.post('/mood-logs/', newMood);
-            setMoodData(prev => [response.data, ...prev]);
-            setTodayMood(response.data);
-            setShowForm(false);
-            setNewMood({ mood: 'Good', factors: '', text_entry: '' });
-            setRefreshAnalytics(prev => prev + 1);
             
-            setTimeout(() => fetchMoodData(), 1000);
+            if (isMountedRef.current) {
+                setMoodData(prev => [response.data, ...prev]);
+                setTodayMood(response.data);
+                setShowForm(false);
+                setNewMood({ mood: 'Good', factors: '', text_entry: '' });
+                setRefreshAnalytics(prev => prev + 1);
+                setTimeout(() => fetchMoodData(), 1000);
+            }
         } catch (error) {
             console.error('Error adding mood:', error);
-            setError(t('mood.addError'));
+            if (isMountedRef.current) {
+                setError(t('mood.addError'));
+                setTimeout(() => {
+                    if (isMountedRef.current) setError(null);
+                }, 3000);
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isSubmittingRef.current = false;
         }
-    };
+    }, [newMood, t, fetchMoodData]);
 
-    // حذف مزاج
-    const handleDeleteMood = async (id) => {
+    // ✅ حذف مزاج
+    const handleDeleteMood = useCallback(async (id) => {
         if (!window.confirm(t('mood.deleteConfirm'))) return;
         
         try {
             await axiosInstance.delete(`/mood-logs/${id}/`);
-            setMoodData(prev => prev.filter(entry => entry.id !== id));
             
-            if (todayMood && todayMood.id === id) {
-                setTodayMood(null);
+            if (isMountedRef.current) {
+                setMoodData(prev => prev.filter(entry => entry.id !== id));
+                
+                if (todayMood && todayMood.id === id) {
+                    setTodayMood(null);
+                }
+                
+                setRefreshAnalytics(prev => prev + 1);
+                setError(null);
             }
-            
-            setRefreshAnalytics(prev => prev + 1);
-            setError(null);
         } catch (error) {
             console.error('Error deleting mood:', error);
-            setError(t('mood.deleteError'));
+            if (isMountedRef.current) {
+                setError(t('mood.deleteError'));
+                setTimeout(() => {
+                    if (isMountedRef.current) setError(null);
+                }, 3000);
+            }
         }
-    };
+    }, [t, todayMood]);
 
     if (loading && moodData.length === 0) {
         return (

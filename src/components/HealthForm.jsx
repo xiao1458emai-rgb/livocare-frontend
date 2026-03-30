@@ -1,12 +1,17 @@
 // src/components/HealthForm.jsx
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
+
 function HealthForm({ onDataSubmitted }) {
     const { t, i18n } = useTranslation();
     const [darkMode, setDarkMode] = useState(false);
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const isSubmittingRef = useRef(false);
     
     const [formData, setFormData] = useState({
         weight: '',
@@ -53,7 +58,7 @@ function HealthForm({ onDataSubmitted }) {
 
         const autoSaveForm = () => {
             const hasData = Object.values(formData).some(value => value.trim() !== '');
-            if (hasData) {
+            if (hasData && isMountedRef.current) {
                 localStorage.setItem('healthForm_autoSave', JSON.stringify(formData));
                 setLastAutoSave(new Date());
                 console.log('💾 Auto-saved health form');
@@ -67,15 +72,17 @@ function HealthForm({ onDataSubmitted }) {
     // استعادة البيانات المحفوظة
     useEffect(() => {
         const savedData = localStorage.getItem('healthForm_autoSave');
-        if (savedData) {
+        if (savedData && isMountedRef.current) {
             try {
                 const parsedData = JSON.parse(savedData);
                 setFormData(parsedData);
                 setMessage(t('health.form.autoRestored'));
                 setMessageType('info');
                 setTimeout(() => {
-                    setMessage('');
-                    setMessageType('');
+                    if (isMountedRef.current) {
+                        setMessage('');
+                        setMessageType('');
+                    }
                 }, 3000);
             } catch (error) {
                 console.error('Error loading auto-saved data:', error);
@@ -139,8 +146,10 @@ function HealthForm({ onDataSubmitted }) {
     useEffect(() => {
         if (message) {
             const timer = setTimeout(() => {
-                setMessage('');
-                setMessageType('');
+                if (isMountedRef.current) {
+                    setMessage('');
+                    setMessageType('');
+                }
             }, 4000);
             return () => clearTimeout(timer);
         }
@@ -169,81 +178,90 @@ function HealthForm({ onDataSubmitted }) {
         setMessageType('info');
     };
 
-    // دالة الإرسال
-// دالة الإرسال - أضف console.log للتصحيح
-const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-        setMessage(t('health.form.correctErrors'));
-        setMessageType('error');
-        return;
-    }
-
-    setLoading(true);
-    setMessage('');
-    setMessageType('');
-
-    const data = {
-        weight_kg: parseFloat(formData.weight),
-        systolic_pressure: parseInt(formData.systolic),
-        diastolic_pressure: parseInt(formData.diastolic),
-        blood_glucose: parseFloat(formData.glucose),
-    };
-
-    console.log('📤 Sending health data to server:', data);  // ✅ أضف هذا
-
-    try {
-        const response = await axiosInstance.post('/health_status/', data);
+    // ✅ دالة الإرسال - مع منع الطلبات المتزامنة
+    const handleSubmit = useCallback(async (e) => {
+        e.preventDefault();
         
-        console.log('✅ Server response:', response.data);  // ✅ أضف هذا
+        if (isSubmittingRef.current || !isMountedRef.current) return;
         
-        setMessage(t('health.form.submissionSuccess'));
-        setMessageType('success');
-        
-        resetForm();
-        localStorage.removeItem('healthForm_autoSave');
-        
-        if (onDataSubmitted) {
-            onDataSubmitted();
+        if (!validateForm()) {
+            setMessage(t('health.form.correctErrors'));
+            setMessageType('error');
+            return;
         }
 
-    } catch (err) {
-        console.error('❌ Submission failed. Full error:', err);  // ✅ أضف هذا
-        console.error('❌ Response data:', err.response?.data);  // ✅ أضف هذا
-        console.error('❌ Response status:', err.response?.status);  // ✅ أضف هذا
-        
-        let errorMessage = t('health.form.submissionError');
-        
-        if (err.response?.status === 400) {
-            const errorData = err.response.data;
-            if (errorData?.weight_kg) {
-                errorMessage = Array.isArray(errorData.weight_kg) ? errorData.weight_kg[0] : errorData.weight_kg;
-            } else if (errorData?.systolic_pressure) {
-                errorMessage = Array.isArray(errorData.systolic_pressure) ? errorData.systolic_pressure[0] : errorData.systolic_pressure;
-            } else if (errorData?.diastolic_pressure) {
-                errorMessage = Array.isArray(errorData.diastolic_pressure) ? errorData.diastolic_pressure[0] : errorData.diastolic_pressure;
-            } else if (errorData?.blood_glucose) {
-                errorMessage = Array.isArray(errorData.blood_glucose) ? errorData.blood_glucose[0] : errorData.blood_glucose;
-            } else if (typeof errorData === 'string') {
-                errorMessage = errorData;
-            } else {
-                errorMessage = JSON.stringify(errorData);
+        isSubmittingRef.current = true;
+        setLoading(true);
+        setMessage('');
+        setMessageType('');
+
+        const data = {
+            weight_kg: parseFloat(formData.weight),
+            systolic_pressure: parseInt(formData.systolic),
+            diastolic_pressure: parseInt(formData.diastolic),
+            blood_glucose: parseFloat(formData.glucose),
+        };
+
+        console.log('📤 Sending health data to server:', data);
+
+        try {
+            const response = await axiosInstance.post('/health_status/', data);
+            
+            console.log('✅ Server response:', response.data);
+            
+            if (isMountedRef.current) {
+                setMessage(t('health.form.submissionSuccess'));
+                setMessageType('success');
+                
+                resetForm();
+                localStorage.removeItem('healthForm_autoSave');
+                
+                if (onDataSubmitted) {
+                    onDataSubmitted();
+                }
             }
-        } else if (err.response?.status === 401) {
-            errorMessage = t('health.form.sessionExpired');
-        } else if (err.response?.status === 500) {
-            errorMessage = t('health.form.serverError');
-        } else if (err.code === 'ERR_NETWORK') {
-            errorMessage = '❌ Network error: Cannot connect to server';
+
+        } catch (err) {
+            console.error('❌ Submission failed. Full error:', err);
+            console.error('❌ Response data:', err.response?.data);
+            console.error('❌ Response status:', err.response?.status);
+            
+            if (!isMountedRef.current) return;
+            
+            let errorMessage = t('health.form.submissionError');
+            
+            if (err.response?.status === 400) {
+                const errorData = err.response.data;
+                if (errorData?.weight_kg) {
+                    errorMessage = Array.isArray(errorData.weight_kg) ? errorData.weight_kg[0] : errorData.weight_kg;
+                } else if (errorData?.systolic_pressure) {
+                    errorMessage = Array.isArray(errorData.systolic_pressure) ? errorData.systolic_pressure[0] : errorData.systolic_pressure;
+                } else if (errorData?.diastolic_pressure) {
+                    errorMessage = Array.isArray(errorData.diastolic_pressure) ? errorData.diastolic_pressure[0] : errorData.diastolic_pressure;
+                } else if (errorData?.blood_glucose) {
+                    errorMessage = Array.isArray(errorData.blood_glucose) ? errorData.blood_glucose[0] : errorData.blood_glucose;
+                } else if (typeof errorData === 'string') {
+                    errorMessage = errorData;
+                } else {
+                    errorMessage = JSON.stringify(errorData);
+                }
+            } else if (err.response?.status === 401) {
+                errorMessage = t('health.form.sessionExpired');
+            } else if (err.response?.status === 500) {
+                errorMessage = t('health.form.serverError');
+            } else if (err.code === 'ERR_NETWORK') {
+                errorMessage = '❌ Network error: Cannot connect to server';
+            }
+            
+            setMessage(errorMessage);
+            setMessageType('error');
+        } finally {
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isSubmittingRef.current = false;
         }
-        
-        setMessage(errorMessage);
-        setMessageType('error');
-    } finally {
-        setLoading(false);
-    }
-};
+    }, [formData, t, onDataSubmitted, validateForm]);
 
     // حساب مؤشرات الصحة
     const calculateHealthIndicators = () => {
@@ -331,6 +349,14 @@ const handleSubmit = async (e) => {
         
         return indicators;
     };
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     const healthIndicators = calculateHealthIndicators();
 

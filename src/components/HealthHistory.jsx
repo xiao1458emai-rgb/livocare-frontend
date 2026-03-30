@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import EditHealthForm from './EditHealthForm';
@@ -18,11 +18,16 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const isFetchingRef = useRef(false);
+    const isDeletingRef = useRef(false);
 
     // دالة مساعدة للتأكد من أن history مصفوفة
-    const getSafeHistory = () => {
+    const getSafeHistory = useCallback(() => {
         return Array.isArray(history) ? history : [];
-    };
+    }, [history]);
 
     // تحميل إعدادات الوضع المظلم
     useEffect(() => {
@@ -41,25 +46,41 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // جلب البيانات
-    const fetchHistory = async () => {
+    // ✅ جلب البيانات - مع useCallback ومنع الطلبات المتزامنة
+    const fetchHistory = useCallback(async () => {
+        if (isFetchingRef.current || !isMountedRef.current) return;
+        
+        isFetchingRef.current = true;
         setLoading(true);
         setError(null);
+        
         try {
             const response = await axiosInstance.get('/health_status/');
-            // ✅ التأكد من أن البيانات هي مصفوفة
+            
+            if (!isMountedRef.current) return;
+            
             const historyData = Array.isArray(response.data) ? response.data : [];
             setHistory(historyData);
             setSelectedRecords([]);
             setCurrentPage(1);
         } catch (err) {
             console.error('Error fetching health history:', err);
-            setError(t('history.fetchError'));
-            setHistory([]); // ✅ تعيين مصفوفة فارغة في حالة الخطأ
+            if (isMountedRef.current) {
+                setError(t('history.fetchError'));
+                setHistory([]);
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isFetchingRef.current = false;
         }
-    };
+    }, [t]);
+
+    // ✅ جلب البيانات عند التغيير
+    useEffect(() => {
+        fetchHistory();
+    }, [refreshKey, fetchHistory]);
 
     // تصفية البيانات حسب البحث
     const filteredHistory = useMemo(() => {
@@ -75,7 +96,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                    record.diastolic_pressure?.toString().includes(searchLower) ||
                    record.blood_glucose?.toString().includes(searchLower);
         });
-    }, [history, searchTerm, i18n.language]);
+    }, [history, searchTerm, i18n.language, getSafeHistory]);
 
     // فرز البيانات
     const sortedHistory = useMemo(() => {
@@ -113,34 +134,62 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         }));
     };
 
-    // الحذف مع تأكيد
-    const handleDelete = async (id) => {
+    // ✅ الحذف مع تأكيد - مع منع الطلبات المتزامنة
+    const handleDelete = useCallback(async (id) => {
+        if (isDeletingRef.current || !isMountedRef.current) return;
+        
+        isDeletingRef.current = true;
+        
         try {
             await axiosInstance.delete(`/health_status/${id}/`);
-            setDeleteConfirm(null);
-            setSelectedRecords([]);
-            onDataSubmitted(); // تحديث البيانات
+            
+            if (isMountedRef.current) {
+                setDeleteConfirm(null);
+                setSelectedRecords([]);
+                if (onDataSubmitted) onDataSubmitted();
+                await fetchHistory();
+            }
         } catch (err) {
             console.error('Error deleting record:', err);
-            setError(t('history.deleteError'));
+            if (isMountedRef.current) {
+                setError(t('history.deleteError'));
+                setTimeout(() => {
+                    if (isMountedRef.current) setError(null);
+                }, 3000);
+            }
+        } finally {
+            isDeletingRef.current = false;
         }
-    };
+    }, [t, onDataSubmitted, fetchHistory]);
 
-    // حذف متعدد
-    const handleBulkDelete = async () => {
-        if (selectedRecords.length === 0) return;
+    // ✅ حذف متعدد
+    const handleBulkDelete = useCallback(async () => {
+        if (selectedRecords.length === 0 || isDeletingRef.current || !isMountedRef.current) return;
+        
+        isDeletingRef.current = true;
         
         try {
             await Promise.all(selectedRecords.map(id => 
                 axiosInstance.delete(`/health_status/${id}/`)
             ));
-            setSelectedRecords([]);
-            onDataSubmitted();
+            
+            if (isMountedRef.current) {
+                setSelectedRecords([]);
+                if (onDataSubmitted) onDataSubmitted();
+                await fetchHistory();
+            }
         } catch (err) {
             console.error('Error bulk deleting:', err);
-            setError(t('history.bulkDeleteError'));
+            if (isMountedRef.current) {
+                setError(t('history.bulkDeleteError'));
+                setTimeout(() => {
+                    if (isMountedRef.current) setError(null);
+                }, 3000);
+            }
+        } finally {
+            isDeletingRef.current = false;
         }
-    };
+    }, [selectedRecords, onDataSubmitted, fetchHistory, t]);
 
     // تحديد/إلغاء تحديد كل السجلات
     const toggleSelectAll = () => {
@@ -160,9 +209,13 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         }
     };
 
+    // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
-        fetchHistory();
-    }, [refreshKey]);
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     const getSortIcon = (key) => {
         if (sortConfig.key !== key) return '↕️';
@@ -541,6 +594,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                     }}
                 />
             )}
+
 
             <style jsx>{`
 /* ===========================================

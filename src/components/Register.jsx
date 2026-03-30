@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from 'react-i18next';
-import axiosInstance from '../services/api'; // ✅ تغيير: استخدم axiosInstance بدلاً من axios
+import axiosInstance from '../services/api';
 import '../index.css';
 
 function Register({ onRegisterSuccess }) {
@@ -21,6 +21,10 @@ function Register({ onRegisterSuccess }) {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState(0);
     const [touched, setTouched] = useState({});
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const isSubmittingRef = useRef(false);
 
     // تحميل إعدادات الوضع المظلم
     useEffect(() => {
@@ -156,32 +160,41 @@ function Register({ onRegisterSuccess }) {
         return t('register.passwordStrong');
     };
 
-    const handleSubmit = async (e) => {
+    // ✅ دالة الإرسال - مع useCallback ومنع الطلبات المتزامنة
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
+        
+        if (isSubmittingRef.current || !isMountedRef.current) return;
+        
         setLoading(true);
         setMessage('');
         setMessageType('');
 
         const validationError = validateForm();
         if (validationError) {
-            setMessage(validationError);
-            setMessageType('error');
-            setLoading(false);
+            if (isMountedRef.current) {
+                setMessage(validationError);
+                setMessageType('error');
+                setLoading(false);
+            }
             return;
         }
 
+        isSubmittingRef.current = true;
+
         try {
-            // ✅ تغيير: استخدم axiosInstance بدلاً من axios مع عنوان محلي
             const response = await axiosInstance.post('/auth/register/', formData);
             
             console.log('✅ Registration successful:', response.data);
-            setMessage(t('register.success'));
-            setMessageType('success');
+            
+            if (isMountedRef.current) {
+                setMessage(t('register.success'));
+                setMessageType('success');
+            }
             
             // تسجيل الدخول تلقائياً بعد التسجيل
             setTimeout(async () => {
                 try {
-                    // ✅ تغيير: استخدم axiosInstance
                     const loginResponse = await axiosInstance.post('/auth/token/', {
                         username: formData.username,
                         password: formData.password
@@ -192,18 +205,21 @@ function Register({ onRegisterSuccess }) {
                     localStorage.setItem('refresh_token', refresh);
                     localStorage.setItem('username', formData.username);
                     
-                    if (onRegisterSuccess) {
+                    if (isMountedRef.current && onRegisterSuccess) {
                         onRegisterSuccess();
                     }
                 } catch (loginErr) {
                     console.error('Auto-login error:', loginErr);
-                    // إذا فشل تسجيل الدخول التلقائي، وجه المستخدم إلى صفحة login
-                    window.location.href = '/';
+                    if (isMountedRef.current) {
+                        window.location.href = '/';
+                    }
                 }
             }, 2000);
             
         } catch (error) {
             console.error('Registration error:', error.response?.data);
+            
+            if (!isMountedRef.current) return;
             
             let errorMessage = t('register.failed');
             
@@ -220,9 +236,20 @@ function Register({ onRegisterSuccess }) {
             setMessage(errorMessage);
             setMessageType('error');
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isSubmittingRef.current = false;
         }
-    };
+    }, [formData, t, onRegisterSuccess, validateForm]);
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     return (
         <div className={`register-container ${darkMode ? 'dark-mode' : ''}`}>
@@ -558,6 +585,7 @@ function Register({ onRegisterSuccess }) {
                     </div>
                 </div>
             </div>
+
             <style jsx>{`
                 /* ===========================================
                    Register.css - النسخة المحسنة والمطورة

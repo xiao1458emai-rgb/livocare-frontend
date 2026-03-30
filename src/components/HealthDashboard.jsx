@@ -1,8 +1,9 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
+
 function HealthDashboard({ refreshKey }) {
     const { t, i18n } = useTranslation();
     const [latestReading, setLatestReading] = useState(null);
@@ -16,6 +17,13 @@ function HealthDashboard({ refreshKey }) {
     const [crossInsights, setCrossInsights] = useState(null);
     const [loadingInsights, setLoadingInsights] = useState(false);
     const [insightsError, setInsightsError] = useState('');
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const abortControllerRef = useRef(null);
+    const insightsAbortControllerRef = useRef(null);
+    const isFetchingRef = useRef(false);
+    const isFetchingInsightsRef = useRef(false);
 
     // تحميل إعدادات الوضع المظلم
     useEffect(() => {
@@ -34,12 +42,27 @@ function HealthDashboard({ refreshKey }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // دالة جلب البيانات من API
-    const fetchLatestReading = async () => {
+    // ✅ دالة جلب البيانات من API - مع useCallback ومنع الطلبات المتزامنة
+    const fetchLatestReading = useCallback(async () => {
+        if (isFetchingRef.current || !isMountedRef.current) return;
+        
+        // إلغاء الطلب السابق إذا كان قيد التنفيذ
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        
+        isFetchingRef.current = true;
+        abortControllerRef.current = new AbortController();
+        
         setLoading(true);
         setError('');
+        
         try {
-            const response = await axiosInstance.get('/health_status/latest/');
+            const response = await axiosInstance.get('/health_status/latest/', {
+                signal: abortControllerRef.current.signal
+            });
+            
+            if (!isMountedRef.current) return;
             
             if (response.data && response.data.id) {
                 setLatestReading(response.data);
@@ -47,35 +70,90 @@ function HealthDashboard({ refreshKey }) {
                 setLatestReading(null);
             }
         } catch (err) {
+            if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+                return;
+            }
             console.error('Failed to fetch latest health reading:', err);
-            setError(t('health.dashboard.fetchError'));
+            if (isMountedRef.current) {
+                setError(t('health.dashboard.fetchError'));
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isFetchingRef.current = false;
         }
-    };
+    }, [t]);
 
-    // دالة جلب الرؤى المتقاطعة
-    const fetchCrossInsights = async () => {
+    // ✅ دالة جلب الرؤى المتقاطعة - مع useCallback
+    const fetchCrossInsights = useCallback(async () => {
+        if (isFetchingInsightsRef.current || !isMountedRef.current) return;
+        
+        if (insightsAbortControllerRef.current) {
+            insightsAbortControllerRef.current.abort();
+        }
+        
+        isFetchingInsightsRef.current = true;
+        insightsAbortControllerRef.current = new AbortController();
+        
         setLoadingInsights(true);
         setInsightsError('');
+        
         try {
-            const response = await axiosInstance.get('/api/cross-insights/');
+            // ✅ إزالة /api المكرر
+            const response = await axiosInstance.get('/cross-insights/', {
+                signal: insightsAbortControllerRef.current.signal
+            });
+            
+            if (!isMountedRef.current) return;
+            
             if (response.data.success) {
                 setCrossInsights(response.data.data);
             }
         } catch (err) {
+            if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+                return;
+            }
             console.error('Failed to fetch cross insights:', err);
-            setInsightsError('تعذر تحميل الرؤى الذكية');
+            if (isMountedRef.current) {
+                setInsightsError('تعذر تحميل الرؤى الذكية');
+            }
         } finally {
-            setLoadingInsights(false);
+            if (isMountedRef.current) {
+                setLoadingInsights(false);
+            }
+            isFetchingInsightsRef.current = false;
         }
-    };
+    }, []);
 
-    // جلب البيانات عند تحميل المكون أو تغير مفتاح التحديث
+    // ✅ جلب البيانات عند تحميل المكون أو تغير مفتاح التحديث
     useEffect(() => {
         fetchLatestReading();
         fetchCrossInsights();
-    }, [refreshKey]);
+        
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+            if (insightsAbortControllerRef.current) {
+                insightsAbortControllerRef.current.abort();
+            }
+        };
+    }, [refreshKey, fetchLatestReading, fetchCrossInsights]);
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+            if (insightsAbortControllerRef.current) {
+                insightsAbortControllerRef.current.abort();
+            }
+        };
+    }, []);
 
     // تنسيق التاريخ والوقت
     const formatDateTime = (dateString) => {
@@ -416,9 +494,7 @@ function HealthDashboard({ refreshKey }) {
                 </div>
             </div>
 
-            {/* ===========================================
-                🎯 الرؤى المتقاطعة والتحليلات الذكية
-                =========================================== */}
+            {/* الرؤى المتقاطعة والتحليلات الذكية */}
             <div className="cross-insights-section">
                 <div className="insights-header">
                     <div className="insights-title-wrapper">
@@ -429,7 +505,6 @@ function HealthDashboard({ refreshKey }) {
                     <p className="insights-subtitle">تحليل ذكي للعلاقات بين عاداتك الصحية</p>
                 </div>
 
-                {/* حالة التحميل */}
                 {loadingInsights && (
                     <div className="insights-loading">
                         <div className="loading-spinner-small"></div>
@@ -437,7 +512,6 @@ function HealthDashboard({ refreshKey }) {
                     </div>
                 )}
 
-                {/* عرض الأخطاء */}
                 {insightsError && (
                     <div className="insights-error">
                         <span className="error-icon">⚠️</span>
@@ -448,10 +522,8 @@ function HealthDashboard({ refreshKey }) {
                     </div>
                 )}
 
-                {/* عرض البيانات الحقيقية */}
                 {crossInsights && !loadingInsights && (
                     <>
-                        {/* بطاقات الارتباطات */}
                         <div className="correlations-grid">
                             {/* النوم والمزاج */}
                             {crossInsights.sleep_mood?.recommendations?.length > 0 && (

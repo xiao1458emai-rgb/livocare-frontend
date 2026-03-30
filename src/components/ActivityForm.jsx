@@ -1,6 +1,6 @@
 'use client'
 // src/components/ActivityForm.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import watchService from '../services/watchService';
@@ -8,6 +8,11 @@ import '../index.css';
 
 const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
     const { t, i18n } = useTranslation();
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const isSubmittingRef = useRef(false);
+    const isFetchingRef = useRef(false);
     
     const [editingId, setEditingId] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -27,27 +32,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
     const [watchSupported, setWatchSupported] = useState(true);
     const [adbModeActive, setAdbModeActive] = useState(false);
     const [adbServerStatus, setAdbServerStatus] = useState('disconnected');
-// ActivityForm.jsx - استبدل الـ useEffect الحالي بهذا:
-useEffect(() => {
-    // ✅ تفعيل ADB Mode بالقوة على الهاتف
-    const enableADB = () => {
-        const isTouchDevice = 'ontouchstart' in window;
-        const isMobileScreen = window.innerWidth <= 768;
-        const isMobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-        
-        if (isTouchDevice || isMobileScreen || isMobileUA) {
-            console.log('📱 Mobile device detected - forcing ADB Mode');
-            
-            // ✅ استخدام الدالة الجديدة
-            watchService.setMobileMode(true, '192.168.8.187');
-            
-            // الاتصال بـ ADB Monitor
-            watchService.connectADBMonitor();
-        }
-    };
     
-    enableADB();
-}, []);
     const [formData, setFormData] = useState({
         activity_type: '',
         duration_minutes: '',
@@ -75,22 +60,44 @@ useEffect(() => {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
+    // ✅ تفعيل ADB Mode
+    useEffect(() => {
+        const enableADB = () => {
+            const isTouchDevice = 'ontouchstart' in window;
+            const isMobileScreen = window.innerWidth <= 768;
+            const isMobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+            
+            if (isTouchDevice || isMobileScreen || isMobileUA) {
+                console.log('📱 Mobile device detected - forcing ADB Mode');
+                watchService.setMobileMode(true, '192.168.8.187');
+                watchService.connectADBMonitor();
+            }
+        };
+        
+        enableADB();
+    }, []);
+
     // ✅ استماع لبيانات الساعة عبر watchService
     useEffect(() => {
         const handleWatchData = (type, data) => {
+            if (!isMountedRef.current) return;
+            
             console.log('📊 Watch data received:', type, data);
             
             if (type === 'heartRate') {
                 setWatchHeartRate(data);
                 setWatchData(prev => ({ ...prev, heartRate: data, lastUpdate: new Date() }));
                 
-                // تنبيه للقراءات غير الطبيعية
                 if (data > 100) {
                     setWatchAlerts(prev => [`⚠️ ارتفاع ضربات القلب: ${data} BPM`, ...prev].slice(0, 3));
-                    setTimeout(() => setWatchAlerts(prev => prev.slice(1)), 5000);
+                    setTimeout(() => {
+                        if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
+                    }, 5000);
                 } else if (data < 60) {
                     setWatchAlerts(prev => [`⚠️ انخفاض ضربات القلب: ${data} BPM`, ...prev].slice(0, 3));
-                    setTimeout(() => setWatchAlerts(prev => prev.slice(1)), 5000);
+                    setTimeout(() => {
+                        if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
+                    }, 5000);
                 }
             }
             
@@ -98,13 +105,16 @@ useEffect(() => {
                 setWatchBloodPressure(data);
                 setWatchData(prev => ({ ...prev, bloodPressure: data, lastUpdate: new Date() }));
                 
-                // تنبيه للضغط غير الطبيعي
                 if (data.systolic > 140 || data.diastolic > 90) {
                     setWatchAlerts(prev => [`⚠️ ارتفاع الضغط: ${data.systolic}/${data.diastolic}`, ...prev].slice(0, 3));
-                    setTimeout(() => setWatchAlerts(prev => prev.slice(1)), 5000);
+                    setTimeout(() => {
+                        if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
+                    }, 5000);
                 } else if (data.systolic < 90 || data.diastolic < 60) {
                     setWatchAlerts(prev => [`⚠️ انخفاض الضغط: ${data.systolic}/${data.diastolic}`, ...prev].slice(0, 3));
-                    setTimeout(() => setWatchAlerts(prev => prev.slice(1)), 5000);
+                    setTimeout(() => {
+                        if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
+                    }, 5000);
                 }
             }
             
@@ -113,7 +123,9 @@ useEffect(() => {
                 setAdbModeActive(true);
                 setAdbServerStatus('connected');
                 setMessage('✅ تم الاتصال بـ ADB Monitor');
-                setTimeout(() => setMessage(''), 3000);
+                setTimeout(() => {
+                    if (isMountedRef.current) setMessage('');
+                }, 3000);
             }
             
             if (type === 'disconnected') {
@@ -121,152 +133,65 @@ useEffect(() => {
                 setAdbModeActive(false);
                 setAdbServerStatus('disconnected');
                 setMessage('🔌 تم قطع الاتصال بـ ADB Monitor');
-                setTimeout(() => setMessage(''), 3000);
+                setTimeout(() => {
+                    if (isMountedRef.current) setMessage('');
+                }, 3000);
             }
             
             if (type === 'error') {
                 setAdbServerStatus('error');
                 setError('فشل الاتصال بـ ADB Monitor. تأكد من تشغيل الخادم على الحاسوب');
-                setTimeout(() => setError(null), 5000);
+                setTimeout(() => {
+                    if (isMountedRef.current) setError(null);
+                }, 5000);
             }
         };
         
         watchService.onData(handleWatchData);
         
         return () => {
-            // تنظيف الـ callback
             const index = watchService.onDataCallbacks.indexOf(handleWatchData);
             if (index > -1) watchService.onDataCallbacks.splice(index, 1);
         };
     }, []);
 
-    // ✅ دالة الاتصال عبر ADB
-    const connectADB = async () => {
-        setWatchConnecting(true);
-        setAdbServerStatus('connecting');
+    // ✅ جلب الأنشطة - مع useCallback
+    const fetchActivities = useCallback(async () => {
+        if (isFetchingRef.current || !isMountedRef.current) return;
+        
+        isFetchingRef.current = true;
+        setFetching(true);
         
         try {
-            // تفعيل وضع ADB في الخدمة
-            watchService.enableADBMode();
-            
-            // محاولة الاتصال بـ ADB Monitor
-            const success = await watchService.connectToWatch();
-            
-            if (success) {
-                setWatchConnected(true);
-                setAdbModeActive(true);
-                setAdbServerStatus('connected');
-                setMessage('✅ تم الاتصال بـ ADB Monitor بنجاح');
-                setTimeout(() => setMessage(''), 3000);
-            } else {
-                throw new Error('فشل الاتصال');
+            const response = await axiosInstance.get('/activities/');
+            if (isMountedRef.current) {
+                setActivities(Array.isArray(response.data) ? response.data : []);
+                if (onActivityChange) onActivityChange();
+                setError(null);
             }
-        } catch (error) {
-            console.error('ADB connection failed:', error);
-            setAdbServerStatus('error');
-            setError('❌ فشل الاتصال بـ ADB Monitor. تأكد من: 1) تشغيل خادم ADB على الحاسوب 2) اتصال الهاتف عبر USB 3) تفعيل تصحيح USB');
-            setTimeout(() => setError(null), 8000);
-        } finally {
-            setWatchConnecting(false);
-        }
-    };
-
-    // ✅ دالة فصل الاتصال
-    const disconnectADB = () => {
-        watchService.disableADBMode();
-        setWatchConnected(false);
-        setAdbModeActive(false);
-        setAdbServerStatus('disconnected');
-        setWatchHeartRate(null);
-        setWatchBloodPressure(null);
-        setWatchData({ heartRate: null, bloodPressure: null, lastUpdate: null });
-        setMessage('🔌 تم فصل الاتصال بـ ADB Monitor');
-        setTimeout(() => setMessage(''), 3000);
-    };
-
-    // ✅ إضافة بيانات الساعة كنشاط
-    const addWatchDataAsActivity = async () => {
-        if (!watchHeartRate && !watchBloodPressure) {
-            setError('لا توجد بيانات من الساعة');
-            setTimeout(() => setError(null), 3000);
-            return;
-        }
-
-        setLoading(true);
-        
-        const notes = [];
-        if (watchHeartRate) notes.push(`ضربات القلب: ${watchHeartRate} BPM`);
-        if (watchBloodPressure) notes.push(`ضغط الدم: ${watchBloodPressure.systolic}/${watchBloodPressure.diastolic}`);
-        
-        const watchActivity = {
-            activity_type: 'walking',
-            duration_minutes: 30,
-            start_time: watchData.lastUpdate ? new Date(watchData.lastUpdate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-            notes: `بيانات من الساعة الذكية - ${notes.join(' - ')}`
-        };
-        
-        const calculatedCalories = calculateCalories('walking', 30);
-        const dataToSend = {
-            activity_type: 'walking',
-            duration_minutes: 30,
-            start_time: watchActivity.start_time,
-            calories_burned: calculatedCalories,
-            notes: watchActivity.notes
-        };
-
-        try {
-            const response = await axiosInstance.post('/activities/', dataToSend);
-            setActivities(prev => [{ ...response.data, activity_type: 'walking' }, ...prev]);
-            setMessage('✅ تم إضافة بيانات الساعة كنشاط');
-            setTimeout(() => setMessage(''), 3000);
-            if (onActivityChange) onActivityChange();
-            if (onDataSubmitted) onDataSubmitted();
         } catch (err) {
-            console.error('خطأ:', err);
-            setError('فشل في إضافة بيانات الساعة');
+            console.error('خطأ في جلب الأنشطة:', err);
+            if (isMountedRef.current) {
+                setError(t('activities.fetchError'));
+                setActivities([]);
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setFetching(false);
+            }
+            isFetchingRef.current = false;
         }
-    };
+    }, [t, onActivityChange]);
 
-    // ✅ طلب قياس جديد
-    const requestMeasurement = async () => {
-        setLoading(true);
-        try {
-            await watchService.requestMeasurement();
-            setMessage('📱 تم إرسال طلب القياس. افتح تطبيق FitPro وقم بالقياس');
-            setTimeout(() => setMessage(''), 5000);
-        } catch (error) {
-            console.error('Measurement request failed:', error);
-            setError('فشل طلب القياس');
-        } finally {
-            setLoading(false);
-        }
-    };
+    // ✅ جلب الأنشطة عند التحميل
+    useEffect(() => {
+        fetchActivities();
+    }, [fetchActivities]);
 
-    // باقي الدوال كما هي...
     const CALORIES_PER_MINUTE = {
         'walking': 3.5, 'running': 10.0, 'weightlifting': 4.0, 'swimming': 7.0,
         'yoga': 2.5, 'pilates': 3.0, 'cardio': 8.0, 'cycling': 6.0,
         'football': 7.5, 'basketball': 8.0, 'tennis': 6.5, 'other': 4.0
-    };
-
-    useEffect(() => { fetchActivities(); }, []);
-
-    const fetchActivities = async () => {
-        try {
-            setFetching(true);
-            const response = await axiosInstance.get('/activities/');
-            setActivities(Array.isArray(response.data) ? response.data : []);
-            if (onActivityChange) onActivityChange();
-            setError(null);
-        } catch (err) {
-            console.error('خطأ في جلب الأنشطة:', err);
-            setError(t('activities.fetchError'));
-            setActivities([]);
-        } finally {
-            setFetching(false);
-        }
     };
 
     const calculateCalories = (activityType, durationMinutes) => {
@@ -299,21 +224,32 @@ useEffect(() => {
         } catch { return dateString; }
     };
 
-    const deleteActivity = async (id) => {
+    // ✅ حذف نشاط
+    const deleteActivity = useCallback(async (id) => {
         if (!window.confirm(t('activities.deleteConfirm'))) return;
+        
+        setLoading(true);
+        
         try {
-            setLoading(true);
             await axiosInstance.delete(`/activities/${id}/`);
-            setActivities(prev => prev.filter(activity => activity.id !== id));
-            setMessage(t('activities.deleted'));
-            setTimeout(() => setMessage(''), 3000);
-            if (onActivityChange) onActivityChange();
-            if (id === editingId) { resetForm(); setIsEditing(false); setEditingId(null); }
+            if (isMountedRef.current) {
+                setActivities(prev => prev.filter(activity => activity.id !== id));
+                setMessage(t('activities.deleted'));
+                setTimeout(() => {
+                    if (isMountedRef.current) setMessage('');
+                }, 3000);
+                if (onActivityChange) onActivityChange();
+                if (id === editingId) { resetForm(); setIsEditing(false); setEditingId(null); }
+            }
         } catch (err) {
             console.error('خطأ:', err);
-            setError(t('activities.deleteError'));
-        } finally { setLoading(false); }
-    };
+            if (isMountedRef.current) {
+                setError(t('activities.deleteError'));
+            }
+        } finally {
+            if (isMountedRef.current) setLoading(false);
+        }
+    }, [t, onActivityChange, editingId]);
 
     const getActivityOptions = () => [
         { value: 'walking', label: t('activities.walking'), icon: '🚶‍♂️', color: '#3498db' },
@@ -342,18 +278,24 @@ useEffect(() => {
         return null;
     };
 
-    const handleSubmit = async (e) => {
+    // ✅ إرسال النشاط - مع منع الطلبات المتزامنة
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
+        
+        if (isSubmittingRef.current || !isMountedRef.current) return;
+        
         setLoading(true);
         setError(null);
         setMessage('');
 
         const validationError = validateFormData();
         if (validationError) {
-            setError(validationError);
+            if (isMountedRef.current) setError(validationError);
             setLoading(false);
             return;
         }
+
+        isSubmittingRef.current = true;
 
         const calculatedCalories = calculateCalories(formData.activity_type, formData.duration_minutes);
         const dataToSend = {
@@ -368,32 +310,48 @@ useEffect(() => {
             let response;
             if (isEditing && editingId) {
                 response = await axiosInstance.put(`/activities/${editingId}/`, dataToSend);
-                setMessage(t('activities.updated'));
-                setActivities(prev => prev.map(a => a.id === editingId ? { ...response.data, activity_type: formData.activity_type } : a));
+                if (isMountedRef.current) {
+                    setMessage(t('activities.updated'));
+                    setActivities(prev => prev.map(a => a.id === editingId ? { ...response.data, activity_type: formData.activity_type } : a));
+                }
             } else {
                 response = await axiosInstance.post('/activities/', dataToSend);
-                setMessage(t('activities.successMessage'));
-                setActivities(prev => [{ ...response.data, activity_type: formData.activity_type }, ...prev]);
+                if (isMountedRef.current) {
+                    setMessage(t('activities.successMessage'));
+                    setActivities(prev => [{ ...response.data, activity_type: formData.activity_type }, ...prev]);
+                }
             }
-            if (response.status === 200 || response.status === 201) {
+            
+            if (response.status === 200 || response.status === 201 && isMountedRef.current) {
                 if (onActivityChange) onActivityChange();
                 if (onDataSubmitted) onDataSubmitted();
                 resetForm();
                 if (isEditing) { setIsEditing(false); setEditingId(null); }
-                setTimeout(() => setMessage(''), 3000);
+                setTimeout(() => {
+                    if (isMountedRef.current) setMessage('');
+                }, 3000);
             }
         } catch (err) {
             console.error('خطأ:', err);
-            setError(t('activities.submissionError'));
-        } finally { setLoading(false); }
-    };
+            if (isMountedRef.current) {
+                setError(t('activities.submissionError'));
+            }
+        } finally {
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isSubmittingRef.current = false;
+        }
+    }, [formData, isEditing, editingId, t, onActivityChange, onDataSubmitted, validateFormData]);
 
     const cancelEdit = () => {
         resetForm();
         setIsEditing(false);
         setEditingId(null);
         setMessage(t('activities.editCancelled'));
-        setTimeout(() => setMessage(''), 3000);
+        setTimeout(() => {
+            if (isMountedRef.current) setMessage('');
+        }, 3000);
     };
 
     const resetForm = () => {
@@ -403,6 +361,137 @@ useEffect(() => {
     const getActivityIcon = (type) => getActivityOptions().find(o => o.value === type)?.icon || '🏃‍♀️';
     const getActivityColor = (type) => getActivityOptions().find(o => o.value === type)?.color || '#7f8c8d';
     const safeValue = (v, d = '—') => v !== null && v !== undefined ? v : d;
+
+    // ✅ دالة الاتصال عبر ADB
+    const connectADB = async () => {
+        setWatchConnecting(true);
+        setAdbServerStatus('connecting');
+        
+        try {
+            watchService.enableADBMode();
+            const success = await watchService.connectToWatch();
+            
+            if (success && isMountedRef.current) {
+                setWatchConnected(true);
+                setAdbModeActive(true);
+                setAdbServerStatus('connected');
+                setMessage('✅ تم الاتصال بـ ADB Monitor بنجاح');
+                setTimeout(() => {
+                    if (isMountedRef.current) setMessage('');
+                }, 3000);
+            } else {
+                throw new Error('فشل الاتصال');
+            }
+        } catch (error) {
+            console.error('ADB connection failed:', error);
+            if (isMountedRef.current) {
+                setAdbServerStatus('error');
+                setError('❌ فشل الاتصال بـ ADB Monitor. تأكد من: 1) تشغيل خادم ADB على الحاسوب 2) اتصال الهاتف عبر USB 3) تفعيل تصحيح USB');
+                setTimeout(() => {
+                    if (isMountedRef.current) setError(null);
+                }, 8000);
+            }
+        } finally {
+            if (isMountedRef.current) setWatchConnecting(false);
+        }
+    };
+
+    // ✅ دالة فصل الاتصال
+    const disconnectADB = () => {
+        watchService.disableADBMode();
+        setWatchConnected(false);
+        setAdbModeActive(false);
+        setAdbServerStatus('disconnected');
+        setWatchHeartRate(null);
+        setWatchBloodPressure(null);
+        setWatchData({ heartRate: null, bloodPressure: null, lastUpdate: null });
+        setMessage('🔌 تم فصل الاتصال بـ ADB Monitor');
+        setTimeout(() => {
+            if (isMountedRef.current) setMessage('');
+        }, 3000);
+    };
+
+    // ✅ إضافة بيانات الساعة كنشاط
+    const addWatchDataAsActivity = async () => {
+        if (!watchHeartRate && !watchBloodPressure) {
+            setError('لا توجد بيانات من الساعة');
+            setTimeout(() => {
+                if (isMountedRef.current) setError(null);
+            }, 3000);
+            return;
+        }
+
+        setLoading(true);
+        
+        const notes = [];
+        if (watchHeartRate) notes.push(`ضربات القلب: ${watchHeartRate} BPM`);
+        if (watchBloodPressure) notes.push(`ضغط الدم: ${watchBloodPressure.systolic}/${watchBloodPressure.diastolic}`);
+        
+        const watchActivity = {
+            activity_type: 'walking',
+            duration_minutes: 30,
+            start_time: watchData.lastUpdate ? new Date(watchData.lastUpdate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+            notes: `بيانات من الساعة الذكية - ${notes.join(' - ')}`
+        };
+        
+        const calculatedCalories = calculateCalories('walking', 30);
+        const dataToSend = {
+            activity_type: 'walking',
+            duration_minutes: 30,
+            start_time: watchActivity.start_time,
+            calories_burned: calculatedCalories,
+            notes: watchActivity.notes
+        };
+
+        try {
+            const response = await axiosInstance.post('/activities/', dataToSend);
+            if (isMountedRef.current) {
+                setActivities(prev => [{ ...response.data, activity_type: 'walking' }, ...prev]);
+                setMessage('✅ تم إضافة بيانات الساعة كنشاط');
+                setTimeout(() => {
+                    if (isMountedRef.current) setMessage('');
+                }, 3000);
+                if (onActivityChange) onActivityChange();
+                if (onDataSubmitted) onDataSubmitted();
+            }
+        } catch (err) {
+            console.error('خطأ:', err);
+            if (isMountedRef.current) {
+                setError('فشل في إضافة بيانات الساعة');
+            }
+        } finally {
+            if (isMountedRef.current) setLoading(false);
+        }
+    };
+
+    // ✅ طلب قياس جديد
+    const requestMeasurement = async () => {
+        setLoading(true);
+        try {
+            await watchService.requestMeasurement();
+            if (isMountedRef.current) {
+                setMessage('📱 تم إرسال طلب القياس. افتح تطبيق FitPro وقم بالقياس');
+                setTimeout(() => {
+                    if (isMountedRef.current) setMessage('');
+                }, 5000);
+            }
+        } catch (error) {
+            console.error('Measurement request failed:', error);
+            if (isMountedRef.current) {
+                setError('فشل طلب القياس');
+            }
+        } finally {
+            if (isMountedRef.current) setLoading(false);
+        }
+    };
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     return (
         <div className={`activity-form-container ${darkMode ? 'dark-mode' : ''}`}>
@@ -467,7 +556,6 @@ useEffect(() => {
                 {adbModeActive && (
                     <div className="watch-data-container">
                         <div className="health-stats-grid">
-                            {/* ضربات القلب */}
                             <div className="health-card heart-rate">
                                 <div className="health-icon">❤️</div>
                                 <div className="health-value">
@@ -482,7 +570,6 @@ useEffect(() => {
                                 </div>
                             </div>
 
-                            {/* ضغط الدم */}
                             <div className="health-card blood-pressure">
                                 <div className="health-icon">🩸</div>
                                 <div className="health-value">
@@ -530,7 +617,7 @@ useEffect(() => {
                 )}
             </div>
 
-            {/* باقي الكود - نموذج الأنشطة (نفس السابق) */}
+            {/* باقي الكود - نموذج الأنشطة */}
             <div className="card data-form">
                 <div className="form-header">
                     <h3>{isEditing ? '✏️ تعديل النشاط' : '🏃‍♀️ إضافة نشاط جديد'}</h3>
@@ -589,7 +676,7 @@ useEffect(() => {
                 </form>
             </div>
 
-            {/* قائمة الأنشطة (نفس السابق) */}
+            {/* قائمة الأنشطة */}
             <div className="activities-list-section">
                 <div className="activities-header">
                     <h3>📋 سجل الأنشطة</h3>
