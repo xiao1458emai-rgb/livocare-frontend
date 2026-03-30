@@ -12,42 +12,53 @@ function App() {
     const [darkMode, setDarkMode] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
 
-useEffect(() => {
-    let isMounted = true; // لمنع التحديث إذا أغلق التطبيق فجأة
+    useEffect(() => {
+        let isMounted = true;
 
-    const initApp = async () => {
-        try {
-            // 1. قراءة اللغة المفضلة أولاً (بدون تغيير الحالة حتى الآن)
-            const savedLanguage = localStorage.getItem('livocare_language') || 'ar';
-            
-            // 2. تحديث DOM مباشرة (خارج نظام React State لتجنب الـ Loop)
-            const isRTL = savedLanguage === 'ar';
-            document.documentElement.lang = savedLanguage;
-            document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
-
-            // 3. التحقق من التوكن
-            const token = localStorage.getItem('access_token');
-            
-            // 4. تحديث جميع الحالات دفعة واحدة في النهاية
-            if (isMounted) {
-                setIsAuthenticated(!!token);
+        const initApp = async () => {
+            try {
+                const savedLanguage = localStorage.getItem('livocare_language') || 'ar';
                 
-                // تنبيه: تجنب تغيير الـ Hash هنا إذا كان هو سبب المشكلة
-                if (window.location.hash === '#/register') {
-                    setShowRegister(true);
+                const isRTL = savedLanguage === 'ar';
+                document.documentElement.lang = savedLanguage;
+                document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+
+                const token = localStorage.getItem('access_token');
+                
+                if (isMounted) {
+                    setIsAuthenticated(!!token);
+                    
+                    // ✅ التحقق من الرابط عند بدء التشغيل
+                    if (window.location.hash === '#/register') {
+                        setShowRegister(true);
+                    }
+                    
+                    setIsLoading(false);
                 }
-                
-                setIsLoading(false); 
+            } catch (error) {
+                console.error("Initialization error:", error);
+                if (isMounted) setIsLoading(false);
             }
-        } catch (error) {
-            console.error("Initialization error:", error);
-            if (isMounted) setIsLoading(false);
-        }
-    };
+        };
 
-    initApp();
-    return () => { isMounted = false; }; // Cleanup function
-}, []);// 👈 اجعل المصفوفة فارغة لضمان التنفيذ مرة واحدة فقط عند فتح التطبيق
+        initApp();
+        
+        // ✅ إضافة مستمع لتغيرات الـ hash
+        const handleHashChange = () => {
+            if (window.location.hash === '#/register') {
+                setShowRegister(true);
+            } else if (window.location.hash === '#/login' || window.location.hash === '#/dashboard') {
+                setShowRegister(false);
+            }
+        };
+        
+        window.addEventListener('hashchange', handleHashChange);
+        
+        return () => { 
+            isMounted = false;
+            window.removeEventListener('hashchange', handleHashChange);
+        };
+    }, []); // 👈 مصفوفة فارغة لضمان التنفيذ مرة واحدة
 
     const handleLoginSuccess = () => {
         console.log('🔍 Login successful');
