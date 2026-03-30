@@ -92,7 +92,6 @@ const handleSubmit = async (e) => {
     setMessage('');
     setMessageType('');
 
-    // التحقق من صحة البيانات
     if (!username.trim() || !password.trim()) {
         setMessage(t('login.emptyFields'));
         setMessageType('error');
@@ -101,17 +100,21 @@ const handleSubmit = async (e) => {
     }
 
     try {
-        // ✅ الكود الصحيح
         const response = await axiosInstance.post('/auth/token/', {
             username: username,
             password: password
         });
 
+        console.log('🔑 Login response:', response.data);  // ✅ أضف هذا
+
         const { access, refresh } = response.data;
+        
         localStorage.setItem('access_token', access);
         localStorage.setItem('refresh_token', refresh);
         
-        // حفظ اسم المستخدم إذا تم تذكرني
+        console.log('💾 Token saved:', !!localStorage.getItem('access_token'));  // ✅ أضف هذا
+        console.log('💾 Token value:', localStorage.getItem('access_token')?.substring(0, 50) + '...');  // ✅ أضف هذا
+        
         if (rememberMe) {
             localStorage.setItem('saved_username', username);
         } else {
@@ -123,7 +126,6 @@ const handleSubmit = async (e) => {
         setMessage(t('login.success'));
         setMessageType('success');
         
-        // تأخير قليل لإظهار رسالة النجاح
         setTimeout(() => {
             if (onLoginSuccess) {
                 onLoginSuccess();
