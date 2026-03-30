@@ -3,12 +3,13 @@
 
 import { useState, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
-import axiosInstance from '../services/api'; // ✅ تغيير: استخدم axiosInstance
+import { Link, useNavigate } from 'react-router-dom';
+import axiosInstance from '../services/api';
 import '../index.css';
 
 function Login({ onLoginSuccess }) {
     const { t, i18n } = useTranslation();
+    const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -33,7 +34,24 @@ function Login({ onLoginSuccess }) {
         if (savedDarkMode) {
             document.documentElement.classList.add('dark-mode');
         }
-    }, []);
+        
+        // ✅ التحقق من وجود توكن صالح
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            console.log('🔑 Existing token found, verifying...');
+            // اختبر التوكن
+            axiosInstance.get('/health_status/')
+                .then(() => {
+                    console.log('✅ Token is valid, auto-login');
+                    if (onLoginSuccess) onLoginSuccess();
+                })
+                .catch(() => {
+                    console.log('❌ Token invalid, clearing');
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                });
+        }
+    }, [onLoginSuccess]);
 
     // استمع لتغييرات الوضع المظلم
     useEffect(() => {
@@ -55,7 +73,6 @@ function Login({ onLoginSuccess }) {
         };
     }, []);
 
-    // تبديل الوضع المظلم
     const toggleDarkMode = () => {
         const newDarkMode = !darkMode;
         setDarkMode(newDarkMode);
@@ -73,7 +90,6 @@ function Login({ onLoginSuccess }) {
         }));
     };
 
-    // تغيير اللغة
     const changeLanguage = (lng) => {
         i18n.changeLanguage(lng);
         localStorage.setItem('livocare_language', lng);
@@ -86,77 +102,91 @@ function Login({ onLoginSuccess }) {
         }));
     };
 
-const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-    setMessageType('');
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setMessage('');
+        setMessageType('');
 
-    if (!username.trim() || !password.trim()) {
-        setMessage(t('login.emptyFields'));
-        setMessageType('error');
-        setLoading(false);
-        return;
-    }
-
-    try {
-        const response = await axiosInstance.post('/auth/token/', {
-            username: username,
-            password: password
-        });
-
-        console.log('🔑 Login response:', response.data);  // ✅ أضف هذا
-
-        const { access, refresh } = response.data;
-        
-        localStorage.setItem('access_token', access);
-        localStorage.setItem('refresh_token', refresh);
-        
-        console.log('💾 Token saved:', !!localStorage.getItem('access_token'));  // ✅ أضف هذا
-        console.log('💾 Token value:', localStorage.getItem('access_token')?.substring(0, 50) + '...');  // ✅ أضف هذا
-        
-        if (rememberMe) {
-            localStorage.setItem('saved_username', username);
-        } else {
-            localStorage.removeItem('saved_username');
+        if (!username.trim() || !password.trim()) {
+            setMessage(t('login.emptyFields'));
+            setMessageType('error');
+            setLoading(false);
+            return;
         }
-        
-        localStorage.setItem('username', username);
-        
-        setMessage(t('login.success'));
-        setMessageType('success');
-        
-        setTimeout(() => {
-            if (onLoginSuccess) {
-                onLoginSuccess();
+
+        try {
+            console.log('📤 Sending login request for:', username);
+            
+            const response = await axiosInstance.post('/auth/token/', {
+                username: username.trim(),
+                password: password
+            });
+
+            console.log('🔑 Login response:', response.data);
+
+            // ✅ تأكد من وجود access token
+            if (!response.data || !response.data.access) {
+                throw new Error('No access token in response');
             }
-        }, 1500);
-        
-    } catch (error) {
-        console.error('Login error:', error.response?.data);
-        
-        let errorMessage = t('login.failed');
-        
-        if (error.response?.status === 400) {
-            errorMessage = t('login.invalidCredentials');
-        } else if (error.response?.status === 401) {
-            errorMessage = t('login.unauthorized');
-        } else if (error.response?.status === 404) {
-            errorMessage = t('login.serverNotFound');
-        } else if (error.response?.status === 500) {
-            errorMessage = t('login.serverError');
-        } else if (!navigator.onLine) {
-            errorMessage = t('login.networkError');
-        }
-        
-        setMessage(errorMessage);
-        setMessageType('error');
-    } finally {
-        setLoading(false);
-    }
-};
 
-    // إعادة تعيين النموذج
+            const { access, refresh } = response.data;
+            
+            // ✅ حفظ التوكن
+            localStorage.setItem('access_token', access);
+            if (refresh) localStorage.setItem('refresh_token', refresh);
+            
+            // ✅ التحقق من الحفظ
+            const savedToken = localStorage.getItem('access_token');
+            console.log('💾 Token saved:', !!savedToken);
+            console.log('💾 Token preview:', savedToken ? savedToken.substring(0, 50) + '...' : 'missing');
+            
+            if (rememberMe) {
+                localStorage.setItem('saved_username', username);
+            } else {
+                localStorage.removeItem('saved_username');
+            }
+            
+            localStorage.setItem('username', username);
+            
+            setMessage(t('login.success'));
+            setMessageType('success');
+            
+            // ✅ تأخير الانتقال لضمان حفظ التوكن
+            setTimeout(() => {
+                console.log('🚀 Calling onLoginSuccess');
+                if (onLoginSuccess) {
+                    onLoginSuccess();
+                } else {
+                    navigate('/dashboard');
+                }
+            }, 1000);
+            
+        } catch (error) {
+            console.error('❌ Login error:', error);
+            console.error('❌ Response data:', error.response?.data);
+            
+            let errorMessage = t('login.failed');
+            
+            if (error.response?.status === 400) {
+                errorMessage = t('login.invalidCredentials');
+            } else if (error.response?.status === 401) {
+                errorMessage = t('login.unauthorized');
+            } else if (error.response?.status === 404) {
+                errorMessage = t('login.serverNotFound');
+            } else if (error.response?.status === 500) {
+                errorMessage = t('login.serverError');
+            } else if (!navigator.onLine) {
+                errorMessage = t('login.networkError');
+            }
+            
+            setMessage(errorMessage);
+            setMessageType('error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const resetForm = () => {
         setUsername('');
         setPassword('');
@@ -357,78 +387,77 @@ const handleSubmit = async (e) => {
                         </div>
                     )}
                     
- {/* قم بتغيير هذا الجزء في كودك */}
-<div className="register-link">
-    <p>
-        {t('login.noAccount')} 
-        <Link 
-            to="/register" 
-            className="register-link-btn"
-            onClick={(e) => {
-                // منع أي سلوك افتراضي غير مرغوب
-                e.stopPropagation();
-            }}
-        >
-            {t('login.register')}
-        </Link>
-    </p>
-</div>
-                
-                {/* معلومات التطبيق */}
-                <div className="app-info">
-                    <div className="app-info-header">
-                        <h3>🌟 {t('login.featuresTitle')}</h3>
-                        <div className="header-decoration"></div>
+                    <div className="register-link">
+                        <p>
+                            {t('login.noAccount')} 
+                            <Link 
+                                to="/register" 
+                                className="register-link-btn"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                }}
+                            >
+                                {t('login.register')}
+                            </Link>
+                        </p>
                     </div>
                     
-                    <ul className="features-list">
-                        <li>
-                            <span className="feature-icon">📊</span>
-                            <span className="feature-text">{t('login.feature1')}</span>
-                        </li>
-                        <li>
-                            <span className="feature-icon">🥗</span>
-                            <span className="feature-text">{t('login.feature2')}</span>
-                        </li>
-                        <li>
-                            <span className="feature-icon">🌙</span>
-                            <span className="feature-text">{t('login.feature3')}</span>
-                        </li>
-                        <li>
-                            <span className="feature-icon">😊</span>
-                            <span className="feature-text">{t('login.feature4')}</span>
-                        </li>
-                        <li>
-                            <span className="feature-icon">💊</span>
-                            <span className="feature-text">{t('login.feature5')}</span>
-                        </li>
-                    </ul>
-                    
-                    <div className="app-stats">
-                        <div className="stat-item">
-                            <span className="stat-value">10k+</span>
-                            <span className="stat-label">{t('login.users')}</span>
+                    {/* معلومات التطبيق */}
+                    <div className="app-info">
+                        <div className="app-info-header">
+                            <h3>🌟 {t('login.featuresTitle')}</h3>
+                            <div className="header-decoration"></div>
                         </div>
-                        <div className="stat-divider"></div>
-                        <div className="stat-item">
-                            <span className="stat-value">4.8</span>
-                            <span className="stat-label">{t('login.rating')}</span>
+                        
+                        <ul className="features-list">
+                            <li>
+                                <span className="feature-icon">📊</span>
+                                <span className="feature-text">{t('login.feature1')}</span>
+                            </li>
+                            <li>
+                                <span className="feature-icon">🥗</span>
+                                <span className="feature-text">{t('login.feature2')}</span>
+                            </li>
+                            <li>
+                                <span className="feature-icon">🌙</span>
+                                <span className="feature-text">{t('login.feature3')}</span>
+                            </li>
+                            <li>
+                                <span className="feature-icon">😊</span>
+                                <span className="feature-text">{t('login.feature4')}</span>
+                            </li>
+                            <li>
+                                <span className="feature-icon">💊</span>
+                                <span className="feature-text">{t('login.feature5')}</span>
+                            </li>
+                        </ul>
+                        
+                        <div className="app-stats">
+                            <div className="stat-item">
+                                <span className="stat-value">10k+</span>
+                                <span className="stat-label">{t('login.users')}</span>
+                            </div>
+                            <div className="stat-divider"></div>
+                            <div className="stat-item">
+                                <span className="stat-value">4.8</span>
+                                <span className="stat-label">{t('login.rating')}</span>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div className="app-version">
-                        <span className="version-info">
-                            <span className="version-icon">📦</span>
-                            {t('login.version')}: 2.0.0
-                        </span>
-                        <span className="app-status">
-                            <span className="status-dot"></span>
-                            {t('login.online')}
-                        </span>
+                        
+                        <div className="app-version">
+                            <span className="version-info">
+                                <span className="version-icon">📦</span>
+                                {t('login.version')}: 2.0.0
+                            </span>
+                            <span className="app-status">
+                                <span className="status-dot"></span>
+                                {t('login.online')}
+                            </span>
+                        </div>
                     </div>
                 </div>
-            </div>  {/* ✅ هذا القوس يقفل <div className="login-content"> */}
-        </div>  {/* ✅ هذا القوس يقفل <div className="login-container"> */}
+            </div>
+
         <style jsx>{`
 
                 /* ===========================================
