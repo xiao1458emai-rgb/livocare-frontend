@@ -15,7 +15,7 @@ import {
     Filler,
 } from 'chart.js';
 import '../index.css';
-// تسجيل العناصر الضرورية لـ Chart.js
+
 ChartJS.register(
     CategoryScale,
     LinearScale,
@@ -34,14 +34,12 @@ function HealthCharts({ refreshKey }) {
     const [error, setError] = useState(null);
     const [darkMode, setDarkMode] = useState(false);
 
-    // تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
         setDarkMode(savedDarkMode);
     }, []);
 
-    // استمع لتغييرات الوضع المظلم
     useEffect(() => {
         const handleThemeChange = (e) => {
             setDarkMode(e.detail?.darkMode ?? false);
@@ -51,51 +49,45 @@ function HealthCharts({ refreshKey }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // دالة محسنة لجلب البيانات
     const fetchData = async () => {
-        if (history.length > 0) {
-            setLoading(true);
-        } else {
-            setLoading(true);
-        }
-        
+        setLoading(true);
         setError(null);
+        
         try {
             const response = await axiosInstance.get('/health_status/');
             
+            // ✅ التحقق الصحيح من البيانات
+            let data = [];
+            
             if (Array.isArray(response.data)) {
-                const validData = response.data.filter(record => 
-                    record && record.recorded_at && 
-                    (record.weight_kg || record.systolic_pressure || record.blood_glucose)
-                );
-                
+                data = response.data;
+            } else if (response.data && Array.isArray(response.data.results)) {
+                data = response.data.results;
+            } else if (response.data && typeof response.data === 'object') {
+                // إذا كان الكائن يحتوي على بيانات
+                data = Object.values(response.data).filter(item => item && typeof item === 'object');
+            }
+            
+            // ✅ تصفية البيانات الصالحة فقط
+            const validData = data.filter(record => 
+                record && 
+                record.recorded_at && 
+                (record.weight_kg !== null || 
+                 record.systolic_pressure !== null || 
+                 record.blood_glucose !== null)
+            );
+            
+            if (validData.length > 0) {
                 setHistory(validData);
             } else {
-                throw new Error(t('charts.invalidDataFormat'));
+                setHistory([]);
+                console.log('No valid health data available');
             }
+            
         } catch (err) {
             console.error('Error fetching chart data:', err);
-            
-            let errorMessage = t('charts.fetchError');
-            
-            if (err.response?.status === 401) {
-                errorMessage = t('charts.sessionExpired');
-            } else if (err.response?.status === 404) {
-                errorMessage = t('charts.dataNotFound');
-            } else if (err.response?.status === 500) {
-                errorMessage = t('charts.serverError');
-            } else if (err.code === 'NETWORK_ERROR' || !err.response) {
-                errorMessage = t('charts.networkError');
-                if (history.length > 0) {
-                    errorMessage += ' ' + t('charts.showingStoredData');
-                }
-            }
-            
-            setError(errorMessage);
-            
-            if (history.length === 0) {
-                setHistory([]);
-            }
+            setError(t('charts.fetchError'));
+            setHistory([]);
         } finally {
             setLoading(false);
         }
@@ -105,49 +97,53 @@ function HealthCharts({ refreshKey }) {
         fetchData();
     }, [refreshKey]);
 
-    // معالجة البيانات للرسم البياني
     const processChartData = () => {
-        if (history.length === 0) {
+        if (!history || history.length === 0) {
             return { dates: [], weights: [], systolic: [], diastolic: [], glucose: [] };
         }
 
+        // ✅ ترتيب البيانات حسب التاريخ
         const sortedHistory = [...history].sort((a, b) => 
             new Date(a.recorded_at) - new Date(b.recorded_at)
         );
 
-        const dates = sortedHistory.map(record => 
-            new Date(record.recorded_at).toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US', {
-                month: 'short',
-                day: 'numeric'
-            })
-        );
+        const dates = sortedHistory.map(record => {
+            try {
+                return new Date(record.recorded_at).toLocaleDateString(
+                    i18n.language === 'ar' ? 'ar-EG' : 'en-US',
+                    { month: 'short', day: 'numeric' }
+                );
+            } catch {
+                return '—';
+            }
+        });
         
-        const weights = sortedHistory.map(record => 
-            record.weight_kg && !isNaN(parseFloat(record.weight_kg)) ? parseFloat(record.weight_kg) : null
-        );
+        const weights = sortedHistory.map(record => {
+            const val = record.weight_kg;
+            return (val !== null && val !== undefined && !isNaN(parseFloat(val))) ? parseFloat(val) : null;
+        });
         
-        const systolic = sortedHistory.map(record => 
-            record.systolic_pressure && !isNaN(parseInt(record.systolic_pressure)) ? parseInt(record.systolic_pressure) : null
-        );
+        const systolic = sortedHistory.map(record => {
+            const val = record.systolic_pressure;
+            return (val !== null && val !== undefined && !isNaN(parseInt(val))) ? parseInt(val) : null;
+        });
         
-        const diastolic = sortedHistory.map(record => 
-            record.diastolic_pressure && !isNaN(parseInt(record.diastolic_pressure)) ? parseInt(record.diastolic_pressure) : null
-        );
+        const diastolic = sortedHistory.map(record => {
+            const val = record.diastolic_pressure;
+            return (val !== null && val !== undefined && !isNaN(parseInt(val))) ? parseInt(val) : null;
+        });
 
-        const glucose = sortedHistory.map(record => 
-            record.blood_glucose && !isNaN(parseFloat(record.blood_glucose)) ? parseFloat(record.blood_glucose) : null
-        );
+        const glucose = sortedHistory.map(record => {
+            const val = record.blood_glucose;
+            return (val !== null && val !== undefined && !isNaN(parseFloat(val))) ? parseFloat(val) : null;
+        });
 
         return { dates, weights, systolic, diastolic, glucose };
     };
 
-    // خيارات الرسم البياني مع دعم الوضع المظلم
     const getChartOptions = (min, max) => ({
         responsive: true,
         maintainAspectRatio: false,
-        animation: {
-            duration: history.length > 10 ? 0 : 1000,
-        },
         plugins: {
             legend: {
                 position: 'top',
@@ -156,11 +152,6 @@ function HealthCharts({ refreshKey }) {
                     usePointStyle: true,
                     padding: 15,
                     color: darkMode ? '#f8fafc' : '#2c3e50',
-                    font: {
-                        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                        size: 12,
-                        weight: '500'
-                    }
                 }
             },
             tooltip: {
@@ -168,22 +159,6 @@ function HealthCharts({ refreshKey }) {
                 backgroundColor: darkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(0, 0, 0, 0.8)',
                 titleColor: darkMode ? '#f8fafc' : '#ffffff',
                 bodyColor: darkMode ? '#cbd5e1' : '#ffffff',
-                borderColor: darkMode ? '#475569' : 'transparent',
-                borderWidth: darkMode ? 1 : 0,
-                padding: 10,
-                titleFont: {
-                    family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                    size: 13,
-                    weight: '600'
-                },
-                bodyFont: {
-                    family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                    size: 12
-                },
-                intersect: false,
-                mode: 'index',
-                displayColors: true,
-                boxPadding: 5
             }
         },
         scales: {
@@ -194,12 +169,7 @@ function HealthCharts({ refreshKey }) {
                 ticks: {
                     maxRotation: 45,
                     minRotation: 45,
-                    maxTicksLimit: history.length > 10 ? 8 : 12,
                     color: darkMode ? '#cbd5e1' : '#64748b',
-                    font: {
-                        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                        size: 11
-                    }
                 }
             },
             y: {
@@ -208,37 +178,27 @@ function HealthCharts({ refreshKey }) {
                     color: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                 },
                 ticks: {
-                    precision: 0,
                     color: darkMode ? '#cbd5e1' : '#64748b',
-                    font: {
-                        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                        size: 11
-                    },
-                    callback: function(value) {
-                        return value;
-                    }
                 },
                 min: min,
                 max: max
             }
         },
-        elements: {
-            point: {
-                radius: history.length > 20 ? 3 : 6,
-                hoverRadius: history.length > 20 ? 5 : 8,
-                borderWidth: 2,
-                hoverBorderWidth: 3
-            },
-            line: {
-                borderWidth: 3,
-                tension: 0.4
-            }
-        },
-        interaction: {
-            mode: 'index',
-            intersect: false,
-        }
     });
+
+    const getDynamicRange = (data, padding = 0.1) => {
+        const validData = data.filter(val => val !== null && !isNaN(val));
+        if (validData.length === 0) return { min: 0, max: 100 };
+        
+        const min = Math.min(...validData);
+        const max = Math.max(...validData);
+        const range = max - min;
+        
+        return {
+            min: Math.max(0, min - range * padding),
+            max: max + range * padding
+        };
+    };
 
     if (loading) {
         return (
@@ -261,8 +221,7 @@ function HealthCharts({ refreshKey }) {
         );
     }
 
-    // تحتاج إلى قراءتين على الأقل لرسم خط بياني ذو معنى
-    if (history.length < 2) {
+    if (!history || history.length < 2) {
         return (
             <div className={`insufficient-data ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="data-icon">📊</div>
@@ -274,114 +233,28 @@ function HealthCharts({ refreshKey }) {
     }
 
     const { dates, weights, systolic, diastolic, glucose } = processChartData();
+    
+    // ✅ التحقق من وجود بيانات صالحة للعرض
+    const hasWeightData = weights.some(w => w !== null);
+    const hasBPData = systolic.some(s => s !== null) || diastolic.some(d => d !== null);
+    const hasGlucoseData = glucose.some(g => g !== null);
 
-    // حساب النطاقات الديناميكية للمحاور
-    const getDynamicRange = (data, padding = 0.1) => {
-        const validData = data.filter(val => val !== null);
-        if (validData.length === 0) return { min: 0, max: 100 };
-        
-        const min = Math.min(...validData);
-        const max = Math.max(...validData);
-        const range = max - min;
-        
-        return {
-            min: Math.max(0, min - range * padding),
-            max: max + range * padding
-        };
-    };
-
-    // إعداد بيانات الرسم البياني للوزن
-    const weightData = {
-        labels: dates,
-        datasets: [{
-            label: t('charts.weightLabel'),
-            data: weights,
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            borderWidth: 3,
-            tension: 0.4,
-            pointRadius: 6,
-            pointBackgroundColor: '#3b82f6',
-            pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
-            pointBorderWidth: 2,
-            fill: true,
-            pointHoverRadius: 8,
-            pointHoverBackgroundColor: '#3b82f6',
-            pointHoverBorderColor: darkMode ? '#f8fafc' : '#ffffff',
-            pointHoverBorderWidth: 3
-        }],
-    };
-
-    // إعداد بيانات الرسم البياني لضغط الدم
-    const bloodPressureData = {
-        labels: dates,
-        datasets: [
-            {
-                label: t('charts.systolicLabel'),
-                data: systolic,
-                borderColor: '#ef4444',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                borderWidth: 3,
-                tension: 0.4,
-                pointRadius: 6,
-                pointBackgroundColor: '#ef4444',
-                pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
-                pointBorderWidth: 2,
-                fill: false,
-                pointHoverRadius: 8,
-                pointHoverBackgroundColor: '#ef4444',
-                pointHoverBorderColor: darkMode ? '#f8fafc' : '#ffffff',
-                pointHoverBorderWidth: 3
-            },
-            {
-                label: t('charts.diastolicLabel'),
-                data: diastolic,
-                borderColor: '#8b5cf6',
-                backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                borderWidth: 3,
-                tension: 0.4,
-                pointRadius: 6,
-                pointBackgroundColor: '#8b5cf6',
-                pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
-                pointBorderWidth: 2,
-                fill: false,
-                pointHoverRadius: 8,
-                pointHoverBackgroundColor: '#8b5cf6',
-                pointHoverBorderColor: darkMode ? '#f8fafc' : '#ffffff',
-                pointHoverBorderWidth: 3
-            }
-        ],
-    };
-
-    // إعداد بيانات الرسم البياني للجلوكوز
-    const glucoseData = {
-        labels: dates,
-        datasets: [{
-            label: t('charts.glucoseLabel'),
-            data: glucose,
-            borderColor: '#10b981',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            borderWidth: 3,
-            tension: 0.4,
-            pointRadius: 6,
-            pointBackgroundColor: '#10b981',
-            pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
-            pointBorderWidth: 2,
-            fill: true,
-            pointHoverRadius: 8,
-            pointHoverBackgroundColor: '#10b981',
-            pointHoverBorderColor: darkMode ? '#f8fafc' : '#ffffff',
-            pointHoverBorderWidth: 3
-        }],
-    };
+    if (!hasWeightData && !hasBPData && !hasGlucoseData) {
+        return (
+            <div className={`insufficient-data ${darkMode ? 'dark-mode' : ''}`}>
+                <div className="data-icon">📊</div>
+                <h3>{t('charts.insufficientData')}</h3>
+                <p>{t('charts.noValidData')}</p>
+            </div>
+        );
+    }
 
     const weightRange = getDynamicRange(weights);
-    const pressureRange = getDynamicRange([...systolic, ...diastolic].filter(val => val !== null));
+    const pressureRange = getDynamicRange([...systolic, ...diastolic]);
     const glucoseRange = getDynamicRange(glucose);
 
     return (
         <div className={`health-charts-container ${darkMode ? 'dark-mode' : ''}`}>
-            {/* رأس القسم مع ترجمة */}
             <div className="charts-header">
                 <div className="header-main">
                     <h2>
@@ -389,15 +262,13 @@ function HealthCharts({ refreshKey }) {
                         {t('charts.title')}
                     </h2>
                     <div className="charts-controls">
-                        <div className="controls-group">
-                            <button 
-                                onClick={fetchData} 
-                                disabled={loading}
-                                className={`refresh-btn ${loading ? 'loading' : ''}`}
-                            >
-                                {loading ? '⏳' : '🔄'} {t('charts.refresh')}
-                            </button>
-                        </div>
+                        <button 
+                            onClick={fetchData} 
+                            disabled={loading}
+                            className={`refresh-btn ${loading ? 'loading' : ''}`}
+                        >
+                            {loading ? '⏳' : '🔄'} {t('charts.refresh')}
+                        </button>
                     </div>
                 </div>
                 <div className="charts-stats">
@@ -414,107 +285,118 @@ function HealthCharts({ refreshKey }) {
                 </div>
             </div>
 
-            {/* شبكة الرسوم البيانية */}
             <div className="charts-grid">
                 {/* الرسم البياني للوزن */}
-                <div className="chart-card">
-                    <div className="chart-header">
-                        <h3>
-                            <span className="chart-icon">⚖️</span>
-                            {t('charts.weightChartTitle')}
-                        </h3>
-                        <div className="chart-legend">
-                            <span className="legend-item">
-                                <span className="legend-color" style={{backgroundColor: '#3b82f6'}}></span>
-                                {t('charts.weightLegend')}
-                            </span>
+                {hasWeightData && (
+                    <div className="chart-card">
+                        <div className="chart-header">
+                            <h3>
+                                <span className="chart-icon">⚖️</span>
+                                {t('charts.weightChartTitle')}
+                            </h3>
+                        </div>
+                        <div className="chart-container">
+                            <Line 
+                                data={{
+                                    labels: dates,
+                                    datasets: [{
+                                        label: t('charts.weightLabel'),
+                                        data: weights,
+                                        borderColor: '#3b82f6',
+                                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                        borderWidth: 3,
+                                        tension: 0.4,
+                                        pointRadius: 6,
+                                        pointBackgroundColor: '#3b82f6',
+                                        pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
+                                        pointBorderWidth: 2,
+                                        fill: true,
+                                    }]
+                                }} 
+                                options={getChartOptions(weightRange.min, weightRange.max)}
+                            />
                         </div>
                     </div>
-                    <div className="chart-container">
-                        <Line 
-                            data={weightData} 
-                            options={getChartOptions(weightRange.min, weightRange.max)}
-                        />
-                    </div>
-                    {weights.filter(w => w !== null).length > 0 && (
-                        <div className="chart-footer">
-                            <span className="chart-stat">
-                                {t('charts.min')}: {Math.min(...weights.filter(w => w !== null)).toFixed(1)} kg
-                            </span>
-                            <span className="chart-stat">
-                                {t('charts.max')}: {Math.max(...weights.filter(w => w !== null)).toFixed(1)} kg
-                            </span>
-                        </div>
-                    )}
-                </div>
+                )}
 
                 {/* الرسم البياني لضغط الدم */}
-                <div className="chart-card">
-                    <div className="chart-header">
-                        <h3>
-                            <span className="chart-icon">❤️</span>
-                            {t('charts.bloodPressureTitle')}
-                        </h3>
-                        <div className="chart-legend">
-                            <span className="legend-item">
-                                <span className="legend-color" style={{backgroundColor: '#ef4444'}}></span>
-                                {t('charts.systolicLegend')}
-                            </span>
-                            <span className="legend-item">
-                                <span className="legend-color" style={{backgroundColor: '#8b5cf6'}}></span>
-                                {t('charts.diastolicLegend')}
-                            </span>
+                {hasBPData && (
+                    <div className="chart-card">
+                        <div className="chart-header">
+                            <h3>
+                                <span className="chart-icon">❤️</span>
+                                {t('charts.bloodPressureTitle')}
+                            </h3>
+                        </div>
+                        <div className="chart-container">
+                            <Line 
+                                data={{
+                                    labels: dates,
+                                    datasets: [
+                                        {
+                                            label: t('charts.systolicLabel'),
+                                            data: systolic,
+                                            borderColor: '#ef4444',
+                                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                            borderWidth: 3,
+                                            tension: 0.4,
+                                            pointRadius: 6,
+                                            pointBackgroundColor: '#ef4444',
+                                            pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
+                                            pointBorderWidth: 2,
+                                            fill: false,
+                                        },
+                                        {
+                                            label: t('charts.diastolicLabel'),
+                                            data: diastolic,
+                                            borderColor: '#8b5cf6',
+                                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                            borderWidth: 3,
+                                            tension: 0.4,
+                                            pointRadius: 6,
+                                            pointBackgroundColor: '#8b5cf6',
+                                            pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
+                                            pointBorderWidth: 2,
+                                            fill: false,
+                                        }
+                                    ]
+                                }} 
+                                options={getChartOptions(pressureRange.min, pressureRange.max)}
+                            />
                         </div>
                     </div>
-                    <div className="chart-container">
-                        <Line 
-                            data={bloodPressureData} 
-                            options={getChartOptions(pressureRange.min, pressureRange.max)}
-                        />
-                    </div>
-                    {systolic.filter(s => s !== null).length > 0 && (
-                        <div className="chart-footer">
-                            <span className="chart-stat">
-                                {t('charts.systolic')}: {Math.min(...systolic.filter(s => s !== null))} - {Math.max(...systolic.filter(s => s !== null))}
-                            </span>
-                            <span className="chart-stat">
-                                {t('charts.diastolic')}: {Math.min(...diastolic.filter(d => d !== null))} - {Math.max(...diastolic.filter(d => d !== null))}
-                            </span>
-                        </div>
-                    )}
-                </div>
+                )}
 
                 {/* الرسم البياني للجلوكوز */}
-                {glucose.some(val => val !== null) && (
+                {hasGlucoseData && (
                     <div className="chart-card">
                         <div className="chart-header">
                             <h3>
                                 <span className="chart-icon">🩸</span>
                                 {t('charts.glucoseTitle')}
                             </h3>
-                            <div className="chart-legend">
-                                <span className="legend-item">
-                                    <span className="legend-color" style={{backgroundColor: '#10b981'}}></span>
-                                    {t('charts.glucoseLegend')}
-                                </span>
-                            </div>
                         </div>
                         <div className="chart-container">
                             <Line 
-                                data={glucoseData} 
+                                data={{
+                                    labels: dates,
+                                    datasets: [{
+                                        label: t('charts.glucoseLabel'),
+                                        data: glucose,
+                                        borderColor: '#10b981',
+                                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                        borderWidth: 3,
+                                        tension: 0.4,
+                                        pointRadius: 6,
+                                        pointBackgroundColor: '#10b981',
+                                        pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
+                                        pointBorderWidth: 2,
+                                        fill: true,
+                                    }]
+                                }} 
                                 options={getChartOptions(glucoseRange.min, glucoseRange.max)}
                             />
                         </div>
-                        {glucose.filter(g => g !== null).length > 0 && (
-                            <div className="chart-footer">
-                                <span className="chart-stat">
-                                    {t('charts.min')}: {Math.min(...glucose.filter(g => g !== null)).toFixed(1)} mg/dL
-                                </span>
-                                <span className="chart-stat">
-                                    {t('charts.max')}: {Math.max(...glucose.filter(g => g !== null)).toFixed(1)} mg/dL
-                                </span>
-                            </div>
-                        )}
                     </div>
                 )}
             </div>
