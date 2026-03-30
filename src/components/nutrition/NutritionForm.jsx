@@ -1,7 +1,7 @@
 // src/components/nutrition/NutritionForm.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import axiosInstance from "../../services/api"; // ✅ إزالة import axios (غير مستخدم)
+import axiosInstance from "../../services/api";
 import NutritionAnalytics from '../Analytics/NutritionAnalytics';
 import BarcodeScanner from '../Camera/BarcodeScanner';
 import '../../index.css';
@@ -18,6 +18,10 @@ const getMealTypeChoices = (t) => [
 function NutritionForm({ onDataSubmitted, isAuthReady }) {
     const { t, i18n } = useTranslation();
     const [darkMode, setDarkMode] = useState(false);
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const isFetchingRef = useRef(false);
     
     const [showScanner, setShowScanner] = useState(false);
     const [refreshAnalytics, setRefreshAnalytics] = useState(0);
@@ -65,65 +69,90 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         return true;
     };
 
-    const fetchMeals = async () => {
-        if (!isAuthReady) return;
+    // ✅ fetchMeals مع useCallback لمنع إعادة الإنشاء
+    const fetchMeals = useCallback(async () => {
+        if (!isAuthReady || !isMountedRef.current) return;
         if (!checkAuth()) return;
         
         setLoadingMeals(true);
         try {
             const response = await axiosInstance.get('/meals/');
-            setMeals(Array.isArray(response.data) ? response.data : []);
-            setMessage('');
+            if (isMountedRef.current) {
+                setMeals(Array.isArray(response.data) ? response.data : []);
+                setMessage('');
+            }
         } catch (error) {
             console.error('Error fetching meals:', error);
-            setMessage(t('nutrition.errorLoading'));
-            setMessageType('error');
-            setMeals([]);
+            if (isMountedRef.current) {
+                setMessage(t('nutrition.errorLoading'));
+                setMessageType('error');
+                setMeals([]);
+            }
         } finally {
-            setLoadingMeals(false);
+            if (isMountedRef.current) {
+                setLoadingMeals(false);
+            }
         }
-    };
+    }, [isAuthReady, t]);
+
+    // ✅ جلب الوجبات عند تحميل المكون
+    useEffect(() => {
+        if (isAuthReady) {
+            fetchMeals();
+        }
+    }, [isAuthReady, fetchMeals]);
 
     const handleDeleteMeal = async (mealId) => {
         if (!window.confirm(t('nutrition.deleteConfirm'))) return;
         
         try {
             await axiosInstance.delete(`/meals/${mealId}/`);
-            setMeals(prev => prev.filter(meal => meal.id !== mealId));
-            setMessage(t('nutrition.mealDeleted'));
-            setMessageType('success');
-            setRefreshAnalytics(prev => prev + 1);
-            setTimeout(() => setMessage(''), 3000);
+            if (isMountedRef.current) {
+                setMeals(prev => prev.filter(meal => meal.id !== mealId));
+                setMessage(t('nutrition.mealDeleted'));
+                setMessageType('success');
+                setRefreshAnalytics(prev => prev + 1);
+                setTimeout(() => setMessage(''), 3000);
+            }
         } catch (error) {
             console.error('Error deleting meal:', error);
-            setMessage(t('nutrition.deleteError'));
-            setMessageType('error');
+            if (isMountedRef.current) {
+                setMessage(t('nutrition.deleteError'));
+                setMessageType('error');
+            }
         }
     };
 
     const searchFood = async (query, index) => {
-        if (!query || query.length < 2) return;
+        if (!query || query.length < 2 || isFetchingRef.current) return;
 
         const newItems = [...foodItems];
         newItems[index].isSearching = true;
         newItems[index].showResults = true;
         setFoodItems(newItems);
+        
+        isFetchingRef.current = true;
 
         try {
-            // ✅ إزالة /api المكرر - استخدم المسار الصحيح
             const response = await axiosInstance.get(`/food/search/?query=${encodeURIComponent(query)}`);
             const results = response.data.data || response.data.results || [];
             
-            const updatedItems = [...foodItems];
-            updatedItems[index].searchResults = results;
-            updatedItems[index].isSearching = false;
-            setFoodItems(updatedItems);
+            if (isMountedRef.current) {
+                const updatedItems = [...foodItems];
+                updatedItems[index].searchResults = results;
+                updatedItems[index].isSearching = false;
+                setFoodItems(updatedItems);
+            }
         } catch (error) {
             console.error('Search error:', error);
-            const updatedItems = [...foodItems];
-            updatedItems[index].searchResults = [];
-            updatedItems[index].isSearching = false;
-            setFoodItems(updatedItems);
+            if (isMountedRef.current) {
+                const updatedItems = [...foodItems];
+                updatedItems[index].searchResults = [];
+                updatedItems[index].isSearching = false;
+                setFoodItems(updatedItems);
+            }
+        } finally {
+            isFetchingRef.current = false;
         }
     };
 
@@ -285,7 +314,6 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         setMessage('');
         
         try {
-            // ✅ استخدام axiosInstance بدلاً من axios
             const offResponse = await axiosInstance.get(`https://world.openfoodfacts.org/api/v0/product/${barcodeText}.json`);
             
             if (offResponse.data.status === 1) {
@@ -398,17 +426,21 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 notes: mealData.notes,
                 ingredients
             });
-            setMessage(t('nutrition.mealUpdated'));
-            setMessageType('success');
-            setRefreshAnalytics(prev => prev + 1);
-            setShowEditForm(false);
-            setEditingMeal(null);
-            clearForm();
-            await fetchMeals();
+            if (isMountedRef.current) {
+                setMessage(t('nutrition.mealUpdated'));
+                setMessageType('success');
+                setRefreshAnalytics(prev => prev + 1);
+                setShowEditForm(false);
+                setEditingMeal(null);
+                clearForm();
+                await fetchMeals();
+            }
         } catch (error) {
             console.error('Update error:', error);
-            setMessage(t('nutrition.updateFailed'));
-            setMessageType('error');
+            if (isMountedRef.current) {
+                setMessage(t('nutrition.updateFailed'));
+                setMessageType('error');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -446,16 +478,20 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 notes: mealData.notes,
                 ingredients
             });
-            setMessage(t('nutrition.mealAdded'));
-            setMessageType('success');
-            setRefreshAnalytics(prev => prev + 1);
-            await fetchMeals();
-            clearForm();
-            if (onDataSubmitted) onDataSubmitted();
+            if (isMountedRef.current) {
+                setMessage(t('nutrition.mealAdded'));
+                setMessageType('success');
+                setRefreshAnalytics(prev => prev + 1);
+                await fetchMeals();
+                clearForm();
+                if (onDataSubmitted) onDataSubmitted();
+            }
         } catch (error) {
             console.error('Submission error:', error);
-            setMessage(t('nutrition.failedToSave'));
-            setMessageType('error');
+            if (isMountedRef.current) {
+                setMessage(t('nutrition.failedToSave'));
+                setMessageType('error');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -484,10 +520,6 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         }]);
     };
 
-    useEffect(() => {
-        if (isAuthReady) fetchMeals();
-    }, [isAuthReady]);
-
     const getMealTypeColor = (mealType) => {
         const meal = getMealTypeChoices(t).find(m => m.value === mealType);
         return meal ? meal.color : '#6c757d';
@@ -510,6 +542,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         ];
     };
 
+    // تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -522,15 +555,21 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (searchTimeout) clearTimeout(searchTimeout);
+        };
+    }, []);
+
     return (
         <div className={`nutrition-form-container ${darkMode ? 'dark-mode' : ''}`}>
             {showScanner && (
                 <BarcodeScanner onScan={handleBarcodeScanned} onClose={() => setShowScanner(false)} darkMode={darkMode} />
             )}
-
-            {/* باقي الكود JSX كما هو - لم يتغير */}
-            {/* ... (نفس الـ JSX الأصلي) ... */}
-        
+    
             <style jsx>{`
                 .camera-btn {
                     width: 48px; height: 48px; border: none; border-radius: 50%; background: rgba(255,255,255,0.2);

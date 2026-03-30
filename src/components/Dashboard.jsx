@@ -32,6 +32,7 @@ function Dashboard({ onLogout }) {
     // ✅ useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const refreshIntervalRef = useRef(null);
+    const isFetchingRef = useRef(false);  // ✅ منع الطلبات المتزامنة
     
     // الحالات
     const [healthRecords, setHealthRecords] = useState([]);
@@ -90,7 +91,10 @@ function Dashboard({ onLogout }) {
 
     // ✅ جلب البيانات - مع useCallback لمنع إعادة الإنشاء
     const fetchHealthData = useCallback(async () => {
-        if (!isAuthReady || !isMountedRef.current) return;
+        // ✅ منع الطلبات المتزامنة
+        if (!isAuthReady || !isMountedRef.current || isFetchingRef.current) return;
+        
+        isFetchingRef.current = true;
         
         try {
             const response = await axiosInstance.get('/health_status/');
@@ -132,10 +136,11 @@ function Dashboard({ onLogout }) {
             if (isMountedRef.current) {
                 setLoading(false);
             }
+            isFetchingRef.current = false;
         }
     }, [isAuthReady, t]);
 
-    // ✅ جلب البيانات عند التغيير
+    // ✅ جلب البيانات عند التغيير - مع منع الطلبات المتكررة
     useEffect(() => {
         if (isAuthReady) {
             fetchHealthData();

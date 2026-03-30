@@ -48,6 +48,7 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
     const isMountedRef = useRef(true);
     const autoRefreshRef = useRef(autoRefresh);
     const intervalRef = useRef(null);
+    const isFetchingInsightsRef = useRef(false);  // ✅ منع الطلبات المتزامنة
 
     // تحديث ref عند تغيير autoRefresh
     useEffect(() => {
@@ -71,9 +72,12 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
 
     // ✅ جلب التحليلات المتقدمة - مع منع التحديث المتكرر
     const fetchNutritionInsights = useCallback(async () => {
-        if (!isMountedRef.current) return;
+        // ✅ منع الطلبات المتزامنة
+        if (isFetchingInsightsRef.current || !isMountedRef.current) return;
         
+        isFetchingInsightsRef.current = true;
         setLoadingInsights(true);
+        
         try {
             const response = await axiosInstance.get('/analytics/nutrition-insights/');
             if (isMountedRef.current) {
@@ -85,18 +89,15 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
             if (isMountedRef.current) {
                 setLoadingInsights(false);
             }
+            isFetchingInsightsRef.current = false;
         }
     }, []);
 
     // ✅ تحميل التحليلات فقط عند تغيير التبويب أو refreshCounter
     useEffect(() => {
-        let isActive = true;
-        
         if (activeTab !== 'basic') {
             fetchNutritionInsights();
         }
-        
-        return () => { isActive = false; };
     }, [activeTab, refreshCounter, fetchNutritionInsights]);
 
     // ✅ تحديث تلقائي - مع تنظيف صحيح
@@ -563,6 +564,7 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                     </div>
                 )}
             </div>
+
             <style jsx>{`
                 .nutrition-dashboard-container {
                     max-width: 1000px;

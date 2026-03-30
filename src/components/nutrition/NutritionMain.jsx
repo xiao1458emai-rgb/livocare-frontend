@@ -16,9 +16,12 @@ function NutritionMain({ isAuthReady }) {
     const [darkMode, setDarkMode] = useState(false);
     const [reducedMotion, setReducedMotion] = useState(false);
     const [error, setError] = useState(null);
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
     const autoRefreshRef = useRef(autoRefresh);
     const intervalRef = useRef(null);
-    const loadingTimeoutRef = useRef(null);
+    const isFetchingRef = useRef(false);  // ✅ منع الطلبات المتزامنة
 
     // تحميل إعدادات الوضع المظلم وتفضيلات الحركة
     useEffect(() => {
@@ -45,22 +48,31 @@ function NutritionMain({ isAuthReady }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // ✅ جلب الوجبات بدون overlay يمنع التفاعل
+    // ✅ جلب الوجبات - مع منع الطلبات المتزامنة
     const fetchMeals = useCallback(async () => {
-        if (!isAuthReady) return;
+        // ✅ منع الطلبات المتزامنة
+        if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
         
+        isFetchingRef.current = true;
         setLoading(true);
         setError(null);
         
         try {
             const response = await axiosInstance.get('/meals/');
-            setMeals(response.data);
-            setLastUpdate(new Date());
+            if (isMountedRef.current) {
+                setMeals(response.data);
+                setLastUpdate(new Date());
+            }
         } catch (error) {
             console.error('Error fetching meals:', error);
-            setError(t('nutrition.errorLoadingMeals', 'حدث خطأ في تحميل الوجبات'));
+            if (isMountedRef.current) {
+                setError(t('nutrition.errorLoadingMeals', 'حدث خطأ في تحميل الوجبات'));
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isFetchingRef.current = false;
         }
     }, [isAuthReady, t]);
 
@@ -69,7 +81,7 @@ function NutritionMain({ isAuthReady }) {
         autoRefreshRef.current = autoRefresh;
     }, [autoRefresh]);
 
-    // نظام التحديث التلقائي
+    // ✅ نظام التحديث التلقائي - مع تنظيف صحيح
     useEffect(() => {
         if (!autoRefresh) {
             if (intervalRef.current) {
@@ -80,7 +92,7 @@ function NutritionMain({ isAuthReady }) {
         }
 
         intervalRef.current = setInterval(() => {
-            if (autoRefreshRef.current) {
+            if (autoRefreshRef.current && isMountedRef.current) {
                 fetchMeals();
             }
         }, 45000);
@@ -93,10 +105,10 @@ function NutritionMain({ isAuthReady }) {
         };
     }, [autoRefresh, fetchMeals]);
 
-    // تحديث عند العودة للتطبيق
+    // ✅ تحديث عند العودة للتطبيق
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (!document.hidden && autoRefreshRef.current) {
+            if (!document.hidden && autoRefreshRef.current && isMountedRef.current) {
                 fetchMeals();
             }
         };
@@ -107,12 +119,24 @@ function NutritionMain({ isAuthReady }) {
         };
     }, [fetchMeals]);
 
-    // جلب الوجبات عند تحميل المكون
+    // ✅ جلب الوجبات عند تحميل المكون
     useEffect(() => {
         if (isAuthReady) {
             fetchMeals();
         }
     }, [isAuthReady, fetchMeals]);
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
+    }, []);
 
     const handleDataSubmitted = useCallback(() => {
         fetchMeals();
@@ -130,7 +154,7 @@ function NutritionMain({ isAuthReady }) {
 
     return (
         <div className={`nutrition-main ${darkMode ? 'dark-mode' : ''} ${reducedMotion ? 'reduce-motion' : ''}`}>
-            {/* ✅ بدلاً من overlay يمنع التفاعل، نستخدم شريط تحميل بسيط */}
+            {/* ✅ شريط تحميل بسيط */}
             {loading && (
                 <div className="loading-bar">
                     <div className="loading-progress"></div>
@@ -234,6 +258,7 @@ function NutritionMain({ isAuthReady }) {
                     />
                 )}
             </div>
+    
 
             <style jsx>{`
                 .nutrition-main {

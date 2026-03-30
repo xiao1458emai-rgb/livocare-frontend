@@ -18,6 +18,7 @@ function Sidebar({ activeSection, onSectionChange }) {
     const isMountedRef = useRef(true);
     const intervalRef = useRef(null);
     const abortControllerRef = useRef(null);
+    const isFetchingRef = useRef(false);  // ✅ منع الطلبات المتزامنة
 
     // تحميل إعدادات الوضع المظلم وتفضيلات الحركة - مرة واحدة فقط
     useEffect(() => {
@@ -69,11 +70,15 @@ function Sidebar({ activeSection, onSectionChange }) {
 
     // ✅ جلب عدد الإشعارات - مع useCallback لمنع إعادة الإنشاء
     const fetchNotificationCount = useCallback(async () => {
+        // ✅ منع الطلبات المتزامنة
+        if (isFetchingRef.current || !isMountedRef.current) return;
+        
         // إلغاء الطلب السابق إذا كان قيد التنفيذ
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
         
+        isFetchingRef.current = true;
         abortControllerRef.current = new AbortController();
         
         try {
@@ -90,6 +95,8 @@ function Sidebar({ activeSection, onSectionChange }) {
                 return;
             }
             console.error('Error fetching notification count:', error);
+        } finally {
+            isFetchingRef.current = false;
         }
     }, []);
 
@@ -107,7 +114,7 @@ function Sidebar({ activeSection, onSectionChange }) {
         
         window.addEventListener('notificationCount', handleNotificationCount);
         
-        // تحديث كل 60 ثانية بدلاً من 30
+        // تحديث كل 60 ثانية
         intervalRef.current = setInterval(() => {
             fetchNotificationCount();
         }, 60000);
@@ -308,7 +315,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     </div>
                 </div>
             )}
-
             <style jsx global>{`
                 /* ===========================================
                    Sidebar.css - النسخة المحسنة والمطورة
