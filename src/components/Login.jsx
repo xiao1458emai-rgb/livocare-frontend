@@ -85,73 +85,73 @@ function Login({ onLoginSuccess }) {
         }));
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setMessage('');
-        setMessageType('');
+const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    setMessageType('');
 
-        // التحقق من صحة البيانات
-        if (!username.trim() || !password.trim()) {
-            setMessage(t('login.emptyFields'));
-            setMessageType('error');
-            setLoading(false);
-            return;
+    // التحقق من صحة البيانات
+    if (!username.trim() || !password.trim()) {
+        setMessage(t('login.emptyFields'));
+        setMessageType('error');
+        setLoading(false);
+        return;
+    }
+
+    try {
+        // ✅ الكود الصحيح
+        const response = await axiosInstance.post('/auth/token/', {
+            username: username,
+            password: password
+        });
+
+        const { access, refresh } = response.data;
+        localStorage.setItem('access_token', access);
+        localStorage.setItem('refresh_token', refresh);
+        
+        // حفظ اسم المستخدم إذا تم تذكرني
+        if (rememberMe) {
+            localStorage.setItem('saved_username', username);
+        } else {
+            localStorage.removeItem('saved_username');
         }
-
-        try {
-            // ✅ تغيير: استخدم axiosInstance بدلاً من axios مع عنوان محلي
-            const response = await axiosInstance.post('/auth/token/', {
-                username: username,
-                password: password
-            });
-
-            const { access, refresh } = response.data;
-            localStorage.setItem('access_token', access);
-            localStorage.setItem('refresh_token', refresh);
-            
-            // حفظ اسم المستخدم إذا تم تذكرني
-            if (rememberMe) {
-                localStorage.setItem('saved_username', username);
-            } else {
-                localStorage.removeItem('saved_username');
+        
+        localStorage.setItem('username', username);
+        
+        setMessage(t('login.success'));
+        setMessageType('success');
+        
+        // تأخير قليل لإظهار رسالة النجاح
+        setTimeout(() => {
+            if (onLoginSuccess) {
+                onLoginSuccess();
             }
-            
-            localStorage.setItem('username', username);
-            
-            setMessage(t('login.success'));
-            setMessageType('success');
-            
-            // تأخير قليل لإظهار رسالة النجاح
-            setTimeout(() => {
-                if (onLoginSuccess) {
-                    onLoginSuccess();
-                }
-            }, 1500);
-            
-        } catch (error) {
-            console.error('Login error:', error.response?.data);
-            
-            let errorMessage = t('login.failed');
-            
-            if (error.response?.status === 400) {
-                errorMessage = t('login.invalidCredentials');
-            } else if (error.response?.status === 401) {
-                errorMessage = t('login.unauthorized');
-            } else if (error.response?.status === 404) {
-                errorMessage = t('login.serverNotFound');
-            } else if (error.response?.status === 500) {
-                errorMessage = t('login.serverError');
-            } else if (!navigator.onLine) {
-                errorMessage = t('login.networkError');
-            }
-            
-            setMessage(errorMessage);
-            setMessageType('error');
-        } finally {
-            setLoading(false);
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Login error:', error.response?.data);
+        
+        let errorMessage = t('login.failed');
+        
+        if (error.response?.status === 400) {
+            errorMessage = t('login.invalidCredentials');
+        } else if (error.response?.status === 401) {
+            errorMessage = t('login.unauthorized');
+        } else if (error.response?.status === 404) {
+            errorMessage = t('login.serverNotFound');
+        } else if (error.response?.status === 500) {
+            errorMessage = t('login.serverError');
+        } else if (!navigator.onLine) {
+            errorMessage = t('login.networkError');
         }
-    };
+        
+        setMessage(errorMessage);
+        setMessageType('error');
+    } finally {
+        setLoading(false);
+    }
+};
 
     // إعادة تعيين النموذج
     const resetForm = () => {
@@ -354,20 +354,22 @@ function Login({ onLoginSuccess }) {
                         </div>
                     )}
                     
-                    <div className="register-link">
-                        <p>
-                            {t('login.noAccount')} 
-                            <button 
-                                type="button"
-                                onClick={() => window.location.href = '/register'}
-                                className="register-button"
-                            >
-                                {t('login.register')}
-                                <span className="btn-arrow">→</span>
-                            </button>
-                        </p>
-                    </div>
-                </div>
+ {/* قم بتغيير هذا الجزء في كودك */}
+<div className="register-link">
+    <p>
+        {t('login.noAccount')} 
+        <button 
+            type="button" // 👈 هذا السطر هو الأهم لمنع إعادة تحميل الصفحة
+            onClick={(e) => {
+                e.preventDefault(); // زيادة تأكيد لمنع الـ Submit
+                window.location.hash = '#/register';
+            }}
+            className="register-link-btn" // غيرت الاسم قليلاً لتمييزه في الـ CSS
+        >
+            {t('login.register')}
+        </button>
+    </p>
+</div>
                 
                 {/* معلومات التطبيق */}
                 <div className="app-info">
@@ -422,8 +424,10 @@ function Login({ onLoginSuccess }) {
                         </span>
                     </div>
                 </div>
-            </div>
-            <style jsx>{`
+            </div>  {/* ✅ هذا القوس يقفل <div className="login-content"> */}
+        </div>  {/* ✅ هذا القوس يقفل <div className="login-container"> */}
+        <style jsx>{`
+
                 /* ===========================================
                    Login.css - النسخة المحسنة والمطورة
                    تم التحسين لجميع أحجام الشاشات والوضع الليلي

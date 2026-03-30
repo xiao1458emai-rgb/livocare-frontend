@@ -2,10 +2,10 @@
 import axios from 'axios';
 
 // ✅ استخدام متغير البيئة للاتصال بـ Backend على السحابة
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = '';  
 
 const axiosInstance = axios.create({
-    baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : '/api',
+    baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : '/api',  // ✅ هذا يضيف /api تلقائياً
     timeout: 60000,
     headers: {
         'Content-Type': 'application/json',
@@ -30,19 +30,28 @@ axiosInstance.interceptors.request.use(
 );
 
 // interceptor للردود
+// interceptor للردود (النسخة المعدلة والمستقرة)
 axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.code === 'ERR_NETWORK') {
-            console.error('❌ Cannot connect to server. Make sure backend is running');
+            console.error('❌ Cannot connect to server');
         }
         
         if (error.response?.status === 401) {
-            console.log('🚫 401 Unauthorized - redirecting to login');
+            console.log('🚫 401 Unauthorized - updating state');
+            
+            // 1. امسح البيانات التالفة
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             localStorage.removeItem('token');
-            window.location.href = '/';
+
+            // 2. بدلاً من إعادة تحميل الصفحة، تأكد من عدم تكرار الطلب
+            // إذا كنت تستخدم React Router، يمكنك استخدام navigate هنا
+            // أو ببساطة اترك التطبيق يغير الحالة (State) في App.jsx ليظهر صفحة الدخول
+            
+            // ❌ احذف هذا السطر تماماً:
+            // window.location.href = '/'; 
         }
         return Promise.reject(error);
     }

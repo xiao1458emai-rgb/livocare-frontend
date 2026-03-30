@@ -12,44 +12,42 @@ function App() {
     const [darkMode, setDarkMode] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
 
-    useEffect(() => {
-        console.log('📱 App mounted');
-        
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                             (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        setDarkMode(savedDarkMode);
-        
-        const applyDarkMode = (isDark) => {
-            const html = document.documentElement;
-            if (isDark) {
-                html.classList.add('dark-mode');
-                html.style.setProperty('--primary-bg', '#1a1a1a');
-                html.style.setProperty('--secondary-bg', '#2d2d2d');
-            } else {
-                html.classList.remove('dark-mode');
-                html.style.setProperty('--primary-bg', '#ffffff');
-                html.style.setProperty('--secondary-bg', '#f8f9fa');
+useEffect(() => {
+    let isMounted = true; // لمنع التحديث إذا أغلق التطبيق فجأة
+
+    const initApp = async () => {
+        try {
+            // 1. قراءة اللغة المفضلة أولاً (بدون تغيير الحالة حتى الآن)
+            const savedLanguage = localStorage.getItem('livocare_language') || 'ar';
+            
+            // 2. تحديث DOM مباشرة (خارج نظام React State لتجنب الـ Loop)
+            const isRTL = savedLanguage === 'ar';
+            document.documentElement.lang = savedLanguage;
+            document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+
+            // 3. التحقق من التوكن
+            const token = localStorage.getItem('access_token');
+            
+            // 4. تحديث جميع الحالات دفعة واحدة في النهاية
+            if (isMounted) {
+                setIsAuthenticated(!!token);
+                
+                // تنبيه: تجنب تغيير الـ Hash هنا إذا كان هو سبب المشكلة
+                if (window.location.hash === '#/register') {
+                    setShowRegister(true);
+                }
+                
+                setIsLoading(false); 
             }
-        };
-        applyDarkMode(savedDarkMode);
-        
-        const savedLanguage = localStorage.getItem('livocare_language') || 'ar';
-        if (i18n.language !== savedLanguage) {
-            i18n.changeLanguage(savedLanguage);
+        } catch (error) {
+            console.error("Initialization error:", error);
+            if (isMounted) setIsLoading(false);
         }
-        document.documentElement.lang = savedLanguage;
-        document.documentElement.dir = savedLanguage === 'ar' ? 'rtl' : 'ltr';
-        
-        const token = localStorage.getItem('access_token');
-        setIsAuthenticated(!!token);
-        
-        // التحقق من الرابط
-        if (window.location.hash === '#/register') {
-            setShowRegister(true);
-        }
-        
-        setTimeout(() => setIsLoading(false), 500);
-    }, [i18n]);
+    };
+
+    initApp();
+    return () => { isMounted = false; }; // Cleanup function
+}, []);// 👈 اجعل المصفوفة فارغة لضمان التنفيذ مرة واحدة فقط عند فتح التطبيق
 
     const handleLoginSuccess = () => {
         console.log('🔍 Login successful');

@@ -16,11 +16,11 @@ if (!rootElement) {
 }
 
 const root = createRoot(rootElement);
-
+// src/main.jsx
 root.render(
-  <StrictMode>
+  // <StrictMode>  👈 قم بتعطيله مؤقتاً بالتعليق
     <I18nextProvider i18n={i18n}>
       <App />
     </I18nextProvider>
-  </StrictMode>
+  // </StrictMode>
 );
