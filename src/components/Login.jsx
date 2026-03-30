@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import axiosInstance from '../services/api'; // ✅ تغيير: استخدم axiosInstance
 import '../index.css';
 
@@ -358,16 +359,16 @@ const handleSubmit = async (e) => {
 <div className="register-link">
     <p>
         {t('login.noAccount')} 
-        <button 
-            type="button" // 👈 هذا السطر هو الأهم لمنع إعادة تحميل الصفحة
+        <Link 
+            to="/register" 
+            className="register-link-btn"
             onClick={(e) => {
-                e.preventDefault(); // زيادة تأكيد لمنع الـ Submit
-                window.location.hash = '#/register';
+                // منع أي سلوك افتراضي غير مرغوب
+                e.stopPropagation();
             }}
-            className="register-link-btn" // غيرت الاسم قليلاً لتمييزه في الـ CSS
         >
             {t('login.register')}
-        </button>
+        </Link>
     </p>
 </div>
                 
