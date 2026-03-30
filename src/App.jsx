@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import axiosInstance from './services/api';
 import './App.css';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -25,8 +26,24 @@ function App() {
 
                 const token = localStorage.getItem('access_token');
                 
+                // ✅ التحقق من صحة التوكن إذا كان موجوداً
+                let isValidToken = false;
+                if (token) {
+                    try {
+                        console.log('🔍 Verifying token validity...');
+                        await axiosInstance.get('/health_status/', { timeout: 5000 });
+                        isValidToken = true;
+                        console.log('✅ Token is valid');
+                    } catch (error) {
+                        console.log('❌ Token invalid, clearing...');
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('refresh_token');
+                        isValidToken = false;
+                    }
+                }
+                
                 if (isMounted) {
-                    setIsAuthenticated(!!token);
+                    setIsAuthenticated(isValidToken);
                     
                     // ✅ التحقق من الرابط عند بدء التشغيل
                     if (window.location.hash === '#/register') {
