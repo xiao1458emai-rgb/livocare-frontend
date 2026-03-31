@@ -7,6 +7,20 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://livocare.onrender.
 console.log('🔧 API_BASE_URL =', API_BASE_URL);
 console.log('🔧 Final baseURL =', API_BASE_URL ? `${API_BASE_URL}/api` : '/api');
 
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
+};
+
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : '/api',
     timeout: 60000,
@@ -15,7 +29,7 @@ const axiosInstance = axios.create({
     }
 });
 
-// interceptor للطلبات
+// ✅ interceptor للطلبات - إضافة التوكن
 axiosInstance.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -34,19 +48,88 @@ axiosInstance.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// ✅ interceptor للردود - لا تمسح التوكن عند 401
+// ✅ interceptor للردود - تجديد التوكن عند 401
 axiosInstance.interceptors.response.use(
     (response) => response,
-    (error) => {
-        if (error.code === 'ERR_NETWORK') {
-            console.error('❌ Cannot connect to server');
+    async (error) => {
+        const originalRequest = error.config;
+        
+        // ✅ إذا كان الخطأ 401 ولم يتم إعادة المحاولة من قبل
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+            
+            const refreshToken = localStorage.getItem('refresh_token');
+            
+            console.log('🔄 Token expired, attempting to refresh...');
+            console.log('🔑 Refresh token exists:', !!refreshToken);
+            
+            // إذا لم يوجد refresh token، امسح كل شيء ووجه إلى تسجيل الدخول
+            if (!refreshToken) {
+                console.log('❌ No refresh token, redirecting to login');
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                localStorage.removeItem('token');
+                window.location.href = '/';
+                return Promise.reject(error);
+            }
+            
+            // إذا كان هناك طلب تجديد قيد التنفيذ، أضف هذا الطلب إلى قائمة الانتظار
+            if (isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then(token => {
+                    originalRequest.headers.Authorization = `Bearer ${token}`;
+                    return axiosInstance(originalRequest);
+                }).catch(err => Promise.reject(err));
+            }
+            
+            isRefreshing = true;
+            
+            try {
+                // ✅ محاولة تجديد التوكن
+                const response = await axios.post(`${API_BASE_URL}/api/auth/refresh/`, {
+                    refresh: refreshToken
+                });
+                
+                const { access } = response.data;
+                
+                // ✅ حفظ التوكن الجديد
+                localStorage.setItem('access_token', access);
+                console.log('✅ Token refreshed successfully');
+                
+                // ✅ معالجة الطلبات المعلقة
+                processQueue(null, access);
+                
+                // ✅ إعادة المحاولة مع التوكن الجديد
+                originalRequest.headers.Authorization = `Bearer ${access}`;
+                return axiosInstance(originalRequest);
+                
+            } catch (refreshError) {
+                console.error('❌ Token refresh failed:', refreshError.response?.data || refreshError.message);
+                
+                // ✅ فشل تجديد التوكن - امسح كل شيء ووجه إلى تسجيل الدخول
+                processQueue(refreshError, null);
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                localStorage.removeItem('token');
+                
+                // ✅ إعادة توجيه إلى صفحة تسجيل الدخول
+                window.location.href = '/';
+                return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
+            }
         }
         
-        // ✅ فقط log الخطأ، لا تمسح التوكن تلقائياً
+        // ✅ إذا كان الخطأ 401 ولكن تمت إعادة المحاولة بالفعل
         if (error.response?.status === 401) {
             console.log('🚫 401 Unauthorized - token may be expired');
             console.log('🔑 Current token:', localStorage.getItem('access_token') ? 'exists' : 'missing');
-            // ❌ لا تمسح التوكن هنا! دع App.jsx يتعامل معها
+        }
+        
+        // ✅ أخطاء الشبكة
+        if (error.code === 'ERR_NETWORK') {
+            console.error('❌ Cannot connect to server');
         }
         
         return Promise.reject(error);
