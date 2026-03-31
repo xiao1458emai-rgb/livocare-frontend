@@ -26,18 +26,40 @@ function App() {
 
                 const token = localStorage.getItem('access_token');
                 
-                // ✅ التحقق من صحة التوكن إذا كان موجوداً
+                // ✅ التحقق من صحة التوكن بشكل صارم
                 let isValidToken = false;
+                
                 if (token) {
                     try {
                         console.log('🔍 Verifying token validity...');
-                        await axiosInstance.get('/health_status/', { timeout: 5000 });
-                        isValidToken = true;
-                        console.log('✅ Token is valid');
+                        // ✅ جلب مستخدم واحد للتحقق (أي endpoint محمي)
+                        const response = await axiosInstance.get('/health_status/', { 
+                            timeout: 5000,
+                            // ✅ لا تنتظر طويلاً
+                        });
+                        
+                        // ✅ التحقق من أن الرد يحتوي على بيانات (أي مصفوفة)
+                        if (response.data && Array.isArray(response.data)) {
+                            isValidToken = true;
+                            console.log('✅ Token is valid, data received');
+                        } else {
+                            console.log('❌ Token invalid - no data');
+                            localStorage.removeItem('access_token');
+                            localStorage.removeItem('refresh_token');
+                        }
                     } catch (error) {
-                        console.log('❌ Token invalid, clearing...');
-                        localStorage.removeItem('access_token');
-                        localStorage.removeItem('refresh_token');
+                        console.log('❌ Token verification failed:', error.response?.status || error.message);
+                        
+                        // ✅ إذا كان 401 Unauthorized، التوكن غير صالح
+                        if (error.response?.status === 401) {
+                            console.log('❌ Token invalid (401)');
+                            localStorage.removeItem('access_token');
+                            localStorage.removeItem('refresh_token');
+                        } else {
+                            console.log('⚠️ Network error, assuming token invalid');
+                            localStorage.removeItem('access_token');
+                            localStorage.removeItem('refresh_token');
+                        }
                         isValidToken = false;
                     }
                 }
@@ -75,7 +97,7 @@ function App() {
             isMounted = false;
             window.removeEventListener('hashchange', handleHashChange);
         };
-    }, []); // 👈 مصفوفة فارغة لضمان التنفيذ مرة واحدة
+    }, []);
 
     const handleLoginSuccess = () => {
         console.log('🔍 Login successful');
