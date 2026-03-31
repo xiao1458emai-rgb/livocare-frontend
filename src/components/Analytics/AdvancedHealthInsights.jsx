@@ -244,9 +244,20 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
         };
     }, []);
 
-    // ✅ إذا كان الـ endpoint غير موجود، لا تظهر أي شيء
+    // ✅ إذا كان الـ endpoint غير موجود، اظهر رسالة "قريباً"
     if (!endpointExists) {
-        return null;
+        return (
+            <div className={`analytics-container advanced-insights ${darkMode ? 'dark-mode' : ''}`}>
+                <div className="analytics-header">
+                    <h2>{isArabic ? '🧠 التحليلات المتقدمة' : '🧠 Advanced Health Insights'}</h2>
+                </div>
+                <div className="coming-soon-message">
+                    <div className="coming-soon-icon">🔮</div>
+                    <h3>{isArabic ? 'قريباً' : 'Coming Soon'}</h3>
+                    <p>{isArabic ? 'تحليلات متقدمة قيد التطوير' : 'Advanced analytics are being developed'}</p>
+                </div>
+            </div>
+        );
     }
 
     if (loading) {
