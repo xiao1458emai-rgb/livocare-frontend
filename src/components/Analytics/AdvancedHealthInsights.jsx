@@ -1,5 +1,5 @@
 // src/components/Analytics/AdvancedHealthInsights.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import './Analytics.css';
@@ -10,9 +10,15 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
     const [insights, setInsights] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [endpointExists, setEndpointExists] = useState(true);
     
     // ✅ معرفة إذا كانت اللغة العربية
     const isArabic = i18n.language.startsWith('ar');
+    
+    // ✅ useRef لمنع الطلبات المتكررة
+    const isMountedRef = useRef(true);
+    const abortControllerRef = useRef(null);
+    const isFetchingRef = useRef(false);
 
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
@@ -28,157 +34,150 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-// ✅ دالة ترجمة محسنة - أضف هذه الترجمات
-const translateText = (text) => {
-    if (!text) return text;
-    
-    // ✅ إذا كان النص يحتوي على نقاط (مفتاح i18n)
-    if (typeof text === 'string' && (text.includes('.') || text === 'common.recommendations' || text === 'common.recommendation' || text === 'probability' || text === 'probability:')) {
-        const translated = t(text, '');
-        if (translated && translated !== text) {
-            return translated;
-        }
-    }
-    
-    // ✅ ترجمات مباشرة للغة الإنجليزية
-    if (!isArabic) {
-        const englishTranslations = {
-            // ترجمات العناوين الرئيسية
-            'تحليل استهلاك الطاقة': 'Energy Consumption Analysis',
-            'تحليل ضغط النبض': 'Pulse Pressure Analysis',
-            'توصيات ما قبل التمرين': 'Pre-Exercise Recommendations',
-            'تنبؤات مستقبلية': 'Future Predictions',
-            // أضف هذه داخل englishTranslations
-'النشاط والتغذية': 'Activity & Nutrition',
-'إجمالي الأنشطة': 'Total Activities',
-'تحليل': 'Analysis',
-'تحليلات متقاطعة متقدمة': 'Advanced Cross Insights',
-'الطاقة': 'Energy',
-'ضغط النبض': 'Pulse Pressure',
-'توصيات التمرين': 'Exercise Recommendations',
-'علامات حيوية': 'Vital Signs',
-'توصيات شاملة': 'Holistic Recommendations',
-'تنبيهات تنبؤية': 'Predictive Alerts',
-'العلاقات المكتشفة': 'Discovered Relationships',
-'قوة العلاقة': 'Correlation Strength',
-'بناءً على': 'Based on',
-'أيام': 'days',
-'توصيات مخصصة': 'Personalized Recommendations',
-'تحليل عميق': 'Deep Analysis',
-'اقتراحات': 'Suggestions',
-'نصائح': 'Tips',
-'لماذا؟': 'Why?',
-'كيف؟': 'How?',
-            // ترجمات الطاقة
-            '⚠️ عجز حراري كبير مع بروتين منخفض': '⚠️ Large calorie deficit with low protein',
-            'حرقت {burned} سعرة وأكلت {protein}g بروتين فقط': 'You burned {burned} calories but ate only {protein}g protein',
-            'قد تخسر كتلة عضلية، زد البروتين بعد التمرين': 'You may lose muscle mass, increase protein after exercise',
-            'سعرة محروقة/يوم': 'calories burned/day',
-            'سعرة مستهلكة/يوم': 'calories consumed/day',
-            'عجز يومي': 'daily deficit',
-            
-            // ترجمات ضغط النبض
-            '🚨 حرج: فرق الضغط منخفض جداً!': '🚨 Critical: Pulse pressure is very low!',
-            'فرق الضغط منخفض جداً!': 'Pulse pressure is very low!',
-            'الفرق بين الضغط الانقباضي': 'The difference between systolic',
-            'والانبساطي': 'and diastolic',
-            'هو فقط': 'is only',
-            'مم زئبق': 'mmHg',
-            'المدى الطبيعي:': 'Normal range:',
-            'الأسباب المحتملة:': 'Possible causes:',
-            'قد يكون بسبب ضعف عضلة القلب أو مشاكل في الصمامات': 'May be due to heart muscle weakness or valve problems',
-            'استشر طبيباً فوراً': 'Consult a doctor immediately',
-            'تخطيط صدى القلب': 'Echocardiogram',
-            
-            // ترجمات التنبؤات
-            '⚖️ زيادة سريعة في الوزن': '⚖️ Rapid Weight Gain',
-            'قد تزيد': 'You may gain',
-            'كجم خلال شهر إذا استمر الوضع': 'kg in a month if this continues',
-            'سجل طعامك وراجع السعرات الحرارية': 'Log your food and review calories',
-            'قد تخسر {weight} كجم خلال شهر': 'You may lose {weight} kg in a month',
-            'تأكد من الحصول على بروتين كافٍ': 'Ensure adequate protein intake',
-            '📊 ارتفاع تدريجي في السكر': '📊 Gradual Rise in Glucose',
-            'إذا استمر الاتجاه، قد تصل لمرحلة ما قبل السكري خلال 3 أشهر': 'If trend continues, you may reach pre-diabetes in 3 months',
-            'قلل الكربوهيدرات البسيطة وامش 30 دقيقة يومياً': 'Reduce simple carbs and walk 30 minutes daily',
-            '😴 نمط نوم غير منتظم': '😴 Irregular Sleep Pattern',
-            'قد تعاني من الأرق أو اضطراب النوم': 'You may have insomnia or sleep disorder',
-            'حاول النوم في وقت ثابت يومياً': 'Try to sleep at a fixed time daily',
-            
-            // ترجمات عامة
-            'توصية': 'Recommendation',
-            'توصيات': 'Recommendations',
-            'احتمال': 'Probability',
-            'احتمال:': 'Probability:',
-            'توصيات قبل التمرين': 'Pre-exercise recommendations',
-            'تنبؤات وقائية': 'Predictive alerts',
-            'اقتراحات:': 'Suggestions:',
-            'العلامات الحيوية': 'Vital Signs',
-            'قراءاتك الحالية': 'Your Current Readings',
-            'الوزن': 'Weight',
-            'ضغط الدم': 'Blood Pressure',
-            'الجلوكوز': 'Glucose',
-            'فرق الضغط': 'Pulse Pressure',
-            'سجلت في': 'Recorded at',
-            'تحليلات': 'Insights',
-            'تنبيهات': 'Alerts',
-            
-            // ترجمات من التحليل
-            'يوم ممتاز لبناء العضلات': 'Excellent day for muscle building',
-            'فائض {calories} سعرة مع {protein}g بروتين': 'Surplus {calories} calories with {protein}g protein',
-            'استمر بهذا النظام': 'Continue this pattern',
-            'تحتاج لتحسين التوازن بين طعامك ونشاطك': 'You need to balance your food and activity',
-            'نظامك الغذائي متوازن مع نشاطك': 'Your diet is balanced with your activity',
-            'بيانات كافية للتحليل، استمر بالتسجيل': 'Sufficient data for analysis, keep recording'
-        };
+    // ✅ دالة ترجمة محسنة
+    const translateText = (text) => {
+        if (!text) return text;
         
-        // البحث عن ترجمة مطابقة
-        if (englishTranslations[text]) {
-            return englishTranslations[text];
-        }
-        
-        // معالجة النصوص التي تحتوي على أرقام متغيرة
-        let result = text;
-        for (const [arabic, english] of Object.entries(englishTranslations)) {
-            if (text.includes(arabic.replace(/{[^}]+}/g, '').trim())) {
-                result = result.replace(arabic, english);
+        if (typeof text === 'string' && (text.includes('.') || text === 'common.recommendations' || text === 'common.recommendation' || text === 'probability' || text === 'probability:')) {
+            const translated = t(text, '');
+            if (translated && translated !== text) {
+                return translated;
             }
         }
         
-        return result;
-    }
-    
-    // ✅ ترجمات مباشرة للغة العربية
-    if (isArabic) {
-        const arabicTranslations = {
-            'Recommendations': 'التوصيات',
-            'Probability': 'احتمال',
-            'probability:': 'احتمال:',
-            'Pre-exercise recommendations': 'توصيات قبل التمرين',
-            'Predictive alerts': 'تنبؤات وقائية',
-            'Rapid Weight Gain': 'زيادة سريعة في الوزن',
-            'You may gain': 'قد تزيد',
-            'kg in a month if this continues': 'كجم خلال شهر إذا استمر الوضع',
-            'Log your food and review calories': 'سجل طعامك وراجع السعرات الحرارية',
-            'Normal range:': 'المدى الطبيعي:',
-            'Possible causes:': 'الأسباب المحتملة:',
-            'Consult a doctor immediately': 'استشر طبيباً فوراً',
-            'Vital Signs': 'العلامات الحيوية',
-            'Your Current Readings': 'قراءاتك الحالية',
-            'Weight': 'الوزن',
-            'Blood Pressure': 'ضغط الدم',
-            'Glucose': 'الجلوكوز',
-            'Pulse Pressure': 'فرق الضغط',
-            'Recorded at': 'سجلت في',
-            'Insights': 'تحليلات',
-            'Alerts': 'تنبيهات'
-        };
-        if (arabicTranslations[text]) return arabicTranslations[text];
-    }
-    
-    return text;
-};
+        if (!isArabic) {
+            const englishTranslations = {
+                'تحليل استهلاك الطاقة': 'Energy Consumption Analysis',
+                'تحليل ضغط النبض': 'Pulse Pressure Analysis',
+                'توصيات ما قبل التمرين': 'Pre-Exercise Recommendations',
+                'تنبؤات مستقبلية': 'Future Predictions',
+                'النشاط والتغذية': 'Activity & Nutrition',
+                'إجمالي الأنشطة': 'Total Activities',
+                'تحليل': 'Analysis',
+                'تحليلات متقاطعة متقدمة': 'Advanced Cross Insights',
+                'الطاقة': 'Energy',
+                'ضغط النبض': 'Pulse Pressure',
+                'توصيات التمرين': 'Exercise Recommendations',
+                'علامات حيوية': 'Vital Signs',
+                'توصيات شاملة': 'Holistic Recommendations',
+                'تنبيهات تنبؤية': 'Predictive Alerts',
+                'العلاقات المكتشفة': 'Discovered Relationships',
+                'قوة العلاقة': 'Correlation Strength',
+                'بناءً على': 'Based on',
+                'أيام': 'days',
+                'توصيات مخصصة': 'Personalized Recommendations',
+                'تحليل عميق': 'Deep Analysis',
+                'اقتراحات': 'Suggestions',
+                'نصائح': 'Tips',
+                'لماذا؟': 'Why?',
+                'كيف؟': 'How?',
+                '⚠️ عجز حراري كبير مع بروتين منخفض': '⚠️ Large calorie deficit with low protein',
+                'حرقت {burned} سعرة وأكلت {protein}g بروتين فقط': 'You burned {burned} calories but ate only {protein}g protein',
+                'قد تخسر كتلة عضلية، زد البروتين بعد التمرين': 'You may lose muscle mass, increase protein after exercise',
+                'سعرة محروقة/يوم': 'calories burned/day',
+                'سعرة مستهلكة/يوم': 'calories consumed/day',
+                'عجز يومي': 'daily deficit',
+                '🚨 حرج: فرق الضغط منخفض جداً!': '🚨 Critical: Pulse pressure is very low!',
+                'فرق الضغط منخفض جداً!': 'Pulse pressure is very low!',
+                'الفرق بين الضغط الانقباضي': 'The difference between systolic',
+                'والانبساطي': 'and diastolic',
+                'هو فقط': 'is only',
+                'مم زئبق': 'mmHg',
+                'المدى الطبيعي:': 'Normal range:',
+                'الأسباب المحتملة:': 'Possible causes:',
+                'قد يكون بسبب ضعف عضلة القلب أو مشاكل في الصمامات': 'May be due to heart muscle weakness or valve problems',
+                'استشر طبيباً فوراً': 'Consult a doctor immediately',
+                'تخطيط صدى القلب': 'Echocardiogram',
+                '⚖️ زيادة سريعة في الوزن': '⚖️ Rapid Weight Gain',
+                'قد تزيد': 'You may gain',
+                'كجم خلال شهر إذا استمر الوضع': 'kg in a month if this continues',
+                'سجل طعامك وراجع السعرات الحرارية': 'Log your food and review calories',
+                'قد تخسر {weight} كجم خلال شهر': 'You may lose {weight} kg in a month',
+                'تأكد من الحصول على بروتين كافٍ': 'Ensure adequate protein intake',
+                '📊 ارتفاع تدريجي في السكر': '📊 Gradual Rise in Glucose',
+                'إذا استمر الاتجاه، قد تصل لمرحلة ما قبل السكري خلال 3 أشهر': 'If trend continues, you may reach pre-diabetes in 3 months',
+                'قلل الكربوهيدرات البسيطة وامش 30 دقيقة يومياً': 'Reduce simple carbs and walk 30 minutes daily',
+                '😴 نمط نوم غير منتظم': '😴 Irregular Sleep Pattern',
+                'قد تعاني من الأرق أو اضطراب النوم': 'You may have insomnia or sleep disorder',
+                'حاول النوم في وقت ثابت يومياً': 'Try to sleep at a fixed time daily',
+                'توصية': 'Recommendation',
+                'توصيات': 'Recommendations',
+                'احتمال': 'Probability',
+                'احتمال:': 'Probability:',
+                'توصيات قبل التمرين': 'Pre-exercise recommendations',
+                'تنبؤات وقائية': 'Predictive alerts',
+                'اقتراحات:': 'Suggestions:',
+                'العلامات الحيوية': 'Vital Signs',
+                'قراءاتك الحالية': 'Your Current Readings',
+                'الوزن': 'Weight',
+                'ضغط الدم': 'Blood Pressure',
+                'الجلوكوز': 'Glucose',
+                'فرق الضغط': 'Pulse Pressure',
+                'سجلت في': 'Recorded at',
+                'تحليلات': 'Insights',
+                'تنبيهات': 'Alerts',
+                'يوم ممتاز لبناء العضلات': 'Excellent day for muscle building',
+                'فائض {calories} سعرة مع {protein}g بروتين': 'Surplus {calories} calories with {protein}g protein',
+                'استمر بهذا النظام': 'Continue this pattern',
+                'تحتاج لتحسين التوازن بين طعامك ونشاطك': 'You need to balance your food and activity',
+                'نظامك الغذائي متوازن مع نشاطك': 'Your diet is balanced with your activity',
+                'بيانات كافية للتحليل، استمر بالتسجيل': 'Sufficient data for analysis, keep recording'
+            };
+            
+            if (englishTranslations[text]) {
+                return englishTranslations[text];
+            }
+            
+            let result = text;
+            for (const [arabic, english] of Object.entries(englishTranslations)) {
+                if (text.includes(arabic.replace(/{[^}]+}/g, '').trim())) {
+                    result = result.replace(arabic, english);
+                }
+            }
+            return result;
+        }
+        
+        if (isArabic) {
+            const arabicTranslations = {
+                'Recommendations': 'التوصيات',
+                'Probability': 'احتمال',
+                'probability:': 'احتمال:',
+                'Pre-exercise recommendations': 'توصيات قبل التمرين',
+                'Predictive alerts': 'تنبؤات وقائية',
+                'Rapid Weight Gain': 'زيادة سريعة في الوزن',
+                'You may gain': 'قد تزيد',
+                'kg in a month if this continues': 'كجم خلال شهر إذا استمر الوضع',
+                'Log your food and review calories': 'سجل طعامك وراجع السعرات الحرارية',
+                'Normal range:': 'المدى الطبيعي:',
+                'Possible causes:': 'الأسباب المحتملة:',
+                'Consult a doctor immediately': 'استشر طبيباً فوراً',
+                'Vital Signs': 'العلامات الحيوية',
+                'Your Current Readings': 'قراءاتك الحالية',
+                'Weight': 'الوزن',
+                'Blood Pressure': 'ضغط الدم',
+                'Glucose': 'الجلوكوز',
+                'Pulse Pressure': 'فرق الضغط',
+                'Recorded at': 'سجلت في',
+                'Insights': 'تحليلات',
+                'Alerts': 'تنبيهات'
+            };
+            if (arabicTranslations[text]) return arabicTranslations[text];
+        }
+        
+        return text;
+    };
 
-    const fetchInsights = async () => {
+    // ✅ جلب التحليلات - مع منع الطلبات المتكررة
+    const fetchInsights = useCallback(async () => {
+        if (isFetchingRef.current || !isMountedRef.current) return;
+        
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        
+        isFetchingRef.current = true;
+        abortControllerRef.current = new AbortController();
+        
         setLoading(true);
         setError(null);
         
@@ -186,29 +185,69 @@ const translateText = (text) => {
             const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
             console.log('📢 Sending language to backend:', currentLang);
             
-            // ✅ إزالة /api المكرر
             const response = await axiosInstance.get('/advanced-insights/', {
-                params: { lang: currentLang }
+                params: { lang: currentLang },
+                signal: abortControllerRef.current.signal
             });
+            
+            if (!isMountedRef.current) return;
             
             if (response.data.success) {
                 const rawData = response.data.data;
                 setInsights(rawData);
+                setEndpointExists(true);
                 console.log('✅ Advanced insights loaded:', rawData);
             } else {
                 setError(t('analytics.common.error'));
             }
         } catch (err) {
+            if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+                return;
+            }
+            
             console.error('❌ Error fetching advanced insights:', err);
-            setError(t('analytics.common.error'));
+            
+            // ✅ إذا كان 404، لا تظهر الخطأ للمستخدم
+            if (err.response?.status === 404) {
+                console.log('⚠️ Advanced insights endpoint not available (404)');
+                setEndpointExists(false);
+                setError(null);
+            } else {
+                setError(t('analytics.common.error'));
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isFetchingRef.current = false;
         }
-    };
+    }, [i18n.language, t]);
 
     useEffect(() => {
         fetchInsights();
-    }, [refreshTrigger, i18n.language]);
+        
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, [refreshTrigger, i18n.language, fetchInsights]);
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
+
+    // ✅ إذا كان الـ endpoint غير موجود، لا تظهر أي شيء
+    if (!endpointExists) {
+        return null;
+    }
 
     if (loading) {
         return (
