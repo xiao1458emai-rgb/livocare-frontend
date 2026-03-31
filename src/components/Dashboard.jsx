@@ -91,6 +91,8 @@ function Dashboard({ onLogout }) {
 
     // ✅ جلب البيانات - مع useCallback لمنع إعادة الإنشاء
     const fetchHealthData = useCallback(async () => {
+        console.log('🔄 fetchHealthData called, refreshKey:', refreshKey);
+        
         // ✅ منع الطلبات المتزامنة
         if (!isAuthReady || !isMountedRef.current || isFetchingRef.current) return;
         
@@ -98,6 +100,8 @@ function Dashboard({ onLogout }) {
         
         try {
             const response = await axiosInstance.get('/health_status/');
+            
+            console.log('📊 fetchHealthData response:', response.data);
             
             if (!isMountedRef.current) return;
             
@@ -118,6 +122,7 @@ function Dashboard({ onLogout }) {
                     date: new Date(latest.recorded_at).toLocaleDateString('ar-EG')
                 };
                 
+                console.log('📊 latestHealthData set to:', latestData);
                 setLatestHealthData(latestData);
             } else {
                 setHealthRecords([]);
@@ -138,10 +143,11 @@ function Dashboard({ onLogout }) {
             }
             isFetchingRef.current = false;
         }
-    }, [isAuthReady, t]);
+    }, [isAuthReady, t, refreshKey]); // ✅ أضف refreshKey إلى التبعيات
 
     // ✅ جلب البيانات عند التغيير - مع منع الطلبات المتكررة
     useEffect(() => {
+        console.log('📊 Dashboard useEffect: refreshKey=', refreshKey, 'isAuthReady=', isAuthReady);
         if (isAuthReady) {
             fetchHealthData();
         }
@@ -175,7 +181,11 @@ function Dashboard({ onLogout }) {
     }, []);
     
     const handleDataSubmitted = useCallback(() => {
-        setRefreshKey(prevKey => prevKey + 1);
+        console.log('🔄 Data submitted, refreshing dashboard...');
+        setRefreshKey(prevKey => {
+            console.log('📊 refreshKey updated from', prevKey, 'to', prevKey + 1);
+            return prevKey + 1;
+        });
     }, []);
 
     const displayValue = (value, unit = '') => {
