@@ -13,61 +13,50 @@ function App() {
     const [darkMode, setDarkMode] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
 
+    // ✅ دالة للتحقق من صحة التوكن
+    const verifyToken = async (token) => {
+        if (!token) return false;
+        
+        try {
+            console.log('🔍 Verifying token...');
+            const response = await axiosInstance.get('/users/me/', {
+                timeout: 5000,
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.status === 200 && response.data) {
+                console.log('✅ Token valid for user:', response.data.username);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.log('❌ Token invalid:', error.response?.status || error.message);
+            if (error.response?.status === 401) {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+            }
+            return false;
+        }
+    };
+
     useEffect(() => {
         let isMounted = true;
 
         const initApp = async () => {
             try {
+                // إعدادات اللغة
                 const savedLanguage = localStorage.getItem('livocare_language') || 'ar';
-                
-                const isRTL = savedLanguage === 'ar';
                 document.documentElement.lang = savedLanguage;
-                document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+                document.documentElement.dir = savedLanguage === 'ar' ? 'rtl' : 'ltr';
 
+                // التحقق من التوكن
                 const token = localStorage.getItem('access_token');
-                
-                // ✅ التحقق من صحة التوكن بشكل صارم
-                let isValidToken = false;
-                
-                if (token) {
-                    try {
-                        console.log('🔍 Verifying token validity...');
-                        // ✅ جلب مستخدم واحد للتحقق (أي endpoint محمي)
-                        const response = await axiosInstance.get('/health_status/', { 
-                            timeout: 5000,
-                            // ✅ لا تنتظر طويلاً
-                        });
-                        
-                        // ✅ التحقق من أن الرد يحتوي على بيانات (أي مصفوفة)
-                        if (response.data && Array.isArray(response.data)) {
-                            isValidToken = true;
-                            console.log('✅ Token is valid, data received');
-                        } else {
-                            console.log('❌ Token invalid - no data');
-                            localStorage.removeItem('access_token');
-                            localStorage.removeItem('refresh_token');
-                        }
-                    } catch (error) {
-                        console.log('❌ Token verification failed:', error.response?.status || error.message);
-                        
-                        // ✅ إذا كان 401 Unauthorized، التوكن غير صالح
-                        if (error.response?.status === 401) {
-                            console.log('❌ Token invalid (401)');
-                            localStorage.removeItem('access_token');
-                            localStorage.removeItem('refresh_token');
-                        } else {
-                            console.log('⚠️ Network error, assuming token invalid');
-                            localStorage.removeItem('access_token');
-                            localStorage.removeItem('refresh_token');
-                        }
-                        isValidToken = false;
-                    }
-                }
+                const isValid = await verifyToken(token);
                 
                 if (isMounted) {
-                    setIsAuthenticated(isValidToken);
+                    setIsAuthenticated(isValid);
                     
-                    // ✅ التحقق من الرابط عند بدء التشغيل
+                    // التحقق من الرابط
                     if (window.location.hash === '#/register') {
                         setShowRegister(true);
                     }
@@ -82,7 +71,7 @@ function App() {
 
         initApp();
         
-        // ✅ إضافة مستمع لتغيرات الـ hash
+        // مستمع لتغيرات الرابط
         const handleHashChange = () => {
             if (window.location.hash === '#/register') {
                 setShowRegister(true);
@@ -99,18 +88,34 @@ function App() {
         };
     }, []);
 
+    // ✅ دالة نجاح تسجيل الدخول
     const handleLoginSuccess = () => {
-        console.log('🔍 Login successful');
-        setIsAuthenticated(true);
-        setShowRegister(false);
-        window.location.hash = '#/dashboard';
+        console.log('🔍 Login successful - verifying token...');
+        const token = localStorage.getItem('access_token');
+        
+        if (token) {
+            setIsAuthenticated(true);
+            setShowRegister(false);
+            window.location.hash = '#/dashboard';
+        } else {
+            console.error('❌ No token found after login');
+            window.location.hash = '#/login';
+        }
     };
 
+    // ✅ دالة نجاح التسجيل
     const handleRegisterSuccess = () => {
-        console.log('🔍 Register successful');
-        setIsAuthenticated(true);
-        setShowRegister(false);
-        window.location.hash = '#/dashboard';
+        console.log('🔍 Register successful - checking token...');
+        const token = localStorage.getItem('access_token');
+        
+        if (token) {
+            setIsAuthenticated(true);
+            setShowRegister(false);
+            window.location.hash = '#/dashboard';
+        } else {
+            console.error('❌ No token found after registration');
+            window.location.hash = '#/login';
+        }
     };
 
     const handleLogout = () => {
