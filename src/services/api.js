@@ -4,6 +4,9 @@ import axios from 'axios';
 // ✅ استخدم متغير البيئة الصحيح
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://livocare.onrender.com';
 
+console.log('🔧 API_BASE_URL =', API_BASE_URL);
+console.log('🔧 Final baseURL =', API_BASE_URL ? `${API_BASE_URL}/api` : '/api');
+
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : '/api',
     timeout: 60000,
@@ -20,6 +23,8 @@ axiosInstance.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
             console.log(`🔑 Token added for: ${config.url}`);
+        } else {
+            console.log(`⚠️ No token for: ${config.url}`);
         }
         
         console.log(`🌐 Request: ${config.baseURL}${config.url}`);
@@ -29,7 +34,7 @@ axiosInstance.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// interceptor للردود
+// ✅ interceptor للردود - لا تمسح التوكن عند 401
 axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -37,15 +42,13 @@ axiosInstance.interceptors.response.use(
             console.error('❌ Cannot connect to server');
         }
         
+        // ✅ فقط log الخطأ، لا تمسح التوكن تلقائياً
         if (error.response?.status === 401) {
-            console.log('🚫 401 Unauthorized - clearing token');
-            
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('token');
-            
-            // ✅ لا تعيد تحميل الصفحة هنا، دع App.jsx يتعامل معها
+            console.log('🚫 401 Unauthorized - token may be expired');
+            console.log('🔑 Current token:', localStorage.getItem('access_token') ? 'exists' : 'missing');
+            // ❌ لا تمسح التوكن هنا! دع App.jsx يتعامل معها
         }
+        
         return Promise.reject(error);
     }
 );
