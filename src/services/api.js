@@ -1,11 +1,11 @@
 // src/services/api.js
 import axios from 'axios';
 
-// ✅ استخدام متغير البيئة للاتصال بـ Backend على السحابة
-const API_BASE_URL = '';  
+// ✅ استخدم متغير البيئة الصحيح
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://livocare.onrender.com';
 
 const axiosInstance = axios.create({
-    baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : '/api',  // ✅ هذا يضيف /api تلقائياً
+    baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : '/api',
     timeout: 60000,
     headers: {
         'Content-Type': 'application/json',
@@ -30,7 +30,6 @@ axiosInstance.interceptors.request.use(
 );
 
 // interceptor للردود
-// interceptor للردود (النسخة المعدلة والمستقرة)
 axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -39,25 +38,19 @@ axiosInstance.interceptors.response.use(
         }
         
         if (error.response?.status === 401) {
-            console.log('🚫 401 Unauthorized - updating state');
+            console.log('🚫 401 Unauthorized - clearing token');
             
-            // 1. امسح البيانات التالفة
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             localStorage.removeItem('token');
-
-            // 2. بدلاً من إعادة تحميل الصفحة، تأكد من عدم تكرار الطلب
-            // إذا كنت تستخدم React Router، يمكنك استخدام navigate هنا
-            // أو ببساطة اترك التطبيق يغير الحالة (State) في App.jsx ليظهر صفحة الدخول
             
-            // ❌ احذف هذا السطر تماماً:
-            // window.location.href = '/'; 
+            // ✅ لا تعيد تحميل الصفحة هنا، دع App.jsx يتعامل معها
         }
         return Promise.reject(error);
     }
 );
 
-// ✅ API مخصص للبحث عن الطعام
+// ✅ باقي الكود كما هو...
 export const foodSearchAPI = {
     search: (query) => 
         axiosInstance.get(`/food/search/?query=${encodeURIComponent(query)}`),
@@ -69,7 +62,6 @@ export const foodSearchAPI = {
         axiosInstance.get('/food/popular/'),
 };
 
-// ✅ API مخصص لتحليل الصور
 export const imageAnalysisAPI = {
     analyzeFood: (imageFile) => {
         const formData = new FormData();
@@ -99,7 +91,6 @@ export const imageAnalysisAPI = {
     }
 };
 
-// ✅ API للملصقات الغذائية (باركود)
 export const barcodeAPI = {
     lookup: (barcode) => 
         axiosInstance.get(`/barcode/${barcode}/`),
