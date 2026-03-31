@@ -95,7 +95,6 @@ function HealthForm({ onDataSubmitted }) {
         let errors = {};
         let isValid = true;
 
-        // تحقق من الوزن
         const weight = parseFloat(formData.weight);
         if (!formData.weight || isNaN(weight)) {
             errors.weight = t('health.form.errors.required');
@@ -105,7 +104,6 @@ function HealthForm({ onDataSubmitted }) {
             isValid = false;
         }
 
-        // تحقق من الضغط الانقباضي
         const systolic = parseInt(formData.systolic);
         if (!formData.systolic || isNaN(systolic)) {
             errors.systolic = t('health.form.errors.required');
@@ -115,7 +113,6 @@ function HealthForm({ onDataSubmitted }) {
             isValid = false;
         }
 
-        // تحقق من الضغط الانبساطي
         const diastolic = parseInt(formData.diastolic);
         if (!formData.diastolic || isNaN(diastolic)) {
             errors.diastolic = t('health.form.errors.required');
@@ -128,7 +125,6 @@ function HealthForm({ onDataSubmitted }) {
             isValid = false;
         }
 
-        // تحقق من الجلوكوز
         const glucose = parseFloat(formData.glucose);
         if (!formData.glucose || isNaN(glucose)) {
             errors.glucose = t('health.form.errors.required');
@@ -177,7 +173,7 @@ function HealthForm({ onDataSubmitted }) {
         setMessageType('info');
     };
 
-    // ✅ دالة الإرسال - مع منع الطلبات المتزامنة
+    // ✅ دالة الإرسال
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
@@ -225,9 +221,7 @@ function HealthForm({ onDataSubmitted }) {
             }
 
         } catch (err) {
-            console.error('❌ Submission failed. Full error:', err);
-            console.error('❌ Response data:', err.response?.data);
-            console.error('❌ Response status:', err.response?.status);
+            console.error('❌ Submission failed:', err);
             
             if (!isMountedRef.current) return;
             
@@ -396,17 +390,137 @@ function HealthForm({ onDataSubmitted }) {
             </div>
 
             <form onSubmit={handleSubmit} className="health-form">
-                {/* باقي الكود كما هو */}
+                {/* ✅ شبكة حقول الإدخال */}
                 <div className="form-grid">
-                    {/* ... حقول النموذج ... */}
+                    {/* حقل الوزن */}
+                    <div className="input-group">
+                        <label htmlFor="weight">
+                            <span className="field-icon">⚖️</span>
+                            <span className="field-label">{t('health.form.weight')}</span>
+                        </label>
+                        <div className="input-wrapper">
+                            <input
+                                id="weight"
+                                type="number"
+                                step="0.1"
+                                value={formData.weight}
+                                onChange={(e) => handleInputChange('weight', e.target.value)}
+                                required
+                                placeholder={t('health.form.weightPlaceholder')}
+                                className={validationErrors.weight ? 'error' : ''}
+                            />
+                            <span className="input-unit">{t('health.form.kg')}</span>
+                        </div>
+                        {validationErrors.weight && (
+                            <div className="error-message">
+                                <span className="error-icon">❌</span>
+                                <span className="error-text">{validationErrors.weight}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* حقل الضغط الانقباضي */}
+                    <div className="input-group">
+                        <label htmlFor="systolic">
+                            <span className="field-icon">❤️</span>
+                            <span className="field-label">{t('health.form.systolic')}</span>
+                        </label>
+                        <div className="input-wrapper">
+                            <input
+                                id="systolic"
+                                type="number"
+                                value={formData.systolic}
+                                onChange={(e) => handleInputChange('systolic', e.target.value)}
+                                required
+                                placeholder={t('health.form.systolicPlaceholder')}
+                                className={validationErrors.systolic ? 'error' : ''}
+                            />
+                            <span className="input-unit">mmHg</span>
+                        </div>
+                        {validationErrors.systolic && (
+                            <div className="error-message">
+                                <span className="error-icon">❌</span>
+                                <span className="error-text">{validationErrors.systolic}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* حقل الضغط الانبساطي */}
+                    <div className="input-group">
+                        <label htmlFor="diastolic">
+                            <span className="field-icon">💓</span>
+                            <span className="field-label">{t('health.form.diastolic')}</span>
+                        </label>
+                        <div className="input-wrapper">
+                            <input
+                                id="diastolic"
+                                type="number"
+                                value={formData.diastolic}
+                                onChange={(e) => handleInputChange('diastolic', e.target.value)}
+                                required
+                                placeholder={t('health.form.diastolicPlaceholder')}
+                                className={validationErrors.diastolic ? 'error' : ''}
+                            />
+                            <span className="input-unit">mmHg</span>
+                        </div>
+                        {validationErrors.diastolic && (
+                            <div className="error-message">
+                                <span className="error-icon">❌</span>
+                                <span className="error-text">{validationErrors.diastolic}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* حقل الجلوكوز */}
+                    <div className="input-group">
+                        <label htmlFor="glucose">
+                            <span className="field-icon">🩸</span>
+                            <span className="field-label">{t('health.form.glucose')}</span>
+                        </label>
+                        <div className="input-wrapper">
+                            <input
+                                id="glucose"
+                                type="number"
+                                step="0.1"
+                                value={formData.glucose}
+                                onChange={(e) => handleInputChange('glucose', e.target.value)}
+                                required
+                                placeholder={t('health.form.glucosePlaceholder')}
+                                className={validationErrors.glucose ? 'error' : ''}
+                            />
+                            <span className="input-unit">{t('health.form.mgdl')}</span>
+                        </div>
+                        {validationErrors.glucose && (
+                            <div className="error-message">
+                                <span className="error-icon">❌</span>
+                                <span className="error-text">{validationErrors.glucose}</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
+                {/* مؤشرات الصحة */}
                 {healthIndicators.length > 0 && (
                     <div className="health-indicators">
-                        {/* ... مؤشرات الصحة ... */}
+                        <div className="indicators-header">
+                            <span className="indicators-icon">💡</span>
+                            <h4>{t('health.form.healthIndicators')}</h4>
+                        </div>
+                        <div className="indicators-list">
+                            {healthIndicators.map((indicator, index) => (
+                                <div key={index} className={`indicator-item ${indicator.type}`}>
+                                    <div className="indicator-header">
+                                        <span className="indicator-icon">{indicator.icon}</span>
+                                        <span className="indicator-message">{indicator.message}</span>
+                                    </div>
+                                    <p className="indicator-advice">{indicator.advice}</p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
 
+                {/* أزرار الإجراء */}
                 <div className="form-actions">
                     <button 
                         type="button" 
@@ -437,6 +551,7 @@ function HealthForm({ onDataSubmitted }) {
                 </div>
             </form>
 
+            {/* رسائل التغذية الراجعة */}
             {message && (
                 <div className={`message ${messageType}`}>
                     <div className="message-content">
