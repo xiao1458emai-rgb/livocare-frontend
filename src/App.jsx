@@ -13,28 +13,38 @@ function App() {
     const [darkMode, setDarkMode] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
 
-    // ✅ دالة للتحقق من صحة التوكن
+    // ✅ دالة للتحقق من صحة التوكن - أكثر صرامة
     const verifyToken = async (token) => {
         if (!token) return false;
         
         try {
             console.log('🔍 Verifying token...');
-            const response = await axiosInstance.get('/users/me/', {
+            
+            // ✅ أولاً: جرب endpoint بسيط
+            const response = await axiosInstance.get('/health_status/', {
                 timeout: 5000,
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
-            if (response.status === 200 && response.data) {
-                console.log('✅ Token valid for user:', response.data.username);
+            console.log('📊 Verification response status:', response.status);
+            
+            // ✅ التحقق من أن الرد ناجح وليس 401
+            if (response.status === 200) {
+                console.log('✅ Token is valid (200 OK)');
                 return true;
             }
+            
             return false;
         } catch (error) {
-            console.log('❌ Token invalid:', error.response?.status || error.message);
+            console.log('❌ Token verification failed:', error.response?.status || error.message);
+            
+            // ✅ إذا كان 401 Unauthorized، التوكن غير صالح
             if (error.response?.status === 401) {
+                console.log('❌ Token invalid (401)');
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
             }
+            
             return false;
         }
     };
@@ -53,8 +63,16 @@ function App() {
                 const token = localStorage.getItem('access_token');
                 const isValid = await verifyToken(token);
                 
+                console.log('🔑 Token valid result:', isValid);
+                
                 if (isMounted) {
                     setIsAuthenticated(isValid);
+                    
+                    // إذا كان التوكن غير صالح، نمسحه
+                    if (!isValid) {
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('refresh_token');
+                    }
                     
                     // التحقق من الرابط
                     if (window.location.hash === '#/register') {
