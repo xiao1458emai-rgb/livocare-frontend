@@ -182,36 +182,58 @@ function HealthDashboard({ refreshKey }) {
 
     const readingStatus = getReadingStatus();
 
-    // ✅ دالة آمنة تماماً لتحويل أي قيمة إلى نص
-    const safeText = (value, defaultValue = '') => {
-        if (value === null || value === undefined) return defaultValue;
+    // ✅ دالة آمنة تماماً لتحويل أي قيمة إلى نص - النسخة النهائية
+    const toSafeString = (value) => {
+        if (value === null || value === undefined) return '';
         if (typeof value === 'string') return value;
         if (typeof value === 'number') return value.toString();
         if (typeof value === 'boolean') return value.toString();
+        
         if (Array.isArray(value)) {
-            return value.map(v => safeText(v, '')).filter(v => v).join(' • ');
+            return value.map(item => toSafeString(item)).filter(v => v).join(' • ');
         }
+        
         if (typeof value === 'object') {
-            try {
-                // البحث عن الحقول النصية الشائعة
-                const textFields = ['message', 'text', 'advice', 'title', 'prediction', 'description', 'recommendation', 'alert', 'content', 'summary'];
-                for (const field of textFields) {
-                    if (value[field] && typeof value[field] === 'string') return value[field];
-                }
-                // إذا كان كائن صغير، حوله إلى JSON
-                const keys = Object.keys(value);
-                if (keys.length <= 2) {
-                    return JSON.stringify(value);
-                }
-                return 'بيانات متقدمة';
-            } catch {
-                return 'بيانات';
+            // 🔥 معالجة خاصة للكائن الذي يحتوي على {type, severity, message, details, recommendation}
+            if (value.message && typeof value.message === 'string') return value.message;
+            if (value.text && typeof value.text === 'string') return value.text;
+            if (value.advice && typeof value.advice === 'string') return value.advice;
+            if (value.title && typeof value.title === 'string') return value.title;
+            if (value.prediction && typeof value.prediction === 'string') return value.prediction;
+            if (value.description && typeof value.description === 'string') return value.description;
+            if (value.recommendation && typeof value.recommendation === 'string') return value.recommendation;
+            if (value.alert && typeof value.alert === 'string') return value.alert;
+            
+            // إذا كان الكائن له هيكل {type, severity, message, ...}
+            if (value.type && (value.message || value.details)) {
+                const severityMap = {
+                    'high': '⚠️ عاجل',
+                    'medium': '⚡ مهم',
+                    'low': 'ℹ️ معلومات'
+                };
+                const severityText = severityMap[value.severity] || '';
+                const messageText = value.message || value.details || '';
+                return severityText ? `${severityText}: ${messageText}` : messageText;
             }
+            
+            // محاولة الحصول على أي حقل نصي آخر
+            const textFields = ['content', 'summary', 'details', 'note', 'info', 'value', 'name'];
+            for (const field of textFields) {
+                if (value[field] && typeof value[field] === 'string') return value[field];
+            }
+            
+            // إذا كان كائن صغير جداً، حوله إلى JSON
+            const keys = Object.keys(value);
+            if (keys.length === 0) return '';
+            if (keys.length === 1 && typeof value[keys[0]] === 'string') return value[keys[0]];
+            
+            return 'بيانات متقدمة';
         }
-        return defaultValue;
+        
+        return String(value);
     };
 
-    // ✅ دالة عرض التحليلات المتقدمة مع حماية كاملة
+    // ✅ دالة عرض التحليلات المتقدمة
     const renderAdvancedInsights = () => {
         if (loadingAdvanced) {
             return (
@@ -241,7 +263,6 @@ function HealthDashboard({ refreshKey }) {
 
         const isArabic = i18n.language.startsWith('ar');
 
-        // استخدام try-catch حول كل جزء لمنع أي خطأ من إيقاف التطبيق
         try {
             return (
                 <div className="advanced-insights-content">
@@ -256,21 +277,21 @@ function HealthDashboard({ refreshKey }) {
                                 <div className="stat">
                                     <span className="stat-label">{isArabic ? 'الوزن' : 'Weight'}</span>
                                     <span className="stat-value">
-                                        {safeText(advancedInsights.energy_consumption.weight || advancedInsights.energy_consumption.weight_kg, '-')} kg
+                                        {advancedInsights.energy_consumption.weight || advancedInsights.energy_consumption.weight_kg || '-'} kg
                                     </span>
                                 </div>
                                 <div className="stat">
                                     <span className="stat-label">{isArabic ? 'معدل الأيض' : 'BMR'}</span>
-                                    <span className="stat-value">{safeText(advancedInsights.energy_consumption.bmr, '-')} kcal</span>
+                                    <span className="stat-value">{advancedInsights.energy_consumption.bmr || '-'} kcal</span>
                                 </div>
                                 <div className="stat">
                                     <span className="stat-label">{isArabic ? 'الحرق اليومي' : 'Daily Burn'}</span>
-                                    <span className="stat-value">{safeText(advancedInsights.energy_consumption.total_daily_burn, '-')} kcal</span>
+                                    <span className="stat-value">{advancedInsights.energy_consumption.total_daily_burn || '-'} kcal</span>
                                 </div>
                                 <div className="stat">
                                     <span className="stat-label">{isArabic ? 'العجز اليومي' : 'Daily Deficit'}</span>
                                     <span className="stat-value">
-                                        {safeText(advancedInsights.energy_consumption.deficit || advancedInsights.energy_consumption.calorie_deficit, 0)} kcal
+                                        {advancedInsights.energy_consumption.deficit || advancedInsights.energy_consumption.calorie_deficit || 0} kcal
                                     </span>
                                 </div>
                             </div>
@@ -285,20 +306,20 @@ function HealthDashboard({ refreshKey }) {
                                 <h4>{isArabic ? 'تحليل ضغط النبض' : 'Pulse Pressure'}</h4>
                             </div>
                             <div className="bp-reading">
-                                <span className="systolic">{safeText(advancedInsights.pulse_pressure.systolic, '—')}</span>
+                                <span className="systolic">{advancedInsights.pulse_pressure.systolic || '—'}</span>
                                 <span className="separator">/</span>
-                                <span className="diastolic">{safeText(advancedInsights.pulse_pressure.diastolic, '—')}</span>
+                                <span className="diastolic">{advancedInsights.pulse_pressure.diastolic || '—'}</span>
                                 <span className="unit">mmHg</span>
                             </div>
                             <div className="pulse-value">
                                 <strong>{isArabic ? 'ضغط النبض:' : 'Pulse Pressure:'}</strong>
                                 <span className="value">
-                                    {safeText(advancedInsights.pulse_pressure.pulse_pressure || advancedInsights.pulse_pressure.value, '-')} mmHg
+                                    {advancedInsights.pulse_pressure.pulse_pressure || advancedInsights.pulse_pressure.value || '-'} mmHg
                                 </span>
                             </div>
                             {advancedInsights.pulse_pressure.alert && (
                                 <div className="alert-message">
-                                    {safeText(advancedInsights.pulse_pressure.alert)}
+                                    {toSafeString(advancedInsights.pulse_pressure.alert)}
                                 </div>
                             )}
                         </div>
@@ -315,12 +336,12 @@ function HealthDashboard({ refreshKey }) {
                                 <div className="risk-info">
                                     <div className="risk-item">
                                         <span>{isArabic ? 'السكر:' : 'Glucose:'}</span>
-                                        <span>{safeText(advancedInsights.pre_exercise.glucose)} mg/dL</span>
+                                        <span>{advancedInsights.pre_exercise.glucose} mg/dL</span>
                                     </div>
                                     {advancedInsights.pre_exercise.blood_pressure && (
                                         <div className="risk-item">
                                             <span>{isArabic ? 'ضغط الدم:' : 'BP:'}</span>
-                                            <span>{safeText(advancedInsights.pre_exercise.blood_pressure)}</span>
+                                            <span>{advancedInsights.pre_exercise.blood_pressure}</span>
                                         </div>
                                     )}
                                 </div>
@@ -330,7 +351,7 @@ function HealthDashboard({ refreshKey }) {
                                     {advancedInsights.pre_exercise.recommendations.map((rec, idx) => (
                                         <li key={idx}>
                                             <span className="rec-icon">💡</span>
-                                            <span>{safeText(rec)}</span>
+                                            <span>{toSafeString(rec)}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -351,8 +372,8 @@ function HealthDashboard({ refreshKey }) {
                                         <span>❤️ {isArabic ? 'ضربات القلب' : 'Heart Rate'}</span>
                                         <span className="value">
                                             {typeof advancedInsights.vital_signs.heart_rate === 'object' 
-                                                ? safeText(advancedInsights.vital_signs.heart_rate.value, '-') 
-                                                : safeText(advancedInsights.vital_signs.heart_rate)} BPM
+                                                ? (advancedInsights.vital_signs.heart_rate.value || '-') 
+                                                : advancedInsights.vital_signs.heart_rate} BPM
                                         </span>
                                     </div>
                                 )}
@@ -361,8 +382,8 @@ function HealthDashboard({ refreshKey }) {
                                         <span>🩸 {isArabic ? 'ضغط الدم' : 'Blood Pressure'}</span>
                                         <span className="value">
                                             {typeof advancedInsights.vital_signs.blood_pressure === 'object'
-                                                ? safeText(advancedInsights.vital_signs.blood_pressure.value, '-')
-                                                : safeText(advancedInsights.vital_signs.blood_pressure)}
+                                                ? (advancedInsights.vital_signs.blood_pressure.value || '-')
+                                                : advancedInsights.vital_signs.blood_pressure}
                                         </span>
                                     </div>
                                 )}
@@ -372,7 +393,7 @@ function HealthDashboard({ refreshKey }) {
                                     <strong>{isArabic ? 'تحليلات:' : 'Insights:'}</strong>
                                     <ul>
                                         {advancedInsights.vital_signs.insights.map((insight, i) => (
-                                            <li key={i}>{safeText(insight)}</li>
+                                            <li key={i}>{toSafeString(insight)}</li>
                                         ))}
                                     </ul>
                                 </div>
@@ -390,7 +411,7 @@ function HealthDashboard({ refreshKey }) {
                             <ul className="holistic-list">
                                 {advancedInsights.holistic.map((rec, i) => (
                                     <li key={i}>
-                                        {rec.area && <strong>{safeText(rec.area)}:</strong>} {safeText(rec)}
+                                        {rec.area && <strong>{toSafeString(rec.area)}:</strong>} {toSafeString(rec)}
                                     </li>
                                 ))}
                             </ul>
@@ -406,19 +427,18 @@ function HealthDashboard({ refreshKey }) {
                             </div>
                             <div className="predictive-list">
                                 {advancedInsights.predictive.map((alert, i) => {
-                                    const alertTitle = safeText(alert.title || alert);
-                                    const alertMessage = safeText(alert.message || alert);
-                                    const alertAction = safeText(alert.action);
+                                    const alertText = toSafeString(alert);
+                                    const actionText = alert.action ? toSafeString(alert.action) : '';
                                     return (
                                         <div key={i} className="predictive-item">
                                             <div className="alert-title">
                                                 <span className="alert-icon">⚠️</span>
-                                                <strong>{alertTitle}</strong>
+                                                <strong>{alert.title ? toSafeString(alert.title) : 'تنبيه'}</strong>
                                             </div>
-                                            <p>{alertMessage}</p>
-                                            {alertAction && alertAction !== alertMessage && (
+                                            <p>{alertText}</p>
+                                            {actionText && actionText !== alertText && (
                                                 <div className="alert-action">
-                                                    💡 {alertAction}
+                                                    💡 {actionText}
                                                 </div>
                                             )}
                                         </div>
