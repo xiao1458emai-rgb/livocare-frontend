@@ -414,6 +414,13 @@ class WatchService {
         this.isMobile = false;
         return true;
     }
+        // ✅ دالة للاتصال بـ ADB Monitor (للتوافق مع الكود القديم)
+    connectADBMonitor() {
+        console.log('📱 connectADBMonitor called - switching to mobile mode');
+        this.isMobile = true;
+        this.setupWatchDataReceiver();
+        return true;
+    }
 }
 
 export default new WatchService();
