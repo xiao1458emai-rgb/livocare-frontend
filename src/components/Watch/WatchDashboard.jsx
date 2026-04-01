@@ -1,6 +1,6 @@
 // src/components/Watch/WatchDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { useTranslation }react-i18next';
+import { useTranslation }react-i18next;
 import watchService from '../../services/watchService';
 import './WatchDashboard.css';
 
