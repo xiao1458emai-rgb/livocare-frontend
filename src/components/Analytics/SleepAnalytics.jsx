@@ -147,7 +147,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
                 health: healthRes.data || []
             };
             
-            console.log(t('analytics.sleep.analyzing'), allData);
+            console.log('📊 Analyzing sleep data...', allData);
 
             const analysis = analyzeSleepIntelligently(allData);
             setSmartInsights(analysis);
@@ -165,10 +165,10 @@ const SleepAnalytics = ({ refreshTrigger }) => {
     // ===========================================
 
     const analyzeSleepQuality = (sleepRecords) => {
-        if (sleepRecords.length === 0) return null;
+        if (!sleepRecords || sleepRecords.length === 0) return null;
 
         const qualities = sleepRecords.map(s => s.quality);
-        const avgQuality = math.mean(qualities);
+        const avgQuality = qualities.length > 0 ? math.mean(qualities) : 0;
 
         return {
             avg: avgQuality.toFixed(1),
@@ -249,7 +249,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
     // ===========================================
 
     const analyzeSleepMoodImpact = (sleepRecords, moodData) => {
-        if (sleepRecords.length < 3 || moodData.length < 3) return null;
+        if (!sleepRecords || sleepRecords.length < 3 || !moodData || moodData.length < 3) return null;
 
         const analysis = [];
         
@@ -313,7 +313,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
     };
 
     const analyzeSleepQualityImpact = (sleepRecords, activitiesData) => {
-        if (sleepRecords.length < 3 || activitiesData.length < 3) return null;
+        if (!sleepRecords || sleepRecords.length < 3 || !activitiesData || activitiesData.length < 3) return null;
 
         const analysis = [];
 
@@ -362,7 +362,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
     };
 
     const analyzeBedtimePatterns = (sleepRecords) => {
-        if (sleepRecords.length < 5) return null;
+        if (!sleepRecords || sleepRecords.length < 5) return null;
 
         const analysis = [];
         
@@ -418,7 +418,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
     };
 
     const analyzeSleepTrends = (sleepRecords) => {
-        if (sleepRecords.length < 4) return null;
+        if (!sleepRecords || sleepRecords.length < 4) return null;
 
         const sorted = [...sleepRecords].sort((a, b) => a.start - b.start);
         const recent = sorted.slice(-7);
@@ -576,53 +576,62 @@ const SleepAnalytics = ({ refreshTrigger }) => {
     const analyzeSleepIntelligently = (allData) => {
         const { sleep, mood, activities, meals, habits, health } = allData;
 
-        console.log(t('analytics.sleep.debug.title'), allData);
-        console.log(t('analytics.sleep.debug.type'), typeof sleep);
-        console.log(t('analytics.sleep.debug.isArray'), Array.isArray(sleep));
-        console.log(t('analytics.sleep.debug.length'), sleep?.length);
+        console.log('🔍 Analyzing sleep data...');
         
-        if (sleep && sleep.length > 0) {
-            const first = sleep[0];
-            console.log(t('analytics.sleep.debug.availableFields'), first);
-            console.log(t('analytics.sleep.debug.sleepStart'), first.sleep_start);
-            console.log(t('analytics.sleep.debug.sleepEnd'), first.sleep_end);
-            console.log(t('analytics.sleep.debug.startTime'), first.start_time);
-            console.log(t('analytics.sleep.debug.endTime'), first.end_time);
-            console.log(t('analytics.sleep.debug.start'), first.start);
-            console.log(t('analytics.sleep.debug.end'), first.end);
-            console.log(t('analytics.sleep.debug.duration'), first.duration);
-            console.log(t('analytics.sleep.debug.durationHours'), first.duration_hours);
+        // ✅ التحقق من وجود بيانات النوم
+        const hasSleepData = sleep && Array.isArray(sleep) && sleep.length > 0;
+        
+        // ✅ إذا لم توجد بيانات نوم، أرجع تحليلاً افتراضياً
+        if (!hasSleepData) {
+            console.log('⚠️ No sleep data available');
+            return {
+                summary: {
+                    avgHours: '—',
+                    avgQuality: '—',
+                    totalHours: '0',
+                    avgBedTime: '—',
+                    avgWakeTime: '—',
+                    recordsCount: 0,
+                    qualityAnalysis: null,
+                    sleepScore: 0,
+                    hasData: false
+                },
+                issues: [{
+                    type: 'no_sleep_data',
+                    severity: 'info',
+                    message: t('analytics.sleep.issues.noData.message'),
+                    details: t('analytics.sleep.issues.noData.details')
+                }],
+                correlations: [],
+                patterns: [],
+                behavioralInsights: [],
+                behavioralRecommendations: [],
+                recommendations: [{
+                    icon: '🌟',
+                    title: t('analytics.sleep.recommendations.startRecording.title'),
+                    mainAdvice: t('analytics.sleep.recommendations.startRecording.advice'),
+                    reasons: [t('analytics.sleep.recommendations.startRecording.reason')],
+                    tips: t('analytics.sleep.recommendations.startRecording.tips', { returnObjects: true }),
+                    priority: 'low'
+                }],
+                lastUpdated: new Date().toISOString()
+            };
         }
 
-        const hasSleepData = sleep && sleep.length > 0;
-        
-        console.log(t('analytics.sleep.debug.receivedData'), allData);
-        console.log(t('analytics.sleep.debug.sleepCount'), sleep.length);
-        console.log(t('analytics.sleep.debug.hasData'), hasSleepData);
-        
-        if (hasSleepData) {
-            console.log(t('analytics.sleep.debug.firstThree'), sleep.slice(0, 3));
-        }
-
+        // ✅ معالجة سجلات النوم
         const sleepRecords = sleep.map(s => {
             const startTime = s.sleep_start || s.start_time || s.start;
             const endTime = s.sleep_end || s.end_time || s.end;
-            
-            console.log(t('analytics.sleep.debug.processing', { id: s.id }), {
-                startTime,
-                endTime
-            });
             
             let hours = 0;
             if (startTime && endTime) {
                 const start = new Date(startTime);
                 const end = new Date(endTime);
                 
-                if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end > start) {
                     const durationMs = end - start;
                     hours = durationMs / (1000 * 60 * 60);
                     hours = Math.round(hours * 100) / 100;
-                    console.log(t('analytics.sleep.debug.calculatedHours', { id: s.id, hours }));
                 }
             }
             
@@ -635,129 +644,157 @@ const SleepAnalytics = ({ refreshTrigger }) => {
             };
         });
 
-        console.log(t('analytics.sleep.debug.processedRecords'), sleepRecords.map(r => ({
-            hours: r.hours,
-            quality: r.quality
-        })));
+        // ✅ إزالة السجلات غير الصالحة
+        const validSleepRecords = sleepRecords.filter(s => s.hours > 0 && s.hours <= 24);
+        
+        if (validSleepRecords.length === 0) {
+            console.log('⚠️ No valid sleep records found');
+            return {
+                summary: {
+                    avgHours: '—',
+                    avgQuality: '—',
+                    totalHours: '0',
+                    avgBedTime: '—',
+                    avgWakeTime: '—',
+                    recordsCount: 0,
+                    qualityAnalysis: null,
+                    sleepScore: 0,
+                    hasData: false
+                },
+                issues: [{
+                    type: 'invalid_data',
+                    severity: 'info',
+                    message: 'بيانات النوم غير صالحة',
+                    details: 'الرجاء تسجيل بيانات نوم صحيحة'
+                }],
+                correlations: [],
+                patterns: [],
+                behavioralInsights: [],
+                behavioralRecommendations: [],
+                recommendations: [],
+                lastUpdated: new Date().toISOString()
+            };
+        }
 
-        const totalSleepHours = hasSleepData ? sleepRecords.reduce((sum, s) => sum + s.hours, 0) : 0;
-        const avgSleepHours = hasSleepData ? totalSleepHours / sleepRecords.length : 0;
-        const avgSleepQuality = hasSleepData ? math.mean(sleepRecords.map(s => s.quality)) || 0 : 0;
+        const totalSleepHours = validSleepRecords.reduce((sum, s) => sum + s.hours, 0);
+        const avgSleepHours = totalSleepHours / validSleepRecords.length;
+        
+        // ✅ التحقق من وجود قيم صالحة قبل حساب المتوسط
+        const qualityValues = validSleepRecords.map(s => s.quality);
+        const avgSleepQuality = qualityValues.length > 0 ? math.mean(qualityValues) || 0 : 0;
 
-        console.log(t('analytics.sleep.debug.totalHours'), totalSleepHours);
-        console.log(t('analytics.sleep.debug.avgHours'), avgSleepHours);
+        const bedTimes = validSleepRecords.map(s => s.start?.getHours() || 0).filter(h => h > 0);
+        const wakeTimes = validSleepRecords.map(s => s.end?.getHours() || 0).filter(h => h > 0);
+        const avgBedTime = bedTimes.length > 0 ? math.mean(bedTimes) || 0 : 0;
+        const avgWakeTime = wakeTimes.length > 0 ? math.mean(wakeTimes) || 0 : 0;
 
-        const bedTimes = hasSleepData ? sleepRecords.map(s => s.start?.getHours() || 0) : [];
-        const wakeTimes = hasSleepData ? sleepRecords.map(s => s.end?.getHours() || 0) : [];
-        const avgBedTime = hasSleepData && bedTimes.length > 0 ? math.mean(bedTimes) || 0 : 0;
-        const avgWakeTime = hasSleepData && wakeTimes.length > 0 ? math.mean(wakeTimes) || 0 : 0;
-
-        const moodScores = mood.map(m => {
+        // معالجة بيانات المزاج
+        const moodScores = (mood || []).map(m => {
             const map = { 'Excellent': 5, 'Good': 4, 'Neutral': 3, 'Stressed': 2, 'Anxious': 2, 'Sad': 1 };
             return map[m.mood] || 3;
         });
-        const avgMood = math.mean(moodScores) || 0;
+        const avgMood = moodScores.length > 0 ? math.mean(moodScores) || 0 : 0;
 
-        const activityMinutes = activities.map(a => a.duration_minutes || 0);
+        // معالجة بيانات النشاط
+        const activityMinutes = (activities || []).map(a => a.duration_minutes || 0);
         const totalActivity = activityMinutes.reduce((a, b) => a + b, 0);
 
-        const habitRate = math.mean(habits.map(h => h.is_completed ? 1 : 0)) || 0;
+        // معالجة بيانات العادات
+        const habitRate = (habits || []).length > 0 ? math.mean(habits.map(h => h.is_completed ? 1 : 0)) || 0 : 0;
 
-        const weights = health.map(h => parseFloat(h.weight_kg)).filter(w => w);
-        const currentWeight = weights[weights.length - 1] || 0;
+        // تحليل الجودة
+        const qualityAnalysis = analyzeSleepQuality(validSleepRecords);
 
-        const qualityAnalysis = hasSleepData ? analyzeSleepQuality(sleepRecords) : null;
-
+        // تحليل الارتباطات
         const correlations = [];
 
-        if (hasSleepData && sleepRecords.length > 2 && moodScores.length > 2) {
-            const minLength = Math.min(sleepRecords.length, moodScores.length);
-            const sleepHoursData = sleepRecords.slice(0, minLength).map(s => s.hours);
+        if (validSleepRecords.length > 2 && moodScores.length > 2) {
+            const minLength = Math.min(validSleepRecords.length, moodScores.length);
+            const sleepHoursData = validSleepRecords.slice(0, minLength).map(s => s.hours);
             const moodData = moodScores.slice(0, minLength);
             
-            const sleepMoodCorr = stats.sampleCorrelation(sleepHoursData, moodData);
-            
-            if (!isNaN(sleepMoodCorr) && Math.abs(sleepMoodCorr) > 0.2) {
-                correlations.push({
-                    type: 'sleep_mood',
-                    strength: sleepMoodCorr,
-                    insight: sleepMoodCorr > 0.3 ? 
-                        t('analytics.sleep.correlations.sleepMood.strong') :
-                        t('analytics.sleep.correlations.sleepMood.normal'),
-                    recommendation: t('analytics.sleep.correlations.sleepMood.recommendation')
-                });
+            try {
+                const sleepMoodCorr = stats.sampleCorrelation(sleepHoursData, moodData);
+                if (!isNaN(sleepMoodCorr) && Math.abs(sleepMoodCorr) > 0.2) {
+                    correlations.push({
+                        type: 'sleep_mood',
+                        strength: sleepMoodCorr,
+                        insight: sleepMoodCorr > 0.3 ? 
+                            t('analytics.sleep.correlations.sleepMood.strong') :
+                            t('analytics.sleep.correlations.sleepMood.normal'),
+                        recommendation: t('analytics.sleep.correlations.sleepMood.recommendation')
+                    });
+                }
+            } catch (err) {
+                console.warn('Could not calculate correlation:', err);
             }
         }
 
-        if (hasSleepData && sleepRecords.length > 2 && activityMinutes.length > 2) {
-            const minLength = Math.min(sleepRecords.length, activityMinutes.length);
-            const sleepData = sleepRecords.slice(0, minLength).map(s => s.hours);
+        if (validSleepRecords.length > 2 && activityMinutes.length > 2) {
+            const minLength = Math.min(validSleepRecords.length, activityMinutes.length);
+            const sleepData = validSleepRecords.slice(0, minLength).map(s => s.hours);
             const activityData = activityMinutes.slice(0, minLength);
             
-            const sleepActivityCorr = stats.sampleCorrelation(sleepData, activityData);
-            
-            if (!isNaN(sleepActivityCorr) && sleepActivityCorr > 0.2) {
-                correlations.push({
-                    type: 'sleep_activity',
-                    strength: sleepActivityCorr,
-                    insight: t('analytics.sleep.correlations.sleepActivity.insight'),
-                    recommendation: t('analytics.sleep.correlations.sleepActivity.recommendation')
-                });
+            try {
+                const sleepActivityCorr = stats.sampleCorrelation(sleepData, activityData);
+                if (!isNaN(sleepActivityCorr) && sleepActivityCorr > 0.2) {
+                    correlations.push({
+                        type: 'sleep_activity',
+                        strength: sleepActivityCorr,
+                        insight: t('analytics.sleep.correlations.sleepActivity.insight'),
+                        recommendation: t('analytics.sleep.correlations.sleepActivity.recommendation')
+                    });
+                }
+            } catch (err) {
+                console.warn('Could not calculate correlation:', err);
             }
         }
 
+        // تحليل المشكلات
         const issues = [];
 
-        if (hasSleepData) {
-            if (avgSleepHours < 7) {
-                issues.push({
-                    type: 'low_sleep',
-                    severity: 'high',
-                    message: t('analytics.sleep.issues.lowSleep.message'),
-                    details: t('analytics.sleep.issues.lowSleep.details', { hours: avgSleepHours.toFixed(1) })
-                });
-            } else if (avgSleepHours > 9) {
-                issues.push({
-                    type: 'high_sleep',
-                    severity: 'medium',
-                    message: t('analytics.sleep.issues.highSleep.message'),
-                    details: t('analytics.sleep.issues.highSleep.details', { hours: avgSleepHours.toFixed(1) })
-                });
-            }
-
-            if (avgSleepQuality < 3) {
-                issues.push({
-                    type: 'poor_quality',
-                    severity: 'high',
-                    message: t('analytics.sleep.issues.poorQuality.message'),
-                    details: t('analytics.sleep.issues.poorQuality.details', { quality: avgSleepQuality.toFixed(1) })
-                });
-            }
-
-            if (avgBedTime >= 24 || (avgBedTime <= 4 && avgBedTime > 0)) {
-                issues.push({
-                    type: 'late_bedtime',
-                    severity: 'medium',
-                    message: t('analytics.sleep.issues.lateBedtime.message'),
-                    details: avgBedTime > 0 
-                        ? t('analytics.sleep.issues.lateBedtime.detailsWithTime', { time: avgBedTime.toFixed(0) })
-                        : t('analytics.sleep.issues.lateBedtime.detailsNoTime')
-                });
-            }
-        } else {
+        if (avgSleepHours < 7) {
             issues.push({
-                type: 'no_sleep_data',
-                severity: 'info',
-                message: t('analytics.sleep.issues.noData.message'),
-                details: t('analytics.sleep.issues.noData.details')
+                type: 'low_sleep',
+                severity: 'high',
+                message: t('analytics.sleep.issues.lowSleep.message'),
+                details: t('analytics.sleep.issues.lowSleep.details', { hours: avgSleepHours.toFixed(1) })
+            });
+        } else if (avgSleepHours > 9) {
+            issues.push({
+                type: 'high_sleep',
+                severity: 'medium',
+                message: t('analytics.sleep.issues.highSleep.message'),
+                details: t('analytics.sleep.issues.highSleep.details', { hours: avgSleepHours.toFixed(1) })
             });
         }
 
+        if (avgSleepQuality < 3) {
+            issues.push({
+                type: 'poor_quality',
+                severity: 'high',
+                message: t('analytics.sleep.issues.poorQuality.message'),
+                details: t('analytics.sleep.issues.poorQuality.details', { quality: avgSleepQuality.toFixed(1) })
+            });
+        }
+
+        if (avgBedTime >= 24 || (avgBedTime <= 4 && avgBedTime > 0)) {
+            issues.push({
+                type: 'late_bedtime',
+                severity: 'medium',
+                message: t('analytics.sleep.issues.lateBedtime.message'),
+                details: avgBedTime > 0 
+                    ? t('analytics.sleep.issues.lateBedtime.detailsWithTime', { time: avgBedTime.toFixed(0) })
+                    : t('analytics.sleep.issues.lateBedtime.detailsNoTime')
+            });
+        }
+
+        // تحليل الأنماط
         const patterns = [];
 
-        if (hasSleepData && sleepRecords.length >= 7) {
-            const weekendSleep = sleepRecords.filter((_, i) => {
-                const day = sleepRecords[i].start?.getDay() || 0;
+        if (validSleepRecords.length >= 7) {
+            const weekendSleep = validSleepRecords.filter((_, i) => {
+                const day = validSleepRecords[i].start?.getDay() || 0;
                 return day === 5 || day === 6;
             });
             
@@ -773,36 +810,35 @@ const SleepAnalytics = ({ refreshTrigger }) => {
             }
         }
 
-        // ===========================================
         // التحليل السلوكي المتقدم
-        // ===========================================
         const behavioralInsights = [];
 
-        const moodImpact = analyzeSleepMoodImpact(sleepRecords, mood);
+        const moodImpact = analyzeSleepMoodImpact(validSleepRecords, mood);
         if (moodImpact) {
             behavioralInsights.push(...moodImpact);
         }
 
-        const qualityImpact = analyzeSleepQualityImpact(sleepRecords, activities);
+        const qualityImpact = analyzeSleepQualityImpact(validSleepRecords, activities);
         if (qualityImpact) {
             behavioralInsights.push(...qualityImpact);
         }
 
-        const bedtimePatterns = analyzeBedtimePatterns(sleepRecords);
+        const bedtimePatterns = analyzeBedtimePatterns(validSleepRecords);
         if (bedtimePatterns) {
             behavioralInsights.push(...bedtimePatterns);
         }
 
-        const trends = analyzeSleepTrends(sleepRecords);
+        const trends = analyzeSleepTrends(validSleepRecords);
         if (trends) {
             behavioralInsights.push(trends);
         }
 
-        const behavioralRecommendations = generateBehavioralRecommendations(sleepRecords, mood, activities);
+        const behavioralRecommendations = generateBehavioralRecommendations(validSleepRecords, mood, activities);
 
+        // التوصيات
         const recommendations = [];
 
-        if (hasSleepData && avgSleepHours < 7) {
+        if (avgSleepHours < 7) {
             const needed = 8 - avgSleepHours;
             recommendations.push({
                 icon: '⏰',
@@ -814,7 +850,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
             });
         }
 
-        if (hasSleepData && avgSleepQuality < 3.5) {
+        if (avgSleepQuality < 3.5) {
             recommendations.push({
                 icon: '⭐',
                 title: t('analytics.sleep.recommendations.improveQuality.title'),
@@ -825,7 +861,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
             });
         }
 
-        if (hasSleepData && (avgBedTime >= 23 || (avgBedTime <= 4 && avgBedTime > 0))) {
+        if ((avgBedTime >= 23 || (avgBedTime <= 4 && avgBedTime > 0))) {
             const idealTime = 22;
             
             recommendations.push({
@@ -877,24 +913,24 @@ const SleepAnalytics = ({ refreshTrigger }) => {
         }
 
         const sleepScore = calculateSleepScore({
-            avgSleepHours: hasSleepData ? avgSleepHours : 0,
-            avgSleepQuality: hasSleepData ? avgSleepQuality : 0,
-            avgBedTime: hasSleepData ? avgBedTime : 0,
+            avgSleepHours: avgSleepHours,
+            avgSleepQuality: avgSleepQuality,
+            avgBedTime: avgBedTime,
             totalActivity, 
             avgMood,
-            hasSleepData
+            hasSleepData: true
         }, t);
 
         const summary = {
-            avgHours: hasSleepData ? avgSleepHours.toFixed(1) : '—',
-            avgQuality: hasSleepData ? avgSleepQuality.toFixed(1) : '—',
-            totalHours: hasSleepData ? totalSleepHours.toFixed(1) : '0',
-            avgBedTime: hasSleepData && avgBedTime > 0 ? avgBedTime.toFixed(0) : '—',
-            avgWakeTime: hasSleepData && avgWakeTime > 0 ? avgWakeTime.toFixed(0) : '—',
-            recordsCount: sleepRecords.length,
+            avgHours: avgSleepHours.toFixed(1),
+            avgQuality: avgSleepQuality.toFixed(1),
+            totalHours: totalSleepHours.toFixed(1),
+            avgBedTime: avgBedTime > 0 ? avgBedTime.toFixed(0) : '—',
+            avgWakeTime: avgWakeTime > 0 ? avgWakeTime.toFixed(0) : '—',
+            recordsCount: validSleepRecords.length,
             qualityAnalysis,
             sleepScore: sleepScore.total,
-            hasData: hasSleepData
+            hasData: true
         };
 
         return {
@@ -983,7 +1019,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
                         </p>
                     </div>
 
-                    {smartInsights.issues.length > 0 && (
+                    {smartInsights.issues && smartInsights.issues.length > 0 && (
                         <div className="issues-card">
                             <h3>{t('analytics.sleep.issues.title')}</h3>
                             <div className="issues-list">
@@ -997,7 +1033,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
                         </div>
                     )}
 
-                    {smartInsights.correlations.length > 0 && (
+                    {smartInsights.correlations && smartInsights.correlations.length > 0 && (
                         <div className="correlations-card">
                             <h3>{t('analytics.sleep.correlations.title')}</h3>
                             <div className="correlations-list">
@@ -1040,7 +1076,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
                         </div>
                     )}
 
-                    {smartInsights.patterns.length > 0 && (
+                    {smartInsights.patterns && smartInsights.patterns.length > 0 && (
                         <div className="patterns-card">
                             <h3>{t('analytics.sleep.patterns.title')}</h3>
                             <div className="patterns-list">
@@ -1054,7 +1090,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
                         </div>
                     )}
 
-                    {smartInsights.recommendations.length > 0 && (
+                    {smartInsights.recommendations && smartInsights.recommendations.length > 0 && (
                         <div className="recommendations-card">
                             <h3>{t('analytics.sleep.recommendations.title')}</h3>
                             <div className="recommendations-list">
