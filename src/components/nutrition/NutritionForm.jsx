@@ -564,12 +564,382 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         };
     }, []);
 
-    return (
+      return (
         <div className={`nutrition-form-container ${darkMode ? 'dark-mode' : ''}`}>
             {showScanner && (
                 <BarcodeScanner onScan={handleBarcodeScanned} onClose={() => setShowScanner(false)} darkMode={darkMode} />
             )}
-    
+            
+            <div className="form-content">
+                {/* رأس النموذج المحسن */}
+                <div className="enhanced-header">
+                    <div className="header-pattern"></div>
+                    <div className="header-content-wrapper">
+                        <div className="header-icon-container">
+                            <div className="icon-glow"></div>
+                            <span className="header-icon">🥗</span>
+                        </div>
+                        <div className="header-text">
+                            <h1 className="header-title">{t('nutrition.addMeal')}</h1>
+                            <p className="header-subtitle">{t('nutrition.trackNutrition')}</p>
+                        </div>
+                        <div className="header-badge">
+                            <span className="badge-icon">📊</span>
+                            <span className="badge-text">{t('nutrition.dailyIntake')}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ملخص التغذية السريع */}
+                <div className="enhanced-summary-card">
+                    <div className="summary-gradient"></div>
+                    <div className="summary-content">
+                        <div className="summary-title">
+                            <span className="summary-icon">📊</span>
+                            <h4>{t('nutrition.mealSummary')}</h4>
+                        </div>
+                        <div className="summary-stats-grid">
+                            <div className="stat-item">
+                                <div className="stat-icon">🔥</div>
+                                <div className="stat-info">
+                                    <span className="stat-value">{nutritionSummary.totalCalories}</span>
+                                    <span className="stat-label">{t('nutrition.calories')}</span>
+                                </div>
+                            </div>
+                            <div className="stat-item">
+                                <div className="stat-icon">💪</div>
+                                <div className="stat-info">
+                                    <span className="stat-value">{nutritionSummary.totalProtein}g</span>
+                                    <span className="stat-label">{t('nutrition.protein')}</span>
+                                </div>
+                            </div>
+                            <div className="stat-item">
+                                <div className="stat-icon">🌾</div>
+                                <div className="stat-info">
+                                    <span className="stat-value">{nutritionSummary.totalCarbs}g</span>
+                                    <span className="stat-label">{t('nutrition.carbs')}</span>
+                                </div>
+                            </div>
+                            <div className="stat-item">
+                                <div className="stat-icon">🫒</div>
+                                <div className="stat-info">
+                                    <span className="stat-value">{nutritionSummary.totalFat}g</span>
+                                    <span className="stat-label">{t('nutrition.fat')}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <form onSubmit={editingMeal ? handleUpdateMeal : handleSubmit}>
+                    {/* قسم نوع الوجبة */}
+                    <div className="form-section">
+                        <div className="section-header">
+                            <div className="section-number">1</div>
+                            <h3 className="section-title">{t('nutrition.mealType')}</h3>
+                            <div className="section-line"></div>
+                        </div>
+                        <div className="meal-type-grid">
+                            {getMealTypeChoices(t).map(meal => (
+                                <button
+                                    key={meal.value}
+                                    type="button"
+                                    className={`meal-type-chip ${mealData.meal_type === meal.value ? 'active' : ''}`}
+                                    style={{
+                                        '--chip-color': meal.color,
+                                        '--chip-bg': meal.bg,
+                                        background: mealData.meal_type === meal.value ? meal.color : meal.bg,
+                                        color: mealData.meal_type === meal.value ? 'white' : meal.color
+                                    }}
+                                    onClick={() => setMealData(prev => ({ ...prev, meal_type: meal.value }))}
+                                >
+                                    {meal.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* قسم وقت الوجبة */}
+                    <div className="form-section">
+                        <div className="section-header">
+                            <div className="section-number">2</div>
+                            <h3 className="section-title">{t('nutrition.mealTime')}</h3>
+                            <div className="section-line"></div>
+                        </div>
+                        <input
+                            type="datetime-local"
+                            name="meal_time"
+                            value={mealData.meal_time}
+                            onChange={handleMealChange}
+                            className="time-input"
+                        />
+                    </div>
+
+                    {/* قسم المكونات */}
+                    <div className="form-section">
+                        <div className="section-header">
+                            <div className="section-number">3</div>
+                            <h3 className="section-title">{t('nutrition.ingredients')}</h3>
+                            <div className="section-line"></div>
+                        </div>
+                        <div className="ingredients-container">
+                            {foodItems.map((item, index) => (
+                                <div key={index} className="ingredient-card">
+                                    <div className="card-header">
+                                        <div className="item-number-wrapper">
+                                            <span className="item-number">{index + 1}</span>
+                                        </div>
+                                        {foodItems.length > 1 && (
+                                            <button type="button" onClick={() => handleRemoveItem(index)} className="remove-btn">
+                                                ✕
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="ingredient-fields">
+                                        <div className="field-group">
+                                            <div className="field-label">
+                                                <span>🥗</span>
+                                                <span>{t('nutrition.foodName')}</span>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                name="name"
+                                                value={item.name}
+                                                onChange={(e) => handleItemChange(index, e)}
+                                                className="ingredient-input"
+                                                placeholder={t('nutrition.foodNamePlaceholder')}
+                                            />
+                                            {item.showResults && item.searchResults.length > 0 && (
+                                                <div className="search-results">
+                                                    {item.searchResults.map((food, idx) => (
+                                                        <div key={idx} className="result-item" onClick={() => handleSelectFood(index, food)}>
+                                                            <span className="food-name">{food.name}</span>
+                                                            <div className="result-nutrients">
+                                                                <span className="nutrient calories">{food.calories} kcal</span>
+                                                                <span className="nutrient protein">{food.protein}g</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {item.isSearching && <div className="searching-indicator">جاري البحث...</div>}
+                                        </div>
+                                        <div className="field-row">
+                                            <div className="field-group">
+                                                <div className="field-label">
+                                                    <span>⚖️</span>
+                                                    <span>{t('nutrition.quantity')}</span>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    value={item.quantity}
+                                                    onChange={(e) => handleQuantityChange(index, e)}
+                                                    className="quantity-input"
+                                                    step="any"
+                                                />
+                                            </div>
+                                            <div className="field-group">
+                                                <div className="field-label">
+                                                    <span>📏</span>
+                                                    <span>{t('nutrition.unit')}</span>
+                                                </div>
+                                                <select
+                                                    value={item.unit}
+                                                    onChange={(e) => {
+                                                        const newItems = [...foodItems];
+                                                        newItems[index].unit = e.target.value;
+                                                        setFoodItems(newItems);
+                                                    }}
+                                                    className="unit-select"
+                                                >
+                                                    {getUnitOptions().map(unit => (
+                                                        <option key={unit.value} value={unit.value}>{unit.label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="nutrition-fields-row">
+                                            <div className="field-group">
+                                                <div className="field-label">🔥 {t('nutrition.calories')}</div>
+                                                <input
+                                                    type="number"
+                                                    name="calories"
+                                                    value={item.calories}
+                                                    onChange={(e) => handleItemChange(index, e)}
+                                                    className="nutrition-input"
+                                                    placeholder="kcal"
+                                                />
+                                            </div>
+                                            <div className="field-group">
+                                                <div className="field-label">💪 {t('nutrition.protein')}</div>
+                                                <input
+                                                    type="number"
+                                                    name="protein"
+                                                    value={item.protein}
+                                                    onChange={(e) => handleItemChange(index, e)}
+                                                    className="nutrition-input"
+                                                    placeholder="g"
+                                                />
+                                            </div>
+                                            <div className="field-group">
+                                                <div className="field-label">🌾 {t('nutrition.carbs')}</div>
+                                                <input
+                                                    type="number"
+                                                    name="carbs"
+                                                    value={item.carbs}
+                                                    onChange={(e) => handleItemChange(index, e)}
+                                                    className="nutrition-input"
+                                                    placeholder="g"
+                                                />
+                                            </div>
+                                            <div className="field-group">
+                                                <div className="field-label">🫒 {t('nutrition.fat')}</div>
+                                                <input
+                                                    type="number"
+                                                    name="fat"
+                                                    value={item.fat}
+                                                    onChange={(e) => handleItemChange(index, e)}
+                                                    className="nutrition-input"
+                                                    placeholder="g"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            <button type="button" onClick={handleAddItem} className="add-ingredient-btn">
+                                <span>➕</span>
+                                <span>{t('nutrition.addIngredient')}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* قسم الملاحظات */}
+                    <div className="form-section">
+                        <div className="section-header">
+                            <div className="section-number">4</div>
+                            <h3 className="section-title">{t('nutrition.notes')}</h3>
+                            <div className="section-line"></div>
+                        </div>
+                        <textarea
+                            name="notes"
+                            value={mealData.notes}
+                            onChange={handleMealChange}
+                            className="notes-textarea"
+                            placeholder={t('nutrition.notesPlaceholder')}
+                        />
+                    </div>
+
+                    {/* أزرار الإجراء */}
+                    <div className="form-actions-enhanced">
+                        <button type="button" onClick={clearForm} className="action-btn secondary">
+                            <span>🔄</span>
+                            <span>{t('common.reset')}</span>
+                        </button>
+                        <button type="submit" disabled={isLoading} className="action-btn primary">
+                            {isLoading ? (
+                                <><span className="loading-spinner-small"></span><span>{t('common.saving')}</span></>
+                            ) : (
+                                <><span>💾</span><span>{editingMeal ? t('common.update') : t('common.save')}</span></>
+                            )}
+                        </button>
+                    </div>
+                </form>
+
+                {/* قسم الوجبات المسجلة */}
+                <div className="enhanced-history-section">
+                    <div className="history-header">
+                        <div className="header-left">
+                            <span className="history-icon">📋</span>
+                            <h3>{t('nutrition.recentMeals')}</h3>
+                        </div>
+                        <div className="header-right">
+                            <span className="meals-count">{meals.length} {t('nutrition.meals')}</span>
+                            <button onClick={fetchMeals} className="refresh-history-btn" disabled={loadingMeals}>
+                                {loadingMeals ? '⏳' : '🔄'}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {loadingMeals ? (
+                        <div className="loading-state">
+                            <div className="loading-spinner"></div>
+                            <p>{t('common.loading')}</p>
+                        </div>
+                    ) : meals.length === 0 ? (
+                        <div className="empty-state">
+                            <div className="empty-illustration">🍽️</div>
+                            <p>{t('nutrition.noMealsYet')}</p>
+                        </div>
+                    ) : (
+                        <div className="meals-timeline">
+                            {meals.slice(0, 10).map(meal => (
+                                <div key={meal.id} className="timeline-item">
+                                    <div className="timeline-marker" style={{ background: getMealTypeColor(meal.meal_type) }}>
+                                        {getMealTypeChoices(t).find(m => m.value === meal.meal_type)?.label.split(' ')[0]}
+                                    </div>
+                                    <div className="timeline-content">
+                                        <div className="content-header">
+                                            <span className="meal-type">{getMealTypeChoices(t).find(m => m.value === meal.meal_type)?.label}</span>
+                                            <div className="meal-actions">
+                                                <button onClick={() => handleEditMeal(meal)} className="icon-btn edit" title={t('common.edit')}>✏️</button>
+                                                <button onClick={() => handleDeleteMeal(meal.id)} className="icon-btn delete" title={t('common.delete')}>🗑️</button>
+                                            </div>
+                                        </div>
+                                        <div className="meal-time">{formatMealDate(meal.meal_time)}</div>
+                                        <div className="nutrition-badges">
+                                            <div className="badge calories">
+                                                <span className="badge-value">{meal.total_calories}</span>
+                                                <span className="badge-label">{t('nutrition.calories')}</span>
+                                            </div>
+                                            {meal.ingredients && meal.ingredients.length > 0 && (
+                                                <>
+                                                    <div className="badge protein">
+                                                        <span className="badge-value">{meal.ingredients.reduce((sum, i) => sum + (i.protein || 0), 0)}g</span>
+                                                        <span className="badge-label">{t('nutrition.protein')}</span>
+                                                    </div>
+                                                    <div className="badge carbs">
+                                                        <span className="badge-value">{meal.ingredients.reduce((sum, i) => sum + (i.carbs || 0), 0)}g</span>
+                                                        <span className="badge-label">{t('nutrition.carbs')}</span>
+                                                    </div>
+                                                    <div className="badge fat">
+                                                        <span className="badge-value">{meal.ingredients.reduce((sum, i) => sum + (i.fat || 0), 0)}g</span>
+                                                        <span className="badge-label">{t('nutrition.fat')}</span>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                        {meal.ingredients && meal.ingredients.length > 0 && (
+                                            <div className="ingredients-list">
+                                                <ul>
+                                                    {meal.ingredients.slice(0, 4).map((ing, idx) => (
+                                                        <li key={idx}>🍽️ {ing.name} {ing.quantity}{ing.unit}</li>
+                                                    ))}
+                                                    {meal.ingredients.length > 4 && (
+                                                        <li className="more-tag">+{meal.ingredients.length - 4}</li>
+                                                    )}
+                                                </ul>
+                                            </div>
+                                        )}
+                                        {meal.notes && <div className="notes">📝 {meal.notes}</div>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* رسائل الإشعارات */}
+            {message && (
+                <div className={`notification-message ${messageType}`}>
+                    <span>{message}</span>
+                    <button onClick={() => setMessage('')} className="close-message">✕</button>
+                </div>
+            )}
+
+            {/* ✅ تم إزالة BarcodeScanner المكرر */}
+
             <style jsx>{`
                 .camera-btn {
                     width: 48px; height: 48px; border: none; border-radius: 50%; background: rgba(255,255,255,0.2);
@@ -695,6 +1065,5 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         </div>
     );
 }
-
 
 export default NutritionForm;
