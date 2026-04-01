@@ -1,6 +1,6 @@
 // src/components/Watch/WatchDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation }react-i18next';
 import watchService from '../../services/watchService';
 import './WatchDashboard.css';
 
@@ -8,18 +8,35 @@ const WatchDashboard = () => {
     const { t } = useTranslation();
     const [connected, setConnected] = useState(false);
     const [connecting, setConnecting] = useState(false);
-    const [adbMode, setAdbMode] = useState(false);
     const [healthData, setHealthData] = useState({
         heartRate: null,
         bloodPressure: { systolic: null, diastolic: null },
         lastUpdate: null
     });
     const [alerts, setAlerts] = useState([]);
+    const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
-        // استماع لتحديثات البيانات
-        window.addEventListener('watchDataUpdate', (e) => {
-            setHealthData(e.detail);
+        // ✅ التحقق من وضع الهاتف
+        setIsMobile(watchService.isMobile);
+        
+        // ✅ استماع لتحديثات البيانات من watchService
+        watchService.onData((type, data) => {
+            if (type === 'heartRate') {
+                setHealthData(prev => ({ ...prev, heartRate: data, lastUpdate: new Date() }));
+                // إرسال حدث للتحديث
+                window.dispatchEvent(new CustomEvent('watchDataUpdate', { detail: { heartRate: data, lastUpdate: new Date() } }));
+            }
+            if (type === 'bloodPressure') {
+                setHealthData(prev => ({ ...prev, bloodPressure: data, lastUpdate: new Date() }));
+                window.dispatchEvent(new CustomEvent('watchDataUpdate', { detail: { bloodPressure: data, lastUpdate: new Date() } }));
+            }
+            if (type === 'connected') {
+                setConnected(true);
+            }
+            if (type === 'disconnected') {
+                setConnected(false);
+            }
         });
 
         // استماع للتنبيهات
@@ -29,7 +46,6 @@ const WatchDashboard = () => {
         });
 
         return () => {
-            window.removeEventListener('watchDataUpdate', () => {});
             window.removeEventListener('watchAlert', () => {});
         };
     }, []);
@@ -40,8 +56,11 @@ const WatchDashboard = () => {
             const success = await watchService.connectToWatch();
             if (success) {
                 setConnected(true);
-                await watchService.readHeartRate();
-                await watchService.readBloodPressure();
+                // قراءة البيانات بعد الاتصال
+                const hr = await watchService.readHeartRate();
+                const bp = await watchService.readBloodPressure();
+                if (hr) setHealthData(prev => ({ ...prev, heartRate: hr, lastUpdate: new Date() }));
+                if (bp) setHealthData(prev => ({ ...prev, bloodPressure: bp, lastUpdate: new Date() }));
             }
         } catch (error) {
             console.error('Connection failed:', error);
@@ -52,17 +71,24 @@ const WatchDashboard = () => {
     const disconnectWatch = () => {
         watchService.disconnect();
         setConnected(false);
+        setHealthData({
+            heartRate: null,
+            bloodPressure: { systolic: null, diastolic: null },
+            lastUpdate: null
+        });
     };
 
-    const enableADBMode = () => {
-        watchService.enableADBMode();
-        setAdbMode(true);
-        setConnected(true);
+    // ✅ وضع الهاتف - لا حاجة لزر ADB، التطبيق يكتشف تلقائياً
+    // يتم عرض رسالة توضيحية فقط
+    const showMobileMessage = () => {
+        alert('📱 أنت على هاتف\n\nإذا كان لديك تطبيق FitPro مثبتاً، سيقوم التطبيق باستقبال البيانات منه تلقائياً.\n\nتأكد من أن تطبيق FitPro يعمل في الخلفية.');
     };
 
     const refreshData = async () => {
-        await watchService.readHeartRate();
-        await watchService.readBloodPressure();
+        const hr = await watchService.readHeartRate();
+        const bp = await watchService.readBloodPressure();
+        if (hr) setHealthData(prev => ({ ...prev, heartRate: hr, lastUpdate: new Date() }));
+        if (bp) setHealthData(prev => ({ ...prev, bloodPressure: bp, lastUpdate: new Date() }));
     };
 
     return (
@@ -72,19 +98,23 @@ const WatchDashboard = () => {
                 <div className="header-buttons">
                     {!connected ? (
                         <>
-                            <button 
-                                onClick={connectWatch}
-                                disabled={connecting}
-                                className="connect-btn"
-                            >
-                                {connecting ? '🔄 جاري الاتصال...' : '🔗 بلوتوث'}
-                            </button>
-                            <button 
-                                onClick={enableADBMode}
-                                className="adb-btn"
-                            >
-                                📱 ADB
-                            </button>
+                            {!isMobile && (
+                                <button 
+                                    onClick={connectWatch}
+                                    disabled={connecting}
+                                    className="connect-btn"
+                                >
+                                    {connecting ? '🔄 جاري الاتصال...' : '🔗 بلوتوث'}
+                                </button>
+                            )}
+                            {isMobile && (
+                                <button 
+                                    onClick={showMobileMessage}
+                                    className="info-btn"
+                                >
+                                    📱 وضع الهاتف
+                                </button>
+                            )}
                         </>
                     ) : (
                         <button onClick={disconnectWatch} className="disconnect-btn">
@@ -96,9 +126,9 @@ const WatchDashboard = () => {
 
             {connected && (
                 <div className="watch-data">
-                    {adbMode && (
-                        <div className="adb-mode-badge">
-                            📱 وضع ADB - استخدم تطبيق FitPro للقياس
+                    {isMobile && (
+                        <div className="mobile-mode-badge">
+                            📱 وضع الهاتف - البيانات ستصل من تطبيق FitPro
                         </div>
                     )}
 
@@ -147,6 +177,17 @@ const WatchDashboard = () => {
                 </div>
             )}
 
+            {/* رسالة توضيحية عند عدم الاتصال على الهاتف */}
+            {!connected && isMobile && (
+                <div className="info-message">
+                    <div className="info-icon">📱</div>
+                    <div className="info-text">
+                        <strong>وضع الهاتف</strong>
+                        <p>إذا كان لديك تطبيق FitPro مثبتاً، قم بقياس البيانات فيه وستظهر هنا تلقائياً.</p>
+                    </div>
+                </div>
+            )}
+
             {/* التنبيهات */}
             {alerts.length > 0 && (
                 <div className="alerts-container">
@@ -178,7 +219,7 @@ const WatchDashboard = () => {
                     display: flex;
                     gap: 8px;
                 }
-                .connect-btn, .disconnect-btn, .adb-btn {
+                .connect-btn, .disconnect-btn, .info-btn {
                     padding: 10px 20px;
                     border: none;
                     border-radius: 40px;
@@ -193,11 +234,11 @@ const WatchDashboard = () => {
                     background: #ef4444;
                     color: white;
                 }
-                .adb-btn {
+                .info-btn {
                     background: #10b981;
                     color: white;
                 }
-                .adb-mode-badge {
+                .mobile-mode-badge {
                     background: rgba(16, 185, 129, 0.2);
                     color: #10b981;
                     padding: 8px 12px;
@@ -205,6 +246,30 @@ const WatchDashboard = () => {
                     text-align: center;
                     font-size: 0.8rem;
                     margin-bottom: 16px;
+                }
+                .info-message {
+                    margin-top: 16px;
+                    padding: 16px;
+                    background: rgba(59, 130, 246, 0.1);
+                    border-radius: 12px;
+                    display: flex;
+                    gap: 12px;
+                    align-items: center;
+                }
+                .info-icon {
+                    font-size: 2rem;
+                }
+                .info-text {
+                    flex: 1;
+                }
+                .info-text strong {
+                    display: block;
+                    margin-bottom: 4px;
+                }
+                .info-text p {
+                    margin: 0;
+                    font-size: 0.85rem;
+                    color: var(--text-secondary);
                 }
                 .watch-data {
                     display: flex;
