@@ -12,18 +12,27 @@ function HealthDashboard({ refreshKey }) {
     const [darkMode, setDarkMode] = useState(false);
     
     // ===========================================
-    // 🎯 حالة الرؤى المتقاطعة
+    // 🎯 حالة الرؤى المتقاطعة (الأساسية)
     // ===========================================
     const [crossInsights, setCrossInsights] = useState(null);
     const [loadingInsights, setLoadingInsights] = useState(false);
     const [insightsError, setInsightsError] = useState('');
     
+    // ===========================================
+    // 🧠 حالة التحليلات المتقدمة
+    // ===========================================
+    const [advancedInsights, setAdvancedInsights] = useState(null);
+    const [loadingAdvanced, setLoadingAdvanced] = useState(false);
+    const [advancedError, setAdvancedError] = useState('');
+    
     // ✅ useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const abortControllerRef = useRef(null);
     const insightsAbortControllerRef = useRef(null);
+    const advancedAbortControllerRef = useRef(null);
     const isFetchingRef = useRef(false);
     const isFetchingInsightsRef = useRef(false);
+    const isFetchingAdvancedRef = useRef(false);
 
     // تحميل إعدادات الوضع المظلم
     useEffect(() => {
@@ -42,11 +51,10 @@ function HealthDashboard({ refreshKey }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // ✅ دالة جلب آخر قراءة - مع useCallback ومنع الطلبات المتزامنة
+    // ✅ دالة جلب آخر قراءة
     const fetchLatestReading = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
-        // إلغاء الطلب السابق إذا كان قيد التنفيذ
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
@@ -58,14 +66,12 @@ function HealthDashboard({ refreshKey }) {
         setError('');
         
         try {
-            // ✅ جلب جميع البيانات ثم أخذ آخر قراءة
             const response = await axiosInstance.get('/health_status/', {
                 signal: abortControllerRef.current.signal
             });
             
             if (!isMountedRef.current) return;
             
-            // ✅ معالجة البيانات
             let data = [];
             if (Array.isArray(response.data)) {
                 data = response.data;
@@ -74,7 +80,6 @@ function HealthDashboard({ refreshKey }) {
             }
             
             if (data.length > 0) {
-                // ✅ ترتيب حسب التاريخ وأخذ أحدث قراءة
                 const sortedData = [...data].sort((a, b) => 
                     new Date(b.recorded_at) - new Date(a.recorded_at)
                 );
@@ -98,7 +103,7 @@ function HealthDashboard({ refreshKey }) {
         }
     }, [t]);
 
-    // ✅ دالة جلب الرؤى المتقاطعة - مع useCallback
+    // ✅ دالة جلب الرؤى المتقاطعة الأساسية
     const fetchCrossInsights = useCallback(async () => {
         if (isFetchingInsightsRef.current || !isMountedRef.current) return;
         
@@ -138,10 +143,61 @@ function HealthDashboard({ refreshKey }) {
         }
     }, []);
 
+    // ✅ دالة جلب التحليلات المتقدمة 🧠
+    const fetchAdvancedInsights = useCallback(async () => {
+        if (isFetchingAdvancedRef.current || !isMountedRef.current) return;
+        
+        if (advancedAbortControllerRef.current) {
+            advancedAbortControllerRef.current.abort();
+        }
+        
+        isFetchingAdvancedRef.current = true;
+        advancedAbortControllerRef.current = new AbortController();
+        
+        setLoadingAdvanced(true);
+        setAdvancedError('');
+        
+        try {
+            const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
+            const response = await axiosInstance.get('/advanced-insights/', {
+                params: { lang: currentLang },
+                signal: advancedAbortControllerRef.current.signal,
+                timeout: 10000
+            });
+            
+            if (!isMountedRef.current) return;
+            
+            if (response.data && response.data.success && response.data.data) {
+                setAdvancedInsights(response.data.data);
+                console.log('✅ Advanced insights loaded:', response.data.data);
+            } else {
+                setAdvancedError(response.data?.message || 'لا توجد بيانات كافية للتحليل المتقدم');
+            }
+        } catch (err) {
+            if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+                return;
+            }
+            console.error('Failed to fetch advanced insights:', err);
+            if (isMountedRef.current) {
+                if (err.response?.status === 404) {
+                    setAdvancedError('⚠️ ميزة التحليلات المتقدمة غير متوفرة حالياً');
+                } else {
+                    setAdvancedError('تعذر تحميل التحليلات المتقدمة');
+                }
+            }
+        } finally {
+            if (isMountedRef.current) {
+                setLoadingAdvanced(false);
+            }
+            isFetchingAdvancedRef.current = false;
+        }
+    }, [i18n.language]);
+
     // ✅ جلب البيانات عند تحميل المكون أو تغير مفتاح التحديث
     useEffect(() => {
         fetchLatestReading();
         fetchCrossInsights();
+        fetchAdvancedInsights();
         
         return () => {
             if (abortControllerRef.current) {
@@ -150,8 +206,11 @@ function HealthDashboard({ refreshKey }) {
             if (insightsAbortControllerRef.current) {
                 insightsAbortControllerRef.current.abort();
             }
+            if (advancedAbortControllerRef.current) {
+                advancedAbortControllerRef.current.abort();
+            }
         };
-    }, [refreshKey, fetchLatestReading, fetchCrossInsights]);
+    }, [refreshKey, fetchLatestReading, fetchCrossInsights, fetchAdvancedInsights]);
 
     // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
@@ -163,6 +222,9 @@ function HealthDashboard({ refreshKey }) {
             }
             if (insightsAbortControllerRef.current) {
                 insightsAbortControllerRef.current.abort();
+            }
+            if (advancedAbortControllerRef.current) {
+                advancedAbortControllerRef.current.abort();
             }
         };
     }, []);
@@ -198,90 +260,265 @@ function HealthDashboard({ refreshKey }) {
 
     // تحديد حالة القراءة
     const getReadingStatus = () => {
-        if (!latestReading) return { status: 'no_data', color: 'gray', icon: '📋', message: t('health.dashboard.status.no_data') };
+        if (!latestReading) return { status: 'no_data', color: 'gray', bgColor: '#f3f4f6', icon: '📋', message: t('health.dashboard.status.no_data') };
         
         let issues = [];
         let hasWarning = false;
         
-        // تحليل الوزن
         if (latestReading.weight_kg > 100) {
-            issues.push({ 
-                type: 'weight', 
-                message: t('health.dashboard.weightHigh'),
-                icon: '⚖️',
-                severity: 'high'
-            });
+            issues.push({ type: 'weight', message: t('health.dashboard.weightHigh'), icon: '⚖️', severity: 'high' });
             hasWarning = true;
         } else if (latestReading.weight_kg < 50) {
-            issues.push({ 
-                type: 'weight', 
-                message: t('health.dashboard.weightLow'),
-                icon: '⚖️',
-                severity: 'medium'
-            });
+            issues.push({ type: 'weight', message: t('health.dashboard.weightLow'), icon: '⚖️', severity: 'medium' });
             hasWarning = true;
         }
         
-        // تحليل ضغط الدم
         if (latestReading.systolic_pressure > 140) {
-            issues.push({ 
-                type: 'blood_pressure', 
-                message: t('health.dashboard.bpHigh'),
-                icon: '❤️',
-                severity: 'high'
-            });
+            issues.push({ type: 'blood_pressure', message: t('health.dashboard.bpHigh'), icon: '❤️', severity: 'high' });
             hasWarning = true;
         } else if (latestReading.systolic_pressure < 90) {
-            issues.push({ 
-                type: 'blood_pressure', 
-                message: t('health.dashboard.bpLow'),
-                icon: '❤️',
-                severity: 'medium'
-            });
+            issues.push({ type: 'blood_pressure', message: t('health.dashboard.bpLow'), icon: '❤️', severity: 'medium' });
             hasWarning = true;
         }
         
-        // تحليل الجلوكوز
         if (latestReading.blood_glucose > 140) {
-            issues.push({ 
-                type: 'glucose', 
-                message: t('health.dashboard.glucoseHigh'),
-                icon: '🩸',
-                severity: 'high'
-            });
+            issues.push({ type: 'glucose', message: t('health.dashboard.glucoseHigh'), icon: '🩸', severity: 'high' });
             hasWarning = true;
         } else if (latestReading.blood_glucose < 70) {
-            issues.push({ 
-                type: 'glucose', 
-                message: t('health.dashboard.glucoseLow'),
-                icon: '🩸',
-                severity: 'high'
-            });
+            issues.push({ type: 'glucose', message: t('health.dashboard.glucoseLow'), icon: '🩸', severity: 'high' });
             hasWarning = true;
         }
         
         if (hasWarning) {
-            return { 
-                status: 'warning', 
-                color: '#f59e0b', 
-                bgColor: '#fef3c7',
-                icon: '⚠️',
-                message: t('health.dashboard.status.warning'),
-                issues: issues
-            };
+            return { status: 'warning', color: '#f59e0b', bgColor: '#fef3c7', icon: '⚠️', message: t('health.dashboard.status.warning'), issues: issues };
         }
         
-        return { 
-            status: 'normal', 
-            color: '#10b981', 
-            bgColor: '#d1fae5',
-            icon: '✅',
-            message: t('health.dashboard.status.normal'),
-            issues: []
-        };
+        return { status: 'normal', color: '#10b981', bgColor: '#d1fae5', icon: '✅', message: t('health.dashboard.status.normal'), issues: [] };
     };
 
     const readingStatus = getReadingStatus();
+
+    // دالة مساعدة لعرض التحليلات المتقدمة
+    const renderAdvancedInsights = () => {
+        if (loadingAdvanced) {
+            return (
+                <div className="advanced-insights-loading">
+                    <div className="loading-spinner-small"></div>
+                    <p>جاري تحليل بياناتك المتقدمة...</p>
+                </div>
+            );
+        }
+
+        if (advancedError) {
+            return (
+                <div className="advanced-insights-error">
+                    <span className="error-icon">⚠️</span>
+                    <p>{advancedError}</p>
+                    <button onClick={fetchAdvancedInsights} className="retry-small">
+                        🔄 إعادة المحاولة
+                    </button>
+                </div>
+            );
+        }
+
+        if (!advancedInsights) {
+            return (
+                <div className="advanced-insights-empty">
+                    <span className="empty-icon">🧠</span>
+                    <p>سجل المزيد من البيانات للحصول على تحليلات متقدمة</p>
+                </div>
+            );
+        }
+
+        const isArabic = i18n.language.startsWith('ar');
+
+        return (
+            <div className="advanced-insights-content">
+                {/* تحليل الطاقة */}
+                {advancedInsights.energy_consumption && (
+                    <div className="advanced-card energy-card">
+                        <div className="card-header">
+                            <span className="card-icon">⚡</span>
+                            <h4>{isArabic ? 'تحليل استهلاك الطاقة' : 'Energy Consumption'}</h4>
+                        </div>
+                        <div className="energy-stats">
+                            <div className="stat">
+                                <span className="stat-label">{isArabic ? 'الوزن' : 'Weight'}</span>
+                                <span className="stat-value">{advancedInsights.energy_consumption.weight || '-'} kg</span>
+                            </div>
+                            <div className="stat">
+                                <span className="stat-label">{isArabic ? 'معدل الأيض' : 'BMR'}</span>
+                                <span className="stat-value">{advancedInsights.energy_consumption.bmr || '-'} kcal</span>
+                            </div>
+                            <div className="stat">
+                                <span className="stat-label">{isArabic ? 'الحرق اليومي' : 'Daily Burn'}</span>
+                                <span className="stat-value">{advancedInsights.energy_consumption.total_daily_burn || '-'} kcal</span>
+                            </div>
+                            <div className="stat">
+                                <span className="stat-label">{isArabic ? 'العجز اليومي' : 'Daily Deficit'}</span>
+                                <span className={`stat-value ${advancedInsights.energy_consumption.deficit > 0 ? 'deficit' : 'surplus'}`}>
+                                    {advancedInsights.energy_consumption.deficit || 0} kcal
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* تحليل ضغط النبض */}
+                {advancedInsights.pulse_pressure && (
+                    <div className={`advanced-card pulse-card ${advancedInsights.pulse_pressure.severity || 'normal'}`}>
+                        <div className="card-header">
+                            <span className="card-icon">❤️</span>
+                            <h4>{isArabic ? 'تحليل ضغط النبض' : 'Pulse Pressure'}</h4>
+                        </div>
+                        <div className="bp-reading">
+                            <span className="systolic">{advancedInsights.pulse_pressure.systolic}</span>
+                            <span className="separator">/</span>
+                            <span className="diastolic">{advancedInsights.pulse_pressure.diastolic}</span>
+                            <span className="unit">mmHg</span>
+                        </div>
+                        <div className="pulse-value">
+                            <strong>{isArabic ? 'ضغط النبض:' : 'Pulse Pressure:'}</strong>
+                            <span className={`value ${advancedInsights.pulse_pressure.severity}`}>
+                                {advancedInsights.pulse_pressure.pulse_pressure} mmHg
+                            </span>
+                        </div>
+                        {advancedInsights.pulse_pressure.alert && (
+                            <div className="alert-message">
+                                {advancedInsights.pulse_pressure.alert}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* توصيات ما قبل التمرين */}
+                {advancedInsights.pre_exercise?.recommendations?.length > 0 && (
+                    <div className="advanced-card pre-exercise-card">
+                        <div className="card-header">
+                            <span className="card-icon">🏃</span>
+                            <h4>{isArabic ? 'توصيات ما قبل التمرين' : 'Pre-Exercise Recommendations'}</h4>
+                        </div>
+                        <div className="risk-info">
+                            <div className="risk-item">
+                                <span>{isArabic ? 'السكر:' : 'Glucose:'}</span>
+                                <span>{advancedInsights.pre_exercise.glucose} mg/dL</span>
+                            </div>
+                            <div className="risk-item">
+                                <span>{isArabic ? 'ضغط الدم:' : 'BP:'}</span>
+                                <span>{advancedInsights.pre_exercise.blood_pressure}</span>
+                            </div>
+                        </div>
+                        <ul className="recommendations-list">
+                            {advancedInsights.pre_exercise.recommendations.map((rec, idx) => (
+                                <li key={idx}>
+                                    <span className="rec-icon">{rec.icon || '💡'}</span>
+                                    <span>{rec.message}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {/* العلامات الحيوية */}
+                {advancedInsights.vital_signs?.vital_signs && (
+                    <div className="advanced-card vital-card">
+                        <div className="card-header">
+                            <span className="card-icon">📊</span>
+                            <h4>{isArabic ? 'العلامات الحيوية' : 'Vital Signs'}</h4>
+                        </div>
+                        <div className="vital-grid">
+                            {advancedInsights.vital_signs.vital_signs.heart_rate && (
+                                <div className="vital-item">
+                                    <span>❤️ {isArabic ? 'ضربات القلب' : 'Heart Rate'}</span>
+                                    <span className="value">{advancedInsights.vital_signs.vital_signs.heart_rate.value} BPM</span>
+                                    <span className={`status ${advancedInsights.vital_signs.vital_signs.heart_rate.status}`}>
+                                        {advancedInsights.vital_signs.vital_signs.heart_rate.status === 'normal' ? 
+                                            (isArabic ? 'طبيعي' : 'Normal') : 
+                                            (isArabic ? 'غير طبيعي' : 'Abnormal')}
+                                    </span>
+                                </div>
+                            )}
+                            {advancedInsights.vital_signs.vital_signs.blood_pressure && (
+                                <div className="vital-item">
+                                    <span>🩸 {isArabic ? 'ضغط الدم' : 'Blood Pressure'}</span>
+                                    <span className="value">{advancedInsights.vital_signs.vital_signs.blood_pressure.value}</span>
+                                    <span className={`status ${advancedInsights.vital_signs.vital_signs.blood_pressure.status}`}>
+                                        {advancedInsights.vital_signs.vital_signs.blood_pressure.status === 'normal' ? 
+                                            (isArabic ? 'طبيعي' : 'Normal') : 
+                                            (isArabic ? 'مرتفع' : 'High')}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                        {advancedInsights.vital_signs.insights?.length > 0 && (
+                            <div className="vital-insights">
+                                <strong>{isArabic ? 'تحليلات:' : 'Insights:'}</strong>
+                                <ul>
+                                    {advancedInsights.vital_signs.insights.map((insight, i) => (
+                                        <li key={i}>{insight}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* توصيات شاملة */}
+                {advancedInsights.holistic?.length > 0 && (
+                    <div className="advanced-card holistic-card">
+                        <div className="card-header">
+                            <span className="card-icon">💡</span>
+                            <h4>{isArabic ? 'توصيات شاملة' : 'Holistic Recommendations'}</h4>
+                        </div>
+                        <ul className="holistic-list">
+                            {advancedInsights.holistic.map((rec, i) => (
+                                <li key={i}>
+                                    <strong>{rec.area}:</strong> {rec.recommendation}
+                                    {rec.priority === 'high' && <span className="priority-high">عاجل</span>}
+                                    {rec.priority === 'medium' && <span className="priority-medium">مهم</span>}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {/* تنبيهات تنبؤية */}
+                {advancedInsights.predictive?.length > 0 && (
+                    <div className="advanced-card predictive-card">
+                        <div className="card-header">
+                            <span className="card-icon">🔮</span>
+                            <h4>{isArabic ? 'تنبيهات تنبؤية' : 'Predictive Alerts'}</h4>
+                        </div>
+                        <div className="predictive-list">
+                            {advancedInsights.predictive.map((alert, i) => (
+                                <div key={i} className={`predictive-item ${alert.severity}`}>
+                                    <div className="alert-title">
+                                        <span className="alert-icon">
+                                            {alert.type === 'weight' ? '⚖️' : alert.type === 'glucose' ? '🩸' : '⚠️'}
+                                        </span>
+                                        <strong>{alert.title}</strong>
+                                    </div>
+                                    <p>{alert.message}</p>
+                                    {alert.probability && (
+                                        <div className="probability">
+                                            <span>{isArabic ? 'احتمال:' : 'Probability:'}</span>
+                                            <div className="prob-bar">
+                                                <div className="prob-fill" style={{ width: `${alert.probability}%` }}></div>
+                                                <span className="prob-value">{alert.probability}%</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="alert-action">
+                                        💡 {alert.action}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     if (loading) {
         return (
@@ -300,10 +537,7 @@ function HealthDashboard({ refreshKey }) {
                 <div className="error-state">
                     <div className="error-icon">❌</div>
                     <p className="error-message">{error}</p>
-                    <button 
-                        onClick={fetchLatestReading}
-                        className="retry-button"
-                    >
+                    <button onClick={fetchLatestReading} className="retry-button">
                         <span className="button-icon">🔄</span>
                         <span className="button-text">{t('health.dashboard.retry')}</span>
                     </button>
@@ -312,33 +546,7 @@ function HealthDashboard({ refreshKey }) {
         );
     }
 
-    if (!latestReading) {
-        return (
-            <div className={`health-dashboard ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="no-data-state">
-                    <div className="no-data-icon">📋</div>
-                    <h4 className="no-data-title">{t('health.dashboard.title')}</h4>
-                    <p className="no-data-message">{t('health.dashboard.noData')}</p>
-                    <div className="tips-container">
-                        <div className="tip-item">
-                            <span className="tip-icon">💡</span>
-                            <p className="tip-text">{t('health.dashboard.tip1')}</p>
-                        </div>
-                        <div className="tip-item">
-                            <span className="tip-icon">💡</span>
-                            <p className="tip-text">{t('health.dashboard.tip2')}</p>
-                        </div>
-                        <div className="tip-item">
-                            <span className="tip-icon">💡</span>
-                            <p className="tip-text">{t('health.dashboard.tip3')}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    const formattedDate = formatDateTime(latestReading.recorded_at);
+    const formattedDate = latestReading ? formatDateTime(latestReading.recorded_at) : { date: '', time: '' };
 
     return (
         <div className={`health-dashboard ${darkMode ? 'dark-mode' : ''}`}>
@@ -376,7 +584,6 @@ function HealthDashboard({ refreshKey }) {
 
             {/* بطاقات القراءات */}
             <div className="reading-cards-grid">
-                {/* بطاقة الوزن */}
                 <div className="reading-card weight">
                     <div className="card-glow"></div>
                     <div className="card-header">
@@ -386,24 +593,14 @@ function HealthDashboard({ refreshKey }) {
                         <h5 className="card-title">{t('health.dashboard.weight')}</h5>
                     </div>
                     <div className="card-value">
-                        {latestReading.weight_kg?.toFixed(1) || '—'} 
+                        {latestReading?.weight_kg?.toFixed(1) || '—'} 
                         <span className="unit">{t('health.dashboard.kg')}</span>
                     </div>
                     <div className="card-footer">
                         <span className="card-label">{t('health.dashboard.bodyWeight')}</span>
-                        <div className="card-indicator">
-                            {latestReading.weight_kg > 100 ? (
-                                <span className="indicator-high" title={t('health.dashboard.weightHigh')}>⚠️</span>
-                            ) : latestReading.weight_kg < 50 ? (
-                                <span className="indicator-low" title={t('health.dashboard.weightLow')}>⚡</span>
-                            ) : (
-                                <span className="indicator-normal" title={t('health.dashboard.normal')}>✅</span>
-                            )}
-                        </div>
                     </div>
                 </div>
 
-                {/* بطاقة ضغط الدم */}
                 <div className="reading-card blood-pressure">
                     <div className="card-glow"></div>
                     <div className="card-header">
@@ -413,9 +610,9 @@ function HealthDashboard({ refreshKey }) {
                         <h5 className="card-title">{t('health.dashboard.bloodPressure')}</h5>
                     </div>
                     <div className="card-value">
-                        <span className="systolic">{latestReading.systolic_pressure || '—'}</span>
+                        <span className="systolic">{latestReading?.systolic_pressure || '—'}</span>
                         <span className="separator">/</span>
-                        <span className="diastolic">{latestReading.diastolic_pressure || '—'}</span>
+                        <span className="diastolic">{latestReading?.diastolic_pressure || '—'}</span>
                     </div>
                     <div className="card-footer">
                         <div className="pressure-labels">
@@ -423,19 +620,9 @@ function HealthDashboard({ refreshKey }) {
                             <span className="separator">/</span>
                             <span className="diastolic-label">{t('health.dashboard.diastolic')}</span>
                         </div>
-                        <div className="card-indicator">
-                            {latestReading.systolic_pressure > 140 || latestReading.diastolic_pressure > 90 ? (
-                                <span className="indicator-high" title={t('health.dashboard.bpHigh')}>⚠️</span>
-                            ) : latestReading.systolic_pressure < 90 ? (
-                                <span className="indicator-low" title={t('health.dashboard.bpLow')}>⚡</span>
-                            ) : (
-                                <span className="indicator-normal" title={t('health.dashboard.normal')}>✅</span>
-                            )}
-                        </div>
                     </div>
                 </div>
 
-                {/* بطاقة الجلوكوز */}
                 <div className="reading-card glucose">
                     <div className="card-glow"></div>
                     <div className="card-header">
@@ -445,20 +632,11 @@ function HealthDashboard({ refreshKey }) {
                         <h5 className="card-title">{t('health.dashboard.bloodGlucose')}</h5>
                     </div>
                     <div className="card-value">
-                        {latestReading.blood_glucose?.toFixed(0) || '—'} 
+                        {latestReading?.blood_glucose?.toFixed(0) || '—'} 
                         <span className="unit">{t('health.dashboard.mgdl')}</span>
                     </div>
                     <div className="card-footer">
                         <span className="card-label">{t('health.dashboard.glucoseLevel')}</span>
-                        <div className="card-indicator">
-                            {latestReading.blood_glucose > 140 ? (
-                                <span className="indicator-high" title={t('health.dashboard.glucoseHigh')}>⚠️</span>
-                            ) : latestReading.blood_glucose < 70 ? (
-                                <span className="indicator-low" title={t('health.dashboard.glucoseLow')}>⚡</span>
-                            ) : (
-                                <span className="indicator-normal" title={t('health.dashboard.normal')}>✅</span>
-                            )}
-                        </div>
                     </div>
                 </div>
             </div>
@@ -476,46 +654,30 @@ function HealthDashboard({ refreshKey }) {
                             <div key={index} className={`alert-item severity-${issue.severity}`}>
                                 <span className="alert-type">{issue.icon}</span>
                                 <span className="alert-message">{issue.message}</span>
-                                <span className="alert-severity">{issue.severity === 'high' ? '🔴' : '🟡'}</span>
                             </div>
                         ))}
-                    </div>
-                    <div className="alerts-footer">
-                        <span className="advice-icon">💡</span>
-                        <span className="advice-text">{t('health.dashboard.consultDoctor')}</span>
                     </div>
                 </div>
             )}
 
-            {/* الإحصائيات السريعة */}
-            <div className="quick-stats">
-                <div className="stat-item">
-                    <span className="stat-icon">📊</span>
-                    <span className="stat-label">{t('health.dashboard.recordedAt')}</span>
-                    <span className="stat-value">{formattedDate.time}</span>
+            {/* 🧠 التحليلات المتقدمة - القسم الجديد */}
+            <div className="advanced-insights-section">
+                <div className="section-header">
+                    <span className="section-icon">🧠</span>
+                    <h3 className="section-title">التحليلات المتقدمة</h3>
+                    <span className="ai-badge">AI</span>
                 </div>
-                <div className="stat-item">
-                    <span className="stat-icon">🔄</span>
-                    <span className="stat-label">{t('health.dashboard.lastUpdated')}</span>
-                    <span className="stat-value">{formattedDate.time}</span>
-                </div>
-                <div className="stat-item">
-                    <span className="stat-icon">📅</span>
-                    <span className="stat-label">{t('health.dashboard.date')}</span>
-                    <span className="stat-value">{formattedDate.date}</span>
-                </div>
+                <p className="section-description">تحليل عميق للعلاقات الصحية المتقدمة</p>
+                {renderAdvancedInsights()}
             </div>
 
-            {/* الرؤى المتقاطعة والتحليلات الذكية */}
+            {/* الرؤى المتقاطعة */}
             <div className="cross-insights-section">
-                <div className="insights-header">
-                    <div className="insights-title-wrapper">
-                        <span className="insights-icon">🧠</span>
-                        <h4 className="insights-title">الرؤى الصحية المتقاطعة</h4>
-                        <span className="insights-badge">AI</span>
-                    </div>
-                    <p className="insights-subtitle">تحليل ذكي للعلاقات بين عاداتك الصحية</p>
+                <div className="section-header">
+                    <span className="section-icon">🔗</span>
+                    <h3 className="section-title">الرؤى المتقاطعة</h3>
                 </div>
+                <p className="section-description">تحليل العلاقات بين عاداتك الصحية</p>
 
                 {loadingInsights && (
                     <div className="insights-loading">
@@ -528,231 +690,24 @@ function HealthDashboard({ refreshKey }) {
                     <div className="insights-error">
                         <span className="error-icon">⚠️</span>
                         <p>{insightsError}</p>
-                        <button onClick={fetchCrossInsights} className="retry-small">
-                            🔄 إعادة المحاولة
-                        </button>
+                        <button onClick={fetchCrossInsights} className="retry-small">🔄 إعادة المحاولة</button>
                     </div>
                 )}
 
                 {crossInsights && !loadingInsights && (
-                    <>
-                        <div className="correlations-grid">
-                            {/* النوم والمزاج */}
-                            {crossInsights.sleep_mood?.recommendations?.length > 0 && (
-                                <div className="correlation-card">
-                                    <div className="correlation-header">
-                                        <span className="correlation-emoji">😴 → 😊</span>
-                                        <h5 className="correlation-title">النوم والمزاج</h5>
-                                        <span className={`correlation-strength ${
-                                            crossInsights.sleep_mood.correlation_strength > 70 ? 'high' : 
-                                            crossInsights.sleep_mood.correlation_strength > 40 ? 'medium' : 'low'
-                                        }`}>
-                                            {crossInsights.sleep_mood.correlation_strength > 70 ? 'قوي' : 
-                                             crossInsights.sleep_mood.correlation_strength > 40 ? 'متوسط' : 'ضعيف'} 
-                                            {crossInsights.sleep_mood.correlation_strength?.toFixed(0)}%
-                                        </span>
-                                    </div>
-                                    <p className="correlation-description">
-                                        {crossInsights.sleep_mood.recommendations[0]?.message || 
-                                         'عندما تنام أقل من 6 ساعات، مزاجك يتأثر سلباً'}
-                                    </p>
-                                    <div className="correlation-stats">
-                                        <div className="stat">
-                                            <span className="stat-value">
-                                                {crossInsights.sleep_mood.bad_mood_after_low_sleep || 0}
-                                            </span>
-                                            <span className="stat-label">أيام تأثر</span>
-                                        </div>
-                                        <div className="stat">
-                                            <span className="stat-value">
-                                                {crossInsights.sleep_mood.total_low_sleep_days || 0}
-                                            </span>
-                                            <span className="stat-label">أيام نوم قليل</span>
-                                        </div>
-                                    </div>
-                                    <div className="correlation-advice">
-                                        <span className="advice-icon">💡</span>
-                                        <span>{crossInsights.sleep_mood.recommendations[0]?.advice || 
-                                               'نم 7-8 ساعات لمزاج أفضل'}</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* التغذية والطاقة */}
-                            {crossInsights.nutrition_activity?.recommendations?.length > 0 && (
-                                <div className="correlation-card">
-                                    <div className="correlation-header">
-                                        <span className="correlation-emoji">🥗 → ⚡</span>
-                                        <h5 className="correlation-title">البروتين والطاقة</h5>
-                                        <span className="correlation-strength medium">
-                                            {crossInsights.nutrition_activity.recommendations[0]?.improvement || '+65%'}
-                                        </span>
-                                    </div>
-                                    <p className="correlation-description">
-                                        {crossInsights.nutrition_activity.recommendations[0]?.message || 
-                                         'الأيام عالية البروتين تحسن أداءك الرياضي'}
-                                    </p>
-                                    <div className="correlation-stats">
-                                        <div className="stat">
-                                            <span className="stat-value">
-                                                {crossInsights.nutrition_activity.high_protein_days_count || 0}
-                                            </span>
-                                            <span className="stat-label">أيام بروتين عالي</span>
-                                        </div>
-                                        <div className="stat">
-                                            <span className="stat-value">
-                                                {crossInsights.nutrition_activity.avg_duration_high_protein?.toFixed(0) || 0}د
-                                            </span>
-                                            <span className="stat-label">مدة التمرين</span>
-                                        </div>
-                                    </div>
-                                    <div className="correlation-advice">
-                                        <span className="advice-icon">💪</span>
-                                        <span>{crossInsights.nutrition_activity.recommendations[0]?.advice || 
-                                               'تناول البروتين قبل التمرين'}</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* الرياضة والوزن */}
-                            {crossInsights.activity_health?.recommendations?.length > 0 && (
-                                <div className="correlation-card">
-                                    <div className="correlation-header">
-                                        <span className="correlation-emoji">🏃 → ⚖️</span>
-                                        <h5 className="correlation-title">الرياضة والوزن</h5>
-                                        <span className="correlation-strength high">
-                                            {crossInsights.activity_health.recommendations[0]?.success_rate || '78%'}
-                                        </span>
-                                    </div>
-                                    <p className="correlation-description">
-                                        {crossInsights.activity_health.recommendations[0]?.message || 
-                                         'الرياضة المنتظمة تساعد في خسارة الوزن'}
-                                    </p>
-                                    <div className="correlation-stats">
-                                        {crossInsights.activity_health.activity_impact?.map((impact, idx) => (
-                                            <div key={idx} className="stat">
-                                                <span className="stat-value">
-                                                    {impact.weight_change?.toFixed(1) || 0}kg
-                                                </span>
-                                                <span className="stat-label">تغير الوزن</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="correlation-advice">
-                                        <span className="advice-icon">🔥</span>
-                                        <span>{crossInsights.activity_health.recommendations[0]?.advice || 
-                                               'مارس الرياضة 30 دقيقة يومياً'}</span>
-                                    </div>
-                                </div>
-                            )}
+                    <div className="cross-insights-content">
+                        {/* هنا يمكنك عرض محتويات crossInsights */}
+                        <div className="insights-placeholder">
+                            <span>📊</span>
+                            <p>تم تحليل {crossInsights.correlations_count || 0} علاقة صحية</p>
                         </div>
-
-                        {/* اليوم المثالي */}
-                        {crossInsights.ideal_day && (
-                            <div className="ideal-day-card">
-                                <div className="ideal-day-header">
-                                    <span className="ideal-day-icon">🌟</span>
-                                    <div className="ideal-day-title-wrapper">
-                                        <h5 className="ideal-day-title">
-                                            {crossInsights.ideal_day.exists ? 'يومك المثالي' : crossInsights.ideal_day.message}
-                                        </h5>
-                                        {crossInsights.ideal_day.exists && (
-                                            <span className="ideal-day-confidence">دقة 92%</span>
-                                        )}
-                                    </div>
-                                </div>
-                                
-                                {crossInsights.ideal_day.exists ? (
-                                    <>
-                                        <p className="ideal-day-description">{crossInsights.ideal_day.description}</p>
-                                        <div className="ideal-day-formula">
-                                            {crossInsights.ideal_day.formula && (
-                                                <div className="formula-items">
-                                                    <div className="formula-item">
-                                                        <span className="formula-icon">😴</span>
-                                                        <span>{crossInsights.ideal_day.formula.sleep}</span>
-                                                    </div>
-                                                    <div className="formula-item">
-                                                        <span className="formula-icon">🏃</span>
-                                                        <span>{crossInsights.ideal_day.formula.activity}</span>
-                                                    </div>
-                                                    <div className="formula-item">
-                                                        <span className="formula-icon">🥗</span>
-                                                        <span>{crossInsights.ideal_day.formula.protein}</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <p className="ideal-day-prediction-text">
-                                                {crossInsights.ideal_day.prediction}
-                                            </p>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <p className="ideal-day-description">{crossInsights.ideal_day.description}</p>
-                                )}
-                            </div>
-                        )}
-
-                        {/* تنبؤات ذكية */}
-                        <div className="predictions-grid">
-                            <div className="prediction-card">
-                                <span className="prediction-icon">⚖️</span>
-                                <div className="prediction-content">
-                                    <h6>الوزن المتوقع</h6>
-                                    <p className="prediction-value">
-                                        {crossInsights.sleep_health?.avg_pressure_increase ? 
-                                         `${(78 - crossInsights.sleep_health.avg_pressure_increase).toFixed(1)}` : '72.5'} 
-                                        <small>كجم</small>
-                                    </p>
-                                    <p className="prediction-trend">⬇️ -1.2 كجم خلال أسبوع</p>
-                                </div>
-                            </div>
-                            
-                            <div className="prediction-card">
-                                <span className="prediction-icon">😴</span>
-                                <div className="prediction-content">
-                                    <h6>النوم المتوقع</h6>
-                                    <p className="prediction-value">
-                                        {crossInsights.sleep_mood?.mood_sleep_average?.Excellent?.toFixed(1) || '7.5'} 
-                                        <small>ساعات</small>
-                                    </p>
-                                    <p className="prediction-trend">⬆️ +0.5 ساعة بانتظام</p>
-                                </div>
-                            </div>
-                            
-                            <div className="prediction-card">
-                                <span className="prediction-icon">😊</span>
-                                <div className="prediction-content">
-                                    <h6>المزاج المتوقع</h6>
-                                    <p className="prediction-value">ممتاز</p>
-                                    <p className="prediction-trend">
-                                        ⬆️ تحسن {crossInsights.sleep_mood?.correlation_strength?.toFixed(0) || 40}% مع النوم
-                                    </p>
-                                </div>
-                            </div>
-                            
-                            <div className="prediction-card">
-                                <span className="prediction-icon">🏃</span>
-                                <div className="prediction-content">
-                                    <h6>النشاط المتوقع</h6>
-                                    <p className="prediction-value">
-                                        {crossInsights.nutrition_activity?.high_protein_days_count || 5} 
-                                        <small>تمارين</small>
-                                    </p>
-                                    <p className="prediction-trend">⬆️ +2 تمرين هذا الأسبوع</p>
-                                </div>
-                            </div>
-                        </div>
-                    </>
+                    </div>
                 )}
             </div>
 
             {/* أزرار الإجراءات */}
             <div className="action-buttons">
-                <button 
-                    onClick={fetchLatestReading}
-                    className="refresh-button"
-                >
+                <button onClick={fetchLatestReading} className="refresh-button">
                     <span className="button-icon">🔄</span>
                     <span className="button-text">{t('health.dashboard.refresh')}</span>
                 </button>
@@ -763,6 +718,7 @@ function HealthDashboard({ refreshKey }) {
                     </button>
                 )}
             </div>
+ 
 
             <style jsx>{`
  /* ===========================================
