@@ -110,7 +110,7 @@ function HealthDashboard({ refreshKey }) {
             if (!isMountedRef.current) return;
             if (response.data && response.data.success && response.data.data) {
                 setAdvancedInsights(response.data.data);
-                console.log('✅ Advanced insights loaded:', response.data.data);
+                console.log('✅ Advanced insights loaded');
             } else {
                 setAdvancedError(response.data?.message || 'لا توجد بيانات كافية للتحليل المتقدم');
             }
@@ -182,9 +182,36 @@ function HealthDashboard({ refreshKey }) {
 
     const readingStatus = getReadingStatus();
 
-    // ===========================================
-    // 🧠 دالة عرض التحليلات المتقدمة - النسخة الآمنة تماماً
-    // ===========================================
+    // ✅ دالة آمنة تماماً لتحويل أي قيمة إلى نص
+    const safeText = (value, defaultValue = '') => {
+        if (value === null || value === undefined) return defaultValue;
+        if (typeof value === 'string') return value;
+        if (typeof value === 'number') return value.toString();
+        if (typeof value === 'boolean') return value.toString();
+        if (Array.isArray(value)) {
+            return value.map(v => safeText(v, '')).filter(v => v).join(' • ');
+        }
+        if (typeof value === 'object') {
+            try {
+                // البحث عن الحقول النصية الشائعة
+                const textFields = ['message', 'text', 'advice', 'title', 'prediction', 'description', 'recommendation', 'alert', 'content', 'summary'];
+                for (const field of textFields) {
+                    if (value[field] && typeof value[field] === 'string') return value[field];
+                }
+                // إذا كان كائن صغير، حوله إلى JSON
+                const keys = Object.keys(value);
+                if (keys.length <= 2) {
+                    return JSON.stringify(value);
+                }
+                return 'بيانات متقدمة';
+            } catch {
+                return 'بيانات';
+            }
+        }
+        return defaultValue;
+    };
+
+    // ✅ دالة عرض التحليلات المتقدمة مع حماية كاملة
     const renderAdvancedInsights = () => {
         if (loadingAdvanced) {
             return (
@@ -214,225 +241,204 @@ function HealthDashboard({ refreshKey }) {
 
         const isArabic = i18n.language.startsWith('ar');
 
-        // ✅ الدالة الأهم - تحويل أي كائن إلى نص آمن
-        const extractText = (obj) => {
-            if (obj === null || obj === undefined) return '';
-            if (typeof obj === 'string') return obj;
-            if (typeof obj === 'number') return obj.toString();
-            if (typeof obj === 'boolean') return obj.toString();
-            if (Array.isArray(obj)) return obj.map(extractText).join(', ');
-            if (typeof obj === 'object') {
-                // معالجة الكائن الذي يحتوي على {type, severity, message, details, recommendation}
-                if (obj.message && typeof obj.message === 'string') return obj.message;
-                if (obj.text && typeof obj.text === 'string') return obj.text;
-                if (obj.advice && typeof obj.advice === 'string') return obj.advice;
-                if (obj.title && typeof obj.title === 'string') return obj.title;
-                if (obj.prediction && typeof obj.prediction === 'string') return obj.prediction;
-                if (obj.description && typeof obj.description === 'string') return obj.description;
-                // محاولة الحصول على أي حقل نصي
-                const textFields = ['recommendation', 'alert', 'content', 'value', 'name'];
-                for (const field of textFields) {
-                    if (obj[field] && typeof obj[field] === 'string') return obj[field];
-                }
-                // إذا كان كائن كبير جداً، لا نعرضه
-                try {
-                    const keys = Object.keys(obj);
-                    if (keys.length > 5) return 'بيانات متقدمة';
-                    return JSON.stringify(obj);
-                } catch {
-                    return 'بيانات';
-                }
-            }
-            return String(obj);
-        };
-
-        return (
-            <div className="advanced-insights-content">
-                {/* تحليل الطاقة */}
-                {advancedInsights.energy_consumption && (
-                    <div className="advanced-card energy-card">
-                        <div className="card-header">
-                            <span className="card-icon">⚡</span>
-                            <h4>{isArabic ? 'تحليل استهلاك الطاقة' : 'Energy Consumption'}</h4>
-                        </div>
-                        <div className="energy-stats">
-                            <div className="stat">
-                                <span className="stat-label">{isArabic ? 'الوزن' : 'Weight'}</span>
-                                <span className="stat-value">
-                                    {advancedInsights.energy_consumption.weight || advancedInsights.energy_consumption.weight_kg || '-'} kg
-                                </span>
+        // استخدام try-catch حول كل جزء لمنع أي خطأ من إيقاف التطبيق
+        try {
+            return (
+                <div className="advanced-insights-content">
+                    {/* تحليل الطاقة */}
+                    {advancedInsights.energy_consumption && (
+                        <div className="advanced-card energy-card">
+                            <div className="card-header">
+                                <span className="card-icon">⚡</span>
+                                <h4>{isArabic ? 'تحليل استهلاك الطاقة' : 'Energy Consumption'}</h4>
                             </div>
-                            <div className="stat">
-                                <span className="stat-label">{isArabic ? 'معدل الأيض' : 'BMR'}</span>
-                                <span className="stat-value">{advancedInsights.energy_consumption.bmr || '-'} kcal</span>
-                            </div>
-                            <div className="stat">
-                                <span className="stat-label">{isArabic ? 'الحرق اليومي' : 'Daily Burn'}</span>
-                                <span className="stat-value">{advancedInsights.energy_consumption.total_daily_burn || '-'} kcal</span>
-                            </div>
-                            <div className="stat">
-                                <span className="stat-label">{isArabic ? 'العجز اليومي' : 'Daily Deficit'}</span>
-                                <span className="stat-value">
-                                    {advancedInsights.energy_consumption.deficit || advancedInsights.energy_consumption.calorie_deficit || 0} kcal
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* تحليل ضغط النبض */}
-                {advancedInsights.pulse_pressure && (
-                    <div className="advanced-card pulse-card">
-                        <div className="card-header">
-                            <span className="card-icon">❤️</span>
-                            <h4>{isArabic ? 'تحليل ضغط النبض' : 'Pulse Pressure'}</h4>
-                        </div>
-                        <div className="bp-reading">
-                            <span className="systolic">{advancedInsights.pulse_pressure.systolic || '—'}</span>
-                            <span className="separator">/</span>
-                            <span className="diastolic">{advancedInsights.pulse_pressure.diastolic || '—'}</span>
-                            <span className="unit">mmHg</span>
-                        </div>
-                        <div className="pulse-value">
-                            <strong>{isArabic ? 'ضغط النبض:' : 'Pulse Pressure:'}</strong>
-                            <span className="value">
-                                {advancedInsights.pulse_pressure.pulse_pressure || advancedInsights.pulse_pressure.value || '-'} mmHg
-                            </span>
-                        </div>
-                        {advancedInsights.pulse_pressure.alert && (
-                            <div className="alert-message">
-                                {extractText(advancedInsights.pulse_pressure.alert)}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* توصيات ما قبل التمرين */}
-                {advancedInsights.pre_exercise && (
-                    <div className="advanced-card pre-exercise-card">
-                        <div className="card-header">
-                            <span className="card-icon">🏃</span>
-                            <h4>{isArabic ? 'توصيات ما قبل التمرين' : 'Pre-Exercise Recommendations'}</h4>
-                        </div>
-                        {advancedInsights.pre_exercise.glucose !== undefined && (
-                            <div className="risk-info">
-                                <div className="risk-item">
-                                    <span>{isArabic ? 'السكر:' : 'Glucose:'}</span>
-                                    <span>{advancedInsights.pre_exercise.glucose} mg/dL</span>
+                            <div className="energy-stats">
+                                <div className="stat">
+                                    <span className="stat-label">{isArabic ? 'الوزن' : 'Weight'}</span>
+                                    <span className="stat-value">
+                                        {safeText(advancedInsights.energy_consumption.weight || advancedInsights.energy_consumption.weight_kg, '-')} kg
+                                    </span>
                                 </div>
-                                {advancedInsights.pre_exercise.blood_pressure && (
+                                <div className="stat">
+                                    <span className="stat-label">{isArabic ? 'معدل الأيض' : 'BMR'}</span>
+                                    <span className="stat-value">{safeText(advancedInsights.energy_consumption.bmr, '-')} kcal</span>
+                                </div>
+                                <div className="stat">
+                                    <span className="stat-label">{isArabic ? 'الحرق اليومي' : 'Daily Burn'}</span>
+                                    <span className="stat-value">{safeText(advancedInsights.energy_consumption.total_daily_burn, '-')} kcal</span>
+                                </div>
+                                <div className="stat">
+                                    <span className="stat-label">{isArabic ? 'العجز اليومي' : 'Daily Deficit'}</span>
+                                    <span className="stat-value">
+                                        {safeText(advancedInsights.energy_consumption.deficit || advancedInsights.energy_consumption.calorie_deficit, 0)} kcal
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* تحليل ضغط النبض */}
+                    {advancedInsights.pulse_pressure && (
+                        <div className="advanced-card pulse-card">
+                            <div className="card-header">
+                                <span className="card-icon">❤️</span>
+                                <h4>{isArabic ? 'تحليل ضغط النبض' : 'Pulse Pressure'}</h4>
+                            </div>
+                            <div className="bp-reading">
+                                <span className="systolic">{safeText(advancedInsights.pulse_pressure.systolic, '—')}</span>
+                                <span className="separator">/</span>
+                                <span className="diastolic">{safeText(advancedInsights.pulse_pressure.diastolic, '—')}</span>
+                                <span className="unit">mmHg</span>
+                            </div>
+                            <div className="pulse-value">
+                                <strong>{isArabic ? 'ضغط النبض:' : 'Pulse Pressure:'}</strong>
+                                <span className="value">
+                                    {safeText(advancedInsights.pulse_pressure.pulse_pressure || advancedInsights.pulse_pressure.value, '-')} mmHg
+                                </span>
+                            </div>
+                            {advancedInsights.pulse_pressure.alert && (
+                                <div className="alert-message">
+                                    {safeText(advancedInsights.pulse_pressure.alert)}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* توصيات ما قبل التمرين */}
+                    {advancedInsights.pre_exercise && (
+                        <div className="advanced-card pre-exercise-card">
+                            <div className="card-header">
+                                <span className="card-icon">🏃</span>
+                                <h4>{isArabic ? 'توصيات ما قبل التمرين' : 'Pre-Exercise Recommendations'}</h4>
+                            </div>
+                            {advancedInsights.pre_exercise.glucose !== undefined && (
+                                <div className="risk-info">
                                     <div className="risk-item">
-                                        <span>{isArabic ? 'ضغط الدم:' : 'BP:'}</span>
-                                        <span>{advancedInsights.pre_exercise.blood_pressure}</span>
+                                        <span>{isArabic ? 'السكر:' : 'Glucose:'}</span>
+                                        <span>{safeText(advancedInsights.pre_exercise.glucose)} mg/dL</span>
+                                    </div>
+                                    {advancedInsights.pre_exercise.blood_pressure && (
+                                        <div className="risk-item">
+                                            <span>{isArabic ? 'ضغط الدم:' : 'BP:'}</span>
+                                            <span>{safeText(advancedInsights.pre_exercise.blood_pressure)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            {advancedInsights.pre_exercise.recommendations && advancedInsights.pre_exercise.recommendations.length > 0 && (
+                                <ul className="recommendations-list">
+                                    {advancedInsights.pre_exercise.recommendations.map((rec, idx) => (
+                                        <li key={idx}>
+                                            <span className="rec-icon">💡</span>
+                                            <span>{safeText(rec)}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    )}
+
+                    {/* العلامات الحيوية */}
+                    {advancedInsights.vital_signs && (
+                        <div className="advanced-card vital-card">
+                            <div className="card-header">
+                                <span className="card-icon">📊</span>
+                                <h4>{isArabic ? 'العلامات الحيوية' : 'Vital Signs'}</h4>
+                            </div>
+                            <div className="vital-grid">
+                                {advancedInsights.vital_signs.heart_rate && (
+                                    <div className="vital-item">
+                                        <span>❤️ {isArabic ? 'ضربات القلب' : 'Heart Rate'}</span>
+                                        <span className="value">
+                                            {typeof advancedInsights.vital_signs.heart_rate === 'object' 
+                                                ? safeText(advancedInsights.vital_signs.heart_rate.value, '-') 
+                                                : safeText(advancedInsights.vital_signs.heart_rate)} BPM
+                                        </span>
+                                    </div>
+                                )}
+                                {advancedInsights.vital_signs.blood_pressure && (
+                                    <div className="vital-item">
+                                        <span>🩸 {isArabic ? 'ضغط الدم' : 'Blood Pressure'}</span>
+                                        <span className="value">
+                                            {typeof advancedInsights.vital_signs.blood_pressure === 'object'
+                                                ? safeText(advancedInsights.vital_signs.blood_pressure.value, '-')
+                                                : safeText(advancedInsights.vital_signs.blood_pressure)}
+                                        </span>
                                     </div>
                                 )}
                             </div>
-                        )}
-                        {advancedInsights.pre_exercise.recommendations && advancedInsights.pre_exercise.recommendations.length > 0 && (
-                            <ul className="recommendations-list">
-                                {advancedInsights.pre_exercise.recommendations.map((rec, idx) => (
-                                    <li key={idx}>
-                                        <span className="rec-icon">💡</span>
-                                        <span>{extractText(rec)}</span>
+                            {advancedInsights.vital_signs.insights && advancedInsights.vital_signs.insights.length > 0 && (
+                                <div className="vital-insights">
+                                    <strong>{isArabic ? 'تحليلات:' : 'Insights:'}</strong>
+                                    <ul>
+                                        {advancedInsights.vital_signs.insights.map((insight, i) => (
+                                            <li key={i}>{safeText(insight)}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* توصيات شاملة */}
+                    {advancedInsights.holistic && advancedInsights.holistic.length > 0 && (
+                        <div className="advanced-card holistic-card">
+                            <div className="card-header">
+                                <span className="card-icon">💡</span>
+                                <h4>{isArabic ? 'توصيات شاملة' : 'Holistic Recommendations'}</h4>
+                            </div>
+                            <ul className="holistic-list">
+                                {advancedInsights.holistic.map((rec, i) => (
+                                    <li key={i}>
+                                        {rec.area && <strong>{safeText(rec.area)}:</strong>} {safeText(rec)}
                                     </li>
                                 ))}
                             </ul>
-                        )}
-                    </div>
-                )}
+                        </div>
+                    )}
 
-                {/* العلامات الحيوية */}
-                {advancedInsights.vital_signs && (
-                    <div className="advanced-card vital-card">
-                        <div className="card-header">
-                            <span className="card-icon">📊</span>
-                            <h4>{isArabic ? 'العلامات الحيوية' : 'Vital Signs'}</h4>
-                        </div>
-                        <div className="vital-grid">
-                            {advancedInsights.vital_signs.heart_rate && (
-                                <div className="vital-item">
-                                    <span>❤️ {isArabic ? 'ضربات القلب' : 'Heart Rate'}</span>
-                                    <span className="value">
-                                        {typeof advancedInsights.vital_signs.heart_rate === 'object' 
-                                            ? (advancedInsights.vital_signs.heart_rate.value || '-') 
-                                            : advancedInsights.vital_signs.heart_rate} BPM
-                                    </span>
-                                </div>
-                            )}
-                            {advancedInsights.vital_signs.blood_pressure && (
-                                <div className="vital-item">
-                                    <span>🩸 {isArabic ? 'ضغط الدم' : 'Blood Pressure'}</span>
-                                    <span className="value">
-                                        {typeof advancedInsights.vital_signs.blood_pressure === 'object'
-                                            ? (advancedInsights.vital_signs.blood_pressure.value || '-')
-                                            : advancedInsights.vital_signs.blood_pressure}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                        {advancedInsights.vital_signs.insights && advancedInsights.vital_signs.insights.length > 0 && (
-                            <div className="vital-insights">
-                                <strong>{isArabic ? 'تحليلات:' : 'Insights:'}</strong>
-                                <ul>
-                                    {advancedInsights.vital_signs.insights.map((insight, i) => (
-                                        <li key={i}>{extractText(insight)}</li>
-                                    ))}
-                                </ul>
+                    {/* تنبيهات تنبؤية */}
+                    {advancedInsights.predictive && advancedInsights.predictive.length > 0 && (
+                        <div className="advanced-card predictive-card">
+                            <div className="card-header">
+                                <span className="card-icon">🔮</span>
+                                <h4>{isArabic ? 'تنبيهات تنبؤية' : 'Predictive Alerts'}</h4>
                             </div>
-                        )}
-                    </div>
-                )}
-
-                {/* توصيات شاملة */}
-                {advancedInsights.holistic && advancedInsights.holistic.length > 0 && (
-                    <div className="advanced-card holistic-card">
-                        <div className="card-header">
-                            <span className="card-icon">💡</span>
-                            <h4>{isArabic ? 'توصيات شاملة' : 'Holistic Recommendations'}</h4>
-                        </div>
-                        <ul className="holistic-list">
-                            {advancedInsights.holistic.map((rec, i) => (
-                                <li key={i}>
-                                    {rec.area && <strong>{extractText(rec.area)}:</strong>} {extractText(rec)}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {/* تنبيهات تنبؤية */}
-                {advancedInsights.predictive && advancedInsights.predictive.length > 0 && (
-                    <div className="advanced-card predictive-card">
-                        <div className="card-header">
-                            <span className="card-icon">🔮</span>
-                            <h4>{isArabic ? 'تنبيهات تنبؤية' : 'Predictive Alerts'}</h4>
-                        </div>
-                        <div className="predictive-list">
-                            {advancedInsights.predictive.map((alert, i) => {
-                                // استخراج النص بأمان من كائن التنبيه
-                                const alertTitle = extractText(alert.title || alert);
-                                const alertMessage = extractText(alert.message || alert);
-                                const alertAction = extractText(alert.action);
-                                return (
-                                    <div key={i} className="predictive-item">
-                                        <div className="alert-title">
-                                            <span className="alert-icon">⚠️</span>
-                                            <strong>{alertTitle}</strong>
-                                        </div>
-                                        <p>{alertMessage}</p>
-                                        {alertAction && alertAction !== alertMessage && (
-                                            <div className="alert-action">
-                                                💡 {alertAction}
+                            <div className="predictive-list">
+                                {advancedInsights.predictive.map((alert, i) => {
+                                    const alertTitle = safeText(alert.title || alert);
+                                    const alertMessage = safeText(alert.message || alert);
+                                    const alertAction = safeText(alert.action);
+                                    return (
+                                        <div key={i} className="predictive-item">
+                                            <div className="alert-title">
+                                                <span className="alert-icon">⚠️</span>
+                                                <strong>{alertTitle}</strong>
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                                            <p>{alertMessage}</p>
+                                            {alertAction && alertAction !== alertMessage && (
+                                                <div className="alert-action">
+                                                    💡 {alertAction}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
-        );
+                    )}
+                </div>
+            );
+        } catch (err) {
+            console.error('Error rendering advanced insights:', err);
+            return (
+                <div className="advanced-insights-error">
+                    <span className="error-icon">⚠️</span>
+                    <p>حدث خطأ في عرض التحليلات المتقدمة</p>
+                    <button onClick={fetchAdvancedInsights} className="retry-small">🔄 إعادة المحاولة</button>
+                </div>
+            );
+        }
     };
 
     if (loading) {
