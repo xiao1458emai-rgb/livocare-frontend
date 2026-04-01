@@ -3,7 +3,391 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
+// ===========================================
+// دوال التحليل
+// ===========================================
 
+const analyzeHealthData = (healthData) => {
+    if (!healthData || healthData.length === 0) return { avgWeight: 0, avgSystolic: 0, avgDiastolic: 0, records: 0 };
+    
+    const weights = healthData.map(h => parseFloat(h.weight_kg)).filter(w => w > 0);
+    const systolic = healthData.map(h => h.systolic_pressure).filter(s => s > 0);
+    const diastolic = healthData.map(h => h.diastolic_pressure).filter(d => d > 0);
+    
+    return {
+        avgWeight: weights.length > 0 ? roundNumber(weights.reduce((a, b) => a + b, 0) / weights.length, 1) : 0,
+        avgSystolic: systolic.length > 0 ? roundNumber(systolic.reduce((a, b) => a + b, 0) / systolic.length, 0) : 0,
+        avgDiastolic: diastolic.length > 0 ? roundNumber(diastolic.reduce((a, b) => a + b, 0) / diastolic.length, 0) : 0,
+        records: healthData.length
+    };
+};
+
+const analyzeNutritionData = (mealsData) => {
+    if (!mealsData || mealsData.length === 0) return { avgCaloriesPerDay: 0, avgProtein: 0, totalMeals: 0, hasData: false };
+    
+    const uniqueDays = [...new Set(mealsData.map(m => new Date(m.meal_time).toDateString()))];
+    const totalCalories = mealsData.reduce((sum, m) => sum + (m.total_calories || 0), 0);
+    const totalProtein = mealsData.reduce((sum, m) => {
+        const ingredients = m.ingredients || [];
+        return sum + ingredients.reduce((s, i) => s + (i.protein || 0), 0);
+    }, 0);
+    
+    return {
+        avgCaloriesPerDay: uniqueDays.length > 0 ? Math.round(totalCalories / uniqueDays.length) : 0,
+        avgProtein: mealsData.length > 0 ? roundNumber(totalProtein / mealsData.length, 1) : 0,
+        totalMeals: mealsData.length,
+        hasData: true
+    };
+};
+
+const analyzeSleepData = (sleepData) => {
+    if (!sleepData || sleepData.length === 0) return { avgHours: 0, totalNights: 0, hasData: false };
+    
+    let totalHours = 0;
+    let validCount = 0;
+    
+    sleepData.forEach(sleep => {
+        const start = sleep.sleep_start || sleep.start_time;
+        const end = sleep.sleep_end || sleep.end_time;
+        if (start && end) {
+            const duration = (new Date(end) - new Date(start)) / (1000 * 60 * 60);
+            if (duration > 0 && duration <= 24) {
+                totalHours += duration;
+                validCount++;
+            }
+        }
+    });
+    
+    return {
+        avgHours: validCount > 0 ? roundNumber(totalHours / validCount, 1) : 0,
+        totalNights: validCount,
+        hasData: validCount > 0
+    };
+};
+
+const analyzeMoodData = (moodData) => {
+    if (!moodData || moodData.length === 0) return { avgMood: 0, totalDays: 0, hasData: false };
+    
+    const moodMap = { 'Excellent': 5, 'Good': 4, 'Neutral': 3, 'Stressed': 2, 'Anxious': 2, 'Sad': 1 };
+    const uniqueDays = [...new Set(moodData.map(m => new Date(m.entry_time).toDateString()))];
+    const avgMood = moodData.reduce((sum, m) => sum + (moodMap[m.mood] || 3), 0) / moodData.length;
+    
+    return {
+        avgMood: roundNumber(avgMood, 1),
+        totalDays: uniqueDays.length,
+        hasData: true
+    };
+};
+
+const analyzeActivityData = (activityData) => {
+    if (!activityData || activityData.length === 0) return { totalMinutes: 0, avgMinutesPerDay: 0, records: 0, hasData: false };
+    
+    const uniqueDays = [...new Set(activityData.map(a => new Date(a.start_time).toDateString()))];
+    const totalMinutes = activityData.reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
+    
+    return {
+        totalMinutes: totalMinutes,
+        avgMinutesPerDay: uniqueDays.length > 0 ? Math.round(totalMinutes / uniqueDays.length) : 0,
+        records: activityData.length,
+        hasData: true
+    };
+};
+
+const analyzeHabitsData = (habitLogs, habitDefinitions) => {
+    if (!habitLogs || habitLogs.length === 0) return { completionRate: 0, completed: 0, total: 0, hasData: false };
+    
+    const completed = habitLogs.filter(h => h.is_completed).length;
+    const total = habitLogs.length;
+    
+    return {
+        completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+        completed: completed,
+        total: total,
+        hasData: true
+    };
+};
+
+const calculateHealthScore = (sleep, nutrition, activity, mood, habits) => {
+    let score = 0;
+    
+    // نوم (30 نقطة)
+    if (sleep.hasData) {
+        if (sleep.avgHours >= 7 && sleep.avgHours <= 8) score += 30;
+        else if (sleep.avgHours >= 6 && sleep.avgHours < 7) score += 20;
+        else if (sleep.avgHours > 8 && sleep.avgHours <= 9) score += 15;
+        else score += 10;
+    } else {
+        score += 15;
+    }
+    
+    // تغذية (25 نقطة)
+    if (nutrition.hasData) {
+        if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) score += 25;
+        else if (nutrition.avgCaloriesPerDay >= 1500 && nutrition.avgCaloriesPerDay < 1800) score += 18;
+        else if (nutrition.avgCaloriesPerDay > 2200 && nutrition.avgCaloriesPerDay <= 2500) score += 15;
+        else score += 10;
+    } else {
+        score += 12;
+    }
+    
+    // نشاط (20 نقطة)
+    if (activity.hasData) {
+        if (activity.avgMinutesPerDay >= 30) score += 20;
+        else if (activity.avgMinutesPerDay >= 20) score += 15;
+        else if (activity.avgMinutesPerDay >= 10) score += 10;
+        else score += 5;
+    } else {
+        score += 10;
+    }
+    
+    // مزاج (15 نقطة)
+    if (mood.hasData) {
+        if (mood.avgMood >= 4) score += 15;
+        else if (mood.avgMood >= 3) score += 10;
+        else if (mood.avgMood >= 2) score += 5;
+        else score += 2;
+    } else {
+        score += 7;
+    }
+    
+    // عادات (10 نقاط)
+    if (habits.hasData) {
+        if (habits.completionRate >= 80) score += 10;
+        else if (habits.completionRate >= 60) score += 7;
+        else if (habits.completionRate >= 40) score += 4;
+        else score += 2;
+    } else {
+        score += 5;
+    }
+    
+    return {
+        score: Math.min(100, Math.max(0, Math.round(score))),
+        grade: score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : score >= 60 ? 'C' : score >= 50 ? 'D' : 'F'
+    };
+};
+
+const generateKeyEvents = (sleep, nutrition, activity, mood, habits, previous) => {
+    const events = [];
+    
+    if (sleep.hasData && previous.sleep.hasData) {
+        const change = sleep.avgHours - previous.sleep.avgHours;
+        if (change > 0.5) events.push({ icon: '🌙', text: `زاد متوسط نومك بمقدار ${change.toFixed(1)} ساعة` });
+        else if (change < -0.5) events.push({ icon: '🌙', text: `انخفض متوسط نومك بمقدار ${Math.abs(change).toFixed(1)} ساعة` });
+    }
+    
+    if (nutrition.hasData && previous.nutrition.hasData) {
+        const change = nutrition.avgCaloriesPerDay - previous.nutrition.avgCaloriesPerDay;
+        if (Math.abs(change) > 100) {
+            events.push({ icon: '🥗', text: change > 0 ? `زيادة في السعرات اليومية بمقدار ${change}` : `نقص في السعرات اليومية بمقدار ${Math.abs(change)}` });
+        }
+    }
+    
+    if (activity.hasData && previous.activity.hasData) {
+        const change = activity.avgMinutesPerDay - previous.activity.avgMinutesPerDay;
+        if (Math.abs(change) > 10) {
+            events.push({ icon: '🏃', text: change > 0 ? `زيادة في النشاط اليومي بمقدار ${change} دقيقة` : `نقص في النشاط اليومي بمقدار ${Math.abs(change)} دقيقة` });
+        }
+    }
+    
+    if (mood.hasData && previous.mood.hasData) {
+        const change = mood.avgMood - previous.mood.avgMood;
+        if (Math.abs(change) > 0.5) {
+            events.push({ icon: '😊', text: change > 0 ? `تحسن في المزاج بمقدار ${change.toFixed(1)} نقطة` : `انخفاض في المزاج بمقدار ${Math.abs(change).toFixed(1)} نقطة` });
+        }
+    }
+    
+    if (habits.hasData && previous.habits.hasData) {
+        const change = habits.completionRate - previous.habits.completionRate;
+        if (Math.abs(change) > 10) {
+            events.push({ icon: '💊', text: change > 0 ? `زيادة في الالتزام بالعادات بنسبة ${change}%` : `نقص في الالتزام بالعادات بنسبة ${Math.abs(change)}%` });
+        }
+    }
+    
+    return events;
+};
+
+const generateTopRecommendation = (sleep, nutrition, activity, mood, habits) => {
+    if (!sleep.hasData && !nutrition.hasData && !activity.hasData && !mood.hasData && !habits.hasData) {
+        return {
+            icon: '📝',
+            title: 'ابدأ بتسجيل بياناتك',
+            advice: 'كلما سجلت المزيد من البيانات، حصلت على توصيات أكثر دقة',
+            action: 'سجل أول قراءة صحية اليوم'
+        };
+    }
+    
+    if (sleep.hasData && sleep.avgHours < 7) {
+        return {
+            icon: '🌙',
+            title: 'حسّن نومك',
+            advice: `تنام في المتوسط ${sleep.avgHours} ساعة فقط`,
+            action: 'حاول النوم 7-8 ساعات يومياً لتحسين صحتك'
+        };
+    }
+    
+    if (nutrition.hasData && nutrition.avgCaloriesPerDay < 1500) {
+        return {
+            icon: '🥗',
+            title: 'زد سعراتك',
+            advice: `تتناول ${nutrition.avgCaloriesPerDay} سعرة فقط في اليوم`,
+            action: 'أضف وجبات صحية غنية بالبروتين'
+        };
+    }
+    
+    if (nutrition.hasData && nutrition.avgCaloriesPerDay > 2500) {
+        return {
+            icon: '🥗',
+            title: 'قلل سعراتك',
+            advice: `تتناول ${nutrition.avgCaloriesPerDay} سعرة في اليوم`,
+            action: 'ركز على الخضروات والبروتين وقلل الكربوهيدرات'
+        };
+    }
+    
+    if (activity.hasData && activity.avgMinutesPerDay < 30) {
+        return {
+            icon: '🏃',
+            title: 'زد نشاطك',
+            advice: `تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة فقط يومياً`,
+            action: 'المشي 30 دقيقة يومياً يحسن صحتك بشكل كبير'
+        };
+    }
+    
+    if (mood.hasData && mood.avgMood < 3) {
+        return {
+            icon: '😊',
+            title: 'حسّن مزاجك',
+            advice: `مزاجك في المتوسط ${mood.avgMood}/5`,
+            action: 'جرب التأمل أو تمارين التنفس العميق'
+        };
+    }
+    
+    if (habits.hasData && habits.completionRate < 70) {
+        return {
+            icon: '💊',
+            title: 'التزم بعاداتك',
+            advice: `تلتزم بعاداتك بنسبة ${habits.completionRate}% فقط`,
+            action: 'ابدأ بعادة صغيرة وسهلة التطبيق'
+        };
+    }
+    
+    return {
+        icon: '🌟',
+        title: 'أحسنت!',
+        advice: 'جميع مؤشراتك الصحية جيدة',
+        action: 'استمر في هذا النمط الصحي الرائع'
+    };
+};
+
+const generateSmartStory = (sleep, nutrition, activity, mood, habits) => {
+    const events = [];
+    
+    if (sleep.hasData) {
+        if (sleep.avgHours >= 7 && sleep.avgHours <= 8) events.push({ type: 'improvement', text: `نمت ${sleep.avgHours} ساعات في المتوسط - مثالي!` });
+        else if (sleep.avgHours >= 6) events.push({ type: 'warning', text: `نمت ${sleep.avgHours} ساعات - حاول زيادة نومك قليلاً` });
+        else if (sleep.avgHours > 0) events.push({ type: 'danger', text: `تنام فقط ${sleep.avgHours} ساعات - هذا قليل جداً` });
+    }
+    
+    if (nutrition.hasData) {
+        if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) events.push({ type: 'improvement', text: `تتناول ${nutrition.avgCaloriesPerDay} سعرة يومياً - نظام غذائي متوازن` });
+        else if (nutrition.avgCaloriesPerDay > 0) events.push({ type: 'warning', text: `تتناول ${nutrition.avgCaloriesPerDay} سعرة - حاول تحسين نظامك الغذائي` });
+    }
+    
+    if (activity.hasData) {
+        if (activity.avgMinutesPerDay >= 30) events.push({ type: 'improvement', text: `تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة يومياً - ممتاز!` });
+        else if (activity.avgMinutesPerDay > 0) events.push({ type: 'warning', text: `تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة فقط - زد نشاطك` });
+    }
+    
+    if (mood.hasData) {
+        if (mood.avgMood >= 4) events.push({ type: 'improvement', text: `مزاجك ممتاز (${mood.avgMood}/5)` });
+        else if (mood.avgMood >= 3) events.push({ type: 'warning', text: `مزاجك جيد (${mood.avgMood}/5) - يمكن تحسينه` });
+        else if (mood.avgMood > 0) events.push({ type: 'danger', text: `مزاجك منخفض (${mood.avgMood}/5) - اهتم بصحتك النفسية` });
+    }
+    
+    if (events.length === 0) {
+        events.push({ type: 'info', text: 'سجل المزيد من البيانات للحصول على تحليل أفضل' });
+    }
+    
+    return events;
+};
+
+const generateSmartReports = (currentData, previousData, range) => {
+    const sleep = analyzeSleepData(currentData.sleep);
+    const previousSleep = analyzeSleepData(previousData.sleep);
+    const nutrition = analyzeNutritionData(currentData.meals);
+    const previousNutrition = analyzeNutritionData(previousData.meals);
+    const activity = analyzeActivityData(currentData.activities);
+    const previousActivity = analyzeActivityData(previousData.activities);
+    const mood = analyzeMoodData(currentData.mood);
+    const previousMood = analyzeMoodData(previousData.mood);
+    const habits = analyzeHabitsData(currentData.habits, currentData.habitDefinitions);
+    const previousHabits = analyzeHabitsData(previousData.habits, previousData.habitDefinitions);
+    const healthScore = calculateHealthScore(sleep, nutrition, activity, mood, habits);
+    const previousHealthScore = calculateHealthScore(previousSleep, previousNutrition, previousActivity, previousMood, previousHabits);
+    
+    const healthScoreChange = calculateChange(healthScore.score, previousHealthScore.score);
+    
+    const story = generateSmartStory(sleep, nutrition, activity, mood, habits);
+    const keyEvents = generateKeyEvents(sleep, nutrition, activity, mood, habits, {
+        sleep: previousSleep,
+        nutrition: previousNutrition,
+        activity: previousActivity,
+        mood: previousMood,
+        habits: previousHabits
+    });
+    const topRecommendation = generateTopRecommendation(sleep, nutrition, activity, mood, habits);
+    
+    return {
+        summary: {
+            healthScore: {
+                score: healthScore.score,
+                grade: healthScore.grade,
+                change: healthScoreChange
+            },
+            story,
+            keyEvents,
+            topRecommendation,
+            period: {
+                start: range.start,
+                end: range.end
+            }
+        },
+        sleep: {
+            ...sleep,
+            comparison: previousSleep.hasData ? {
+                change: calculateChange(sleep.avgHours, previousSleep.avgHours),
+                previous: previousSleep.avgHours
+            } : null
+        },
+        nutrition: {
+            ...nutrition,
+            comparison: previousNutrition.hasData ? {
+                change: calculateChange(nutrition.avgCaloriesPerDay, previousNutrition.avgCaloriesPerDay),
+                previous: previousNutrition.avgCaloriesPerDay
+            } : null
+        },
+        activity: {
+            ...activity,
+            comparison: previousActivity.hasData ? {
+                change: calculateChange(activity.avgMinutesPerDay, previousActivity.avgMinutesPerDay),
+                previous: previousActivity.avgMinutesPerDay
+            } : null
+        },
+        mood: {
+            ...mood,
+            comparison: previousMood.hasData ? {
+                change: calculateChange(mood.avgMood, previousMood.avgMood),
+                previous: previousMood.avgMood
+            } : null
+        },
+        habits: {
+            ...habits,
+            comparison: previousHabits.hasData ? {
+                change: calculateChange(habits.completionRate, previousHabits.completionRate),
+                previous: previousHabits.completionRate
+            } : null
+        }
+    };
+};
 // دالة لتقريب الأرقام
 const roundNumber = (num, decimals = 1) => {
     if (isNaN(num)) return 0;
