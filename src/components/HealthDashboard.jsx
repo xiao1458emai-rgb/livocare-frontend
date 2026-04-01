@@ -182,55 +182,44 @@ function HealthDashboard({ refreshKey }) {
 
     const readingStatus = getReadingStatus();
 
-    // ✅ دالة آمنة تماماً لتحويل أي قيمة إلى نص - النسخة النهائية
-    const toSafeString = (value) => {
-        if (value === null || value === undefined) return '';
-        if (typeof value === 'string') return value;
-        if (typeof value === 'number') return value.toString();
-        if (typeof value === 'boolean') return value.toString();
+    // ✅ دالة آمنة تماماً - لا تعيد أبداً كائناً
+    const toSafeString = (val) => {
+        if (val === null || val === undefined) return '';
+        if (typeof val === 'string') return val;
+        if (typeof val === 'number') return String(val);
+        if (typeof val === 'boolean') return val ? 'نعم' : 'لا';
         
-        if (Array.isArray(value)) {
-            return value.map(item => toSafeString(item)).filter(v => v).join(' • ');
+        if (Array.isArray(val)) {
+            const strings = val.map(item => toSafeString(item)).filter(s => s);
+            return strings.join(' • ');
         }
         
-        if (typeof value === 'object') {
-            // 🔥 معالجة خاصة للكائن الذي يحتوي على {type, severity, message, details, recommendation}
-            if (value.message && typeof value.message === 'string') return value.message;
-            if (value.text && typeof value.text === 'string') return value.text;
-            if (value.advice && typeof value.advice === 'string') return value.advice;
-            if (value.title && typeof value.title === 'string') return value.title;
-            if (value.prediction && typeof value.prediction === 'string') return value.prediction;
-            if (value.description && typeof value.description === 'string') return value.description;
-            if (value.recommendation && typeof value.recommendation === 'string') return value.recommendation;
-            if (value.alert && typeof value.alert === 'string') return value.alert;
+        if (typeof val === 'object') {
+            // 🔥 معالجة الهيكل المحدد {type, severity, message, details, recommendation}
+            if (val.message && typeof val.message === 'string') return val.message;
+            if (val.text && typeof val.text === 'string') return val.text;
+            if (val.advice && typeof val.advice === 'string') return val.advice;
+            if (val.title && typeof val.title === 'string') return val.title;
+            if (val.prediction && typeof val.prediction === 'string') return val.prediction;
+            if (val.description && typeof val.description === 'string') return val.description;
+            if (val.recommendation && typeof val.recommendation === 'string') return val.recommendation;
             
-            // إذا كان الكائن له هيكل {type, severity, message, ...}
-            if (value.type && (value.message || value.details)) {
-                const severityMap = {
-                    'high': '⚠️ عاجل',
-                    'medium': '⚡ مهم',
-                    'low': 'ℹ️ معلومات'
-                };
-                const severityText = severityMap[value.severity] || '';
-                const messageText = value.message || value.details || '';
-                return severityText ? `${severityText}: ${messageText}` : messageText;
-            }
-            
-            // محاولة الحصول على أي حقل نصي آخر
-            const textFields = ['content', 'summary', 'details', 'note', 'info', 'value', 'name'];
+            // البحث عن أي حقل نصي
+            const textFields = ['content', 'summary', 'details', 'note', 'info'];
             for (const field of textFields) {
-                if (value[field] && typeof value[field] === 'string') return value[field];
+                if (val[field] && typeof val[field] === 'string') return val[field];
             }
             
-            // إذا كان كائن صغير جداً، حوله إلى JSON
-            const keys = Object.keys(value);
-            if (keys.length === 0) return '';
-            if (keys.length === 1 && typeof value[keys[0]] === 'string') return value[keys[0]];
+            // إذا كان الكائن يحتوي على area و recommendation (مثل holistic)
+            if (val.area && val.recommendation) {
+                return `${toSafeString(val.area)}: ${toSafeString(val.recommendation)}`;
+            }
             
-            return 'بيانات متقدمة';
+            // ✅ لا تعيد JSON.stringify أبداً - ارجع نصاً وصفياً
+            return 'معلومات متقدمة';
         }
         
-        return String(value);
+        return String(val);
     };
 
     // ✅ دالة عرض التحليلات المتقدمة
@@ -429,11 +418,12 @@ function HealthDashboard({ refreshKey }) {
                                 {advancedInsights.predictive.map((alert, i) => {
                                     const alertText = toSafeString(alert);
                                     const actionText = alert.action ? toSafeString(alert.action) : '';
+                                    const titleText = alert.title ? toSafeString(alert.title) : 'تنبيه';
                                     return (
                                         <div key={i} className="predictive-item">
                                             <div className="alert-title">
                                                 <span className="alert-icon">⚠️</span>
-                                                <strong>{alert.title ? toSafeString(alert.title) : 'تنبيه'}</strong>
+                                                <strong>{titleText}</strong>
                                             </div>
                                             <p>{alertText}</p>
                                             {actionText && actionText !== alertText && (
