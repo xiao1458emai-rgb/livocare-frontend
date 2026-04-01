@@ -378,6 +378,42 @@ class WatchService {
         
         console.log('🔌 WatchService disconnected');
     }
+
+    // ===========================================
+    // ✅ دوال التوافق مع الكود القديم
+    // ===========================================
+
+    // ✅ دالة لتعيين وضع الهاتف يدوياً (للتوافق مع الكود القديم)
+    setMobileMode(isMobile, computerIP) {
+        console.log('📱 setMobileMode called with:', { isMobile, computerIP });
+        this.isMobile = isMobile;
+        if (computerIP) {
+            this.computerIP = computerIP;
+            localStorage.setItem('computerIP', computerIP);
+        }
+        localStorage.setItem('forceMobileMode', isMobile ? 'true' : 'false');
+        
+        if (isMobile && !this.isMobile) {
+            this.isMobile = true;
+            this.setupWatchDataReceiver();
+        }
+        return true;
+    }
+
+    // ✅ دالة لتفعيل وضع ADB (للتوافق)
+    enableADBMode() {
+        console.log('📱 enableADBMode called - switching to mobile mode');
+        this.isMobile = true;
+        this.setupWatchDataReceiver();
+        return true;
+    }
+
+    // ✅ دالة لتعطيل وضع ADB
+    disableADBMode() {
+        console.log('📱 disableADBMode called - switching to desktop mode');
+        this.isMobile = false;
+        return true;
+    }
 }
 
 export default new WatchService();
