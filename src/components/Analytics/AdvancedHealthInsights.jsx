@@ -1,4 +1,3 @@
-// src/components/Analytics/AdvancedHealthInsights.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
@@ -30,15 +29,54 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // ✅ دالة ترجمة مبسطة
-    const translateText = useCallback((text) => {
-        if (!text) return text;
-        if (typeof text === 'string' && text.includes('.')) {
-            const translated = t(text, '');
-            if (translated && translated !== text) return translated;
+    // ✅ دالة آمنة لتحويل أي قيمة إلى نص
+    const toSafeString = useCallback((value) => {
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'string') return value;
+        if (typeof value === 'number') return value.toString();
+        if (typeof value === 'boolean') return value ? 'نعم' : 'لا';
+        
+        if (Array.isArray(value)) {
+            return value.map(item => toSafeString(item)).filter(v => v).join(' • ');
         }
-        return text;
-    }, [t]);
+        
+        if (typeof value === 'object') {
+            // معالجة الكائن الذي يحتوي على {type, severity, message, details, recommendation}
+            if (value.message && typeof value.message === 'string') return value.message;
+            if (value.text && typeof value.text === 'string') return value.text;
+            if (value.advice && typeof value.advice === 'string') return value.advice;
+            if (value.title && typeof value.title === 'string') return value.title;
+            if (value.prediction && typeof value.prediction === 'string') return value.prediction;
+            if (value.description && typeof value.description === 'string') return value.description;
+            if (value.recommendation && typeof value.recommendation === 'string') return value.recommendation;
+            
+            // البحث عن أي حقل نصي
+            const textFields = ['content', 'summary', 'details', 'note', 'info'];
+            for (const field of textFields) {
+                if (value[field] && typeof value[field] === 'string') return value[field];
+            }
+            
+            // إذا كان الكائن يحتوي على area و recommendation
+            if (value.area && value.recommendation) {
+                return `${toSafeString(value.area)}: ${toSafeString(value.recommendation)}`;
+            }
+            
+            return 'معلومات متقدمة';
+        }
+        
+        return String(value);
+    }, []);
+
+    // ✅ دالة ترجمة مع دمج toSafeString
+    const translateText = useCallback((text) => {
+        const safeText = toSafeString(text);
+        if (!safeText) return safeText;
+        if (typeof safeText === 'string' && safeText.includes('.')) {
+            const translated = t(safeText, '');
+            if (translated && translated !== safeText) return translated;
+        }
+        return safeText;
+    }, [t, toSafeString]);
 
     // ✅ جلب التحليلات من الـ Backend
     const fetchInsights = useCallback(async () => {
@@ -70,7 +108,6 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                 setInsights(response.data.data);
                 setError(null);
                 console.log('✅ Real advanced insights loaded successfully');
-                console.log('📊 Data structure:', response.data.data);
             } else if (response.data && !response.data.success) {
                 setError(response.data.message || t('analytics.common.error'));
                 setInsights(null);
@@ -274,7 +311,7 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                                 </div>
                                 <div className="risk-item">
                                     <span className="risk-label">{isArabic ? 'ضغط الدم:' : 'Blood Pressure:'}</span>
-                                    <span className={`risk-value ${insights.pre_exercise.blood_pressure_risk ? 'high' : 'normal'}`}>
+                                    <span className="risk-value">
                                         {insights.pre_exercise.blood_pressure}
                                     </span>
                                 </div>
@@ -295,7 +332,7 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                                         {insights.pre_exercise.recommendations.map((rec, i) => (
                                             <li key={i}>
                                                 {rec.icon && <span className="rec-icon">{rec.icon}</span>}
-                                                {translateText(rec.message)}
+                                                {translateText(rec)}
                                             </li>
                                         ))}
                                     </ul>
