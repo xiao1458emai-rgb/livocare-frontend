@@ -11,21 +11,14 @@ function HealthDashboard({ refreshKey }) {
     const [error, setError] = useState('');
     const [darkMode, setDarkMode] = useState(false);
     
-    // ===========================================
-    // 🎯 حالة الرؤى المتقاطعة (الأساسية)
-    // ===========================================
     const [crossInsights, setCrossInsights] = useState(null);
     const [loadingInsights, setLoadingInsights] = useState(false);
     const [insightsError, setInsightsError] = useState('');
     
-    // ===========================================
-    // 🧠 حالة التحليلات المتقدمة
-    // ===========================================
     const [advancedInsights, setAdvancedInsights] = useState(null);
     const [loadingAdvanced, setLoadingAdvanced] = useState(false);
     const [advancedError, setAdvancedError] = useState('');
     
-    // ✅ useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const abortControllerRef = useRef(null);
     const insightsAbortControllerRef = useRef(null);
@@ -34,129 +27,79 @@ function HealthDashboard({ refreshKey }) {
     const isFetchingInsightsRef = useRef(false);
     const isFetchingAdvancedRef = useRef(false);
 
-    // تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
         setDarkMode(savedDarkMode);
     }, []);
 
-    // استمع لتغييرات الوضع المظلم
     useEffect(() => {
         const handleThemeChange = (e) => {
             setDarkMode(e.detail?.darkMode ?? false);
         };
-        
         window.addEventListener('themeChange', handleThemeChange);
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // ✅ دالة جلب آخر قراءة
     const fetchLatestReading = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
-        
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-        
+        if (abortControllerRef.current) abortControllerRef.current.abort();
         isFetchingRef.current = true;
         abortControllerRef.current = new AbortController();
-        
         setLoading(true);
         setError('');
-        
         try {
             const response = await axiosInstance.get('/health_status/', {
                 signal: abortControllerRef.current.signal
             });
-            
             if (!isMountedRef.current) return;
-            
             let data = [];
-            if (Array.isArray(response.data)) {
-                data = response.data;
-            } else if (response.data && Array.isArray(response.data.results)) {
-                data = response.data.results;
-            }
-            
+            if (Array.isArray(response.data)) data = response.data;
+            else if (response.data && Array.isArray(response.data.results)) data = response.data.results;
             if (data.length > 0) {
-                const sortedData = [...data].sort((a, b) => 
-                    new Date(b.recorded_at) - new Date(a.recorded_at)
-                );
+                const sortedData = [...data].sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
                 setLatestReading(sortedData[0]);
-            } else {
-                setLatestReading(null);
-            }
+            } else setLatestReading(null);
         } catch (err) {
-            if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
-                return;
-            }
+            if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
             console.error('Failed to fetch latest health reading:', err);
-            if (isMountedRef.current) {
-                setError(t('health.dashboard.fetchError'));
-            }
+            if (isMountedRef.current) setError(t('health.dashboard.fetchError'));
         } finally {
-            if (isMountedRef.current) {
-                setLoading(false);
-            }
+            if (isMountedRef.current) setLoading(false);
             isFetchingRef.current = false;
         }
     }, [t]);
 
-    // ✅ دالة جلب الرؤى المتقاطعة الأساسية
     const fetchCrossInsights = useCallback(async () => {
         if (isFetchingInsightsRef.current || !isMountedRef.current) return;
-        
-        if (insightsAbortControllerRef.current) {
-            insightsAbortControllerRef.current.abort();
-        }
-        
+        if (insightsAbortControllerRef.current) insightsAbortControllerRef.current.abort();
         isFetchingInsightsRef.current = true;
         insightsAbortControllerRef.current = new AbortController();
-        
         setLoadingInsights(true);
         setInsightsError('');
-        
         try {
             const response = await axiosInstance.get('/cross-insights/', {
                 signal: insightsAbortControllerRef.current.signal
             });
-            
             if (!isMountedRef.current) return;
-            
-            if (response.data.success) {
-                setCrossInsights(response.data.data);
-            }
+            if (response.data.success) setCrossInsights(response.data.data);
         } catch (err) {
-            if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
-                return;
-            }
+            if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
             console.error('Failed to fetch cross insights:', err);
-            if (isMountedRef.current) {
-                setInsightsError('تعذر تحميل الرؤى الذكية');
-            }
+            if (isMountedRef.current) setInsightsError('تعذر تحميل الرؤى الذكية');
         } finally {
-            if (isMountedRef.current) {
-                setLoadingInsights(false);
-            }
+            if (isMountedRef.current) setLoadingInsights(false);
             isFetchingInsightsRef.current = false;
         }
     }, []);
 
-    // ✅ دالة جلب التحليلات المتقدمة 🧠
     const fetchAdvancedInsights = useCallback(async () => {
         if (isFetchingAdvancedRef.current || !isMountedRef.current) return;
-        
-        if (advancedAbortControllerRef.current) {
-            advancedAbortControllerRef.current.abort();
-        }
-        
+        if (advancedAbortControllerRef.current) advancedAbortControllerRef.current.abort();
         isFetchingAdvancedRef.current = true;
         advancedAbortControllerRef.current = new AbortController();
-        
         setLoadingAdvanced(true);
         setAdvancedError('');
-        
         try {
             const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
             const response = await axiosInstance.get('/advanced-insights/', {
@@ -164,9 +107,7 @@ function HealthDashboard({ refreshKey }) {
                 signal: advancedAbortControllerRef.current.signal,
                 timeout: 10000
             });
-            
             if (!isMountedRef.current) return;
-            
             if (response.data && response.data.success && response.data.data) {
                 setAdvancedInsights(response.data.data);
                 console.log('✅ Advanced insights loaded:', response.data.data);
@@ -174,79 +115,46 @@ function HealthDashboard({ refreshKey }) {
                 setAdvancedError(response.data?.message || 'لا توجد بيانات كافية للتحليل المتقدم');
             }
         } catch (err) {
-            if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
-                return;
-            }
+            if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
             console.error('Failed to fetch advanced insights:', err);
             if (isMountedRef.current) {
-                if (err.response?.status === 404) {
-                    setAdvancedError('⚠️ ميزة التحليلات المتقدمة غير متوفرة حالياً');
-                } else {
-                    setAdvancedError('تعذر تحميل التحليلات المتقدمة');
-                }
+                if (err.response?.status === 404) setAdvancedError('⚠️ ميزة التحليلات المتقدمة غير متوفرة حالياً');
+                else setAdvancedError('تعذر تحميل التحليلات المتقدمة');
             }
         } finally {
-            if (isMountedRef.current) {
-                setLoadingAdvanced(false);
-            }
+            if (isMountedRef.current) setLoadingAdvanced(false);
             isFetchingAdvancedRef.current = false;
         }
     }, [i18n.language]);
 
-    // ✅ جلب البيانات عند تحميل المكون أو تغير مفتاح التحديث
     useEffect(() => {
         fetchLatestReading();
         fetchCrossInsights();
         fetchAdvancedInsights();
-        
         return () => {
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-            if (insightsAbortControllerRef.current) {
-                insightsAbortControllerRef.current.abort();
-            }
-            if (advancedAbortControllerRef.current) {
-                advancedAbortControllerRef.current.abort();
-            }
+            if (abortControllerRef.current) abortControllerRef.current.abort();
+            if (insightsAbortControllerRef.current) insightsAbortControllerRef.current.abort();
+            if (advancedAbortControllerRef.current) advancedAbortControllerRef.current.abort();
         };
     }, [refreshKey, fetchLatestReading, fetchCrossInsights, fetchAdvancedInsights]);
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-            if (insightsAbortControllerRef.current) {
-                insightsAbortControllerRef.current.abort();
-            }
-            if (advancedAbortControllerRef.current) {
-                advancedAbortControllerRef.current.abort();
-            }
+            if (abortControllerRef.current) abortControllerRef.current.abort();
+            if (insightsAbortControllerRef.current) insightsAbortControllerRef.current.abort();
+            if (advancedAbortControllerRef.current) advancedAbortControllerRef.current.abort();
         };
     }, []);
 
-    // تنسيق التاريخ والوقت
     const formatDateTime = (dateString) => {
         if (!dateString) return '';
-        
         try {
             const date = new Date(dateString);
             const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-US';
-            const dateOptions = { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            };
-            const timeOptions = { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false
-            };
-            
+            const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
             return {
                 date: date.toLocaleDateString(locale, dateOptions),
                 time: date.toLocaleTimeString(locale, timeOptions),
@@ -258,48 +166,24 @@ function HealthDashboard({ refreshKey }) {
         }
     };
 
-    // تحديد حالة القراءة
     const getReadingStatus = () => {
         if (!latestReading) return { status: 'no_data', color: 'gray', bgColor: '#f3f4f6', icon: '📋', message: t('health.dashboard.status.no_data') };
-        
         let issues = [];
         let hasWarning = false;
-        
-        if (latestReading.weight_kg > 100) {
-            issues.push({ type: 'weight', message: t('health.dashboard.weightHigh'), icon: '⚖️', severity: 'high' });
-            hasWarning = true;
-        } else if (latestReading.weight_kg < 50) {
-            issues.push({ type: 'weight', message: t('health.dashboard.weightLow'), icon: '⚖️', severity: 'medium' });
-            hasWarning = true;
-        }
-        
-        if (latestReading.systolic_pressure > 140) {
-            issues.push({ type: 'blood_pressure', message: t('health.dashboard.bpHigh'), icon: '❤️', severity: 'high' });
-            hasWarning = true;
-        } else if (latestReading.systolic_pressure < 90) {
-            issues.push({ type: 'blood_pressure', message: t('health.dashboard.bpLow'), icon: '❤️', severity: 'medium' });
-            hasWarning = true;
-        }
-        
-        if (latestReading.blood_glucose > 140) {
-            issues.push({ type: 'glucose', message: t('health.dashboard.glucoseHigh'), icon: '🩸', severity: 'high' });
-            hasWarning = true;
-        } else if (latestReading.blood_glucose < 70) {
-            issues.push({ type: 'glucose', message: t('health.dashboard.glucoseLow'), icon: '🩸', severity: 'high' });
-            hasWarning = true;
-        }
-        
-        if (hasWarning) {
-            return { status: 'warning', color: '#f59e0b', bgColor: '#fef3c7', icon: '⚠️', message: t('health.dashboard.status.warning'), issues: issues };
-        }
-        
+        if (latestReading.weight_kg > 100) { issues.push({ type: 'weight', message: t('health.dashboard.weightHigh'), icon: '⚖️', severity: 'high' }); hasWarning = true; }
+        else if (latestReading.weight_kg < 50) { issues.push({ type: 'weight', message: t('health.dashboard.weightLow'), icon: '⚖️', severity: 'medium' }); hasWarning = true; }
+        if (latestReading.systolic_pressure > 140) { issues.push({ type: 'blood_pressure', message: t('health.dashboard.bpHigh'), icon: '❤️', severity: 'high' }); hasWarning = true; }
+        else if (latestReading.systolic_pressure < 90) { issues.push({ type: 'blood_pressure', message: t('health.dashboard.bpLow'), icon: '❤️', severity: 'medium' }); hasWarning = true; }
+        if (latestReading.blood_glucose > 140) { issues.push({ type: 'glucose', message: t('health.dashboard.glucoseHigh'), icon: '🩸', severity: 'high' }); hasWarning = true; }
+        else if (latestReading.blood_glucose < 70) { issues.push({ type: 'glucose', message: t('health.dashboard.glucoseLow'), icon: '🩸', severity: 'high' }); hasWarning = true; }
+        if (hasWarning) return { status: 'warning', color: '#f59e0b', bgColor: '#fef3c7', icon: '⚠️', message: t('health.dashboard.status.warning'), issues: issues };
         return { status: 'normal', color: '#10b981', bgColor: '#d1fae5', icon: '✅', message: t('health.dashboard.status.normal'), issues: [] };
     };
 
     const readingStatus = getReadingStatus();
 
     // ===========================================
-    // 🧠 دالة عرض التحليلات المتقدمة - النسخة الآمنة
+    // 🧠 دالة عرض التحليلات المتقدمة - النسخة الآمنة تماماً
     // ===========================================
     const renderAdvancedInsights = () => {
         if (loadingAdvanced) {
@@ -310,19 +194,15 @@ function HealthDashboard({ refreshKey }) {
                 </div>
             );
         }
-
         if (advancedError) {
             return (
                 <div className="advanced-insights-error">
                     <span className="error-icon">⚠️</span>
                     <p>{advancedError}</p>
-                    <button onClick={fetchAdvancedInsights} className="retry-small">
-                        🔄 إعادة المحاولة
-                    </button>
+                    <button onClick={fetchAdvancedInsights} className="retry-small">🔄 إعادة المحاولة</button>
                 </div>
             );
         }
-
         if (!advancedInsights) {
             return (
                 <div className="advanced-insights-empty">
@@ -334,44 +214,36 @@ function HealthDashboard({ refreshKey }) {
 
         const isArabic = i18n.language.startsWith('ar');
 
-        // دالة آمنة لتحويل أي قيمة إلى نص
-        const safeString = (value) => {
-            if (value === null || value === undefined) return '';
-            if (typeof value === 'string') return value;
-            if (typeof value === 'number') return value.toString();
-            if (typeof value === 'boolean') return value.toString();
-            if (typeof value === 'object') {
-                // إذا كان الكائن يحتوي على message، استخدمه
-                if (value.message && typeof value.message === 'string') return value.message;
-                if (value.text && typeof value.text === 'string') return value.text;
-                if (value.advice && typeof value.advice === 'string') return value.advice;
-                if (value.title && typeof value.title === 'string') return value.title;
-                // إذا كان كائن تنبيه، حاول استخراج المعلومات
-                if (value.type && value.message) {
-                    return `${value.message}`;
+        // ✅ الدالة الأهم - تحويل أي كائن إلى نص آمن
+        const extractText = (obj) => {
+            if (obj === null || obj === undefined) return '';
+            if (typeof obj === 'string') return obj;
+            if (typeof obj === 'number') return obj.toString();
+            if (typeof obj === 'boolean') return obj.toString();
+            if (Array.isArray(obj)) return obj.map(extractText).join(', ');
+            if (typeof obj === 'object') {
+                // معالجة الكائن الذي يحتوي على {type, severity, message, details, recommendation}
+                if (obj.message && typeof obj.message === 'string') return obj.message;
+                if (obj.text && typeof obj.text === 'string') return obj.text;
+                if (obj.advice && typeof obj.advice === 'string') return obj.advice;
+                if (obj.title && typeof obj.title === 'string') return obj.title;
+                if (obj.prediction && typeof obj.prediction === 'string') return obj.prediction;
+                if (obj.description && typeof obj.description === 'string') return obj.description;
+                // محاولة الحصول على أي حقل نصي
+                const textFields = ['recommendation', 'alert', 'content', 'value', 'name'];
+                for (const field of textFields) {
+                    if (obj[field] && typeof obj[field] === 'string') return obj[field];
                 }
-                // محاولة تحويل إلى JSON فقط للكائنات الصغيرة
+                // إذا كان كائن كبير جداً، لا نعرضه
                 try {
-                    const jsonStr = JSON.stringify(value);
-                    if (jsonStr.length > 100) return 'تحليل متقدم';
-                    return jsonStr;
+                    const keys = Object.keys(obj);
+                    if (keys.length > 5) return 'بيانات متقدمة';
+                    return JSON.stringify(obj);
                 } catch {
                     return 'بيانات';
                 }
             }
-            return String(value);
-        };
-
-        // دالة لاستخراج النص من كائن التوصية/التنبيه
-        const getMessageText = (item) => {
-            if (!item) return '';
-            if (typeof item === 'string') return item;
-            if (item.message) return safeString(item.message);
-            if (item.text) return safeString(item.text);
-            if (item.advice) return safeString(item.advice);
-            if (item.title) return safeString(item.title);
-            if (item.prediction) return safeString(item.prediction);
-            return safeString(item);
+            return String(obj);
         };
 
         return (
@@ -429,7 +301,7 @@ function HealthDashboard({ refreshKey }) {
                         </div>
                         {advancedInsights.pulse_pressure.alert && (
                             <div className="alert-message">
-                                {getMessageText(advancedInsights.pulse_pressure.alert)}
+                                {extractText(advancedInsights.pulse_pressure.alert)}
                             </div>
                         )}
                     </div>
@@ -456,13 +328,12 @@ function HealthDashboard({ refreshKey }) {
                                 )}
                             </div>
                         )}
-                        
                         {advancedInsights.pre_exercise.recommendations && advancedInsights.pre_exercise.recommendations.length > 0 && (
                             <ul className="recommendations-list">
                                 {advancedInsights.pre_exercise.recommendations.map((rec, idx) => (
                                     <li key={idx}>
                                         <span className="rec-icon">💡</span>
-                                        <span>{getMessageText(rec)}</span>
+                                        <span>{extractText(rec)}</span>
                                     </li>
                                 ))}
                             </ul>
@@ -504,7 +375,7 @@ function HealthDashboard({ refreshKey }) {
                                 <strong>{isArabic ? 'تحليلات:' : 'Insights:'}</strong>
                                 <ul>
                                     {advancedInsights.vital_signs.insights.map((insight, i) => (
-                                        <li key={i}>{getMessageText(insight)}</li>
+                                        <li key={i}>{extractText(insight)}</li>
                                     ))}
                                 </ul>
                             </div>
@@ -522,7 +393,7 @@ function HealthDashboard({ refreshKey }) {
                         <ul className="holistic-list">
                             {advancedInsights.holistic.map((rec, i) => (
                                 <li key={i}>
-                                    {rec.area && <strong>{safeString(rec.area)}:</strong>} {getMessageText(rec)}
+                                    {rec.area && <strong>{extractText(rec.area)}:</strong>} {extractText(rec)}
                                 </li>
                             ))}
                         </ul>
@@ -537,20 +408,26 @@ function HealthDashboard({ refreshKey }) {
                             <h4>{isArabic ? 'تنبيهات تنبؤية' : 'Predictive Alerts'}</h4>
                         </div>
                         <div className="predictive-list">
-                            {advancedInsights.predictive.map((alert, i) => (
-                                <div key={i} className="predictive-item">
-                                    <div className="alert-title">
-                                        <span className="alert-icon">⚠️</span>
-                                        <strong>{safeString(alert.title)}</strong>
-                                    </div>
-                                    <p>{getMessageText(alert)}</p>
-                                    {alert.action && (
-                                        <div className="alert-action">
-                                            💡 {safeString(alert.action)}
+                            {advancedInsights.predictive.map((alert, i) => {
+                                // استخراج النص بأمان من كائن التنبيه
+                                const alertTitle = extractText(alert.title || alert);
+                                const alertMessage = extractText(alert.message || alert);
+                                const alertAction = extractText(alert.action);
+                                return (
+                                    <div key={i} className="predictive-item">
+                                        <div className="alert-title">
+                                            <span className="alert-icon">⚠️</span>
+                                            <strong>{alertTitle}</strong>
                                         </div>
-                                    )}
-                                </div>
-                            ))}
+                                        <p>{alertMessage}</p>
+                                        {alertAction && alertAction !== alertMessage && (
+                                            <div className="alert-action">
+                                                💡 {alertAction}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -698,7 +575,7 @@ function HealthDashboard({ refreshKey }) {
                 </div>
             )}
 
-            {/* 🧠 التحليلات المتقدمة - القسم الجديد */}
+            {/* 🧠 التحليلات المتقدمة */}
             <div className="advanced-insights-section">
                 <div className="section-header">
                     <span className="section-icon">🧠</span>
@@ -716,14 +593,12 @@ function HealthDashboard({ refreshKey }) {
                     <h3 className="section-title">الرؤى المتقاطعة</h3>
                 </div>
                 <p className="section-description">تحليل العلاقات بين عاداتك الصحية</p>
-
                 {loadingInsights && (
                     <div className="insights-loading">
                         <div className="loading-spinner-small"></div>
                         <p>جاري تحليل بياناتك...</p>
                     </div>
                 )}
-
                 {insightsError && (
                     <div className="insights-error">
                         <span className="error-icon">⚠️</span>
@@ -731,7 +606,6 @@ function HealthDashboard({ refreshKey }) {
                         <button onClick={fetchCrossInsights} className="retry-small">🔄 إعادة المحاولة</button>
                     </div>
                 )}
-
                 {crossInsights && !loadingInsights && (
                     <div className="cross-insights-content">
                         <div className="insights-placeholder">
@@ -755,7 +629,6 @@ function HealthDashboard({ refreshKey }) {
                     </button>
                 )}
             </div>
-
 
             <style jsx>{`
  /* ===========================================
