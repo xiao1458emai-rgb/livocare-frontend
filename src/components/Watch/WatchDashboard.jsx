@@ -15,6 +15,7 @@ const WatchDashboard = () => {
     });
     const [alerts, setAlerts] = useState([]);
     const [isMobile, setIsMobile] = useState(false);
+    const [adbConnected, setAdbConnected] = useState(false);
 
     useEffect(() => {
         // ✅ التحقق من وضع الهاتف
@@ -24,7 +25,6 @@ const WatchDashboard = () => {
         watchService.onData((type, data) => {
             if (type === 'heartRate') {
                 setHealthData(prev => ({ ...prev, heartRate: data, lastUpdate: new Date() }));
-                // إرسال حدث للتحديث
                 window.dispatchEvent(new CustomEvent('watchDataUpdate', { detail: { heartRate: data, lastUpdate: new Date() } }));
             }
             if (type === 'bloodPressure') {
@@ -33,9 +33,11 @@ const WatchDashboard = () => {
             }
             if (type === 'connected') {
                 setConnected(true);
+                setAdbConnected(true);
             }
             if (type === 'disconnected') {
                 setConnected(false);
+                setAdbConnected(false);
             }
         });
 
@@ -44,6 +46,13 @@ const WatchDashboard = () => {
             setAlerts(prev => [e.detail, ...prev].slice(0, 5));
             setTimeout(() => setAlerts(prev => prev.slice(1)), 5000);
         });
+
+        // ✅ محاولة الاتصال بـ ADB Monitor تلقائياً
+        if (watchService.isMobile) {
+            setTimeout(() => {
+                watchService.connectADBMonitor();
+            }, 1000);
+        }
 
         return () => {
             window.removeEventListener('watchAlert', () => {});
@@ -56,7 +65,6 @@ const WatchDashboard = () => {
             const success = await watchService.connectToWatch();
             if (success) {
                 setConnected(true);
-                // قراءة البيانات بعد الاتصال
                 const hr = await watchService.readHeartRate();
                 const bp = await watchService.readBloodPressure();
                 if (hr) setHealthData(prev => ({ ...prev, heartRate: hr, lastUpdate: new Date() }));
@@ -71,6 +79,7 @@ const WatchDashboard = () => {
     const disconnectWatch = () => {
         watchService.disconnect();
         setConnected(false);
+        setAdbConnected(false);
         setHealthData({
             heartRate: null,
             bloodPressure: { systolic: null, diastolic: null },
@@ -78,10 +87,31 @@ const WatchDashboard = () => {
         });
     };
 
-    // ✅ وضع الهاتف - لا حاجة لزر ADB، التطبيق يكتشف تلقائياً
-    // يتم عرض رسالة توضيحية فقط
+    const connectADB = () => {
+        watchService.connectADBMonitor();
+    };
+
+    const requestMeasurement = () => {
+        if (watchService.ws && watchService.ws.readyState === WebSocket.OPEN) {
+            watchService.ws.send(JSON.stringify({ type: 'request_measurement' }));
+            console.log('📤 Requested measurement from ADB');
+            alert('📤 تم إرسال طلب القياس\n\nقم بالقياس في تطبيق FitPro');
+        } else {
+            console.log('⚠️ WebSocket not connected, trying to connect...');
+            watchService.connectADBMonitor();
+            setTimeout(() => {
+                if (watchService.ws && watchService.ws.readyState === WebSocket.OPEN) {
+                    watchService.ws.send(JSON.stringify({ type: 'request_measurement' }));
+                    alert('📤 تم إرسال طلب القياس\n\nقم بالقياس في تطبيق FitPro');
+                } else {
+                    alert('❌ لا يمكن الاتصال بـ ADB Monitor\n\nتأكد من:\n1. تشغيل ADB Monitor على الكمبيوتر\n2. الهاتف متصل بالكمبيوتر عبر USB\n3. إعدادات USB Debugging مفعلة');
+                }
+            }, 2000);
+        }
+    };
+
     const showMobileMessage = () => {
-        alert('📱 أنت على هاتف\n\nإذا كان لديك تطبيق FitPro مثبتاً، سيقوم التطبيق باستقبال البيانات منه تلقائياً.\n\nتأكد من أن تطبيق FitPro يعمل في الخلفية.');
+        alert('📱 وضع الهاتف - ADB Monitor\n\n1. شغل ADB Monitor على الكمبيوتر:\n   node server/adbMonitor.js\n\n2. وصل الهاتف بالكمبيوتر عبر USB\n\n3. قم بالقياس في تطبيق FitPro\n\n4. ستظهر البيانات هنا تلقائياً');
     };
 
     const refreshData = async () => {
@@ -109,10 +139,10 @@ const WatchDashboard = () => {
                             )}
                             {isMobile && (
                                 <button 
-                                    onClick={showMobileMessage}
-                                    className="info-btn"
+                                    onClick={connectADB}
+                                    className="adb-connect-btn"
                                 >
-                                    📱 وضع الهاتف
+                                    🔌 اتصال ADB
                                 </button>
                             )}
                         </>
@@ -124,11 +154,21 @@ const WatchDashboard = () => {
                 </div>
             </div>
 
+            {/* حالة اتصال ADB */}
+            {isMobile && (
+                <div className={`adb-status ${adbConnected ? 'connected' : 'disconnected'}`}>
+                    <span className="status-dot"></span>
+                    <span className="status-text">
+                        {adbConnected ? '✅ متصل بـ ADB Monitor' : '⏳ غير متصل - اضغط "اتصال ADB"'}
+                    </span>
+                </div>
+            )}
+
             {connected && (
                 <div className="watch-data">
-                    {isMobile && (
+                    {isMobile && adbConnected && (
                         <div className="mobile-mode-badge">
-                            📱 وضع الهاتف - البيانات ستصل من تطبيق FitPro
+                            📱 ADB Mode - البيانات ستصل من FitPro عبر USB
                         </div>
                     )}
 
@@ -165,9 +205,16 @@ const WatchDashboard = () => {
                         </div>
                     </div>
 
-                    <button onClick={refreshData} className="refresh-btn">
-                        🔄 {t('watch.refresh', 'تحديث')}
-                    </button>
+                    <div className="action-buttons-row">
+                        <button onClick={refreshData} className="refresh-btn">
+                            🔄 {t('watch.refresh', 'تحديث')}
+                        </button>
+                        {isMobile && adbConnected && (
+                            <button onClick={requestMeasurement} className="request-btn">
+                                📊 طلب قياس جديد
+                            </button>
+                        )}
+                    </div>
 
                     {healthData.lastUpdate && (
                         <div className="last-update">
@@ -182,8 +229,13 @@ const WatchDashboard = () => {
                 <div className="info-message">
                     <div className="info-icon">📱</div>
                     <div className="info-text">
-                        <strong>وضع الهاتف</strong>
-                        <p>إذا كان لديك تطبيق FitPro مثبتاً، قم بقياس البيانات فيه وستظهر هنا تلقائياً.</p>
+                        <strong>وضع ADB Monitor</strong>
+                        <p>1. شغل الخادم: <code>node server/adbMonitor.js</code></p>
+                        <p>2. وصل الهاتف بالكمبيوتر عبر USB (USB Debugging مفعل)</p>
+                        <p>3. اضغط "اتصال ADB" ثم قم بالقياس في FitPro</p>
+                        <button onClick={showMobileMessage} className="help-btn">
+                            ❓ مساعدة
+                        </button>
                     </div>
                 </div>
             )}
@@ -219,7 +271,7 @@ const WatchDashboard = () => {
                     display: flex;
                     gap: 8px;
                 }
-                .connect-btn, .disconnect-btn, .info-btn {
+                .connect-btn, .disconnect-btn, .info-btn, .adb-connect-btn {
                     padding: 10px 20px;
                     border: none;
                     border-radius: 40px;
@@ -238,6 +290,33 @@ const WatchDashboard = () => {
                     background: #10b981;
                     color: white;
                 }
+                .adb-connect-btn {
+                    background: #3b82f6;
+                    color: white;
+                }
+                .adb-status {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 8px 12px;
+                    border-radius: 20px;
+                    margin-bottom: 16px;
+                    font-size: 0.8rem;
+                }
+                .adb-status.connected {
+                    background: rgba(16, 185, 129, 0.2);
+                    color: #10b981;
+                }
+                .adb-status.disconnected {
+                    background: rgba(239, 68, 68, 0.2);
+                    color: #ef4444;
+                }
+                .status-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: currentColor;
+                }
                 .mobile-mode-badge {
                     background: rgba(16, 185, 129, 0.2);
                     color: #10b981;
@@ -254,7 +333,7 @@ const WatchDashboard = () => {
                     border-radius: 12px;
                     display: flex;
                     gap: 12px;
-                    align-items: center;
+                    align-items: flex-start;
                 }
                 .info-icon {
                     font-size: 2rem;
@@ -264,12 +343,28 @@ const WatchDashboard = () => {
                 }
                 .info-text strong {
                     display: block;
-                    margin-bottom: 4px;
+                    margin-bottom: 8px;
                 }
                 .info-text p {
-                    margin: 0;
+                    margin: 4px 0;
                     font-size: 0.85rem;
                     color: var(--text-secondary);
+                }
+                .info-text code {
+                    background: var(--card-bg);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-size: 0.75rem;
+                }
+                .help-btn {
+                    margin-top: 8px;
+                    padding: 4px 12px;
+                    background: transparent;
+                    border: 1px solid var(--primary-color);
+                    border-radius: 20px;
+                    color: var(--primary-color);
+                    cursor: pointer;
+                    font-size: 0.7rem;
                 }
                 .watch-data {
                     display: flex;
@@ -306,13 +401,25 @@ const WatchDashboard = () => {
                     font-size: 0.8rem;
                     margin-top: 4px;
                 }
-                .refresh-btn {
+                .action-buttons-row {
+                    display: flex;
+                    gap: 12px;
+                }
+                .refresh-btn, .request-btn {
+                    flex: 1;
                     padding: 12px;
-                    background: var(--primary-color);
-                    color: white;
                     border: none;
                     border-radius: 12px;
                     cursor: pointer;
+                    font-weight: 600;
+                }
+                .refresh-btn {
+                    background: var(--primary-color);
+                    color: white;
+                }
+                .request-btn {
+                    background: #10b981;
+                    color: white;
                 }
                 .last-update {
                     text-align: center;
@@ -328,6 +435,15 @@ const WatchDashboard = () => {
                     padding: 12px;
                     margin-bottom: 8px;
                     border-radius: 8px;
+                }
+                @media (max-width: 480px) {
+                    .action-buttons-row {
+                        flex-direction: column;
+                    }
+                    .data-card {
+                        flex-direction: column;
+                        text-align: center;
+                    }
                 }
             `}</style>
         </div>
