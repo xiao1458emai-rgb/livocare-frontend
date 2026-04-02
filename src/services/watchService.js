@@ -11,32 +11,142 @@ class WatchService {
         };
         this.onDataCallbacks = [];
         
+        // ✅ إضافة المتغيرات المفقودة
+        this.computerIP = localStorage.getItem('computerIP') || '192.168.8.187';
+        this.ws = null;
+        this.isADBMode = false;
+        
         // ✅ كشف الهاتف
         this.isMobile = this.detectMobile();
         
         // ✅ تخزين بيانات الساعة
         this.watchData = null;
         
-        console.log('📱 WatchService Init:', { isMobile: this.isMobile });
+        console.log('📱 WatchService Init:', { isMobile: this.isMobile, computerIP: this.computerIP });
         
         // ✅ إذا كان على هاتف، نستعد لاستقبال البيانات من تطبيق الساعة
         if (this.isMobile) {
             console.log('📱 Mobile detected - waiting for FitPro app data');
             this.setupWatchDataReceiver();
+            // ✅ محاولة الاتصال بـ ADB Monitor تلقائياً
+            setTimeout(() => this.connectADBWebSocket(), 1000);
         } else {
             console.log('💻 Desktop mode - using Web Bluetooth');
         }
     }
 
-    // ✅ كشف الهاتف
+    // ✅ كشف الهاتف - نسخة أقوى
     detectMobile() {
         const userAgent = navigator.userAgent || navigator.vendor || window.opera;
         const isAndroid = /Android/i.test(userAgent);
         const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
         const isMobileUA = /Mobi|Android|iPhone|iPad|iPod|webOS|BlackBerry|Windows Phone/i.test(userAgent);
         const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        const savedMobile = localStorage.getItem('forceMobileMode') === 'true';
         
-        return isAndroid || isIOS || isMobileUA || isTouchDevice;
+        const isMobile = isAndroid || isIOS || isMobileUA || isTouchDevice || savedMobile;
+        
+        console.log('📱 Device Detection:', {
+            isAndroid,
+            isIOS,
+            isMobileUA,
+            isTouchDevice,
+            savedMobile,
+            result: isMobile
+        });
+        
+        return isMobile;
+    }
+
+    // ===========================================
+    // 🔌 الاتصال بـ ADB Monitor عبر WebSocket
+    // ===========================================
+    
+    connectADBWebSocket() {
+        const wsUrl = `ws://${this.computerIP}:3001`;
+        console.log(`🔌 Connecting to ADB Monitor at: ${wsUrl}`);
+        
+        if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+            console.log('⚠️ Already connected or connecting');
+            return;
+        }
+        
+        try {
+            this.ws = new WebSocket(wsUrl);
+            
+            this.ws.onopen = () => {
+                console.log('✅ Connected to ADB Monitor');
+                this.isADBMode = true;
+                this.isConnected = true;
+                
+                // ✅ إرسال التوكن للمصادقة
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                    this.ws.send(JSON.stringify({ type: 'token', token }));
+                }
+                
+                // ✅ إرسال طلب بدء البث
+                this.ws.send(JSON.stringify({ type: 'start_streaming' }));
+                
+                this.notifyCallbacks('connected', { 
+                    mode: 'ADB', 
+                    message: 'متصل بـ ADB Monitor' 
+                });
+            };
+            
+            this.ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('📡 ADB Monitor data:', data);
+                    
+                    if (data.type === 'health_data') {
+                        if (data.heartRate) {
+                            console.log(`❤️ Heart Rate from ADB: ${data.heartRate} BPM`);
+                            this.processHeartRate(data.heartRate);
+                        }
+                        if (data.bloodPressure) {
+                            console.log(`🩸 Blood Pressure from ADB: ${data.bloodPressure.systolic}/${data.bloodPressure.diastolic}`);
+                            this.processBloodPressure(data.bloodPressure);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error parsing ADB data:', e);
+                }
+            };
+            
+            this.ws.onerror = (error) => {
+                console.error('ADB Monitor connection error:', error);
+                this.isADBMode = false;
+                this.isConnected = false;
+                this.notifyCallbacks('error', { message: 'فشل الاتصال بـ ADB Monitor' });
+            };
+            
+            this.ws.onclose = () => {
+                console.log('ADB Monitor disconnected');
+                this.isADBMode = false;
+                this.isConnected = false;
+                this.notifyCallbacks('disconnected', { message: 'تم قطع الاتصال بـ ADB Monitor' });
+                
+                // ✅ محاولة إعادة الاتصال بعد 5 ثوانٍ
+                setTimeout(() => this.connectADBWebSocket(), 5000);
+            };
+            
+        } catch (error) {
+            console.error('Failed to connect to ADB Monitor:', error);
+        }
+    }
+    
+    // ✅ طلب قياس من ADB Monitor
+    requestADBMeasurement() {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'request_measurement' }));
+            console.log('📤 Requested measurement from ADB');
+            return true;
+        } else {
+            console.log('⚠️ WebSocket not connected');
+            this.connectADBWebSocket();
+            return false;
+        }
     }
 
     // ===========================================
@@ -66,16 +176,13 @@ class WatchService {
     // ✅ معالجة الرسائل الواردة من تطبيق الساعة
     handleWatchMessage(event) {
         try {
-            // ✅ التحقق من مصدر الرسالة
             const data = event.data;
             
-            // ✅ إذا كانت البيانات من تطبيق الساعة
-            if (data && data.source === 'fitpro' || data.type === 'health_data') {
+            if (data && (data.source === 'fitpro' || data.type === 'health_data')) {
                 console.log('📡 Health data received from FitPro:', data);
                 this.processHealthData(data);
             }
             
-            // ✅ معالجة تنسيقات مختلفة
             if (data.heartRate || data.heart_rate) {
                 const heartRate = data.heartRate || data.heart_rate;
                 this.processHeartRate(heartRate);
@@ -86,7 +193,6 @@ class WatchService {
                 this.processBloodPressure(bp);
             }
             
-            // ✅ معالجة بيانات أخرى
             if (data.glucose || data.blood_glucose) {
                 const glucose = data.glucose || data.blood_glucose;
                 this.processGlucose(glucose);
@@ -108,16 +214,12 @@ class WatchService {
     // ✅ طلب البيانات من تطبيق الساعة
     requestWatchData() {
         console.log('📱 Requesting watch data from FitPro app...');
-        
-        // ✅ إرسال طلب عبر postMessage
         window.postMessage({ type: 'request_health_data', source: 'livocare' }, '*');
         
-        // ✅ إذا كان هناك واجهة Android
         if (window.AndroidInterface) {
             window.AndroidInterface.requestWatchData();
         }
         
-        // ✅ محاولة الاتصال عبر WebView
         if (window.webkit && window.webkit.messageHandlers) {
             window.webkit.messageHandlers.requestWatchData.postMessage({});
         }
@@ -126,7 +228,7 @@ class WatchService {
     // ✅ معالجة ضربات القلب
     processHeartRate(heartRate) {
         if (heartRate && heartRate !== this.healthData.heartRate) {
-            console.log(`❤️ Heart Rate from FitPro: ${heartRate} BPM`);
+            console.log(`❤️ Heart Rate received: ${heartRate} BPM`);
             this.healthData.heartRate = heartRate;
             this.healthData.lastUpdate = new Date();
             this.notifyCallbacks('heartRate', heartRate);
@@ -139,7 +241,7 @@ class WatchService {
     processBloodPressure(bp) {
         if (bp && bp.systolic && bp.diastolic) {
             if (bp.systolic !== this.healthData.bloodPressure.systolic) {
-                console.log(`🩸 Blood Pressure from FitPro: ${bp.systolic}/${bp.diastolic} mmHg`);
+                console.log(`🩸 Blood Pressure received: ${bp.systolic}/${bp.diastolic} mmHg`);
                 this.healthData.bloodPressure = bp;
                 this.healthData.lastUpdate = new Date();
                 this.notifyCallbacks('bloodPressure', bp);
@@ -151,20 +253,20 @@ class WatchService {
     
     // ✅ معالجة السكر
     processGlucose(glucose) {
-        console.log(`🩸 Glucose from FitPro: ${glucose} mg/dL`);
+        console.log(`🩸 Glucose received: ${glucose} mg/dL`);
         this.notifyCallbacks('glucose', glucose);
         this.saveToDatabase('glucose', glucose);
     }
     
     // ✅ معالجة الخطوات
     processSteps(steps) {
-        console.log(`👣 Steps from FitPro: ${steps}`);
+        console.log(`👣 Steps received: ${steps}`);
         this.notifyCallbacks('steps', steps);
     }
     
     // ✅ معالجة الأكسجين
     processSpO2(spo2) {
-        console.log(`💨 SpO2 from FitPro: ${spo2}%`);
+        console.log(`💨 SpO2 received: ${spo2}%`);
         this.notifyCallbacks('spo2', spo2);
     }
     
@@ -181,10 +283,10 @@ class WatchService {
     // 💻 وضع الكمبيوتر - الاتصال المباشر بالساعة
     // ===========================================
     
-    // ✅ الاتصال بالساعة مباشرة (للكمبيوتر)
     async connectToWatch() {
         if (this.isMobile) {
-            console.log('📱 Mobile device - using FitPro app');
+            console.log('📱 Mobile device - using ADB Monitor');
+            this.connectADBWebSocket();
             return true;
         }
         
@@ -225,13 +327,11 @@ class WatchService {
         }
     }
 
-    // ✅ التحقق من دعم Web Bluetooth
     isSupported() {
         if (this.isMobile) return false;
         return 'bluetooth' in navigator;
     }
 
-    // ✅ إعداد مراقبة البيانات من الساعة (للكمبيوتر)
     async setupHealthMonitoring() {
         if (this.isMobile) return;
         
@@ -255,7 +355,6 @@ class WatchService {
         }
     }
 
-    // ✅ معالجة البيانات من الساعة (للكمبيوتر)
     handleWatchData(dataView) {
         try {
             const bytes = new Uint8Array(dataView.buffer);
@@ -272,12 +371,10 @@ class WatchService {
     // 📡 دوال مشتركة
     // ===========================================
     
-    // ✅ طلب قياس جديد
     async requestMeasurement() {
         if (this.isMobile) {
-            console.log('📱 FitPro mode - please measure on your watch app');
-            this.requestWatchData();
-            return true;
+            console.log('📱 ADB mode - requesting measurement');
+            return this.requestADBMeasurement();
         }
         
         if (!this.isConnected || !this.writeChar) return false;
@@ -290,17 +387,14 @@ class WatchService {
         }
     }
 
-    // ✅ قراءة آخر قياس لضربات القلب
     async readHeartRate() {
         return this.healthData.heartRate;
     }
 
-    // ✅ قراءة آخر قياس لضغط الدم
     async readBloodPressure() {
         return this.healthData.bloodPressure;
     }
 
-    // ✅ التحقق من التنبيهات
     checkAlerts(heartRate, bp) {
         if (heartRate && (heartRate > 100 || heartRate < 60)) {
             const msg = heartRate > 100 ? `ارتفاع: ${heartRate} BPM` : `انخفاض: ${heartRate} BPM`;
@@ -313,7 +407,6 @@ class WatchService {
         }
     }
 
-    // ✅ حفظ البيانات في قاعدة البيانات
     async saveToDatabase(type, data) {
         const token = localStorage.getItem('access_token');
         if (!token) return;
@@ -337,7 +430,6 @@ class WatchService {
         }
     }
 
-    // ✅ إرسال إشعار
     sendNotification(title, message) {
         const event = new CustomEvent('watchAlert', { detail: { title, message } });
         window.dispatchEvent(event);
@@ -347,14 +439,12 @@ class WatchService {
         }
     }
 
-    // ✅ تسجيل دالة استقبال البيانات
     onData(callback) {
         if (typeof callback === 'function') {
             this.onDataCallbacks.push(callback);
         }
     }
 
-    // ✅ إشعار المشتركين بالبيانات
     notifyCallbacks(type, data) {
         this.onDataCallbacks.forEach(callback => {
             try {
@@ -363,13 +453,18 @@ class WatchService {
         });
     }
 
-    // ✅ فصل الاتصال
     disconnect() {
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
+        }
+        
         if (this.device && this.device.gatt && this.device.gatt.connected) {
             this.device.gatt.disconnect();
         }
         
         this.isConnected = false;
+        this.isADBMode = false;
         this.healthData = {
             heartRate: null,
             bloodPressure: { systolic: null, diastolic: null },
@@ -383,7 +478,6 @@ class WatchService {
     // ✅ دوال التوافق مع الكود القديم
     // ===========================================
 
-    // ✅ دالة لتعيين وضع الهاتف يدوياً (للتوافق مع الكود القديم)
     setMobileMode(isMobile, computerIP) {
         console.log('📱 setMobileMode called with:', { isMobile, computerIP });
         this.isMobile = isMobile;
@@ -393,32 +487,32 @@ class WatchService {
         }
         localStorage.setItem('forceMobileMode', isMobile ? 'true' : 'false');
         
-        if (isMobile && !this.isMobile) {
-            this.isMobile = true;
-            this.setupWatchDataReceiver();
+        if (isMobile) {
+            this.connectADBWebSocket();
         }
         return true;
     }
 
-    // ✅ دالة لتفعيل وضع ADB (للتوافق)
     enableADBMode() {
-        console.log('📱 enableADBMode called - switching to mobile mode');
+        console.log('📱 enableADBMode called - connecting to ADB Monitor');
         this.isMobile = true;
-        this.setupWatchDataReceiver();
+        this.connectADBWebSocket();
         return true;
     }
 
-    // ✅ دالة لتعطيل وضع ADB
     disableADBMode() {
         console.log('📱 disableADBMode called - switching to desktop mode');
         this.isMobile = false;
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
+        }
         return true;
     }
-        // ✅ دالة للاتصال بـ ADB Monitor (للتوافق مع الكود القديم)
+
     connectADBMonitor() {
-        console.log('📱 connectADBMonitor called - switching to mobile mode');
-        this.isMobile = true;
-        this.setupWatchDataReceiver();
+        console.log('📱 connectADBMonitor called - connecting to ADB Monitor');
+        this.connectADBWebSocket();
         return true;
     }
 }
