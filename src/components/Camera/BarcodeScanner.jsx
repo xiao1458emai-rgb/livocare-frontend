@@ -8,39 +8,9 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     const [scanning, setScanning] = useState(true);
     const [error, setError] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
     
-    // ✅ استخدام المسار الصحيح لخدمة الكاميرا
     const CAMERA_SERVICE_URL = 'https://camera-service-fag3.onrender.com';
-
-    // ✅ دالة البحث عن المنتج (سيتم استخدامها فقط إذا لزم الأمر)
-    const searchProductByBarcode = async (barcode) => {
-        try {
-            const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
-                timeout: 10000
-                // ✅ تم إزالة User-Agent لأنه غير مسموح به في المتصفح
-            });
-            
-            if (response.data.status === 1) {
-                const product = response.data.product;
-                const nutriments = product.nutriments || {};
-                
-                return {
-                    name: product.product_name || product.generic_name || `منتج (${barcode.slice(-8)})`,
-                    calories: nutriments['energy-kcal'] || nutriments.energy || 0,
-                    protein: nutriments.proteins || 0,
-                    carbs: nutriments.carbohydrates || 0,
-                    fat: nutriments.fat || 0,
-                    barcode: barcode,
-                    brand: product.brands,
-                    unit: product.quantity?.includes('g') ? 'غرام' : (product.quantity?.includes('ml') ? 'مل' : 'غرام')
-                };
-            }
-            return null;
-        } catch (err) {
-            console.error('Error searching product:', err);
-            return null;
-        }
-    };
 
     const captureAndAnalyze = async () => {
         if (!webcamRef.current || isAnalyzing || !scanning) return;
@@ -58,49 +28,29 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     { image: imageSrc },
                     {
                         headers: { 'Content-Type': 'application/json' },
-                        timeout: 20000 // ✅ خفضنا المهلة قليلاً لتكون 20 ثانية
+                        timeout: 15000 // ✅ خفضنا المهلة إلى 15 ثانية
                     }
                 );
                 
-                console.log('📡 Camera service response:', response.data);
+                // ✅ إعادة تعيين عداد المحاولات عند النجاح
+                setRetryCount(0);
                 
                 if (response.data && response.data.success && response.data.results && response.data.results.length > 0) {
                     const barcodeData = response.data.results[0];
-                    const barcode = barcodeData.data;
-                    console.log('✅ Barcode detected:', barcode);
-                    setScanning(false);
                     
-                    let productData = null;
-
-                    // ✅ الخطوة 1: هل خدمة الكاميرا أرسلت بيانات المنتج كاملة؟
-                    if (barcodeData.name && barcodeData.calories) {
-                        console.log('✅ Product data received directly from camera service');
-                        productData = {
-                            name: barcodeData.name,
-                            calories: barcodeData.calories || 0,
-                            protein: barcodeData.protein || 0,
-                            carbs: barcodeData.carbs || 0,
-                            fat: barcodeData.fat || 0,
-                            barcode: barcode,
-                            unit: barcodeData.unit || 'غرام'
-                        };
-                    } else {
-                        // ✅ الخطوة 2: إذا لم تكن البيانات كاملة، ابحث في Open Food Facts
-                        console.log('🔍 No product data from camera, searching Open Food Facts...');
-                        productData = await searchProductByBarcode(barcode);
-                        
-                        if (!productData) {
-                            productData = {
-                                name: `منتج جديد (${barcode.slice(-8)})`,
-                                calories: 0,
-                                protein: 0,
-                                carbs: 0,
-                                fat: 0,
-                                barcode: barcode,
-                                unit: 'غرام'
-                            };
-                        }
-                    }
+                    // ✅ إنشاء كائن المنتج
+                    const productData = {
+                        name: barcodeData.name || `منتج (${barcodeData.data.slice(-8)})`,
+                        calories: barcodeData.calories || 0,
+                        protein: barcodeData.protein || 0,
+                        carbs: barcodeData.carbs || 0,
+                        fat: barcodeData.fat || 0,
+                        barcode: barcodeData.data,
+                        unit: 'غرام'
+                    };
+                    
+                    console.log('✅ Product data:', productData);
+                    setScanning(false);
                     
                     if (onScan && typeof onScan === 'function') {
                         onScan(productData);
@@ -109,35 +59,46 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     if (onClose) {
                         setTimeout(() => onClose(), 500);
                     }
-                } else {
-                    console.log('⚠️ No barcode detected in this frame');
                 }
             }
         } catch (err) {
             console.error('❌ Error scanning:', err.message);
             
+            // ✅ زيادة عداد المحاولات
+            setRetryCount(prev => prev + 1);
+            
+            // ✅ بعد 3 محاولات فاشلة، نغلق الكاميرا
+            if (retryCount >= 2) {
+                console.log('⚠️ Too many errors, closing scanner');
+                setError('فشل الاتصال المستمر، الرجاء المحاولة لاحقاً');
+                setTimeout(() => {
+                    if (onClose) onClose();
+                }, 2000);
+                return;
+            }
+            
             let errorMessage = 'فشل في الاتصال بخدمة الكاميرا';
             if (err.code === 'ECONNABORTED') {
                 errorMessage = 'انتهت مهلة الاتصال، حاول مرة أخرى';
             } else if (err.response?.status === 503) {
-                errorMessage = 'خدمة الكاميرا قيد التشغيل (قد تستغرق 30-50 ثانية للاستيقاظ)';
+                errorMessage = 'خدمة الكاميرا قيد التشغيل (قد تستغرق 30-50 ثانية)';
             }
             
             setError(errorMessage);
-            setTimeout(() => setError(null), 5000);
+            setTimeout(() => setError(null), 3000);
         } finally {
             setIsAnalyzing(false);
         }
     };
 
-    // ✅ زيادة الفاصل الزمني بين محاولات المسح لتقليل الضغط على الخادم
+    // ✅ زيادة الفاصل الزمني إلى 5 ثوانٍ
     useEffect(() => {
         if (!scanning) return;
         const interval = setInterval(() => {
             captureAndAnalyze();
-        }, 3000); // 3 ثوانٍ
+        }, 5000); // 5 ثوانٍ بين كل محاولة
         return () => clearInterval(interval);
-    }, [scanning]);
+    }, [scanning, retryCount]);
 
     return (
         <div className={`fixed inset-0 z-50 flex items-center justify-center ${darkMode ? 'bg-black/90' : 'bg-black/70'}`}>
@@ -151,10 +112,10 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     <Webcam
                         ref={webcamRef}
                         screenshotFormat="image/jpeg"
-                        screenshotQuality={0.8}
+                        screenshotQuality={0.7}
                         videoConstraints={{
                             facingMode: "environment",
-                            width: { ideal: 1280 },
+                            width: { ideal: 720 },
                             height: { ideal: 720 }
                         }}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -185,7 +146,7 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                 
                 <div className="p-4 flex gap-3">
                     <button
-                        onClick={() => { setScanning(true); setError(null); }}
+                        onClick={() => { setScanning(true); setError(null); setRetryCount(0); }}
                         className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition"
                         disabled={scanning}
                     >
