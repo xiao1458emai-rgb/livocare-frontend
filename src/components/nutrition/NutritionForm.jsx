@@ -310,23 +310,121 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
 
 
 // في NutritionForm.jsx - استبدل دالة handleBarcodeScanned بهذه النسخة
-
 const handleBarcodeScanned = async (result) => {
     console.log('📦 Barcode result received:', result);
     
-    // ✅ استخدام بيانات الكاميرا مباشرة (بدون الاتصال بـ Open Food Facts)
-    if (result && typeof result === 'object') {
+    // ✅ إذا كانت النتيجة نصًا (باركود)
+    if (typeof result === 'string' && result.length > 0) {
+        const barcode = result;
+        console.log('🔍 Searching for barcode:', barcode);
+        
+        setIsLoading(true);
+        setMessage('');
+        
+        try {
+            // البحث في Open Food Facts
+            const offResponse = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
+                timeout: 10000
+            });
+            
+            console.log('📡 Open Food Facts response:', offResponse.data);
+            
+            if (offResponse.data.status === 1) {
+                const product = offResponse.data.product;
+                const nutriments = product.nutriments || {};
+                
+                const productData = {
+                    name: product.product_name || product.generic_name || `منتج (${barcode.slice(-8)})`,
+                    calories: nutriments['energy-kcal'] || nutriments.energy || 0,
+                    protein: nutriments.proteins || 0,
+                    carbs: nutriments.carbohydrates || 0,
+                    fat: nutriments.fat || 0,
+                    barcode: barcode,
+                    unit: product.quantity?.includes('g') ? 'غرام' : (product.quantity?.includes('ml') ? 'مل' : 'غرام')
+                };
+                
+                console.log('✅ Product found:', productData.name);
+                
+                // إضافة المنتج كعنصر جديد في foodItems
+                setFoodItems(prev => [...prev, {
+                    name: productData.name,
+                    quantity: '100',
+                    unit: productData.unit || 'غرام',
+                    calories: productData.calories.toString(),
+                    protein: productData.protein.toString(),
+                    carbs: productData.carbs.toString(),
+                    fat: productData.fat.toString(),
+                    barcode: barcode,
+                    isSearching: false,
+                    searchResults: [],
+                    showResults: false,
+                    selectedFood: productData,
+                    manualEdit: true
+                }]);
+                
+                setMessage(`✅ تم العثور على المنتج: ${productData.name}`);
+                setMessageType('success');
+            } else {
+                // المنتج غير موجود في Open Food Facts
+                console.log('⚠️ Product not found in Open Food Facts');
+                setFoodItems(prev => [...prev, {
+                    name: `منتج جديد (${barcode.slice(-8)})`,
+                    quantity: '100',
+                    unit: 'غرام',
+                    calories: '',
+                    protein: '',
+                    carbs: '',
+                    fat: '',
+                    barcode: barcode,
+                    isSearching: false,
+                    searchResults: [],
+                    showResults: false,
+                    selectedFood: null,
+                    manualEdit: true
+                }]);
+                setMessage(`⚠️ المنتج (${barcode}) غير موجود في قاعدة البيانات، الرجاء إدخال البيانات يدوياً`);
+                setMessageType('info');
+            }
+        } catch (error) {
+            console.error('❌ Error in barcode search:', error);
+            setFoodItems(prev => [...prev, {
+                name: `منتج جديد (${barcode.slice(-8)})`,
+                quantity: '100',
+                unit: 'غرام',
+                calories: '',
+                protein: '',
+                carbs: '',
+                fat: '',
+                barcode: barcode,
+                isSearching: false,
+                searchResults: [],
+                showResults: false,
+                selectedFood: null,
+                manualEdit: true
+            }]);
+            setMessage('⚠️ حدث خطأ في البحث عن المنتج، الرجاء إدخال البيانات يدوياً');
+            setMessageType('error');
+        } finally {
+            setIsLoading(false);
+            setTimeout(() => setMessage(''), 5000);
+            setShowScanner(false);
+        }
+        return;
+    }
+    
+    // ✅ إذا كانت النتيجة كائنًا (بيانات كاملة من الكاميرا)
+    if (result && typeof result === 'object' && result.name) {
+        console.log('✅ Using product data directly from camera service');
+        
         const productData = {
-            name: result.name || `منتج (${(result.barcode || '').slice(-8)})`,
+            name: result.name,
             calories: result.calories || 0,
             protein: result.protein || 0,
             carbs: result.carbs || 0,
             fat: result.fat || 0,
-            barcode: result.barcode || '',
+            barcode: result.barcode,
             unit: result.unit || 'غرام'
         };
-        
-        console.log('✅ Adding product from camera data:', productData);
         
         setFoodItems(prev => [...prev, {
             name: productData.name,
@@ -352,46 +450,13 @@ const handleBarcodeScanned = async (result) => {
         return;
     }
     
-    // ✅ إذا كان مجرد باركود (نص)
-    let barcodeText = '';
-    if (typeof result === 'string') {
-        barcodeText = result;
-    } else if (result && result.data) {
-        barcodeText = result.data;
-    }
-    
-    if (!barcodeText) {
-        setMessage('⚠️ لم يتم التعرف على الباركود');
-        setMessageType('error');
-        setIsLoading(false);
-        setShowScanner(false);
-        return;
-    }
-    
-    // ✅ إضافة منتج جديد بالباركود فقط
-    setFoodItems(prev => [...prev, {
-        name: `منتج جديد (${barcodeText.slice(-8)})`,
-        quantity: '100',
-        unit: 'غرام',
-        calories: '',
-        protein: '',
-        carbs: '',
-        fat: '',
-        barcode: barcodeText,
-        isSearching: false,
-        searchResults: [],
-        showResults: false,
-        selectedFood: null,
-        manualEdit: true
-    }]);
-    
-    setMessage(`✅ تم إضافة المنتج بالباركود: ${barcodeText}`);
-    setMessageType('success');
+    // ✅ إذا لم يتم التعرف على التنسيق
+    console.error('❌ Unknown barcode result format:', result);
+    setMessage('⚠️ لم يتم التعرف على الباركود');
+    setMessageType('error');
     setIsLoading(false);
     setShowScanner(false);
-    setTimeout(() => setMessage(''), 5000);
 };
-
     const handleUpdateMeal = async (e) => {
         e.preventDefault();
         if (!isAuthReady || !editingMeal) {
