@@ -309,11 +309,12 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
     };
 
 
-// في NutritionForm.jsx - استبدل دالة handleBarcodeScanned بهذه النسخة
+// في NutritionForm.jsx، استبدل دالة handleBarcodeScanned بهذه النسخة:
+
 const handleBarcodeScanned = async (result) => {
     console.log('📦 Barcode result received:', result);
     
-    // ✅ إذا كانت النتيجة نصًا (باركود)
+    // ✅ إذا كانت النتيجة باركود (نص)
     if (typeof result === 'string' && result.length > 0) {
         const barcode = result;
         console.log('🔍 Searching for barcode:', barcode);
@@ -322,7 +323,7 @@ const handleBarcodeScanned = async (result) => {
         setMessage('');
         
         try {
-            // البحث في Open Food Facts
+            // ✅ البحث في Open Food Facts
             const offResponse = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
                 timeout: 10000
             });
@@ -340,16 +341,15 @@ const handleBarcodeScanned = async (result) => {
                     carbs: nutriments.carbohydrates || 0,
                     fat: nutriments.fat || 0,
                     barcode: barcode,
-                    unit: product.quantity?.includes('g') ? 'غرام' : (product.quantity?.includes('ml') ? 'مل' : 'غرام')
+                    unit: 'غرام'
                 };
                 
                 console.log('✅ Product found:', productData.name);
                 
-                // إضافة المنتج كعنصر جديد في foodItems
                 setFoodItems(prev => [...prev, {
                     name: productData.name,
                     quantity: '100',
-                    unit: productData.unit || 'غرام',
+                    unit: 'غرام',
                     calories: productData.calories.toString(),
                     protein: productData.protein.toString(),
                     carbs: productData.carbs.toString(),
@@ -365,7 +365,6 @@ const handleBarcodeScanned = async (result) => {
                 setMessage(`✅ تم العثور على المنتج: ${productData.name}`);
                 setMessageType('success');
             } else {
-                // المنتج غير موجود في Open Food Facts
                 console.log('⚠️ Product not found in Open Food Facts');
                 setFoodItems(prev => [...prev, {
                     name: `منتج جديد (${barcode.slice(-8)})`,
@@ -382,7 +381,7 @@ const handleBarcodeScanned = async (result) => {
                     selectedFood: null,
                     manualEdit: true
                 }]);
-                setMessage(`⚠️ المنتج (${barcode}) غير موجود في قاعدة البيانات، الرجاء إدخال البيانات يدوياً`);
+                setMessage(`⚠️ المنتج (${barcode}) غير موجود، الرجاء إدخال البيانات يدوياً`);
                 setMessageType('info');
             }
         } catch (error) {
@@ -402,7 +401,7 @@ const handleBarcodeScanned = async (result) => {
                 selectedFood: null,
                 manualEdit: true
             }]);
-            setMessage('⚠️ حدث خطأ في البحث عن المنتج، الرجاء إدخال البيانات يدوياً');
+            setMessage('⚠️ حدث خطأ في البحث عن المنتج');
             setMessageType('error');
         } finally {
             setIsLoading(false);
@@ -412,9 +411,9 @@ const handleBarcodeScanned = async (result) => {
         return;
     }
     
-    // ✅ إذا كانت النتيجة كائنًا (بيانات كاملة من الكاميرا)
+    // ✅ إذا كانت النتيجة كائنًا (بيانات كاملة)
     if (result && typeof result === 'object' && result.name) {
-        console.log('✅ Using product data directly from camera service');
+        console.log('✅ Using product data directly');
         
         const productData = {
             name: result.name,
@@ -429,7 +428,7 @@ const handleBarcodeScanned = async (result) => {
         setFoodItems(prev => [...prev, {
             name: productData.name,
             quantity: '100',
-            unit: productData.unit,
+            unit: 'غرام',
             calories: productData.calories.toString(),
             protein: productData.protein.toString(),
             carbs: productData.carbs.toString(),
@@ -450,8 +449,7 @@ const handleBarcodeScanned = async (result) => {
         return;
     }
     
-    // ✅ إذا لم يتم التعرف على التنسيق
-    console.error('❌ Unknown barcode result format:', result);
+    console.error('❌ Unknown format:', result);
     setMessage('⚠️ لم يتم التعرف على الباركود');
     setMessageType('error');
     setIsLoading(false);
