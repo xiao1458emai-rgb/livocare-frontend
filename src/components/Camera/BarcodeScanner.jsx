@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
-import axiosInstance from '../../services/api';
 
 const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     const webcamRef = useRef(null);
@@ -10,55 +9,56 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     const [error, setError] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-    // ✅ دالة لتحليل الصورة واستخراج الباركود
-    const analyzeImage = async (imageSrc) => {
-        // ✅ في التطوير المحلي، يمكن استخدام خدمة خارجية لتحليل الباركود
-        // أو استخدام مكتبة jsQR مباشرة
-        
-        // ✅ للتبسيط، سنستخدم مكتبة jsQR في المتصفح
-        // لكن هذا يتطلب تحويل الصورة إلى Canvas
-        
+    // ✅ استخدام BarcodeDetector API (مدعوم في Chrome, Edge, Safari)
+    const detectBarcode = async (imageData) => {
         try {
-            // إنشاء عنصر Image لتحميل الصورة
-            const img = new Image();
-            img.src = imageSrc;
-            
-            await new Promise((resolve) => {
-                img.onload = resolve;
-            });
-            
-            // إنشاء Canvas لتحليل الصورة
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, img.width, img.height);
-            
-            // الحصول على بيانات الصورة
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            // ✅ استخدام jsQR لتحليل الباركود
-            // تأكد من تثبيت المكتبة: npm install jsqr
-            const jsQR = await import('jsqr').then(module => module.default);
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
-            
-            if (code && code.data) {
-                console.log('✅ Barcode detected:', code.data);
-                return code.data;
+            // التحقق من توفر BarcodeDetector
+            if (!('BarcodeDetector' in window)) {
+                console.warn('BarcodeDetector not supported, falling back to jsQR');
+                return null;
             }
             
+            const barcodeDetector = new BarcodeDetector({
+                formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'codabar', 'upc_a', 'upc_e']
+            });
+            
+            const barcodes = await barcodeDetector.detect(imageData);
+            
+            if (barcodes && barcodes.length > 0) {
+                console.log('✅ Barcode detected:', barcodes[0].rawValue);
+                return barcodes[0].rawValue;
+            }
             return null;
         } catch (err) {
-            console.error('Error analyzing image:', err);
+            console.error('Barcode detection error:', err);
             return null;
         }
+    };
+
+    // ✅ تحويل الصورة إلى ImageBitmap للتحليل
+    const imageToImageBitmap = async (imageSrc) => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.src = imageSrc;
+            img.onload = async () => {
+                try {
+                    const bitmap = await createImageBitmap(img);
+                    resolve(bitmap);
+                } catch (err) {
+                    reject(err);
+                }
+            };
+            img.onerror = reject;
+        });
     };
 
     // ✅ دالة البحث عن المنتج باستخدام الباركود
     const searchProductByBarcode = async (barcode) => {
         try {
             // ✅ البحث في Open Food Facts API
-            const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+            const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
+                timeout: 10000
+            });
             
             if (response.data.status === 1) {
                 const product = response.data.product;
@@ -95,8 +95,14 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
             if (imageSrc) {
                 console.log('📸 Capturing image for analysis...');
                 
-                // ✅ تحليل الصورة لاستخراج الباركود
-                const barcode = await analyzeImage(imageSrc);
+                // ✅ تحويل الصورة إلى ImageBitmap
+                const imageBitmap = await imageToImageBitmap(imageSrc);
+                
+                // ✅ تحليل الباركود
+                const barcode = await detectBarcode(imageBitmap);
+                
+                // تنظيف ImageBitmap
+                imageBitmap.close();
                 
                 if (barcode) {
                     console.log('✅ Barcode detected:', barcode);
@@ -106,7 +112,7 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     const product = await searchProductByBarcode(barcode);
                     
                     if (product) {
-                        console.log('✅ Product found:', product);
+                        console.log('✅ Product found:', product.name);
                         if (onScan && typeof onScan === 'function') {
                             onScan(product);
                         }
@@ -172,7 +178,7 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     <Webcam
                         ref={webcamRef}
                         screenshotFormat="image/jpeg"
-                        screenshotQuality={0.8}
+                        screenshotQuality={0.9}
                         videoConstraints={{
                             facingMode: "environment",
                             width: { ideal: 1280 },
