@@ -9,8 +9,105 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     const [error, setError] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     
-    // ✅ عنوان خدمة الكاميرا
     const CAMERA_SERVICE_URL = 'https://camera-service-fag3.onrender.com';
+
+    // ✅ محاولة endpoints مختلفة
+    const tryScanEndpoint = async (imageSrc, endpoint) => {
+        try {
+            console.log(`🔗 Trying endpoint: ${endpoint}`);
+            const response = await axios.post(
+                `${CAMERA_SERVICE_URL}${endpoint}`,
+                { image: imageSrc },
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 15000
+                }
+            );
+            return response;
+        } catch (err) {
+            if (err.response?.status === 405) {
+                return null; // طريقة غير مسموحة، جرب endpoint آخر
+            }
+            throw err;
+        }
+    };
+
+    const captureAndAnalyze = async () => {
+        if (!webcamRef.current || isAnalyzing || !scanning) return;
+        
+        setIsAnalyzing(true);
+        
+        try {
+            const imageSrc = webcamRef.current.getScreenshot();
+            
+            if (imageSrc) {
+                console.log('📸 Capturing image for analysis...');
+                
+                // ✅ تجربة endpoints مختلفة
+                const endpoints = ['/scan-barcode', '/scan', '/api/scan', '/barcode'];
+                let response = null;
+                
+                for (const endpoint of endpoints) {
+                    response = await tryScanEndpoint(imageSrc, endpoint);
+                    if (response) break;
+                }
+                
+                if (!response) {
+                    throw new Error('No working endpoint found');
+                }
+                
+                console.log('📡 Camera service response:', response.data);
+                
+                // ✅ معالجة تنسيقات مختلفة للرد
+                let barcode = null;
+                if (response.data && response.data.success && response.data.data) {
+                    barcode = response.data.data;
+                } else if (response.data && response.data.barcode) {
+                    barcode = response.data.barcode;
+                } else if (response.data && response.data.code) {
+                    barcode = response.data.code;
+                } else if (typeof response.data === 'string') {
+                    barcode = response.data;
+                }
+                
+                if (barcode) {
+                    console.log('✅ Barcode detected:', barcode);
+                    setScanning(false);
+                    
+                    // البحث عن المنتج
+                    const product = await searchProductByBarcode(barcode);
+                    
+                    if (product) {
+                        if (onScan && typeof onScan === 'function') {
+                            onScan(product);
+                        }
+                    } else {
+                        if (onScan && typeof onScan === 'function') {
+                            onScan({
+                                name: `منتج جديد (${barcode.slice(-8)})`,
+                                calories: 0,
+                                protein: 0,
+                                carbs: 0,
+                                fat: 0,
+                                barcode: barcode,
+                                unit: 'غرام'
+                            });
+                        }
+                    }
+                    
+                    if (onClose) {
+                        setTimeout(() => onClose(), 500);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('❌ Error scanning:', err);
+            setError('فشل في الاتصال بخدمة الكاميرا');
+            setTimeout(() => setError(null), 3000);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
 
     // ✅ دالة البحث عن المنتج
     const searchProductByBarcode = async (barcode) => {
@@ -41,72 +138,7 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
         }
     };
 
-    // دالة التقاط الصورة وتحليلها
-    const captureAndAnalyze = async () => {
-        if (!webcamRef.current || isAnalyzing || !scanning) return;
-        
-        setIsAnalyzing(true);
-        
-        try {
-            const imageSrc = webcamRef.current.getScreenshot();
-            
-            if (imageSrc) {
-                console.log('📸 Capturing image for analysis...');
-                
-                const response = await axios.post(
-                    `${CAMERA_SERVICE_URL}/scan-barcode`,
-                    { image: imageSrc },
-                    {
-                        headers: { 'Content-Type': 'application/json' },
-                        timeout: 15000
-                    }
-                );
-                
-                console.log('📡 Camera service response:', response.data);
-                
-                if (response.data && response.data.success && response.data.data) {
-                    const barcode = response.data.data;
-                    console.log('✅ Barcode detected:', barcode);
-                    setScanning(false);
-                    
-                    const product = await searchProductByBarcode(barcode);
-                    
-                    if (product) {
-                        if (onScan && typeof onScan === 'function') {
-                            onScan(product);
-                        }
-                    } else {
-                        if (onScan && typeof onScan === 'function') {
-                            onScan({
-                                name: `منتج جديد (${barcode.slice(-8)})`,
-                                calories: 0,
-                                protein: 0,
-                                carbs: 0,
-                                fat: 0,
-                                barcode: barcode,
-                                unit: 'غرام'
-                            });
-                        }
-                    }
-                    
-                    if (onClose) {
-                        setTimeout(() => onClose(), 500);
-                    }
-                }
-            }
-        } catch (err) {
-            console.error('❌ Error scanning:', err);
-            let errorMessage = 'فشل في الاتصال بخدمة الكاميرا';
-            if (err.response?.status === 503) {
-                errorMessage = 'خدمة الكاميرا قيد التشغيل، انتظر لحظة ثم حاول مرة أخرى';
-            }
-            setError(errorMessage);
-            setTimeout(() => setError(null), 3000);
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-
+    // مسح كل 2 ثانية
     useEffect(() => {
         if (!scanning) return;
         const interval = setInterval(() => {
@@ -184,4 +216,4 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     );
 };
 
-export default BarcodeScanner; // ✅ هذا السطر مهم جداً!
+export default BarcodeScanner;
