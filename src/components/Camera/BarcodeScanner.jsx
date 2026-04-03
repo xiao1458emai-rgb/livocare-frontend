@@ -8,7 +8,6 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     const [scanning, setScanning] = useState(true);
     const [error, setError] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [retryCount, setRetryCount] = useState(0);
     
     const CAMERA_SERVICE_URL = 'https://camera-service-fag3.onrender.com';
 
@@ -28,34 +27,29 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     { image: imageSrc },
                     {
                         headers: { 'Content-Type': 'application/json' },
-                        timeout: 15000 // ✅ خفضنا المهلة إلى 15 ثانية
+                        timeout: 15000
                     }
                 );
                 
-                // ✅ إعادة تعيين عداد المحاولات عند النجاح
-                setRetryCount(0);
+                console.log('📡 Camera service response:', response.data);
                 
+                // ✅ التحقق من وجود نتائج
                 if (response.data && response.data.success && response.data.results && response.data.results.length > 0) {
-                    const barcodeData = response.data.results[0];
+                    const barcodeResult = response.data.results[0];
+                    const barcodeValue = barcodeResult.data;
                     
-                    // ✅ إنشاء كائن المنتج
-                    const productData = {
-                        name: barcodeData.name || `منتج (${barcodeData.data.slice(-8)})`,
-                        calories: barcodeData.calories || 0,
-                        protein: barcodeData.protein || 0,
-                        carbs: barcodeData.carbs || 0,
-                        fat: barcodeData.fat || 0,
-                        barcode: barcodeData.data,
-                        unit: 'غرام'
-                    };
+                    console.log('✅ Barcode detected:', barcodeValue);
                     
-                    console.log('✅ Product data:', productData);
+                    // ✅ إيقاف المسح
                     setScanning(false);
                     
+                    // ✅ إرسال البيانات إلى onScan
                     if (onScan && typeof onScan === 'function') {
-                        onScan(productData);
+                        // ✅ إرسال الباركود كنص، وليس كائن
+                        onScan(barcodeValue);
                     }
                     
+                    // ✅ إغلاق الماسح
                     if (onClose) {
                         setTimeout(() => onClose(), 500);
                     }
@@ -63,42 +57,21 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
             }
         } catch (err) {
             console.error('❌ Error scanning:', err.message);
-            
-            // ✅ زيادة عداد المحاولات
-            setRetryCount(prev => prev + 1);
-            
-            // ✅ بعد 3 محاولات فاشلة، نغلق الكاميرا
-            if (retryCount >= 2) {
-                console.log('⚠️ Too many errors, closing scanner');
-                setError('فشل الاتصال المستمر، الرجاء المحاولة لاحقاً');
-                setTimeout(() => {
-                    if (onClose) onClose();
-                }, 2000);
-                return;
-            }
-            
-            let errorMessage = 'فشل في الاتصال بخدمة الكاميرا';
-            if (err.code === 'ECONNABORTED') {
-                errorMessage = 'انتهت مهلة الاتصال، حاول مرة أخرى';
-            } else if (err.response?.status === 503) {
-                errorMessage = 'خدمة الكاميرا قيد التشغيل (قد تستغرق 30-50 ثانية)';
-            }
-            
-            setError(errorMessage);
+            setError('فشل في الاتصال بخدمة الكاميرا');
             setTimeout(() => setError(null), 3000);
         } finally {
             setIsAnalyzing(false);
         }
     };
 
-    // ✅ زيادة الفاصل الزمني إلى 5 ثوانٍ
+    // ✅ الفاصل الزمني: 3 ثوانٍ
     useEffect(() => {
         if (!scanning) return;
         const interval = setInterval(() => {
             captureAndAnalyze();
-        }, 5000); // 5 ثوانٍ بين كل محاولة
+        }, 3000);
         return () => clearInterval(interval);
-    }, [scanning, retryCount]);
+    }, [scanning]);
 
     return (
         <div className={`fixed inset-0 z-50 flex items-center justify-center ${darkMode ? 'bg-black/90' : 'bg-black/70'}`}>
@@ -146,7 +119,7 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                 
                 <div className="p-4 flex gap-3">
                     <button
-                        onClick={() => { setScanning(true); setError(null); setRetryCount(0); }}
+                        onClick={() => { setScanning(true); setError(null); }}
                         className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition"
                         disabled={scanning}
                     >
