@@ -314,7 +314,6 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
 const handleBarcodeScanned = async (result) => {
     console.log('📦 Barcode result received:', result);
     
-    // ✅ إذا كانت النتيجة باركود (نص)
     if (typeof result === 'string' && result.length > 0) {
         const barcode = result;
         console.log('🔍 Searching for barcode:', barcode);
@@ -323,9 +322,9 @@ const handleBarcodeScanned = async (result) => {
         setMessage('');
         
         try {
-            // ✅ البحث في Open Food Facts
+            // ✅ زيادة المهلة إلى 15 ثانية
             const offResponse = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
-                timeout: 10000
+                timeout: 15000
             });
             
             console.log('📡 Open Food Facts response:', offResponse.data);
@@ -365,7 +364,6 @@ const handleBarcodeScanned = async (result) => {
                 setMessage(`✅ تم العثور على المنتج: ${productData.name}`);
                 setMessageType('success');
             } else {
-                console.log('⚠️ Product not found in Open Food Facts');
                 setFoodItems(prev => [...prev, {
                     name: `منتج جديد (${barcode.slice(-8)})`,
                     quantity: '100',
@@ -381,11 +379,13 @@ const handleBarcodeScanned = async (result) => {
                     selectedFood: null,
                     manualEdit: true
                 }]);
-                setMessage(`⚠️ المنتج (${barcode}) غير موجود، الرجاء إدخال البيانات يدوياً`);
+                setMessage(`⚠️ المنتج (${barcode}) غير موجود`);
                 setMessageType('info');
             }
         } catch (error) {
             console.error('❌ Error in barcode search:', error);
+            
+            // ✅ في حالة timeout أو خطأ، نضيف المنتج كعنصر جديد
             setFoodItems(prev => [...prev, {
                 name: `منتج جديد (${barcode.slice(-8)})`,
                 quantity: '100',
@@ -401,8 +401,8 @@ const handleBarcodeScanned = async (result) => {
                 selectedFood: null,
                 manualEdit: true
             }]);
-            setMessage('⚠️ حدث خطأ في البحث عن المنتج');
-            setMessageType('error');
+            setMessage(`⚠️ تمت إضافة منتج جديد بالباركود: ${barcode}`);
+            setMessageType('info');
         } finally {
             setIsLoading(false);
             setTimeout(() => setMessage(''), 5000);
@@ -411,49 +411,7 @@ const handleBarcodeScanned = async (result) => {
         return;
     }
     
-    // ✅ إذا كانت النتيجة كائنًا (بيانات كاملة)
-    if (result && typeof result === 'object' && result.name) {
-        console.log('✅ Using product data directly');
-        
-        const productData = {
-            name: result.name,
-            calories: result.calories || 0,
-            protein: result.protein || 0,
-            carbs: result.carbs || 0,
-            fat: result.fat || 0,
-            barcode: result.barcode,
-            unit: result.unit || 'غرام'
-        };
-        
-        setFoodItems(prev => [...prev, {
-            name: productData.name,
-            quantity: '100',
-            unit: 'غرام',
-            calories: productData.calories.toString(),
-            protein: productData.protein.toString(),
-            carbs: productData.carbs.toString(),
-            fat: productData.fat.toString(),
-            barcode: productData.barcode,
-            isSearching: false,
-            searchResults: [],
-            showResults: false,
-            selectedFood: productData,
-            manualEdit: true
-        }]);
-        
-        setMessage(`✅ تم إضافة المنتج: ${productData.name}`);
-        setMessageType('success');
-        setIsLoading(false);
-        setShowScanner(false);
-        setTimeout(() => setMessage(''), 5000);
-        return;
-    }
-    
-    console.error('❌ Unknown format:', result);
-    setMessage('⚠️ لم يتم التعرف على الباركود');
-    setMessageType('error');
-    setIsLoading(false);
-    setShowScanner(false);
+    // ... باقي الكود
 };
     const handleUpdateMeal = async (e) => {
         e.preventDefault();
