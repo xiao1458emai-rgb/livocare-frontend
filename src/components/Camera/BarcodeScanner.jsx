@@ -12,87 +12,12 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     // ✅ استخدام المسار الصحيح لخدمة الكاميرا
     const CAMERA_SERVICE_URL = 'https://camera-service-fag3.onrender.com';
 
-    const captureAndAnalyze = async () => {
-        if (!webcamRef.current || isAnalyzing || !scanning) return;
-        
-        setIsAnalyzing(true);
-        
-        try {
-            const imageSrc = webcamRef.current.getScreenshot();
-            
-            if (imageSrc) {
-                console.log('📸 Capturing image for analysis...');
-                
-                // ✅ إرسال الصورة إلى خدمة الكاميرا
-                const response = await axios.post(
-                    `${CAMERA_SERVICE_URL}/scan-barcode`,
-                    { image: imageSrc },
-                    {
-                        headers: { 'Content-Type': 'application/json' },
-                        timeout: 30000 // 30 ثانية مهلة (لأن الخدمة قد تستيقظ)
-                    }
-                );
-                
-                console.log('📡 Camera service response status:', response.status);
-                console.log('📡 Camera service response data:', response.data);
-                
-                if (response.data && response.data.success && response.data.results && response.data.results.length > 0) {
-                    const barcode = response.data.results[0].data;
-                    console.log('✅ Barcode detected:', barcode);
-                    setScanning(false);
-                    
-                    // ✅ البحث عن المنتج
-                    const product = await searchProductByBarcode(barcode);
-                    
-                    if (product) {
-                        if (onScan && typeof onScan === 'function') {
-                            onScan(product);
-                        }
-                    } else {
-                        if (onScan && typeof onScan === 'function') {
-                            onScan({
-                                name: `منتج جديد (${barcode.slice(-8)})`,
-                                calories: 0,
-                                protein: 0,
-                                carbs: 0,
-                                fat: 0,
-                                barcode: barcode,
-                                unit: 'غرام'
-                            });
-                        }
-                    }
-                    
-                    if (onClose) {
-                        setTimeout(() => onClose(), 500);
-                    }
-                } else {
-                    console.log('⚠️ No barcode detected');
-                }
-            }
-        } catch (err) {
-            console.error('❌ Error scanning:', err.message);
-            
-            let errorMessage = 'فشل في الاتصال بخدمة الكاميرا';
-            if (err.code === 'ECONNABORTED') {
-                errorMessage = 'انتهت مهلة الاتصال (قد تستغرق الخدمة 30-50 ثانية للاستيقاظ)';
-            } else if (err.response?.status === 503) {
-                errorMessage = 'خدمة الكاميرا قيد التشغيل، انتظر 30 ثانية ثم حاول مرة أخرى';
-            } else if (err.response?.status === 405) {
-                errorMessage = 'طريقة الطلب غير صحيحة';
-            }
-            
-            setError(errorMessage);
-            setTimeout(() => setError(null), 5000);
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-
-    // ✅ دالة البحث عن المنتج
+    // ✅ دالة البحث عن المنتج (سيتم استخدامها فقط إذا لزم الأمر)
     const searchProductByBarcode = async (barcode) => {
         try {
             const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
                 timeout: 10000
+                // ✅ تم إزالة User-Agent لأنه غير مسموح به في المتصفح
             });
             
             if (response.data.status === 1) {
@@ -117,12 +42,100 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
         }
     };
 
-    // مسح كل 2 ثانية
+    const captureAndAnalyze = async () => {
+        if (!webcamRef.current || isAnalyzing || !scanning) return;
+        
+        setIsAnalyzing(true);
+        
+        try {
+            const imageSrc = webcamRef.current.getScreenshot();
+            
+            if (imageSrc) {
+                console.log('📸 Capturing image for analysis...');
+                
+                const response = await axios.post(
+                    `${CAMERA_SERVICE_URL}/scan-barcode`,
+                    { image: imageSrc },
+                    {
+                        headers: { 'Content-Type': 'application/json' },
+                        timeout: 20000 // ✅ خفضنا المهلة قليلاً لتكون 20 ثانية
+                    }
+                );
+                
+                console.log('📡 Camera service response:', response.data);
+                
+                if (response.data && response.data.success && response.data.results && response.data.results.length > 0) {
+                    const barcodeData = response.data.results[0];
+                    const barcode = barcodeData.data;
+                    console.log('✅ Barcode detected:', barcode);
+                    setScanning(false);
+                    
+                    let productData = null;
+
+                    // ✅ الخطوة 1: هل خدمة الكاميرا أرسلت بيانات المنتج كاملة؟
+                    if (barcodeData.name && barcodeData.calories) {
+                        console.log('✅ Product data received directly from camera service');
+                        productData = {
+                            name: barcodeData.name,
+                            calories: barcodeData.calories || 0,
+                            protein: barcodeData.protein || 0,
+                            carbs: barcodeData.carbs || 0,
+                            fat: barcodeData.fat || 0,
+                            barcode: barcode,
+                            unit: barcodeData.unit || 'غرام'
+                        };
+                    } else {
+                        // ✅ الخطوة 2: إذا لم تكن البيانات كاملة، ابحث في Open Food Facts
+                        console.log('🔍 No product data from camera, searching Open Food Facts...');
+                        productData = await searchProductByBarcode(barcode);
+                        
+                        if (!productData) {
+                            productData = {
+                                name: `منتج جديد (${barcode.slice(-8)})`,
+                                calories: 0,
+                                protein: 0,
+                                carbs: 0,
+                                fat: 0,
+                                barcode: barcode,
+                                unit: 'غرام'
+                            };
+                        }
+                    }
+                    
+                    if (onScan && typeof onScan === 'function') {
+                        onScan(productData);
+                    }
+                    
+                    if (onClose) {
+                        setTimeout(() => onClose(), 500);
+                    }
+                } else {
+                    console.log('⚠️ No barcode detected in this frame');
+                }
+            }
+        } catch (err) {
+            console.error('❌ Error scanning:', err.message);
+            
+            let errorMessage = 'فشل في الاتصال بخدمة الكاميرا';
+            if (err.code === 'ECONNABORTED') {
+                errorMessage = 'انتهت مهلة الاتصال، حاول مرة أخرى';
+            } else if (err.response?.status === 503) {
+                errorMessage = 'خدمة الكاميرا قيد التشغيل (قد تستغرق 30-50 ثانية للاستيقاظ)';
+            }
+            
+            setError(errorMessage);
+            setTimeout(() => setError(null), 5000);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    // ✅ زيادة الفاصل الزمني بين محاولات المسح لتقليل الضغط على الخادم
     useEffect(() => {
         if (!scanning) return;
         const interval = setInterval(() => {
             captureAndAnalyze();
-        }, 3000); // زيادة الوقت إلى 3 ثوانٍ
+        }, 3000); // 3 ثوانٍ
         return () => clearInterval(interval);
     }, [scanning]);
 

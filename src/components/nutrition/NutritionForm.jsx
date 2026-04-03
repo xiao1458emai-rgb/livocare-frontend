@@ -309,7 +309,6 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
     };
 
 
-
 const handleBarcodeScanned = async (result) => {
     console.log('📦 Barcode result received:', result);
     
@@ -355,7 +354,7 @@ const handleBarcodeScanned = async (result) => {
     // ✅ الحالة 2: النتيجة تحتوي فقط على باركود (نص)
     let barcodeText = '';
     if (typeof result === 'object') {
-        barcodeText = result.data || result.text || '';
+        barcodeText = result.data || result.text || result.barcode || '';
     } else if (typeof result === 'string') {
         barcodeText = result;
     }
@@ -374,7 +373,7 @@ const handleBarcodeScanned = async (result) => {
     setMessage('');
     
     try {
-        // البحث في Open Food Facts
+        // البحث في Open Food Facts (بدون User-Agent)
         const offResponse = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcodeText}.json`, {
             timeout: 10000
         });
@@ -432,7 +431,7 @@ const handleBarcodeScanned = async (result) => {
                 selectedFood: null,
                 manualEdit: true
             }]);
-            setMessage(`⚠️ المنتج (${barcodeText}) غير موجود، الرجاء إدخال البيانات يدوياً`);
+            setMessage(`⚠️ المنتج (${barcodeText}) غير موجود في قاعدة البيانات، الرجاء إدخال البيانات يدوياً`);
             setMessageType('info');
         }
     } catch (error) {
@@ -452,7 +451,7 @@ const handleBarcodeScanned = async (result) => {
             selectedFood: null,
             manualEdit: true
         }]);
-        setMessage('⚠️ حدث خطأ في البحث عن المنتج');
+        setMessage('⚠️ حدث خطأ في البحث عن المنتج، الرجاء إدخال البيانات يدوياً');
         setMessageType('error');
     } finally {
         setIsLoading(false);
