@@ -314,6 +314,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         setMessage('');
         
         try {
+            // محاولة البحث في Open Food Facts
             const offResponse = await axiosInstance.get(`https://world.openfoodfacts.org/api/v0/product/${barcodeText}.json`);
             
             if (offResponse.data.status === 1) {
@@ -331,6 +332,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                     unit: product.quantity?.includes('g') ? 'غرام' : (product.quantity?.includes('ml') ? 'مل' : 'غرام')
                 };
                 
+                // إضافة المنتج كعنصر جديد
                 setFoodItems(prev => [...prev, {
                     name: productData.name,
                     quantity: '100',
@@ -350,6 +352,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 setMessage(`✅ تم العثور على المنتج: ${productData.name}`);
                 setMessageType('success');
             } else {
+                // إذا لم يتم العثور على المنتج
                 setFoodItems(prev => [...prev, {
                     name: `منتج جديد (${barcodeText.slice(-8)})`,
                     quantity: '100',
@@ -365,11 +368,12 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                     selectedFood: null,
                     manualEdit: true
                 }]);
-                setMessage('⚠️ المنتج غير موجود، الرجاء إدخال البيانات يدوياً');
+                setMessage('⚠️ المنتج غير موجود في قاعدة البيانات، الرجاء إدخال البيانات يدوياً');
                 setMessageType('info');
             }
         } catch (error) {
             console.error('Error in barcode search:', error);
+            // في حالة الخطأ، نضيف العنصر فارغاً
             setFoodItems(prev => [...prev, {
                 name: `منتج جديد (${barcodeText.slice(-8)})`,
                 quantity: '100',
@@ -385,7 +389,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 selectedFood: null,
                 manualEdit: true
             }]);
-            setMessage('⚠️ حدث خطأ في البحث عن المنتج');
+            setMessage('⚠️ حدث خطأ في البحث عن المنتج، الرجاء إدخال البيانات يدوياً');
             setMessageType('error');
         } finally {
             setIsLoading(false);
@@ -564,10 +568,15 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         };
     }, []);
 
-      return (
+    return (
         <div className={`nutrition-form-container ${darkMode ? 'dark-mode' : ''}`}>
+            {/* ✅ ماسح الباركود */}
             {showScanner && (
-                <BarcodeScanner onScan={handleBarcodeScanned} onClose={() => setShowScanner(false)} darkMode={darkMode} />
+                <BarcodeScanner 
+                    onScan={handleBarcodeScanned} 
+                    onClose={() => setShowScanner(false)} 
+                    darkMode={darkMode} 
+                />
             )}
             
             <div className="form-content">
@@ -588,6 +597,19 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                             <span className="badge-text">{t('nutrition.dailyIntake')}</span>
                         </div>
                     </div>
+                </div>
+
+                {/* ✅ زر مسح الباركود */}
+                <div className="barcode-button-container">
+                    <button 
+                        type="button" 
+                        onClick={() => setShowScanner(true)}
+                        className="barcode-scanner-btn"
+                        disabled={isLoading}
+                    >
+                        <span className="btn-icon">📷</span>
+                        <span className="btn-text">مسح باركود المنتج</span>
+                    </button>
                 </div>
 
                 {/* ملخص التغذية السريع */}
@@ -938,9 +960,8 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 </div>
             )}
 
-            {/* ✅ تم إزالة BarcodeScanner المكرر */}
-
             <style jsx>{`
+
                 .camera-btn {
                     width: 48px; height: 48px; border: none; border-radius: 50%; background: rgba(255,255,255,0.2);
                     backdrop-filter: blur(5px); color: white; font-size: 1.5rem; cursor: pointer;
