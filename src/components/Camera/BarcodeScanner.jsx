@@ -9,28 +9,8 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     const [error, setError] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     
+    // ✅ استخدام المسار الصحيح لخدمة الكاميرا
     const CAMERA_SERVICE_URL = 'https://camera-service-fag3.onrender.com';
-
-    // ✅ محاولة endpoints مختلفة
-    const tryScanEndpoint = async (imageSrc, endpoint) => {
-        try {
-            console.log(`🔗 Trying endpoint: ${endpoint}`);
-            const response = await axios.post(
-                `${CAMERA_SERVICE_URL}${endpoint}`,
-                { image: imageSrc },
-                {
-                    headers: { 'Content-Type': 'application/json' },
-                    timeout: 15000
-                }
-            );
-            return response;
-        } catch (err) {
-            if (err.response?.status === 405) {
-                return null; // طريقة غير مسموحة، جرب endpoint آخر
-            }
-            throw err;
-        }
-    };
 
     const captureAndAnalyze = async () => {
         if (!webcamRef.current || isAnalyzing || !scanning) return;
@@ -43,38 +23,25 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
             if (imageSrc) {
                 console.log('📸 Capturing image for analysis...');
                 
-                // ✅ تجربة endpoints مختلفة
-                const endpoints = ['/scan-barcode', '/scan', '/api/scan', '/barcode'];
-                let response = null;
+                // ✅ إرسال الصورة إلى خدمة الكاميرا
+                const response = await axios.post(
+                    `${CAMERA_SERVICE_URL}/scan-barcode`,
+                    { image: imageSrc },
+                    {
+                        headers: { 'Content-Type': 'application/json' },
+                        timeout: 30000 // 30 ثانية مهلة (لأن الخدمة قد تستيقظ)
+                    }
+                );
                 
-                for (const endpoint of endpoints) {
-                    response = await tryScanEndpoint(imageSrc, endpoint);
-                    if (response) break;
-                }
+                console.log('📡 Camera service response status:', response.status);
+                console.log('📡 Camera service response data:', response.data);
                 
-                if (!response) {
-                    throw new Error('No working endpoint found');
-                }
-                
-                console.log('📡 Camera service response:', response.data);
-                
-                // ✅ معالجة تنسيقات مختلفة للرد
-                let barcode = null;
-                if (response.data && response.data.success && response.data.data) {
-                    barcode = response.data.data;
-                } else if (response.data && response.data.barcode) {
-                    barcode = response.data.barcode;
-                } else if (response.data && response.data.code) {
-                    barcode = response.data.code;
-                } else if (typeof response.data === 'string') {
-                    barcode = response.data;
-                }
-                
-                if (barcode) {
+                if (response.data && response.data.success && response.data.results && response.data.results.length > 0) {
+                    const barcode = response.data.results[0].data;
                     console.log('✅ Barcode detected:', barcode);
                     setScanning(false);
                     
-                    // البحث عن المنتج
+                    // ✅ البحث عن المنتج
                     const product = await searchProductByBarcode(barcode);
                     
                     if (product) {
@@ -98,12 +65,24 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     if (onClose) {
                         setTimeout(() => onClose(), 500);
                     }
+                } else {
+                    console.log('⚠️ No barcode detected');
                 }
             }
         } catch (err) {
-            console.error('❌ Error scanning:', err);
-            setError('فشل في الاتصال بخدمة الكاميرا');
-            setTimeout(() => setError(null), 3000);
+            console.error('❌ Error scanning:', err.message);
+            
+            let errorMessage = 'فشل في الاتصال بخدمة الكاميرا';
+            if (err.code === 'ECONNABORTED') {
+                errorMessage = 'انتهت مهلة الاتصال (قد تستغرق الخدمة 30-50 ثانية للاستيقاظ)';
+            } else if (err.response?.status === 503) {
+                errorMessage = 'خدمة الكاميرا قيد التشغيل، انتظر 30 ثانية ثم حاول مرة أخرى';
+            } else if (err.response?.status === 405) {
+                errorMessage = 'طريقة الطلب غير صحيحة';
+            }
+            
+            setError(errorMessage);
+            setTimeout(() => setError(null), 5000);
         } finally {
             setIsAnalyzing(false);
         }
@@ -143,7 +122,7 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
         if (!scanning) return;
         const interval = setInterval(() => {
             captureAndAnalyze();
-        }, 2000);
+        }, 3000); // زيادة الوقت إلى 3 ثوانٍ
         return () => clearInterval(interval);
     }, [scanning]);
 
