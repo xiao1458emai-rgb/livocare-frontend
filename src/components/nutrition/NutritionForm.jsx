@@ -2,10 +2,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import axiosInstance from "../../services/api";  // ✅ أضف هذا السطر
 import NutritionAnalytics from '../Analytics/NutritionAnalytics';
 import BarcodeScanner from '../Camera/BarcodeScanner';
 import '../../index.css';
 
+// ... باقي الكود كما هو ...
 // إعداد أنواع الوجبات مع دعم الترجمة
 const getMealTypeChoices = (t) => [
     { value: 'Breakfast', label: `🍳 ${t('nutrition.breakfast')}`, color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' },
