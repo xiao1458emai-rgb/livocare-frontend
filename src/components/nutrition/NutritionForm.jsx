@@ -1,8 +1,8 @@
 // src/components/nutrition/NutritionForm.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from "../../services/api";
+import axios from 'axios';
 import NutritionAnalytics from '../Analytics/NutritionAnalytics';
 import BarcodeScanner from '../Camera/BarcodeScanner';
 import '../../index.css';
@@ -308,12 +308,23 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
     };
 
 
-// ... ثم في handleBarcodeScanned
+
+// ثم استبدل دالة handleBarcodeScanned بهذه النسخة:
 
 const handleBarcodeScanned = async (result) => {
     console.log('📦 Barcode result:', result);
-    const barcodeText = typeof result === 'object' ? result.data || result.text : result;
     
+    // استخراج الباركود من النتيجة
+    let barcodeText = '';
+    if (typeof result === 'object') {
+        if (result.data) barcodeText = result.data;
+        else if (result.text) barcodeText = result.text;
+        else if (result.results && result.results[0]) barcodeText = result.results[0].data;
+    } else {
+        barcodeText = result;
+    }
+    
+    console.log('🔍 Searching for barcode:', barcodeText);
     setIsLoading(true);
     setMessage('');
     
@@ -343,7 +354,9 @@ const handleBarcodeScanned = async (result) => {
                 unit: product.quantity?.includes('g') ? 'غرام' : (product.quantity?.includes('ml') ? 'مل' : 'غرام')
             };
             
-            // إضافة المنتج كعنصر جديد
+            console.log('✅ Product found:', productData.name);
+            
+            // إضافة المنتج كعنصر جديد في foodItems
             setFoodItems(prev => [...prev, {
                 name: productData.name,
                 quantity: '100',
@@ -360,10 +373,12 @@ const handleBarcodeScanned = async (result) => {
                 selectedFood: productData,
                 manualEdit: true
             }]);
+            
             setMessage(`✅ تم العثور على المنتج: ${productData.name}`);
             setMessageType('success');
         } else {
             // إذا لم يتم العثور على المنتج
+            console.log('⚠️ Product not found in Open Food Facts');
             setFoodItems(prev => [...prev, {
                 name: `منتج جديد (${barcodeText.slice(-8)})`,
                 quantity: '100',
@@ -383,8 +398,7 @@ const handleBarcodeScanned = async (result) => {
             setMessageType('info');
         }
     } catch (error) {
-        console.error('Error in barcode search:', error);
-        // في حالة الخطأ، نضيف العنصر فارغاً
+        console.error('❌ Error in barcode search:', error);
         setFoodItems(prev => [...prev, {
             name: `منتج جديد (${barcodeText.slice(-8)})`,
             quantity: '100',
