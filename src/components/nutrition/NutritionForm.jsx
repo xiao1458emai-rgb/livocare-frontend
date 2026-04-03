@@ -1,7 +1,6 @@
 // src/components/nutrition/NutritionForm.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import axiosInstance from "../../services/api";
 import axios from 'axios';
 import NutritionAnalytics from '../Analytics/NutritionAnalytics';
 import BarcodeScanner from '../Camera/BarcodeScanner';
