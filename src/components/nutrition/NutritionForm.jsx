@@ -310,19 +310,63 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
 
 
 
-// ثم استبدل دالة handleBarcodeScanned بهذه النسخة:
-
 const handleBarcodeScanned = async (result) => {
-    console.log('📦 Barcode result:', result);
+    console.log('📦 Barcode result received:', result);
     
-    // استخراج الباركود من النتيجة
+    // ✅ الحالة 1: النتيجة تحتوي على بيانات المنتج الكاملة من الكاميرا
+    if (result && typeof result === 'object' && result.name) {
+        console.log('✅ Using product data directly from camera service');
+        
+        const productData = {
+            name: result.name,
+            calories: result.calories || 0,
+            protein: result.protein || 0,
+            carbs: result.carbs || 0,
+            fat: result.fat || 0,
+            barcode: result.barcode,
+            unit: result.unit || 'غرام'
+        };
+        
+        // إضافة المنتج كعنصر جديد في foodItems
+        setFoodItems(prev => [...prev, {
+            name: productData.name,
+            quantity: '100',
+            unit: productData.unit,
+            calories: productData.calories.toString(),
+            protein: productData.protein.toString(),
+            carbs: productData.carbs.toString(),
+            fat: productData.fat.toString(),
+            barcode: productData.barcode,
+            isSearching: false,
+            searchResults: [],
+            showResults: false,
+            selectedFood: productData,
+            manualEdit: true
+        }]);
+        
+        setMessage(`✅ تم إضافة المنتج: ${productData.name}`);
+        setMessageType('success');
+        setIsLoading(false);
+        setShowScanner(false);
+        setTimeout(() => setMessage(''), 5000);
+        return;
+    }
+    
+    // ✅ الحالة 2: النتيجة تحتوي فقط على باركود (نص)
     let barcodeText = '';
     if (typeof result === 'object') {
-        if (result.data) barcodeText = result.data;
-        else if (result.text) barcodeText = result.text;
-        else if (result.results && result.results[0]) barcodeText = result.results[0].data;
-    } else {
+        barcodeText = result.data || result.text || '';
+    } else if (typeof result === 'string') {
         barcodeText = result;
+    }
+    
+    if (!barcodeText) {
+        console.error('❌ No barcode text found');
+        setMessage('⚠️ لم يتم التعرف على الباركود');
+        setMessageType('error');
+        setIsLoading(false);
+        setShowScanner(false);
+        return;
     }
     
     console.log('🔍 Searching for barcode:', barcodeText);
@@ -330,11 +374,8 @@ const handleBarcodeScanned = async (result) => {
     setMessage('');
     
     try {
-        // ✅ استخدام axios العادي للاتصال بـ Open Food Facts
+        // البحث في Open Food Facts
         const offResponse = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcodeText}.json`, {
-            headers: {
-                'User-Agent': 'LivocareApp/1.0 (https://livocare.onrender.com)'
-            },
             timeout: 10000
         });
         
@@ -355,9 +396,6 @@ const handleBarcodeScanned = async (result) => {
                 unit: product.quantity?.includes('g') ? 'غرام' : (product.quantity?.includes('ml') ? 'مل' : 'غرام')
             };
             
-            console.log('✅ Product found:', productData.name);
-            
-            // إضافة المنتج كعنصر جديد في foodItems
             setFoodItems(prev => [...prev, {
                 name: productData.name,
                 quantity: '100',
@@ -378,8 +416,7 @@ const handleBarcodeScanned = async (result) => {
             setMessage(`✅ تم العثور على المنتج: ${productData.name}`);
             setMessageType('success');
         } else {
-            // إذا لم يتم العثور على المنتج
-            console.log('⚠️ Product not found in Open Food Facts');
+            // المنتج غير موجود في قاعدة البيانات
             setFoodItems(prev => [...prev, {
                 name: `منتج جديد (${barcodeText.slice(-8)})`,
                 quantity: '100',
@@ -395,7 +432,7 @@ const handleBarcodeScanned = async (result) => {
                 selectedFood: null,
                 manualEdit: true
             }]);
-            setMessage(`⚠️ المنتج (${barcodeText}) غير موجود في قاعدة البيانات، الرجاء إدخال البيانات يدوياً`);
+            setMessage(`⚠️ المنتج (${barcodeText}) غير موجود، الرجاء إدخال البيانات يدوياً`);
             setMessageType('info');
         }
     } catch (error) {
@@ -415,7 +452,7 @@ const handleBarcodeScanned = async (result) => {
             selectedFood: null,
             manualEdit: true
         }]);
-        setMessage('⚠️ حدث خطأ في البحث عن المنتج، الرجاء إدخال البيانات يدوياً');
+        setMessage('⚠️ حدث خطأ في البحث عن المنتج');
         setMessageType('error');
     } finally {
         setIsLoading(false);
