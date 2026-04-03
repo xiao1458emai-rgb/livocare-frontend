@@ -1,5 +1,6 @@
 // src/components/nutrition/NutritionForm.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from "../../services/api";
 import NutritionAnalytics from '../Analytics/NutritionAnalytics';
@@ -306,74 +307,63 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    const handleBarcodeScanned = async (result) => {
-        console.log('📦 Barcode result:', result);
-        const barcodeText = typeof result === 'object' ? result.data || result.text : result;
+
+// ... ثم في handleBarcodeScanned
+
+const handleBarcodeScanned = async (result) => {
+    console.log('📦 Barcode result:', result);
+    const barcodeText = typeof result === 'object' ? result.data || result.text : result;
+    
+    setIsLoading(true);
+    setMessage('');
+    
+    try {
+        // ✅ استخدام axios العادي للاتصال بـ Open Food Facts
+        const offResponse = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcodeText}.json`, {
+            headers: {
+                'User-Agent': 'LivocareApp/1.0 (https://livocare.onrender.com)'
+            },
+            timeout: 10000
+        });
         
-        setIsLoading(true);
-        setMessage('');
+        console.log('📡 Open Food Facts response:', offResponse.data);
         
-        try {
-            // محاولة البحث في Open Food Facts
-            const offResponse = await axiosInstance.get(`https://world.openfoodfacts.org/api/v0/product/${barcodeText}.json`);
+        if (offResponse.data.status === 1) {
+            const product = offResponse.data.product;
+            const nutriments = product.nutriments || {};
             
-            if (offResponse.data.status === 1) {
-                const product = offResponse.data.product;
-                const nutriments = product.nutriments || {};
-                
-                const productData = {
-                    name: product.product_name || product.generic_name || `منتج (${barcodeText.slice(-8)})`,
-                    calories: nutriments['energy-kcal'] || nutriments.energy || 0,
-                    protein: nutriments.proteins || 0,
-                    carbs: nutriments.carbohydrates || 0,
-                    fat: nutriments.fat || 0,
-                    barcode: barcodeText,
-                    brand: product.brands,
-                    unit: product.quantity?.includes('g') ? 'غرام' : (product.quantity?.includes('ml') ? 'مل' : 'غرام')
-                };
-                
-                // إضافة المنتج كعنصر جديد
-                setFoodItems(prev => [...prev, {
-                    name: productData.name,
-                    quantity: '100',
-                    unit: productData.unit || 'غرام',
-                    calories: productData.calories.toString(),
-                    protein: productData.protein.toString(),
-                    carbs: productData.carbs.toString(),
-                    fat: productData.fat.toString(),
-                    barcode: barcodeText,
-                    brand: productData.brand,
-                    isSearching: false,
-                    searchResults: [],
-                    showResults: false,
-                    selectedFood: productData,
-                    manualEdit: true
-                }]);
-                setMessage(`✅ تم العثور على المنتج: ${productData.name}`);
-                setMessageType('success');
-            } else {
-                // إذا لم يتم العثور على المنتج
-                setFoodItems(prev => [...prev, {
-                    name: `منتج جديد (${barcodeText.slice(-8)})`,
-                    quantity: '100',
-                    unit: 'غرام',
-                    calories: '',
-                    protein: '',
-                    carbs: '',
-                    fat: '',
-                    barcode: barcodeText,
-                    isSearching: false,
-                    searchResults: [],
-                    showResults: false,
-                    selectedFood: null,
-                    manualEdit: true
-                }]);
-                setMessage('⚠️ المنتج غير موجود في قاعدة البيانات، الرجاء إدخال البيانات يدوياً');
-                setMessageType('info');
-            }
-        } catch (error) {
-            console.error('Error in barcode search:', error);
-            // في حالة الخطأ، نضيف العنصر فارغاً
+            const productData = {
+                name: product.product_name || product.generic_name || `منتج (${barcodeText.slice(-8)})`,
+                calories: nutriments['energy-kcal'] || nutriments.energy || 0,
+                protein: nutriments.proteins || 0,
+                carbs: nutriments.carbohydrates || 0,
+                fat: nutriments.fat || 0,
+                barcode: barcodeText,
+                brand: product.brands,
+                unit: product.quantity?.includes('g') ? 'غرام' : (product.quantity?.includes('ml') ? 'مل' : 'غرام')
+            };
+            
+            // إضافة المنتج كعنصر جديد
+            setFoodItems(prev => [...prev, {
+                name: productData.name,
+                quantity: '100',
+                unit: productData.unit || 'غرام',
+                calories: productData.calories.toString(),
+                protein: productData.protein.toString(),
+                carbs: productData.carbs.toString(),
+                fat: productData.fat.toString(),
+                barcode: barcodeText,
+                brand: productData.brand,
+                isSearching: false,
+                searchResults: [],
+                showResults: false,
+                selectedFood: productData,
+                manualEdit: true
+            }]);
+            setMessage(`✅ تم العثور على المنتج: ${productData.name}`);
+            setMessageType('success');
+        } else {
+            // إذا لم يتم العثور على المنتج
             setFoodItems(prev => [...prev, {
                 name: `منتج جديد (${barcodeText.slice(-8)})`,
                 quantity: '100',
@@ -389,14 +379,35 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 selectedFood: null,
                 manualEdit: true
             }]);
-            setMessage('⚠️ حدث خطأ في البحث عن المنتج، الرجاء إدخال البيانات يدوياً');
-            setMessageType('error');
-        } finally {
-            setIsLoading(false);
-            setTimeout(() => setMessage(''), 5000);
-            setShowScanner(false);
+            setMessage(`⚠️ المنتج (${barcodeText}) غير موجود في قاعدة البيانات، الرجاء إدخال البيانات يدوياً`);
+            setMessageType('info');
         }
-    };
+    } catch (error) {
+        console.error('Error in barcode search:', error);
+        // في حالة الخطأ، نضيف العنصر فارغاً
+        setFoodItems(prev => [...prev, {
+            name: `منتج جديد (${barcodeText.slice(-8)})`,
+            quantity: '100',
+            unit: 'غرام',
+            calories: '',
+            protein: '',
+            carbs: '',
+            fat: '',
+            barcode: barcodeText,
+            isSearching: false,
+            searchResults: [],
+            showResults: false,
+            selectedFood: null,
+            manualEdit: true
+        }]);
+        setMessage('⚠️ حدث خطأ في البحث عن المنتج، الرجاء إدخال البيانات يدوياً');
+        setMessageType('error');
+    } finally {
+        setIsLoading(false);
+        setTimeout(() => setMessage(''), 5000);
+        setShowScanner(false);
+    }
+};
 
     const handleUpdateMeal = async (e) => {
         e.preventDefault();
