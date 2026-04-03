@@ -2,12 +2,85 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
+import axiosInstance from '../../services/api';
 
 const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     const webcamRef = useRef(null);
     const [scanning, setScanning] = useState(true);
     const [error, setError] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+    // ✅ دالة لتحليل الصورة واستخراج الباركود
+    const analyzeImage = async (imageSrc) => {
+        // ✅ في التطوير المحلي، يمكن استخدام خدمة خارجية لتحليل الباركود
+        // أو استخدام مكتبة jsQR مباشرة
+        
+        // ✅ للتبسيط، سنستخدم مكتبة jsQR في المتصفح
+        // لكن هذا يتطلب تحويل الصورة إلى Canvas
+        
+        try {
+            // إنشاء عنصر Image لتحميل الصورة
+            const img = new Image();
+            img.src = imageSrc;
+            
+            await new Promise((resolve) => {
+                img.onload = resolve;
+            });
+            
+            // إنشاء Canvas لتحليل الصورة
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, img.width, img.height);
+            
+            // الحصول على بيانات الصورة
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // ✅ استخدام jsQR لتحليل الباركود
+            // تأكد من تثبيت المكتبة: npm install jsqr
+            const jsQR = await import('jsqr').then(module => module.default);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            
+            if (code && code.data) {
+                console.log('✅ Barcode detected:', code.data);
+                return code.data;
+            }
+            
+            return null;
+        } catch (err) {
+            console.error('Error analyzing image:', err);
+            return null;
+        }
+    };
+
+    // ✅ دالة البحث عن المنتج باستخدام الباركود
+    const searchProductByBarcode = async (barcode) => {
+        try {
+            // ✅ البحث في Open Food Facts API
+            const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+            
+            if (response.data.status === 1) {
+                const product = response.data.product;
+                const nutriments = product.nutriments || {};
+                
+                return {
+                    name: product.product_name || product.generic_name || `منتج (${barcode.slice(-8)})`,
+                    calories: nutriments['energy-kcal'] || nutriments.energy || 0,
+                    protein: nutriments.proteins || 0,
+                    carbs: nutriments.carbohydrates || 0,
+                    fat: nutriments.fat || 0,
+                    barcode: barcode,
+                    brand: product.brands,
+                    unit: product.quantity?.includes('g') ? 'غرام' : (product.quantity?.includes('ml') ? 'مل' : 'غرام')
+                };
+            }
+            return null;
+        } catch (err) {
+            console.error('Error searching product:', err);
+            return null;
+        }
+    };
 
     // دالة التقاط الصورة وتحليلها
     const captureAndAnalyze = async () => {
@@ -20,32 +93,36 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
             const imageSrc = webcamRef.current.getScreenshot();
             
             if (imageSrc) {
-                const token = localStorage.getItem('access_token');
-                
                 console.log('📸 Capturing image for analysis...');
                 
-                // إرسال الصورة للـ backend
-                const response = await axios.post(
-                    '/api/scan-barcode/',
-                    { image: imageSrc },
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        },
-                        timeout: 15000
-                    }
-                );
+                // ✅ تحليل الصورة لاستخراج الباركود
+                const barcode = await analyzeImage(imageSrc);
                 
-                console.log('📡 Server response:', response.data);
-                
-                if (response.data.success && response.data.results && response.data.results.length > 0) {
-                    console.log('✅ Barcode detected:', response.data.results[0]);
+                if (barcode) {
+                    console.log('✅ Barcode detected:', barcode);
                     setScanning(false);
                     
-                    // استدعاء دالة onScan مع النتيجة
-                    if (onScan && typeof onScan === 'function') {
-                        onScan(response.data.results[0].data);
+                    // ✅ البحث عن المنتج باستخدام الباركود
+                    const product = await searchProductByBarcode(barcode);
+                    
+                    if (product) {
+                        console.log('✅ Product found:', product);
+                        if (onScan && typeof onScan === 'function') {
+                            onScan(product);
+                        }
+                    } else {
+                        // إذا لم يتم العثور على المنتج
+                        if (onScan && typeof onScan === 'function') {
+                            onScan({
+                                name: `منتج جديد (${barcode.slice(-8)})`,
+                                calories: 0,
+                                protein: 0,
+                                carbs: 0,
+                                fat: 0,
+                                barcode: barcode,
+                                unit: 'غرام'
+                            });
+                        }
                     }
                     
                     // إغلاق الماسح بعد نصف ثانية
@@ -56,15 +133,7 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
             }
         } catch (err) {
             console.error('❌ Error scanning:', err);
-            
-            let errorMessage = 'فشل في الاتصال بالخادم';
-            if (err.response) {
-                errorMessage = err.response.data?.message || 'خطأ في الخادم';
-            } else if (err.request) {
-                errorMessage = 'لا يمكن الاتصال بالخادم. تأكد من تشغيل الخادم';
-            }
-            
-            setError(errorMessage);
+            setError('حدث خطأ في مسح الباركود');
             setTimeout(() => setError(null), 3000);
         } finally {
             setIsAnalyzing(false);
@@ -88,7 +157,7 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                 {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b">
                     <h3 className="font-bold text-lg">
-                        📷 مسح الباركود والـ QR Code
+                        📷 مسح الباركود
                     </h3>
                     <button 
                         onClick={onClose} 
