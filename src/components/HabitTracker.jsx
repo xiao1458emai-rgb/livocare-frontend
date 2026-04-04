@@ -208,43 +208,74 @@ const handleProductFound = async (result) => {
         
         setLoading(true);
         
+        // ✅ التحقق من أن الباركود قد يكون NDC صالحاً
+        // NDC عادة 10 أرقام (قد تكون 11 مع check digit)
+        const isValidNDC = (code) => {
+            // إزالة الشرطات
+            const cleanCode = code.replace(/-/g, '');
+            // NDC عادة 10 أو 11 رقم
+            return cleanCode.length === 10 || cleanCode.length === 11;
+        };
+        
         try {
-            // ✅ البحث في openFDA عن الأدوية باستخدام الباركود (NDC)
-            // تنسيق NDC: عادة 10 أرقام (مثل 0312345678906)
-            // نحتاج إلى تنسيقه بشكل صحيح: XX-XXX-XXXX
-            let formattedNDC = barcode;
+            let drugData = null;
             
-            // تنسيق NDC إذا كان 10 أرقام
-            if (barcode.length === 10 && !barcode.includes('-')) {
-                formattedNDC = `${barcode.slice(0, 2)}-${barcode.slice(2, 5)}-${barcode.slice(5)}`;
+            // ✅ محاولة تنسيق الباركود كـ NDC
+            let cleanBarcode = barcode.replace(/-/g, '');
+            
+            // إذا كان الباركود 13 رقم (EAN-13)، فقد يحتوي على NDC داخله
+            if (cleanBarcode.length === 13) {
+                // بعض الأدوية تستخدم 10 أرقام من الباركود
+                cleanBarcode = cleanBarcode.slice(0, 10);
             }
             
-            // ✅ البحث في openFDA NDC Directory
-            const response = await axios.get(
-                `https://api.fda.gov/drug/ndc.json?search=product_ndc:"${formattedNDC}"`,
-                {
-                    timeout: 10000,
-                    params: {
-                        limit: 5
-                    }
-                }
-            );
-            
-            console.log('📡 openFDA response:', response.data);
-            
-            if (response.data && response.data.results && response.data.results.length > 0) {
-                const drug = response.data.results[0];
-                const openfda = drug.openfda || {};
+            // تنسيق NDC: XX-XXX-XXXX
+            if (cleanBarcode.length === 10 && !cleanBarcode.includes('-')) {
+                const formattedNDC = `${cleanBarcode.slice(0, 2)}-${cleanBarcode.slice(2, 5)}-${cleanBarcode.slice(5)}`;
+                console.log('📊 Formatted NDC:', formattedNDC);
                 
-                // استخراج بيانات الدواء
+                try {
+                    const response = await axios.get(
+                        `https://api.fda.gov/drug/ndc.json?search=product_ndc:"${formattedNDC}"`,
+                        {
+                            timeout: 10000,
+                            params: { limit: 5 }
+                        }
+                    );
+                    
+                    if (response.data && response.data.results && response.data.results.length > 0) {
+                        drugData = response.data.results[0];
+                    }
+                } catch (e) {
+                    console.log('No results for formatted NDC');
+                }
+            }
+            
+            // ✅ إذا لم نجد نتائج، نحاول البحث باسم عام
+            if (!drugData) {
+                // محاولة البحث بالباركود كرقم
+                const response = await axios.get(
+                    `https://api.fda.gov/drug/ndc.json?search=product_ndc:"${cleanBarcode}"`,
+                    {
+                        timeout: 10000,
+                        params: { limit: 5 }
+                    }
+                );
+                
+                if (response.data && response.data.results && response.data.results.length > 0) {
+                    drugData = response.data.results[0];
+                }
+            }
+            
+            if (drugData) {
+                const openfda = drugData.openfda || {};
+                
                 const drugName = openfda.brand_name?.[0] || openfda.generic_name?.[0] || `دواء (${barcode.slice(-8)})`;
                 const genericName = openfda.generic_name?.[0] || '';
                 const manufacturer = openfda.manufacturer_name?.[0] || '';
-                const route = drug.route?.[0] || '';
-                const dosageForm = drug.dosage_form?.[0] || '';
-                const productType = drug.product_type_name || '';
+                const route = drugData.route?.[0] || '';
+                const dosageForm = drugData.dosage_form?.[0] || '';
                 
-                // تعبئة النموذج بالبيانات
                 setNewHabitName(drugName);
                 
                 const descriptionParts = [];
@@ -252,15 +283,13 @@ const handleProductFound = async (result) => {
                 if (manufacturer) descriptionParts.push(`🏭 الشركة: ${manufacturer}`);
                 if (route) descriptionParts.push(`💉 طريقة الاستخدام: ${route}`);
                 if (dosageForm) descriptionParts.push(`📦 الشكل الصيدلاني: ${dosageForm}`);
-                if (productType) descriptionParts.push(`📋 النوع: ${productType}`);
                 if (barcode) descriptionParts.push(`🔢 الباركود: ${barcode}`);
                 
                 setNewHabitDescription(descriptionParts.join(' | '));
-                
                 setMessage(`✅ تم العثور على الدواء: ${drugName}`);
                 setIsError(false);
             } else {
-                // الدواء غير موجود في openFDA
+                // الدواء غير موجود
                 console.log('⚠️ Medicine not found in openFDA');
                 setNewHabitName(`دواء جديد (${barcode.slice(-8)})`);
                 setNewHabitDescription(`🔢 الباركود: ${barcode}\n\n⚠️ هذا الدواء غير موجود في قاعدة بيانات FDA.\nيمكنك إدخال بياناته يدوياً أدناه.`);
