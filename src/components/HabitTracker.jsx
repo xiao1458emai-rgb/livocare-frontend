@@ -197,86 +197,104 @@ function HabitTracker({ isAuthReady }) {
     }, []);
 
 // في HabitTracker.jsx، استبدل دالة handleProductFound بهذه النسخة:
+// في HabitTracker.jsx، استبدل دالة handleProductFound بهذه النسخة:
 
 const handleProductFound = async (result) => {
-    console.log('📦 Product found from barcode:', result);
+    console.log('📦 Barcode result from medicine:', result);
     
-    // ✅ إذا كانت النتيجة باركود (نص)
     if (typeof result === 'string' && result.length > 0) {
         const barcode = result;
-        console.log('🔍 Searching for barcode:', barcode);
+        console.log('🔍 Searching for medicine in openFDA:', barcode);
         
         setLoading(true);
         
         try {
-            // ✅ البحث في Open Food Facts
-            const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
-                timeout: 10000
-            });
+            // ✅ البحث في openFDA عن الأدوية باستخدام الباركود (NDC)
+            // تنسيق NDC: عادة 10 أرقام (مثل 0312345678906)
+            // نحتاج إلى تنسيقه بشكل صحيح: XX-XXX-XXXX
+            let formattedNDC = barcode;
             
-            console.log('📡 Open Food Facts response:', response.data);
+            // تنسيق NDC إذا كان 10 أرقام
+            if (barcode.length === 10 && !barcode.includes('-')) {
+                formattedNDC = `${barcode.slice(0, 2)}-${barcode.slice(2, 5)}-${barcode.slice(5)}`;
+            }
             
-            if (response.data.status === 1) {
-                const product = response.data.product;
-                const nutriments = product.nutriments || {};
+            // ✅ البحث في openFDA NDC Directory
+            const response = await axios.get(
+                `https://api.fda.gov/drug/ndc.json?search=product_ndc:"${formattedNDC}"`,
+                {
+                    timeout: 10000,
+                    params: {
+                        limit: 5
+                    }
+                }
+            );
+            
+            console.log('📡 openFDA response:', response.data);
+            
+            if (response.data && response.data.results && response.data.results.length > 0) {
+                const drug = response.data.results[0];
+                const openfda = drug.openfda || {};
                 
-                const productName = product.product_name || product.generic_name || `منتج (${barcode.slice(-8)})`;
-                const calories = nutriments['energy-kcal'] || nutriments.energy || 0;
-                const protein = nutriments.proteins || 0;
-                const carbs = nutriments.carbohydrates || 0;
-                const fat = nutriments.fat || 0;
+                // استخراج بيانات الدواء
+                const drugName = openfda.brand_name?.[0] || openfda.generic_name?.[0] || `دواء (${barcode.slice(-8)})`;
+                const genericName = openfda.generic_name?.[0] || '';
+                const manufacturer = openfda.manufacturer_name?.[0] || '';
+                const route = drug.route?.[0] || '';
+                const dosageForm = drug.dosage_form?.[0] || '';
+                const productType = drug.product_type_name || '';
                 
                 // تعبئة النموذج بالبيانات
-                setNewHabitName(productName);
+                setNewHabitName(drugName);
                 
                 const descriptionParts = [];
-                if (product.brands) descriptionParts.push(`🏭 ${product.brands}`);
-                if (calories) descriptionParts.push(`🔥 ${calories} ${t('habits.calories')}`);
-                if (protein) descriptionParts.push(`💪 ${protein}g ${t('habits.protein')}`);
-                if (carbs) descriptionParts.push(`🌾 ${carbs}g ${t('habits.carbs')}`);
-                if (fat) descriptionParts.push(`🫒 ${fat}g ${t('habits.fat')}`);
+                if (genericName) descriptionParts.push(`💊 الاسم العلمي: ${genericName}`);
+                if (manufacturer) descriptionParts.push(`🏭 الشركة: ${manufacturer}`);
+                if (route) descriptionParts.push(`💉 طريقة الاستخدام: ${route}`);
+                if (dosageForm) descriptionParts.push(`📦 الشكل الصيدلاني: ${dosageForm}`);
+                if (productType) descriptionParts.push(`📋 النوع: ${productType}`);
+                if (barcode) descriptionParts.push(`🔢 الباركود: ${barcode}`);
                 
                 setNewHabitDescription(descriptionParts.join(' | '));
                 
-                setMessage(`✅ تم العثور على المنتج: ${productName}`);
+                setMessage(`✅ تم العثور على الدواء: ${drugName}`);
                 setIsError(false);
             } else {
-                // المنتج غير موجود
-                setNewHabitName(`منتج جديد (${barcode.slice(-8)})`);
-                setNewHabitDescription(`الباركود: ${barcode}\nالرجاء إدخال البيانات يدوياً`);
-                setMessage(`⚠️ المنتج (${barcode}) غير موجود، الرجاء إدخال البيانات يدوياً`);
+                // الدواء غير موجود في openFDA
+                console.log('⚠️ Medicine not found in openFDA');
+                setNewHabitName(`دواء جديد (${barcode.slice(-8)})`);
+                setNewHabitDescription(`🔢 الباركود: ${barcode}\n\n⚠️ هذا الدواء غير موجود في قاعدة بيانات FDA.\nيمكنك إدخال بياناته يدوياً أدناه.`);
+                setMessage(`⚠️ الدواء (${barcode}) غير موجود في قاعدة البيانات.\n✓ تم إنشاء منتج جديد، يمكنك إدخال البيانات يدوياً`);
                 setIsError(true);
             }
         } catch (error) {
-            console.error('❌ Error searching product:', error);
-            setNewHabitName(`منتج جديد (${barcode.slice(-8)})`);
-            setNewHabitDescription(`الباركود: ${barcode}\nحدث خطأ في البحث، الرجاء إدخال البيانات يدوياً`);
-            setMessage('⚠️ حدث خطأ في البحث عن المنتج');
+            console.error('❌ Error searching openFDA:', error);
+            setNewHabitName(`دواء جديد (${barcode.slice(-8)})`);
+            setNewHabitDescription(`🔢 الباركود: ${barcode}\n\n❌ حدث خطأ في الاتصال بقاعدة بيانات FDA.\nالرجاء إدخال البيانات يدوياً.`);
+            setMessage('⚠️ حدث خطأ في البحث عن الدواء، تم إنشاء منتج جديد');
             setIsError(true);
         } finally {
             setLoading(false);
             setTimeout(() => {
                 setShowScanner(false);
-            }, 2000);
+            }, 3000);
         }
         return;
     }
     
-    // ✅ إذا كانت النتيجة كائنًا (بيانات كاملة)
+    // ✅ إذا كانت النتيجة كائنًا (بيانات كاملة من الكاميرا)
     if (result && typeof result === 'object') {
-        const productName = result.name || `منتج جديد`;
-        setNewHabitName(productName);
+        const medicineName = result.name || `دواء جديد`;
+        setNewHabitName(medicineName);
         
         const descriptionParts = [];
         if (result.brand) descriptionParts.push(`🏭 ${result.brand}`);
-        if (result.calories) descriptionParts.push(`🔥 ${result.calories} ${t('habits.calories')}`);
-        if (result.protein) descriptionParts.push(`💪 ${result.protein}g ${t('habits.protein')}`);
-        if (result.carbs) descriptionParts.push(`🌾 ${result.carbs}g ${t('habits.carbs')}`);
-        if (result.fat) descriptionParts.push(`🫒 ${result.fat}g ${t('habits.fat')}`);
+        if (result.generic_name) descriptionParts.push(`💊 ${result.generic_name}`);
+        if (result.route) descriptionParts.push(`💉 ${result.route}`);
         
         setNewHabitDescription(descriptionParts.join(' | '));
         
-        setMessage(`✅ تم العثور على المنتج: ${productName}`);
+        setMessage(`✅ تم العثور على الدواء: ${medicineName}`);
         setIsError(false);
         
         setTimeout(() => {
