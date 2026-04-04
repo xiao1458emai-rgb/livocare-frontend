@@ -1,6 +1,7 @@
 // src/components/HabitTracker.jsx
 'use client'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import HabitAnalytics from './Analytics/HabitAnalytics';
@@ -195,27 +196,94 @@ function HabitTracker({ isAuthReady }) {
         };
     }, []);
 
-    const handleProductFound = (product) => {
-        if (product) {
-            setNewHabitName(product.name);
+// في HabitTracker.jsx، استبدل دالة handleProductFound بهذه النسخة:
+
+const handleProductFound = async (result) => {
+    console.log('📦 Product found from barcode:', result);
+    
+    // ✅ إذا كانت النتيجة باركود (نص)
+    if (typeof result === 'string' && result.length > 0) {
+        const barcode = result;
+        console.log('🔍 Searching for barcode:', barcode);
+        
+        setLoading(true);
+        
+        try {
+            // ✅ البحث في Open Food Facts
+            const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
+                timeout: 10000
+            });
             
-            const descriptionParts = [];
-            if (product.brand) descriptionParts.push(product.brand);
-            if (product.calories) descriptionParts.push(`${t('habits.calories')}: ${product.calories} ${t('habits.per100g')}`);
-            if (product.protein) descriptionParts.push(`${t('habits.protein')}: ${product.protein}g`);
-            if (product.carbs) descriptionParts.push(`${t('habits.carbs')}: ${product.carbs}g`);
-            if (product.fat) descriptionParts.push(`${t('habits.fat')}: ${product.fat}g`);
+            console.log('📡 Open Food Facts response:', response.data);
             
-            setNewHabitDescription(descriptionParts.join(' | '));
-            
-            setMessage(t('habits.scanSuccess', { name: product.name }));
-            setIsError(false);
-            
+            if (response.data.status === 1) {
+                const product = response.data.product;
+                const nutriments = product.nutriments || {};
+                
+                const productName = product.product_name || product.generic_name || `منتج (${barcode.slice(-8)})`;
+                const calories = nutriments['energy-kcal'] || nutriments.energy || 0;
+                const protein = nutriments.proteins || 0;
+                const carbs = nutriments.carbohydrates || 0;
+                const fat = nutriments.fat || 0;
+                
+                // تعبئة النموذج بالبيانات
+                setNewHabitName(productName);
+                
+                const descriptionParts = [];
+                if (product.brands) descriptionParts.push(`🏭 ${product.brands}`);
+                if (calories) descriptionParts.push(`🔥 ${calories} ${t('habits.calories')}`);
+                if (protein) descriptionParts.push(`💪 ${protein}g ${t('habits.protein')}`);
+                if (carbs) descriptionParts.push(`🌾 ${carbs}g ${t('habits.carbs')}`);
+                if (fat) descriptionParts.push(`🫒 ${fat}g ${t('habits.fat')}`);
+                
+                setNewHabitDescription(descriptionParts.join(' | '));
+                
+                setMessage(`✅ تم العثور على المنتج: ${productName}`);
+                setIsError(false);
+            } else {
+                // المنتج غير موجود
+                setNewHabitName(`منتج جديد (${barcode.slice(-8)})`);
+                setNewHabitDescription(`الباركود: ${barcode}\nالرجاء إدخال البيانات يدوياً`);
+                setMessage(`⚠️ المنتج (${barcode}) غير موجود، الرجاء إدخال البيانات يدوياً`);
+                setIsError(true);
+            }
+        } catch (error) {
+            console.error('❌ Error searching product:', error);
+            setNewHabitName(`منتج جديد (${barcode.slice(-8)})`);
+            setNewHabitDescription(`الباركود: ${barcode}\nحدث خطأ في البحث، الرجاء إدخال البيانات يدوياً`);
+            setMessage('⚠️ حدث خطأ في البحث عن المنتج');
+            setIsError(true);
+        } finally {
+            setLoading(false);
             setTimeout(() => {
                 setShowScanner(false);
             }, 2000);
         }
-    };
+        return;
+    }
+    
+    // ✅ إذا كانت النتيجة كائنًا (بيانات كاملة)
+    if (result && typeof result === 'object') {
+        const productName = result.name || `منتج جديد`;
+        setNewHabitName(productName);
+        
+        const descriptionParts = [];
+        if (result.brand) descriptionParts.push(`🏭 ${result.brand}`);
+        if (result.calories) descriptionParts.push(`🔥 ${result.calories} ${t('habits.calories')}`);
+        if (result.protein) descriptionParts.push(`💪 ${result.protein}g ${t('habits.protein')}`);
+        if (result.carbs) descriptionParts.push(`🌾 ${result.carbs}g ${t('habits.carbs')}`);
+        if (result.fat) descriptionParts.push(`🫒 ${result.fat}g ${t('habits.fat')}`);
+        
+        setNewHabitDescription(descriptionParts.join(' | '));
+        
+        setMessage(`✅ تم العثور على المنتج: ${productName}`);
+        setIsError(false);
+        
+        setTimeout(() => {
+            setShowScanner(false);
+        }, 2000);
+    }
+};
 
     const handleAddDefinition = async (e) => {
         e.preventDefault();
