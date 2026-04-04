@@ -56,6 +56,7 @@ function HabitTracker({ isAuthReady }) {
     const [userPoints, setUserPoints] = useState(0);
     const [weeklyPoints, setWeeklyPoints] = useState(0);
     const [streakDays, setStreakDays] = useState(0);
+    const [todayLogs, setTodayLogs] = useState([]);
 
     // تحميل إعدادات الوضع المظلم
     useEffect(() => {
@@ -80,17 +81,24 @@ function HabitTracker({ isAuthReady }) {
         setLoading(true);
         
         try {
+            // جلب تعريفات العادات
             const response = await axiosInstance.get('/habit-definitions/');
             const definitionsData = Array.isArray(response.data) ? response.data : 
-                                   (response.data?.data ? response.data.data : []);
+                                   (response.data?.results ? response.data.results : []);
             
+            // جلب سجلات العادات
             const logResponse = await axiosInstance.get('/habit-logs/');
             const logsData = Array.isArray(logResponse.data) ? logResponse.data : 
-                            (logResponse.data?.data ? logResponse.data.data : []);
+                            (logResponse.data?.results ? logResponse.data.results : []);
+            
+            // جلب سجلات اليوم
+            const todayResponse = await axiosInstance.get('/habit-logs/today/');
+            const todayData = Array.isArray(todayResponse.data) ? todayResponse.data : [];
             
             if (isMountedRef.current) {
                 setDefinitions(definitionsData);
                 setLogs(logsData);
+                setTodayLogs(todayData);
             }
         } catch (error) {
             console.error('Failed to fetch habits:', error);
@@ -103,6 +111,7 @@ function HabitTracker({ isAuthReady }) {
                 setIsError(true);
                 setDefinitions([]);
                 setLogs([]);
+                setTodayLogs([]);
             }
         } finally {
             if (isMountedRef.current) {
@@ -119,24 +128,21 @@ function HabitTracker({ isAuthReady }) {
         } else {
             setDefinitions([]);
             setLogs([]);
+            setTodayLogs([]);
         }
     }, [isAuthReady, fetchHabitDefinitions]);
 
-    // ✅ حساب النقاط والسلسلة المتتالية - مع useMemo
+    // ✅ حساب النقاط والسلسلة المتتالية
     useEffect(() => {
         if (logs.length === 0) return;
         
-        // حساب نقاط اليوم
-        const today = new Date().toDateString();
-        const todayLogs = logs.filter(log => {
-            const logDate = new Date(log.log_date).toDateString();
-            return logDate === today;
-        });
-        
+        // حساب نقاط اليوم من todayLogs
         const todayPoints = todayLogs.reduce((sum, log) => {
-            const habit = definitions.find(d => d.id === log.habit);
-            if (habit && log.is_completed) {
-                return sum + calculatePoints(habit.name, true);
+            if (log.is_completed) {
+                const habit = definitions.find(d => d.id === log.habit?.id || d.id === log.habit);
+                if (habit) {
+                    return sum + calculatePoints(habit.name, true);
+                }
             }
             return sum;
         }, 0);
@@ -148,7 +154,7 @@ function HabitTracker({ isAuthReady }) {
         const weekPoints = logs.reduce((sum, log) => {
             const logDate = new Date(log.log_date);
             if (logDate >= weekAgo && log.is_completed) {
-                const habit = definitions.find(d => d.id === log.habit);
+                const habit = definitions.find(d => d.id === log.habit?.id || d.id === log.habit);
                 if (habit) {
                     return sum + calculatePoints(habit.name, true);
                 }
@@ -179,7 +185,7 @@ function HabitTracker({ isAuthReady }) {
         }
         
         setStreakDays(streak);
-    }, [logs, definitions]);
+    }, [logs, definitions, todayLogs]);
 
     // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
@@ -244,6 +250,7 @@ function HabitTracker({ isAuthReady }) {
             await axiosInstance.post('/habit-definitions/', { 
                 name: newHabitName.trim(), 
                 description: newHabitDescription.trim(),
+                frequency: 'Daily'
             });
             
             setMessage(t('habits.addSuccess', { name: newHabitName }));
@@ -268,7 +275,7 @@ function HabitTracker({ isAuthReady }) {
             return;
         }
         
-        const existingLog = logs.find(log => log.habit === habitId);
+        const existingLog = todayLogs.find(log => (log.habit?.id || log.habit) === habitId);
         const habit = definitions.find(d => d.id === habitId);
         
         setLoading(true);
@@ -276,14 +283,15 @@ function HabitTracker({ isAuthReady }) {
         setIsError(false);
 
         try {
-            if (existingLog) {
+            if (existingLog && existingLog.id) {
+                // حذف السجل الموجود
                 await axiosInstance.delete(`/habit-logs/${existingLog.id}/`);
                 setMessage(t('habits.logRemoved', { name: habit?.name || '' }));
             } else {
-                await axiosInstance.post('/habit-logs/', {
-                    habit: habitId,
-                    log_date: new Date().toISOString().split('T')[0],
-                    is_completed: true
+                // إنشاء سجل جديد باستخدام endpoint complete
+                await axiosInstance.post('/habit-logs/complete/', {
+                    habit_id: habitId,
+                    notes: ''
                 });
                 
                 const points = calculatePoints(habit?.name || '', true);
@@ -302,11 +310,7 @@ function HabitTracker({ isAuthReady }) {
     };
 
     const safeDefinitions = Array.isArray(definitions) ? definitions : [];
-    const safeLogs = Array.isArray(logs) ? logs : [];
-    
-    const completedToday = safeDefinitions.filter(habit => 
-        safeLogs.some(log => log.habit === habit.id)
-    ).length;
+    const completedToday = todayLogs.filter(log => log.is_completed).length;
 
     const completionPercentage = safeDefinitions.length > 0 
         ? Math.round((completedToday / safeDefinitions.length) * 100) 
@@ -477,7 +481,7 @@ function HabitTracker({ isAuthReady }) {
                             </button>
                         </div>
                         
-                        <BarcodeScanner onProductFound={handleProductFound} />
+                        <BarcodeScanner onScan={handleProductFound} />
                         
                         <div className="scanner-footer">
                             <p>{t('habits.scanInstructions')}</p>
@@ -529,7 +533,8 @@ function HabitTracker({ isAuthReady }) {
                 ) : (
                     <ul className="habit-list">
                         {safeDefinitions.map((habit) => {
-                            const isCompleted = safeLogs.some(log => log.habit === habit.id);
+                            const todayLog = todayLogs.find(log => (log.habit?.id || log.habit) === habit.id);
+                            const isCompleted = todayLog?.is_completed || false;
                             const points = calculatePoints(habit.name, isCompleted);
                             
                             return (
