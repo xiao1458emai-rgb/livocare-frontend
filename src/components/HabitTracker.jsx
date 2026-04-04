@@ -40,7 +40,6 @@ const calculatePoints = (habitName, isCompleted) => {
 function HabitTracker({ isAuthReady }) {
     const { t, i18n } = useTranslation();
     
-    // ✅ useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
     
@@ -58,6 +57,11 @@ function HabitTracker({ isAuthReady }) {
     const [weeklyPoints, setWeeklyPoints] = useState(0);
     const [streakDays, setStreakDays] = useState(0);
     const [todayLogs, setTodayLogs] = useState([]);
+    
+    // ✅ State للبحث عن الأدوية
+    const [drugSearchQuery, setDrugSearchQuery] = useState('');
+    const [drugSearchResults, setDrugSearchResults] = useState([]);
+    const [searchingDrug, setSearchingDrug] = useState(false);
 
     // تحميل إعدادات الوضع المظلم
     useEffect(() => {
@@ -74,7 +78,7 @@ function HabitTracker({ isAuthReady }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // ✅ جلب تعريفات العادات - مع useCallback
+    // ✅ جلب تعريفات العادات
     const fetchHabitDefinitions = useCallback(async () => {
         if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
         
@@ -82,17 +86,14 @@ function HabitTracker({ isAuthReady }) {
         setLoading(true);
         
         try {
-            // جلب تعريفات العادات
             const response = await axiosInstance.get('/habit-definitions/');
             const definitionsData = Array.isArray(response.data) ? response.data : 
                                    (response.data?.results ? response.data.results : []);
             
-            // جلب سجلات العادات
             const logResponse = await axiosInstance.get('/habit-logs/');
             const logsData = Array.isArray(logResponse.data) ? logResponse.data : 
                             (logResponse.data?.results ? logResponse.data.results : []);
             
-            // جلب سجلات اليوم
             const todayResponse = await axiosInstance.get('/habit-logs/today/');
             const todayData = Array.isArray(todayResponse.data) ? todayResponse.data : [];
             
@@ -104,11 +105,7 @@ function HabitTracker({ isAuthReady }) {
         } catch (error) {
             console.error('Failed to fetch habits:', error);
             if (isMountedRef.current) {
-                if (error.response && error.response.status === 401) {
-                    setMessage(t('habits.authError'));
-                } else {
-                    setMessage(t('habits.fetchError'));
-                }
+                setMessage(t('habits.fetchError'));
                 setIsError(true);
                 setDefinitions([]);
                 setLogs([]);
@@ -122,7 +119,6 @@ function HabitTracker({ isAuthReady }) {
         }
     }, [isAuthReady, t]);
 
-    // ✅ جلب البيانات عند تحميل المكون
     useEffect(() => {
         if (isAuthReady) {
             fetchHabitDefinitions();
@@ -137,7 +133,6 @@ function HabitTracker({ isAuthReady }) {
     useEffect(() => {
         if (logs.length === 0) return;
         
-        // حساب نقاط اليوم من todayLogs
         const todayPoints = todayLogs.reduce((sum, log) => {
             if (log.is_completed) {
                 const habit = definitions.find(d => d.id === log.habit?.id || d.id === log.habit);
@@ -148,7 +143,6 @@ function HabitTracker({ isAuthReady }) {
             return sum;
         }, 0);
         
-        // حساب نقاط الأسبوع
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
         
@@ -166,7 +160,6 @@ function HabitTracker({ isAuthReady }) {
         setUserPoints(todayPoints);
         setWeeklyPoints(weekPoints);
         
-        // حساب السلسلة المتتالية
         let streak = 0;
         const checkDate = new Date();
         
@@ -188,7 +181,6 @@ function HabitTracker({ isAuthReady }) {
         setStreakDays(streak);
     }, [logs, definitions, todayLogs]);
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -196,141 +188,151 @@ function HabitTracker({ isAuthReady }) {
         };
     }, []);
 
-// في HabitTracker.jsx، استبدل دالة handleProductFound بهذه النسخة:
-// في HabitTracker.jsx، استبدل دالة handleProductFound بهذه النسخة:
-
-const handleProductFound = async (result) => {
-    console.log('📦 Barcode result from medicine:', result);
-    
-    if (typeof result === 'string' && result.length > 0) {
-        const barcode = result;
-        console.log('🔍 Searching for medicine in openFDA:', barcode);
-        
-        setLoading(true);
-        
-        // ✅ التحقق من أن الباركود قد يكون NDC صالحاً
-        // NDC عادة 10 أرقام (قد تكون 11 مع check digit)
-        const isValidNDC = (code) => {
-            // إزالة الشرطات
-            const cleanCode = code.replace(/-/g, '');
-            // NDC عادة 10 أو 11 رقم
-            return cleanCode.length === 10 || cleanCode.length === 11;
-        };
+    // ✅ البحث عن دواء في openFDA بالاسم أو الرمز
+    const searchDrugInFDA = async (query, searchType = 'name') => {
+        setSearchingDrug(true);
+        setDrugSearchResults([]);
         
         try {
-            let drugData = null;
-            
-            // ✅ محاولة تنسيق الباركود كـ NDC
-            let cleanBarcode = barcode.replace(/-/g, '');
-            
-            // إذا كان الباركود 13 رقم (EAN-13)، فقد يحتوي على NDC داخله
-            if (cleanBarcode.length === 13) {
-                // بعض الأدوية تستخدم 10 أرقام من الباركود
-                cleanBarcode = cleanBarcode.slice(0, 10);
+            let searchParam = '';
+            if (searchType === 'name') {
+                searchParam = `openfda.brand_name:"${query}"+or+openfda.generic_name:"${query}"`;
+            } else if (searchType === 'ndc') {
+                // تنسيق NDC
+                let cleanNDC = query.replace(/-/g, '');
+                if (cleanNDC.length === 10 && !cleanNDC.includes('-')) {
+                    searchParam = `product_ndc:"${cleanNDC.slice(0,2)}-${cleanNDC.slice(2,5)}-${cleanNDC.slice(5)}"`;
+                } else {
+                    searchParam = `product_ndc:"${query}"`;
+                }
             }
             
-            // تنسيق NDC: XX-XXX-XXXX
-            if (cleanBarcode.length === 10 && !cleanBarcode.includes('-')) {
-                const formattedNDC = `${cleanBarcode.slice(0, 2)}-${cleanBarcode.slice(2, 5)}-${cleanBarcode.slice(5)}`;
-                console.log('📊 Formatted NDC:', formattedNDC);
+            const response = await axios.get(
+                `https://api.fda.gov/drug/ndc.json?search=${searchParam}&limit=10`,
+                { timeout: 10000 }
+            );
+            
+            if (response.data && response.data.results) {
+                const results = response.data.results.map(drug => {
+                    const openfda = drug.openfda || {};
+                    return {
+                        brand_name: openfda.brand_name?.[0] || '',
+                        generic_name: openfda.generic_name?.[0] || '',
+                        manufacturer: openfda.manufacturer_name?.[0] || '',
+                        route: drug.route?.[0] || '',
+                        dosage_form: drug.dosage_form?.[0] || '',
+                        product_ndc: drug.product_ndc || '',
+                        id: drug.id
+                    };
+                }).filter(d => d.brand_name || d.generic_name);
                 
-                try {
+                setDrugSearchResults(results);
+                if (results.length === 0) {
+                    setMessage(`⚠️ لم يتم العثور على دواء匹配: ${query}`);
+                    setIsError(true);
+                    setTimeout(() => setMessage(''), 3000);
+                }
+            }
+        } catch (error) {
+            console.error('Error searching FDA:', error);
+            setMessage('❌ حدث خطأ في البحث عن الدواء');
+            setIsError(true);
+            setTimeout(() => setMessage(''), 3000);
+        } finally {
+            setSearchingDrug(false);
+        }
+    };
+
+    // ✅ اختيار دواء من نتائج البحث
+    const selectDrug = (drug) => {
+        setNewHabitName(drug.brand_name || drug.generic_name);
+        
+        const descriptionParts = [];
+        if (drug.generic_name) descriptionParts.push(`💊 الاسم العلمي: ${drug.generic_name}`);
+        if (drug.manufacturer) descriptionParts.push(`🏭 الشركة: ${drug.manufacturer}`);
+        if (drug.route) descriptionParts.push(`💉 طريقة الاستخدام: ${drug.route}`);
+        if (drug.dosage_form) descriptionParts.push(`📦 الشكل الصيدلاني: ${drug.dosage_form}`);
+        if (drug.product_ndc) descriptionParts.push(`🔢 الرمز: ${drug.product_ndc}`);
+        
+        setNewHabitDescription(descriptionParts.join(' | '));
+        setMessage(`✅ تم اختيار الدواء: ${drug.brand_name || drug.generic_name}`);
+        setIsError(false);
+        setDrugSearchResults([]);
+        setDrugSearchQuery('');
+        
+        setTimeout(() => setMessage(''), 3000);
+    };
+
+    // ✅ معالجة الباركود (محاولة البحث كـ NDC)
+    const handleProductFound = async (result) => {
+        console.log('📦 Barcode result:', result);
+        
+        if (typeof result === 'string' && result.length > 0) {
+            const barcode = result;
+            console.log('🔍 Searching for NDC in openFDA:', barcode);
+            
+            setLoading(true);
+            
+            try {
+                // تنظيف الباركود
+                let cleanBarcode = barcode.replace(/-/g, '');
+                
+                // إذا كان الباركود 13 رقم، حاول استخراج 10 أرقام كـ NDC
+                if (cleanBarcode.length === 13) {
+                    cleanBarcode = cleanBarcode.slice(0, 10);
+                }
+                
+                if (cleanBarcode.length === 10 || cleanBarcode.length === 11) {
+                    // تنسيق NDC
+                    const formattedNDC = `${cleanBarcode.slice(0, 2)}-${cleanBarcode.slice(2, 5)}-${cleanBarcode.slice(5, 9)}`;
+                    
                     const response = await axios.get(
                         `https://api.fda.gov/drug/ndc.json?search=product_ndc:"${formattedNDC}"`,
-                        {
-                            timeout: 10000,
-                            params: { limit: 5 }
-                        }
+                        { timeout: 10000 }
                     );
                     
                     if (response.data && response.data.results && response.data.results.length > 0) {
-                        drugData = response.data.results[0];
+                        const drug = response.data.results[0];
+                        const openfda = drug.openfda || {};
+                        
+                        setNewHabitName(openfda.brand_name?.[0] || openfda.generic_name?.[0] || `دواء (${barcode.slice(-8)})`);
+                        setNewHabitDescription(`🔢 الرمز: ${formattedNDC}\n💊 ${openfda.generic_name?.[0] || ''}\n🏭 ${openfda.manufacturer_name?.[0] || ''}`);
+                        setMessage(`✅ تم العثور على الدواء: ${openfda.brand_name?.[0] || 'دواء'}`);
+                        setIsError(false);
+                    } else {
+                        setNewHabitName(`دواء جديد (${barcode.slice(-8)})`);
+                        setNewHabitDescription(`🔢 الرمز: ${barcode}\n⚠️ لم يتم العثور على هذا الرمز في قاعدة بيانات FDA.\nيمكنك البحث بالاسم باستخدام المربع أعلاه.`);
+                        setMessage(`⚠️ الرمز ${barcode} غير موجود، يمكنك البحث بالاسم`);
+                        setIsError(true);
                     }
-                } catch (e) {
-                    console.log('No results for formatted NDC');
+                } else {
+                    setNewHabitName(`دواء جديد (${barcode.slice(-8)})`);
+                    setNewHabitDescription(`🔢 الرمز: ${barcode}\n⚠️ هذا الرمز ليس بتنسيق NDC صالح.\nيمكنك البحث بالاسم باستخدام المربع أعلاه.`);
+                    setMessage(`⚠️ الرمز ${barcode} ليس بتنسيق NDC صالح`);
+                    setIsError(true);
                 }
-            }
-            
-            // ✅ إذا لم نجد نتائج، نحاول البحث باسم عام
-            if (!drugData) {
-                // محاولة البحث بالباركود كرقم
-                const response = await axios.get(
-                    `https://api.fda.gov/drug/ndc.json?search=product_ndc:"${cleanBarcode}"`,
-                    {
-                        timeout: 10000,
-                        params: { limit: 5 }
-                    }
-                );
-                
-                if (response.data && response.data.results && response.data.results.length > 0) {
-                    drugData = response.data.results[0];
-                }
-            }
-            
-            if (drugData) {
-                const openfda = drugData.openfda || {};
-                
-                const drugName = openfda.brand_name?.[0] || openfda.generic_name?.[0] || `دواء (${barcode.slice(-8)})`;
-                const genericName = openfda.generic_name?.[0] || '';
-                const manufacturer = openfda.manufacturer_name?.[0] || '';
-                const route = drugData.route?.[0] || '';
-                const dosageForm = drugData.dosage_form?.[0] || '';
-                
-                setNewHabitName(drugName);
-                
-                const descriptionParts = [];
-                if (genericName) descriptionParts.push(`💊 الاسم العلمي: ${genericName}`);
-                if (manufacturer) descriptionParts.push(`🏭 الشركة: ${manufacturer}`);
-                if (route) descriptionParts.push(`💉 طريقة الاستخدام: ${route}`);
-                if (dosageForm) descriptionParts.push(`📦 الشكل الصيدلاني: ${dosageForm}`);
-                if (barcode) descriptionParts.push(`🔢 الباركود: ${barcode}`);
-                
-                setNewHabitDescription(descriptionParts.join(' | '));
-                setMessage(`✅ تم العثور على الدواء: ${drugName}`);
-                setIsError(false);
-            } else {
-                // الدواء غير موجود
-                console.log('⚠️ Medicine not found in openFDA');
+            } catch (error) {
+                console.error('Error searching FDA:', error);
                 setNewHabitName(`دواء جديد (${barcode.slice(-8)})`);
-                setNewHabitDescription(`🔢 الباركود: ${barcode}\n\n⚠️ هذا الدواء غير موجود في قاعدة بيانات FDA.\nيمكنك إدخال بياناته يدوياً أدناه.`);
-                setMessage(`⚠️ الدواء (${barcode}) غير موجود في قاعدة البيانات.\n✓ تم إنشاء منتج جديد، يمكنك إدخال البيانات يدوياً`);
+                setNewHabitDescription(`🔢 الرمز: ${barcode}\n❌ خطأ في الاتصال بقاعدة البيانات.\nيمكنك البحث بالاسم باستخدام المربع أعلاه.`);
+                setMessage('⚠️ حدث خطأ في البحث، يمكنك البحث بالاسم');
                 setIsError(true);
+            } finally {
+                setLoading(false);
+                setTimeout(() => setShowScanner(false), 3000);
             }
-        } catch (error) {
-            console.error('❌ Error searching openFDA:', error);
-            setNewHabitName(`دواء جديد (${barcode.slice(-8)})`);
-            setNewHabitDescription(`🔢 الباركود: ${barcode}\n\n❌ حدث خطأ في الاتصال بقاعدة بيانات FDA.\nالرجاء إدخال البيانات يدوياً.`);
-            setMessage('⚠️ حدث خطأ في البحث عن الدواء، تم إنشاء منتج جديد');
-            setIsError(true);
-        } finally {
-            setLoading(false);
-            setTimeout(() => {
-                setShowScanner(false);
-            }, 3000);
+            return;
         }
-        return;
-    }
-    
-    // ✅ إذا كانت النتيجة كائنًا (بيانات كاملة من الكاميرا)
-    if (result && typeof result === 'object') {
-        const medicineName = result.name || `دواء جديد`;
-        setNewHabitName(medicineName);
         
-        const descriptionParts = [];
-        if (result.brand) descriptionParts.push(`🏭 ${result.brand}`);
-        if (result.generic_name) descriptionParts.push(`💊 ${result.generic_name}`);
-        if (result.route) descriptionParts.push(`💉 ${result.route}`);
-        
-        setNewHabitDescription(descriptionParts.join(' | '));
-        
-        setMessage(`✅ تم العثور على الدواء: ${medicineName}`);
-        setIsError(false);
-        
-        setTimeout(() => {
-            setShowScanner(false);
-        }, 2000);
-    }
-};
+        if (result && typeof result === 'object') {
+            const medicineName = result.name || `دواء جديد`;
+            setNewHabitName(medicineName);
+            setNewHabitDescription(result.description || '');
+            setMessage(`✅ تم إضافة: ${medicineName}`);
+            setIsError(false);
+            setTimeout(() => setShowScanner(false), 2000);
+        }
+    };
 
     const handleAddDefinition = async (e) => {
         e.preventDefault();
@@ -399,11 +401,9 @@ const handleProductFound = async (result) => {
 
         try {
             if (existingLog && existingLog.id) {
-                // حذف السجل الموجود
                 await axiosInstance.delete(`/habit-logs/${existingLog.id}/`);
                 setMessage(t('habits.logRemoved', { name: habit?.name || '' }));
             } else {
-                // إنشاء سجل جديد باستخدام endpoint complete
                 await axiosInstance.post('/habit-logs/complete/', {
                     habit_id: habitId,
                     notes: ''
@@ -426,14 +426,12 @@ const handleProductFound = async (result) => {
 
     const safeDefinitions = Array.isArray(definitions) ? definitions : [];
     const completedToday = todayLogs.filter(log => log.is_completed).length;
-
     const completionPercentage = safeDefinitions.length > 0 
         ? Math.round((completedToday / safeDefinitions.length) * 100) 
         : 0;
 
     return (
         <div className={`habit-tracker-container ${darkMode ? 'dark-mode' : ''}`}>
-            {/* رأس الصفحة */}
             <div className="page-header">
                 <h2>
                     <span className="header-icon">💊</span>
@@ -447,6 +445,64 @@ const handleProductFound = async (result) => {
                         day: 'numeric'
                     })}
                 </div>
+            </div>
+
+            {/* 🩺 قسم البحث عن الأدوية في FDA */}
+            <div className="drug-search-section">
+                <div className="drug-search-header">
+                    <span className="drug-search-icon">💊</span>
+                    <h4>البحث عن دواء في قاعدة بيانات FDA</h4>
+                </div>
+                <div className="drug-search-row">
+                    <input
+                        type="text"
+                        value={drugSearchQuery}
+                        onChange={(e) => setDrugSearchQuery(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && searchDrugInFDA(drugSearchQuery, 'name')}
+                        placeholder="أدخل اسم الدواء (مثل: Aspirin, Tylenol) أو رمز NDC"
+                        className="drug-search-input"
+                    />
+                    <div className="drug-search-buttons">
+                        <button 
+                            onClick={() => searchDrugInFDA(drugSearchQuery, 'name')}
+                            disabled={searchingDrug || !drugSearchQuery}
+                            className="drug-search-btn name-search"
+                        >
+                            {searchingDrug ? '⏳' : '🔍'} اسم
+                        </button>
+                        <button 
+                            onClick={() => searchDrugInFDA(drugSearchQuery, 'ndc')}
+                            disabled={searchingDrug || !drugSearchQuery}
+                            className="drug-search-btn ndc-search"
+                        >
+                            {searchingDrug ? '⏳' : '#️⃣'} رمز NDC
+                        </button>
+                    </div>
+                </div>
+                
+                {/* نتائج البحث عن الأدوية */}
+                {drugSearchResults.length > 0 && (
+                    <div className="drug-search-results">
+                        <div className="results-header">
+                            <span>📋 نتائج البحث ({drugSearchResults.length})</span>
+                        </div>
+                        {drugSearchResults.map((drug, idx) => (
+                            <div key={idx} className="drug-result-item" onClick={() => selectDrug(drug)}>
+                                <div className="drug-result-name">
+                                    <strong>{drug.brand_name || drug.generic_name}</strong>
+                                    {drug.generic_name && drug.brand_name && (
+                                        <span className="drug-generic">({drug.generic_name})</span>
+                                    )}
+                                </div>
+                                <div className="drug-result-details">
+                                    {drug.manufacturer && <span>🏭 {drug.manufacturer}</span>}
+                                    {drug.route && <span>💉 {drug.route}</span>}
+                                    {drug.dosage_form && <span>📦 {drug.dosage_form}</span>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* نقاط المستخدم */}
@@ -501,10 +557,7 @@ const handleProductFound = async (result) => {
                         </p>
                         <div className="progress-container">
                             <div className="progress-bar">
-                                <div 
-                                    className="progress-fill"
-                                    style={{ width: `${completionPercentage}%` }}
-                                />
+                                <div className="progress-fill" style={{ width: `${completionPercentage}%` }} />
                             </div>
                         </div>
                     </div>
@@ -518,7 +571,6 @@ const handleProductFound = async (result) => {
                         <span className="card-icon">➕</span>
                         {t('habits.newHabit')}
                     </h3>
-                    
                     <button 
                         type="button"
                         onClick={() => setShowScanner(true)}
@@ -588,22 +640,12 @@ const handleProductFound = async (result) => {
                     <div className="scanner-modal-content">
                         <div className="scanner-header">
                             <h3>📷 {t('habits.scanBarcode')}</h3>
-                            <button 
-                                onClick={() => setShowScanner(false)}
-                                className="close-btn"
-                            >
-                                ✕
-                            </button>
+                            <button onClick={() => setShowScanner(false)} className="close-btn">✕</button>
                         </div>
-                        
                         <BarcodeScanner onScan={handleProductFound} />
-                        
                         <div className="scanner-footer">
                             <p>{t('habits.scanInstructions')}</p>
-                            <button 
-                                onClick={() => setShowScanner(false)}
-                                className="cancel-btn"
-                            >
+                            <button onClick={() => setShowScanner(false)} className="cancel-btn">
                                 {t('common.cancel')}
                             </button>
                         </div>
@@ -638,10 +680,7 @@ const handleProductFound = async (result) => {
                         <div className="empty-icon">📋</div>
                         <h4>{t('habits.noHabits')}</h4>
                         <p>{t('habits.addFirstHabit')}</p>
-                        <button 
-                            onClick={() => setShowScanner(true)}
-                            className="empty-scan-btn"
-                        >
+                        <button onClick={() => setShowScanner(true)} className="empty-scan-btn">
                             📷 {t('habits.scanBarcode')}
                         </button>
                     </div>
@@ -653,20 +692,13 @@ const handleProductFound = async (result) => {
                             const points = calculatePoints(habit.name, isCompleted);
                             
                             return (
-                                <li 
-                                    key={habit.id} 
-                                    className={`habit-item ${isCompleted ? 'completed' : ''}`}
-                                >
+                                <li key={habit.id} className={`habit-item ${isCompleted ? 'completed' : ''}`}>
                                     <div className="habit-info">
                                         <div className="habit-main">
                                             <span className="habit-name">{habit.name}</span>
-                                            {isCompleted && (
-                                                <span className="completed-badge">✅ +{points}</span>
-                                            )}
+                                            {isCompleted && <span className="completed-badge">✅ +{points}</span>}
                                         </div>
-                                        {habit.description && (
-                                            <p className="habit-description">{habit.description}</p>
-                                        )}
+                                        {habit.description && <p className="habit-description">{habit.description}</p>}
                                     </div>
                                     <button 
                                         onClick={() => handleToggleLog(habit.id)}
@@ -674,15 +706,9 @@ const handleProductFound = async (result) => {
                                         className={`habit-btn ${isCompleted ? 'btn-undo' : 'btn-complete'}`}
                                     >
                                         {isCompleted ? (
-                                            <>
-                                                <span>↩️</span>
-                                                {t('habits.undo')}
-                                            </>
+                                            <><span>↩️</span>{t('habits.undo')}</>
                                         ) : (
-                                            <>
-                                                <span>✅</span>
-                                                {t('habits.complete')}
-                                            </>
+                                            <><span>✅</span>{t('habits.complete')}</>
                                         )}
                                     </button>
                                 </li>
