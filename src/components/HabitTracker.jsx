@@ -188,31 +188,45 @@ function HabitTracker({ isAuthReady }) {
         };
     }, []);
 
-    // ✅ البحث عن دواء في openFDA بالاسم أو الرمز
+    // ✅ البحث عن دواء في openFDA - باستخدام النقاط الصحيحة
     const searchDrugInFDA = async (query, searchType = 'name') => {
+        if (!query || query.trim() === '') {
+            setMessage('⚠️ الرجاء إدخال اسم الدواء أو رمز NDC');
+            setIsError(true);
+            setTimeout(() => setMessage(''), 3000);
+            return;
+        }
+        
         setSearchingDrug(true);
         setDrugSearchResults([]);
         
         try {
+            let endpoint = '';
             let searchParam = '';
+            
             if (searchType === 'name') {
-                searchParam = `openfda.brand_name:"${query}"+or+openfda.generic_name:"${query}"`;
+                // ✅ استخدام drug/label.json للبحث بالاسم
+                endpoint = 'drug/label.json';
+                searchParam = `search=openfda.generic_name:"${encodeURIComponent(query)}"&limit=10`;
             } else if (searchType === 'ndc') {
-                // تنسيق NDC
+                // ✅ استخدام drug/ndc.json للبحث بالرمز
+                endpoint = 'drug/ndc.json';
                 let cleanNDC = query.replace(/-/g, '');
                 if (cleanNDC.length === 10 && !cleanNDC.includes('-')) {
-                    searchParam = `product_ndc:"${cleanNDC.slice(0,2)}-${cleanNDC.slice(2,5)}-${cleanNDC.slice(5)}"`;
+                    searchParam = `search=product_ndc:"${cleanNDC.slice(0,2)}-${cleanNDC.slice(2,5)}-${cleanNDC.slice(5)}"&limit=5`;
                 } else {
-                    searchParam = `product_ndc:"${query}"`;
+                    searchParam = `search=product_ndc:"${cleanNDC}"&limit=5`;
                 }
             }
             
             const response = await axios.get(
-                `https://api.fda.gov/drug/ndc.json?search=${searchParam}&limit=10`,
-                { timeout: 10000 }
+                `https://api.fda.gov/${endpoint}?${searchParam}`,
+                { timeout: 15000 }
             );
             
-            if (response.data && response.data.results) {
+            console.log('📡 FDA Response:', response.data);
+            
+            if (response.data && response.data.results && response.data.results.length > 0) {
                 const results = response.data.results.map(drug => {
                     const openfda = drug.openfda || {};
                     return {
@@ -221,21 +235,26 @@ function HabitTracker({ isAuthReady }) {
                         manufacturer: openfda.manufacturer_name?.[0] || '',
                         route: drug.route?.[0] || '',
                         dosage_form: drug.dosage_form?.[0] || '',
-                        product_ndc: drug.product_ndc || '',
-                        id: drug.id
+                        product_ndc: openfda.product_ndc?.[0] || drug.product_ndc || '',
+                        id: drug.id,
+                        warnings: drug.warnings?.[0]?.substring(0, 200) || '',
+                        indications: drug.indications_and_usage?.[0]?.substring(0, 200) || ''
                     };
                 }).filter(d => d.brand_name || d.generic_name);
                 
                 setDrugSearchResults(results);
-                if (results.length === 0) {
-                    setMessage(`⚠️ لم يتم العثور على دواء匹配: ${query}`);
-                    setIsError(true);
-                    setTimeout(() => setMessage(''), 3000);
-                }
+                setMessage(`✅ تم العثور على ${results.length} دواء`);
+                setIsError(false);
+                setTimeout(() => setMessage(''), 3000);
+            } else {
+                setDrugSearchResults([]);
+                setMessage(`⚠️ لم يتم العثور على دواء: ${query}`);
+                setIsError(true);
+                setTimeout(() => setMessage(''), 3000);
             }
         } catch (error) {
             console.error('Error searching FDA:', error);
-            setMessage('❌ حدث خطأ في البحث عن الدواء');
+            setMessage(`❌ خطأ في الاتصال بـ FDA: ${error.message}`);
             setIsError(true);
             setTimeout(() => setMessage(''), 3000);
         } finally {
@@ -253,6 +272,7 @@ function HabitTracker({ isAuthReady }) {
         if (drug.route) descriptionParts.push(`💉 طريقة الاستخدام: ${drug.route}`);
         if (drug.dosage_form) descriptionParts.push(`📦 الشكل الصيدلاني: ${drug.dosage_form}`);
         if (drug.product_ndc) descriptionParts.push(`🔢 الرمز: ${drug.product_ndc}`);
+        if (drug.indications) descriptionParts.push(`📋 الاستخدامات: ${drug.indications.substring(0, 100)}`);
         
         setNewHabitDescription(descriptionParts.join(' | '));
         setMessage(`✅ تم اختيار الدواء: ${drug.brand_name || drug.generic_name}`);
@@ -274,16 +294,13 @@ function HabitTracker({ isAuthReady }) {
             setLoading(true);
             
             try {
-                // تنظيف الباركود
                 let cleanBarcode = barcode.replace(/-/g, '');
                 
-                // إذا كان الباركود 13 رقم، حاول استخراج 10 أرقام كـ NDC
                 if (cleanBarcode.length === 13) {
                     cleanBarcode = cleanBarcode.slice(0, 10);
                 }
                 
                 if (cleanBarcode.length === 10 || cleanBarcode.length === 11) {
-                    // تنسيق NDC
                     const formattedNDC = `${cleanBarcode.slice(0, 2)}-${cleanBarcode.slice(2, 5)}-${cleanBarcode.slice(5, 9)}`;
                     
                     const response = await axios.get(
@@ -459,7 +476,7 @@ function HabitTracker({ isAuthReady }) {
                         value={drugSearchQuery}
                         onChange={(e) => setDrugSearchQuery(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && searchDrugInFDA(drugSearchQuery, 'name')}
-                        placeholder="أدخل اسم الدواء (مثل: Aspirin, Tylenol) أو رمز NDC"
+                        placeholder="أدخل اسم الدواء (مثل: Acetaminophen, Tylenol) أو رمز NDC"
                         className="drug-search-input"
                     />
                     <div className="drug-search-buttons">
@@ -498,7 +515,13 @@ function HabitTracker({ isAuthReady }) {
                                     {drug.manufacturer && <span>🏭 {drug.manufacturer}</span>}
                                     {drug.route && <span>💉 {drug.route}</span>}
                                     {drug.dosage_form && <span>📦 {drug.dosage_form}</span>}
+                                    {drug.product_ndc && <span>🔢 {drug.product_ndc}</span>}
                                 </div>
+                                {drug.warnings && (
+                                    <div className="drug-warnings">
+                                        ⚠️ {drug.warnings.substring(0, 100)}...
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
