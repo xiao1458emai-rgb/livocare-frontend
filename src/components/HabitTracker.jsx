@@ -188,6 +188,8 @@ function HabitTracker({ isAuthReady }) {
         };
     }, []);
 
+// src/components/HabitTracker.jsx - استبدل دالة searchDrugInFDA بهذه
+
 const searchDrugInFDA = async (query, searchType = 'name') => {
     if (!query || query.trim() === '') {
         setMessage('⚠️ الرجاء إدخال اسم الدواء أو رمز NDC');
@@ -199,73 +201,77 @@ const searchDrugInFDA = async (query, searchType = 'name') => {
     setSearchingDrug(true);
     setDrugSearchResults([]);
     
-    // ✅ محاولة نقاط نهاية متعددة
-    const endpoints = [
-        { endpoint: 'drug/label.json', searchField: 'openfda.generic_name' },
-        { endpoint: 'drug/label.json', searchField: 'openfda.brand_name' },
-        { endpoint: 'drug/drugsfda.json', searchField: 'openfda.generic_name' },
-        { endpoint: 'drug/drugsfda.json', searchField: 'openfda.brand_name' }
-    ];
-    
-    let allResults = [];
-    
-    for (const ep of endpoints) {
-        if (allResults.length >= 10) break;
+    try {
+        let endpoint = '';
+        let searchParam = '';
         
-        try {
-            const searchParam = `search=${ep.searchField}:"${encodeURIComponent(query)}"&limit=10`;
-            const response = await axios.get(
-                `https://api.fda.gov/${ep.endpoint}?${searchParam}`,
-                { timeout: 10000 }
-            );
-            
-            if (response.data && response.data.results && response.data.results.length > 0) {
-                const results = response.data.results.map(drug => {
-                    const openfda = drug.openfda || {};
-                    return {
-                        brand_name: openfda.brand_name?.[0] || '',
-                        generic_name: openfda.generic_name?.[0] || '',
-                        manufacturer: openfda.manufacturer_name?.[0] || '',
-                        route: drug.route?.[0] || '',
-                        dosage_form: drug.dosage_form?.[0] || '',
-                        product_ndc: openfda.product_ndc?.[0] || drug.product_ndc || '',
-                        id: drug.id,
-                        warnings: drug.warnings?.[0]?.substring(0, 200) || '',
-                        indications: drug.indications_and_usage?.[0]?.substring(0, 200) || '',
-                        source: ep.endpoint
-                    };
-                }).filter(d => d.brand_name || d.generic_name);
-                
-                allResults = [...allResults, ...results];
+        if (searchType === 'name') {
+            // ✅ استخدام drugsfda.json للبحث بالاسم التجاري أو العلمي
+            endpoint = 'drug/drugsfda.json';
+            // البحث بالاسم التجاري أو العلمي
+            searchParam = `search=openfda.brand_name:"${encodeURIComponent(query)}"+or+openfda.generic_name:"${encodeURIComponent(query)}"&limit=10`;
+        } else if (searchType === 'ndc') {
+            endpoint = 'drug/ndc.json';
+            let cleanNDC = query.replace(/-/g, '');
+            if (cleanNDC.length === 10 && !cleanNDC.includes('-')) {
+                searchParam = `search=product_ndc:"${cleanNDC.slice(0,2)}-${cleanNDC.slice(2,5)}-${cleanNDC.slice(5)}"&limit=5`;
+            } else {
+                searchParam = `search=product_ndc:"${cleanNDC}"&limit=5`;
             }
-        } catch (error) {
-            console.log(`Endpoint ${ep.endpoint} failed:`, error.message);
         }
-    }
-    
-    // إزالة التكرارات
-    const uniqueResults = [];
-    const seen = new Set();
-    for (const drug of allResults) {
-        const key = drug.brand_name || drug.generic_name;
-        if (key && !seen.has(key)) {
-            seen.add(key);
-            uniqueResults.push(drug);
+        
+        console.log(`🔍 Searching FDA: ${endpoint}?${searchParam}`);
+        
+        const response = await axios.get(
+            `https://api.fda.gov/${endpoint}?${searchParam}`,
+            { timeout: 15000 }
+        );
+        
+        console.log('📡 FDA Response:', response.data);
+        
+        if (response.data && response.data.results && response.data.results.length > 0) {
+            const results = response.data.results.map(drug => {
+                const openfda = drug.openfda || {};
+                const products = drug.products || [];
+                return {
+                    brand_name: openfda.brand_name?.[0] || '',
+                    generic_name: openfda.generic_name?.[0] || '',
+                    manufacturer: openfda.manufacturer_name?.[0] || products[0]?.manufacturer_name || '',
+                    route: products[0]?.route || '',
+                    dosage_form: products[0]?.dosage_form || '',
+                    product_ndc: openfda.product_ndc?.[0] || '',
+                    id: drug.id,
+                    substance_name: openfda.substance_name?.[0] || ''
+                };
+            }).filter(d => d.brand_name || d.generic_name);
+            
+            // إزالة التكرارات
+            const uniqueResults = [];
+            const seen = new Set();
+            for (const drug of results) {
+                const key = drug.brand_name || drug.generic_name;
+                if (key && !seen.has(key)) {
+                    seen.add(key);
+                    uniqueResults.push(drug);
+                }
+            }
+            
+            setDrugSearchResults(uniqueResults.slice(0, 10));
+            setMessage(`✅ تم العثور على ${uniqueResults.length} دواء`);
+            setIsError(false);
+        } else {
+            setDrugSearchResults([]);
+            setMessage(`⚠️ لم يتم العثور على دواء: ${query}`);
+            setIsError(true);
         }
-    }
-    
-    if (uniqueResults.length > 0) {
-        setDrugSearchResults(uniqueResults.slice(0, 10));
-        setMessage(`✅ تم العثور على ${uniqueResults.length} دواء`);
-        setIsError(false);
-    } else {
-        setDrugSearchResults([]);
-        setMessage(`⚠️ لم يتم العثور على دواء: ${query}`);
+    } catch (error) {
+        console.error('Error searching FDA:', error);
+        setMessage(`❌ خطأ في الاتصال بـ FDA: ${error.message}`);
         setIsError(true);
+    } finally {
+        setSearchingDrug(false);
+        setTimeout(() => setMessage(''), 3000);
     }
-    
-    setTimeout(() => setMessage(''), 3000);
-    setSearchingDrug(false);
 };
 
     // ✅ اختيار دواء من نتائج البحث
