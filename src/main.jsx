@@ -2,7 +2,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { I18nextProvider } from 'react-i18next'
-import { HashRouter } from 'react-router-dom'  // ✅ أضف هذا السطر
+import { HashRouter } from 'react-router-dom'  // ✅ Router هنا فقط
 import i18n from './i18n.js'
 import './index.css'
 import App from './App.jsx'
@@ -17,11 +17,9 @@ if (!rootElement) {
 const root = createRoot(rootElement);
 
 root.render(
-  // <StrictMode>
-    <I18nextProvider i18n={i18n}>
-      <HashRouter>  {/* ✅ أضف HashRouter هنا */}
-        <App />
-      </HashRouter>
-    </I18nextProvider>
-  // </StrictMode>
+  <I18nextProvider i18n={i18n}>
+    <HashRouter>  {/* ✅ Router واحد فقط هنا */}
+      <App />
+    </HashRouter>
+  </I18nextProvider>
 );
