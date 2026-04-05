@@ -18,7 +18,6 @@ function Login({ onLoginSuccess }) {
     const [darkMode, setDarkMode] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     // تحميل إعدادات الوضع المظلم واللغة المحفوظة
     useEffect(() => {
@@ -39,18 +38,17 @@ function Login({ onLoginSuccess }) {
         // ✅ التحقق من وجود توكن صالح
         const token = localStorage.getItem('access_token');
         if (token) {
-            setIsLoggedIn(true);
             console.log('🔑 Existing token found, verifying...');
             // اختبر التوكن
             axiosInstance.get('/health_status/')
                 .then(() => {
-                    console.log('✅ Token is valid');
+                    console.log('✅ Token is valid, auto-login');
+                    if (onLoginSuccess) onLoginSuccess();
                 })
                 .catch(() => {
                     console.log('❌ Token invalid, clearing');
                     localStorage.removeItem('access_token');
                     localStorage.removeItem('refresh_token');
-                    setIsLoggedIn(false);
                 });
         }
     }, [onLoginSuccess]);
@@ -104,54 +102,6 @@ function Login({ onLoginSuccess }) {
         }));
     };
 
-    // ✅ دالة تسجيل الخروج
-    const handleLogout = async () => {
-        const confirmLogout = window.confirm(t('login.logoutConfirm', 'هل أنت متأكد من تسجيل الخروج؟'));
-        if (!confirmLogout) return;
-        
-        setLoading(true);
-        setMessage('');
-        
-        try {
-            // محاولة إعلام الخادم بتسجيل الخروج (اختياري)
-            const refreshToken = localStorage.getItem('refresh_token');
-            if (refreshToken) {
-                try {
-                    await axiosInstance.post('/auth/logout/', { refresh: refreshToken });
-                } catch (err) {
-                    console.log('Logout endpoint not available, clearing local tokens only');
-                }
-            }
-        } catch (error) {
-            console.error('Logout error:', error);
-        } finally {
-            // ✅ تنظيف جميع البيانات المحلية
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('username');
-            localStorage.removeItem('saved_username');
-            
-            // ✅ إعادة تعيين الحالة
-            setIsLoggedIn(false);
-            setUsername('');
-            setPassword('');
-            setMessage(t('login.logoutSuccess', 'تم تسجيل الخروج بنجاح'));
-            setMessageType('success');
-            setLoading(false);
-            
-            // ✅ إخفاء الرسالة بعد 3 ثوانٍ
-            setTimeout(() => {
-                setMessage('');
-                setMessageType('');
-            }, 3000);
-            
-            // ✅ إذا كان هناك callback للتسجيل، قم باستدعائه
-            if (onLoginSuccess) {
-                onLoginSuccess();
-            }
-        }
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -198,7 +148,6 @@ function Login({ onLoginSuccess }) {
             }
             
             localStorage.setItem('username', username);
-            setIsLoggedIn(true);
             
             setMessage(t('login.success'));
             setMessageType('success');
@@ -295,19 +244,6 @@ function Login({ onLoginSuccess }) {
                         >
                             {darkMode ? '☀️' : '🌙'}
                         </button>
-                        
-                        {/* ✅ زر تسجيل الخروج - يظهر فقط عند تسجيل الدخول */}
-                        {isLoggedIn && (
-                            <button 
-                                className="logout-btn"
-                                onClick={handleLogout}
-                                disabled={loading}
-                                title={t('login.logout')}
-                            >
-                                <span className="logout-icon">🚪</span>
-                                <span className="logout-text">{t('login.logout')}</span>
-                            </button>
-                        )}
                     </div>
                 </div>
             </div>
@@ -318,141 +254,114 @@ function Login({ onLoginSuccess }) {
                         <div className="login-icon-wrapper">
                             <div className="login-icon">🔐</div>
                         </div>
-                        <h2>{isLoggedIn ? t('login.welcomeBack') : t('login.title')}</h2>
-                        <p className="login-description">
-                            {isLoggedIn 
-                                ? `${t('login.welcomeMessage')} ${username || t('login.user')}!` 
-                                : t('login.description')}
-                        </p>
+                        <h2>{t('login.title')}</h2>
+                        <p className="login-description">{t('login.description')}</p>
                     </div>
                     
-                    {!isLoggedIn ? (
-                        <form onSubmit={handleSubmit} className="login-form">
-                            <div className="form-group">
-                                <label htmlFor="username">
-                                    <span className="label-icon">👤</span>
-                                    {t('login.username')}
-                                </label>
-                                <div className="input-wrapper">
-                                    <input
-                                        id="username"
-                                        type="text"
-                                        value={username}
-                                        onChange={(e) => setUsername(e.target.value)}
-                                        required
-                                        placeholder={t('login.usernamePlaceholder')}
-                                        disabled={loading}
-                                        autoComplete="username"
-                                    />
-                                </div>
-                            </div>
-                            
-                            <div className="form-group">
-                                <label htmlFor="password">
-                                    <span className="label-icon">🔑</span>
-                                    {t('login.password')}
-                                </label>
-                                <div className="input-wrapper password-wrapper">
-                                    <input
-                                        id="password"
-                                        type={showPassword ? "text" : "password"}
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        placeholder={t('login.passwordPlaceholder')}
-                                        disabled={loading}
-                                        autoComplete="current-password"
-                                    />
-                                    <button
-                                        type="button"
-                                        className="password-toggle"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        tabIndex="-1"
-                                    >
-                                        {showPassword ? '👁️' : '👁️‍🗨️'}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="form-options">
-                                <label className="remember-me">
-                                    <input
-                                        type="checkbox"
-                                        checked={rememberMe}
-                                        onChange={(e) => setRememberMe(e.target.checked)}
-                                        disabled={loading}
-                                    />
-                                    <span className="checkbox-text">{t('login.rememberMe')}</span>
-                                </label>
-                                <button type="button" className="forgot-password">
-                                    {t('login.forgotPassword')}
-                                </button>
-                            </div>
-                            
-                            <div className="login-actions">
-                                <button 
-                                    type="submit" 
-                                    className="login-button"
+                    <form onSubmit={handleSubmit} className="login-form">
+                        <div className="form-group">
+                            <label htmlFor="username">
+                                <span className="label-icon">👤</span>
+                                {t('login.username')}
+                            </label>
+                            <div className="input-wrapper">
+                                <input
+                                    id="username"
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    required
+                                    placeholder={t('login.usernamePlaceholder')}
                                     disabled={loading}
-                                >
-                                    {loading ? (
-                                        <>
-                                            <span className="spinner"></span>
-                                            {t('login.loggingIn')}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="btn-icon">🔑</span>
-                                            {t('login.loginButton')}
-                                        </>
-                                    )}
-                                </button>
-                                
-                                <button 
-                                    type="button" 
-                                    onClick={resetForm}
-                                    className="reset-button"
+                                    autoComplete="username"
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="form-group">
+                            <label htmlFor="password">
+                                <span className="label-icon">🔑</span>
+                                {t('login.password')}
+                            </label>
+                            <div className="input-wrapper password-wrapper">
+                                <input
+                                    id="password"
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    placeholder={t('login.passwordPlaceholder')}
                                     disabled={loading}
+                                    autoComplete="current-password"
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    tabIndex="-1"
                                 >
-                                    <span className="btn-icon">🔄</span>
-                                    {t('login.resetButton')}
-                                </button>
-                            </div>
-                            
-                            {/* معلومات إضافية */}
-                            <div className="login-info">
-                                <div className="info-item">
-                                    <span className="info-icon">💡</span>
-                                    <p>{t('login.tip')}</p>
-                                </div>
-                                <div className="info-item">
-                                    <span className="info-icon">👤</span>
-                                    <p>{t('login.demoInfo')}</p>
-                                </div>
-                            </div>
-                        </form>
-                    ) : (
-                        // ✅ عرض رسالة ترحيب عند تسجيل الدخول بالفعل
-                        <div className="already-logged-in">
-                            <div className="welcome-icon">👋</div>
-                            <h3>{t('login.alreadyLoggedIn')}</h3>
-                            <p>{t('login.alreadyLoggedInMessage')}</p>
-                            <div className="logged-in-actions">
-                                <button 
-                                    onClick={() => navigate('/dashboard')}
-                                    className="go-to-dashboard"
-                                >
-                                    📊 {t('login.goToDashboard')}
-                                </button>
-                                <button 
-                                    onClick={handleLogout}
-                                    className="logout-from-card"
-                                >
-                                    🚪 {t('login.logout')}
+                                    {showPassword ? '👁️' : '👁️‍🗨️'}
                                 </button>
                             </div>
                         </div>
-                    )}
+
+                        <div className="form-options">
+                            <label className="remember-me">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    disabled={loading}
+                                />
+                                <span className="checkbox-text">{t('login.rememberMe')}</span>
+                            </label>
+                            <button type="button" className="forgot-password">
+                                {t('login.forgotPassword')}
+                            </button>
+                        </div>
+                        
+                        <div className="login-actions">
+                            <button 
+                                type="submit" 
+                                className="login-button"
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <>
+                                        <span className="spinner"></span>
+                                        {t('login.loggingIn')}
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="btn-icon">🔑</span>
+                                        {t('login.loginButton')}
+                                    </>
+                                )}
+                            </button>
+                            
+                            <button 
+                                type="button" 
+                                onClick={resetForm}
+                                className="reset-button"
+                                disabled={loading}
+                            >
+                                <span className="btn-icon">🔄</span>
+                                {t('login.resetButton')}
+                            </button>
+                        </div>
+                        
+                        {/* معلومات إضافية */}
+                        <div className="login-info">
+                            <div className="info-item">
+                                <span className="info-icon">💡</span>
+                                <p>{t('login.tip')}</p>
+                            </div>
+                            <div className="info-item">
+                                <span className="info-icon">👤</span>
+                                <p>{t('login.demoInfo')}</p>
+                            </div>
+                        </div>
+                    </form>
                     
                     {/* رسائل التغذية الراجعة */}
                     {message && (
@@ -478,201 +387,78 @@ function Login({ onLoginSuccess }) {
                         </div>
                     )}
                     
-                    {!isLoggedIn && (
-                        <>
-                            <div className="register-link">
-                                <p>
-                                    {t('login.noAccount')} 
-                                    <Link 
-                                        to="/register" 
-                                        className="register-link-btn"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                        }}
-                                    >
-                                        {t('login.register')}
-                                    </Link>
-                                </p>
+                    <div className="register-link">
+                        <p>
+                            {t('login.noAccount')} 
+                            <Link 
+                                to="/register" 
+                                className="register-link-btn"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                }}
+                            >
+                                {t('login.register')}
+                            </Link>
+                        </p>
+                    </div>
+                    
+                    {/* معلومات التطبيق */}
+                    <div className="app-info">
+                        <div className="app-info-header">
+                            <h3>🌟 {t('login.featuresTitle')}</h3>
+                            <div className="header-decoration"></div>
+                        </div>
+                        
+                        <ul className="features-list">
+                            <li>
+                                <span className="feature-icon">📊</span>
+                                <span className="feature-text">{t('login.feature1')}</span>
+                            </li>
+                            <li>
+                                <span className="feature-icon">🥗</span>
+                                <span className="feature-text">{t('login.feature2')}</span>
+                            </li>
+                            <li>
+                                <span className="feature-icon">🌙</span>
+                                <span className="feature-text">{t('login.feature3')}</span>
+                            </li>
+                            <li>
+                                <span className="feature-icon">😊</span>
+                                <span className="feature-text">{t('login.feature4')}</span>
+                            </li>
+                            <li>
+                                <span className="feature-icon">💊</span>
+                                <span className="feature-text">{t('login.feature5')}</span>
+                            </li>
+                        </ul>
+                        
+                        <div className="app-stats">
+                            <div className="stat-item">
+                                <span className="stat-value">10k+</span>
+                                <span className="stat-label">{t('login.users')}</span>
                             </div>
-                            
-                            {/* معلومات التطبيق */}
-                            <div className="app-info">
-                                <div className="app-info-header">
-                                    <h3>🌟 {t('login.featuresTitle')}</h3>
-                                    <div className="header-decoration"></div>
-                                </div>
-                                
-                                <ul className="features-list">
-                                    <li>
-                                        <span className="feature-icon">📊</span>
-                                        <span className="feature-text">{t('login.feature1')}</span>
-                                    </li>
-                                    <li>
-                                        <span className="feature-icon">🥗</span>
-                                        <span className="feature-text">{t('login.feature2')}</span>
-                                    </li>
-                                    <li>
-                                        <span className="feature-icon">🌙</span>
-                                        <span className="feature-text">{t('login.feature3')}</span>
-                                    </li>
-                                    <li>
-                                        <span className="feature-icon">😊</span>
-                                        <span className="feature-text">{t('login.feature4')}</span>
-                                    </li>
-                                    <li>
-                                        <span className="feature-icon">💊</span>
-                                        <span className="feature-text">{t('login.feature5')}</span>
-                                    </li>
-                                </ul>
-                                
-                                <div className="app-stats">
-                                    <div className="stat-item">
-                                        <span className="stat-value">10k+</span>
-                                        <span className="stat-label">{t('login.users')}</span>
-                                    </div>
-                                    <div className="stat-divider"></div>
-                                    <div className="stat-item">
-                                        <span className="stat-value">4.8</span>
-                                        <span className="stat-label">{t('login.rating')}</span>
-                                    </div>
-                                </div>
-                                
-                                <div className="app-version">
-                                    <span className="version-info">
-                                        <span className="version-icon">📦</span>
-                                        {t('login.version')}: 2.0.0
-                                    </span>
-                                    <span className="app-status">
-                                        <span className="status-dot"></span>
-                                        {t('login.online')}
-                                    </span>
-                                </div>
+                            <div className="stat-divider"></div>
+                            <div className="stat-item">
+                                <span className="stat-value">4.8</span>
+                                <span className="stat-label">{t('login.rating')}</span>
                             </div>
-                        </>
-                    )}
+                        </div>
+                        
+                        <div className="app-version">
+                            <span className="version-info">
+                                <span className="version-icon">📦</span>
+                                {t('login.version')}: 2.0.0
+                            </span>
+                            <span className="app-status">
+                                <span className="status-dot"></span>
+                                {t('login.online')}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
         <style jsx>{`
-        /* إضافة أنماط زر تسجيل الخروج */
-.logout-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm) var(--spacing-md);
-    background: rgba(239, 68, 68, 0.15);
-    border: 1px solid var(--error);
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    transition: all var(--transition-medium);
-    color: var(--error);
-    font-weight: 500;
-}
-
-.logout-btn:hover:not(:disabled) {
-    background: var(--error);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.logout-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.logout-icon {
-    font-size: 1rem;
-}
-
-.logout-text {
-    font-size: 0.85rem;
-}
-
-/* حالة تسجيل الدخول مسبقاً */
-.already-logged-in {
-    text-align: center;
-    padding: var(--spacing-xl);
-}
-
-.welcome-icon {
-    font-size: 4rem;
-    margin-bottom: var(--spacing-md);
-    animation: wave 1s ease infinite;
-}
-
-@keyframes wave {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(15deg); }
-}
-
-.already-logged-in h3 {
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.already-logged-in p {
-    color: var(--text-secondary);
-    margin-bottom: var(--spacing-lg);
-}
-
-.logged-in-actions {
-    display: flex;
-    gap: var(--spacing-md);
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.go-to-dashboard,
-.logout-from-card {
-    padding: var(--spacing-sm) var(--spacing-lg);
-    border: none;
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all var(--transition-medium);
-}
-
-.go-to-dashboard {
-    background: var(--primary-gradient);
-    color: white;
-}
-
-.logout-from-card {
-    background: var(--error-bg);
-    color: var(--error);
-    border: 1px solid var(--error);
-}
-
-.go-to-dashboard:hover,
-.logout-from-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-/* استجابة للشاشات الصغيرة */
-@media (max-width: 768px) {
-    .logout-text {
-        display: none;
-    }
-    
-    .logout-btn {
-        padding: var(--spacing-sm);
-    }
-    
-    .logout-icon {
-        margin: 0;
-    }
-    
-    .logged-in-actions {
-        flex-direction: column;
-    }
-    
-    .go-to-dashboard,
-    .logout-from-card {
-        width: 100%;
-    }
-}
 
                 /* ===========================================
                    Login.css - النسخة المحسنة والمطورة

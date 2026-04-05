@@ -410,16 +410,25 @@ function Dashboard({ onLogout }) {
                     <div className="date-display">{getTodayDate()}</div>
                 </div>
                 
-                <div className="control-right">
-                    <button 
-                        className="theme-toggle"
-                        onClick={toggleDarkMode}
-                        title={darkMode ? t('dashboard.switchToLight') : t('dashboard.switchToDark')}
-                    >
-                        {darkMode ? '☀️' : '🌙'}
-                    </button>
-                </div>
-            </div>
+<div className="control-right">
+    <button 
+        className="theme-toggle"
+        onClick={toggleDarkMode}
+        title={darkMode ? t('dashboard.switchToLight') : t('dashboard.switchToDark')}
+    >
+        {darkMode ? '☀️' : '🌙'}
+    </button>
+    
+    {/* ✅ زر تسجيل الخروج */}
+    <button 
+        className="logout-btn"
+        onClick={onLogout}
+        title={t('dashboard.logout')}
+    >
+        <span className="logout-icon">🚪</span>
+        <span className="logout-text">{t('dashboard.logout')}</span>
+    </button>
+</div></div>
 
             {/* السايدبار */}
             <div className={`sidebar-wrapper ${sidebarOpen ? 'open' : ''}`}>
@@ -1230,6 +1239,51 @@ function Dashboard({ onLogout }) {
 @media (max-width: 480px) {
     [dir="rtl"] .summary-card {
         flex-direction: column;
+    }
+}
+    /* ===== زر تسجيل الخروج ===== */
+.logout-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--error);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    color: var(--error);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.logout-btn:hover {
+    background: var(--error);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.logout-btn:active {
+    transform: scale(0.96);
+}
+
+.logout-icon {
+    font-size: 1rem;
+}
+
+.logout-text {
+    font-size: 0.85rem;
+}
+
+/* استجابة للشاشات الصغيرة */
+@media (max-width: 768px) {
+    .logout-text {
+        display: none;
+    }
+    
+    .logout-btn {
+        padding: var(--spacing-sm);
     }
 }
             `}</style>
