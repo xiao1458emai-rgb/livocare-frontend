@@ -254,7 +254,15 @@ function Register({ onRegisterSuccess }) {
             isMountedRef.current = false;
         };
     }, []);
+// في Register.jsx، أضف هذه الدالة
 
+const handleGoogleRegister = () => {
+    // ✅ حفظ الرابط الحالي للعودة بعد التسجيل
+    localStorage.setItem('redirectAfterAuth', '/dashboard');
+    
+    // ✅ إعادة التوجيه إلى Google OAuth
+    window.location.href = `${axiosInstance.defaults.baseURL}/auth/google/login/`;
+};
     return (
         <div className={`register-container ${darkMode ? 'dark-mode' : ''}`}>
             {/* خلفية متحركة */}
@@ -587,6 +595,25 @@ function Register({ onRegisterSuccess }) {
                         </div>
                     </div>
                 </div>
+                // في Register.jsx، أضف هذا القسم بعد form-actions أو قبله
+
+<div className="google-auth-section">
+    <div className="divider">
+        <span className="divider-line"></span>
+        <span className="divider-text">{t('register.or')}</span>
+        <span className="divider-line"></span>
+    </div>
+    
+    <button 
+        type="button"
+        onClick={handleGoogleRegister}
+        className="google-register-btn"
+        disabled={loading}
+    >
+        <img src="https://www.google.com/favicon.ico" alt="Google" className="google-icon" />
+        <span>{t('register.signupWithGoogle')}</span>
+    </button>
+</div>
             </div>
 
             <style jsx>{`
@@ -596,6 +623,73 @@ function Register({ onRegisterSuccess }) {
                    =========================================== */
 
                 /* ===== المتغيرات والثيمات ===== */
+                /* ===== Google Auth Section ===== */
+.google-auth-section {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-md);
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.divider-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+}
+
+.divider-text {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    padding: 0 var(--spacing-sm);
+}
+
+.google-register-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    font-weight: 500;
+    color: #3c4043;
+}
+
+.google-register-btn:hover:not(:disabled) {
+    background: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.google-register-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.google-icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* الثيم المظلم */
+.dark-mode .google-register-btn {
+    background: #2d2d2d;
+    color: #e8eaed;
+    border-color: #404040;
+}
+
+.dark-mode .google-register-btn:hover:not(:disabled) {
+    background: #3c4043;
+}
                 :root {
                     --primary-bg: #f8fafc;
                     --secondary-bg: #ffffff;

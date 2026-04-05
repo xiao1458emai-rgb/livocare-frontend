@@ -1879,6 +1879,8 @@ register: {
   privacyPolicy: "سياسة الخصوصية",
   haveAccount: "لديك حساب بالفعل؟",
   login: "تسجيل الدخول",
+          "or": "أو",
+        "signupWithGoogle": "التسجيل بحساب Google",
   
   // فوائد التسجيل
   benefitsTitle: "🌟 لماذا تنضم إلى LivoCare؟",
@@ -3822,6 +3824,8 @@ register: {
   privacyPolicy: "Privacy Policy",
   haveAccount: "Already have an account?",
   login: "Login",
+          "or": "or",
+        "signupWithGoogle": "Sign up with Google",
   
   // Registration benefits
   benefitsTitle: "🌟 Why Join LivoCare?",
