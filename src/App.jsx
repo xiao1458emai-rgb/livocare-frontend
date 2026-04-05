@@ -7,6 +7,7 @@ import './App.css';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
+import AuthCallback from './components/AuthCallback';  // ✅ أضف هذا
 
 function App() {
     const { t, i18n } = useTranslation();
@@ -137,6 +138,10 @@ function App() {
                         <Dashboard onLogout={handleLogout} /> : 
                         <Navigate to="/login" replace />
                     } 
+                />
+                <Route 
+                    path="/auth/callback" 
+                    element={<AuthCallback />} 
                 />
                 <Route 
                     path="/" 
