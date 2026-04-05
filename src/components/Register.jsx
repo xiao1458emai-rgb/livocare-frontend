@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom'; // ✅ إضافة useNavigate
+import { Link, useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/api';
 import '../index.css';
 
 function Register({ onRegisterSuccess }) {
     const { t, i18n } = useTranslation();
-    const navigate = useNavigate(); // ✅ استخدام useNavigate
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -24,11 +24,12 @@ function Register({ onRegisterSuccess }) {
     const [passwordStrength, setPasswordStrength] = useState(0);
     const [touched, setTouched] = useState({});
     
-    // ✅ useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
 
-    // تحميل إعدادات الوضع المظلم
+    // ✅ رابط خدمة Google Auth المنفصلة
+    const GOOGLE_AUTH_URL = import.meta.env.VITE_GOOGLE_AUTH_URL || 'https://google-auth.onrender.com';
+
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -39,7 +40,6 @@ function Register({ onRegisterSuccess }) {
         }
     }, []);
 
-    // استمع لتغييرات الوضع المظلم
     useEffect(() => {
         const handleThemeChange = (e) => {
             const newDarkMode = e.detail?.darkMode ?? false;
@@ -56,7 +56,6 @@ function Register({ onRegisterSuccess }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // حساب قوة كلمة المرور
     useEffect(() => {
         if (!formData.password) {
             setPasswordStrength(0);
@@ -66,18 +65,14 @@ function Register({ onRegisterSuccess }) {
         let strength = 0;
         const password = formData.password;
         
-        // الطول
         if (password.length >= 8) strength += 25;
         else if (password.length >= 6) strength += 15;
         
-        // أحرف كبيرة وصغيرة
         if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength += 25;
         else if (/[a-zA-Z]/.test(password)) strength += 15;
         
-        // أرقام
         if (/\d/.test(password)) strength += 25;
         
-        // رموز خاصة
         if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 25;
         
         setPasswordStrength(strength);
@@ -162,7 +157,6 @@ function Register({ onRegisterSuccess }) {
         return t('register.passwordStrong');
     };
 
-    // ✅ دالة الإرسال - مع useCallback ومنع الطلبات المتزامنة
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
@@ -194,7 +188,6 @@ function Register({ onRegisterSuccess }) {
                 setMessageType('success');
             }
             
-            // تسجيل الدخول تلقائياً بعد التسجيل
             setTimeout(async () => {
                 try {
                     const loginResponse = await axiosInstance.post('/auth/token/', {
@@ -210,12 +203,12 @@ function Register({ onRegisterSuccess }) {
                     if (isMountedRef.current && onRegisterSuccess) {
                         onRegisterSuccess();
                     } else {
-                        navigate('/dashboard'); // ✅ استخدام navigate بدلاً من window.location
+                        navigate('/dashboard');
                     }
                 } catch (loginErr) {
                     console.error('Auto-login error:', loginErr);
                     if (isMountedRef.current) {
-                        navigate('/login'); // ✅ استخدام navigate بدلاً من window.location
+                        navigate('/login');
                     }
                 }
             }, 2000);
@@ -245,24 +238,22 @@ function Register({ onRegisterSuccess }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [formData, t, onRegisterSuccess, validateForm, navigate]); // ✅ إضافة navigate إلى التبعيات
+    }, [formData, t, onRegisterSuccess, validateForm, navigate]);
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
         };
     }, []);
-// في Register.jsx، أضف هذه الدالة
 
-const handleGoogleRegister = () => {
-    // ✅ حفظ الرابط الحالي للعودة بعد التسجيل
-    localStorage.setItem('redirectAfterAuth', '/dashboard');
-    
-    // ✅ إعادة التوجيه إلى Google OAuth
-    window.location.href = `${axiosInstance.defaults.baseURL}/auth/google/login/`;
-};
+    // ✅ دالة تسجيل Google - تستخدم الخدمة المنفصلة
+    const handleGoogleRegister = () => {
+        localStorage.setItem('redirectAfterAuth', '/dashboard');
+        // ✅ التوجيه إلى خدمة Google Auth المنفصلة
+        window.location.href = `${GOOGLE_AUTH_URL}/auth/google`;
+    };
+
     return (
         <div className={`register-container ${darkMode ? 'dark-mode' : ''}`}>
             {/* خلفية متحركة */}
@@ -433,7 +424,6 @@ const handleGoogleRegister = () => {
                                 </button>
                             </div>
                             
-                            {/* مؤشر قوة كلمة المرور */}
                             {formData.password && (
                                 <div className="password-strength">
                                     <div className="strength-bar">
@@ -503,7 +493,6 @@ const handleGoogleRegister = () => {
                             </button>
                         </div>
 
-                        {/* شروط التسجيل */}
                         <div className="terms-info">
                             <p>
                                 {t('register.termsPrefix')}
@@ -517,7 +506,6 @@ const handleGoogleRegister = () => {
                             </p>
                         </div>
 
-                        {/* ✅ رابط تسجيل الدخول - استخدام Link من react-router-dom */}
                         <div className="login-link">
                             <p>
                                 {t('register.haveAccount')} 
@@ -532,7 +520,25 @@ const handleGoogleRegister = () => {
                         </div>
                     </form>
 
-                    {/* رسائل التغذية الراجعة */}
+                    {/* ✅ قسم Google Auth - يستخدم الخدمة المنفصلة */}
+                    <div className="google-auth-section">
+                        <div className="divider">
+                            <span className="divider-line"></span>
+                            <span className="divider-text">{t('register.or')}</span>
+                            <span className="divider-line"></span>
+                        </div>
+                        
+                        <button 
+                            type="button"
+                            onClick={handleGoogleRegister}
+                            className="google-register-btn"
+                            disabled={loading}
+                        >
+                            <img src="https://www.google.com/favicon.ico" alt="Google" className="google-icon" />
+                            <span>{t('register.signupWithGoogle')}</span>
+                        </button>
+                    </div>
+
                     {message && (
                         <div className={`message ${messageType}`}>
                             <div className="message-content">
@@ -595,28 +601,8 @@ const handleGoogleRegister = () => {
                         </div>
                     </div>
                 </div>
-                // في Register.jsx، أضف هذا القسم بعد form-actions أو قبله
-
-<div className="google-auth-section">
-    <div className="divider">
-        <span className="divider-line"></span>
-        <span className="divider-text">{t('register.or')}</span>
-        <span className="divider-line"></span>
-    </div>
-    
-    <button 
-        type="button"
-        onClick={handleGoogleRegister}
-        className="google-register-btn"
-        disabled={loading}
-    >
-        <img src="https://www.google.com/favicon.ico" alt="Google" className="google-icon" />
-        <span>{t('register.signupWithGoogle')}</span>
-    </button>
-</div>
             </div>
-
-            <style jsx>{`
+       <style jsx>{`
                 /* ===========================================
                    Register.css - النسخة المحسنة والمطورة
                    تم التحسين لجميع أحجام الشاشات والوضع الليلي
