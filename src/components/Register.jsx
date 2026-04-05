@@ -28,7 +28,8 @@ function Register({ onRegisterSuccess }) {
     const isSubmittingRef = useRef(false);
 
     // ✅ رابط خدمة Google Auth المنفصلة
-    const GOOGLE_AUTH_URL = import.meta.env.VITE_GOOGLE_AUTH_URL || 'https://google-auth.onrender.com';
+    // ✅ استخدم الرابط الجديد للخدمة
+const GOOGLE_AUTH_URL = import.meta.env.VITE_GOOGLE_AUTH_URL || 'https://google-auth-fwz4.onrender.com';
 
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
