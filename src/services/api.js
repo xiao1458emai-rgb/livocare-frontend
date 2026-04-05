@@ -1,7 +1,6 @@
 // src/services/api.js
 import axios from 'axios';
 
-// ✅ استخدم متغير البيئة الصحيح
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://livocare.onrender.com';
 
 console.log('🔧 API_BASE_URL =', API_BASE_URL);
@@ -41,12 +40,22 @@ axiosInstance.interceptors.request.use(
             console.log(`⚠️ No token for: ${config.url}`);
         }
         
-        console.log(`🌐 Request: ${config.baseURL}${config.url}`);
-        
         return config;
     },
     (error) => Promise.reject(error)
 );
+
+// ✅ دالة لإعادة التوجيه إلى صفحة تسجيل الدخول (متوافقة مع React Router)
+const redirectToLogin = () => {
+    // ✅ استخدام حدث مخصص بدلاً من window.location.href مباشرة
+    // هذا يتيح لـ React Router التعامل مع التنقل
+    window.dispatchEvent(new CustomEvent('auth:logout'));
+    
+    // تنظيف localStorage
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('token');
+};
 
 // ✅ interceptor للردود - تجديد التوكن عند 401
 axiosInstance.interceptors.response.use(
@@ -61,19 +70,13 @@ axiosInstance.interceptors.response.use(
             const refreshToken = localStorage.getItem('refresh_token');
             
             console.log('🔄 Token expired, attempting to refresh...');
-            console.log('🔑 Refresh token exists:', !!refreshToken);
             
-            // إذا لم يوجد refresh token، امسح كل شيء ووجه إلى تسجيل الدخول
             if (!refreshToken) {
                 console.log('❌ No refresh token, redirecting to login');
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                localStorage.removeItem('token');
-                window.location.href = '/';
+                redirectToLogin();
                 return Promise.reject(error);
             }
             
-            // إذا كان هناك طلب تجديد قيد التنفيذ، أضف هذا الطلب إلى قائمة الانتظار
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
@@ -86,50 +89,29 @@ axiosInstance.interceptors.response.use(
             isRefreshing = true;
             
             try {
-                // ✅ محاولة تجديد التوكن
                 const response = await axios.post(`${API_BASE_URL}/api/auth/refresh/`, {
                     refresh: refreshToken
                 });
                 
                 const { access } = response.data;
                 
-                // ✅ حفظ التوكن الجديد
                 localStorage.setItem('access_token', access);
                 console.log('✅ Token refreshed successfully');
                 
-                // ✅ معالجة الطلبات المعلقة
                 processQueue(null, access);
                 
-                // ✅ إعادة المحاولة مع التوكن الجديد
                 originalRequest.headers.Authorization = `Bearer ${access}`;
                 return axiosInstance(originalRequest);
                 
             } catch (refreshError) {
                 console.error('❌ Token refresh failed:', refreshError.response?.data || refreshError.message);
                 
-                // ✅ فشل تجديد التوكن - امسح كل شيء ووجه إلى تسجيل الدخول
                 processQueue(refreshError, null);
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                localStorage.removeItem('token');
-                
-                // ✅ إعادة توجيه إلى صفحة تسجيل الدخول
-                window.location.href = '/';
+                redirectToLogin();
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;
             }
-        }
-        
-        // ✅ إذا كان الخطأ 401 ولكن تمت إعادة المحاولة بالفعل
-        if (error.response?.status === 401) {
-            console.log('🚫 401 Unauthorized - token may be expired');
-            console.log('🔑 Current token:', localStorage.getItem('access_token') ? 'exists' : 'missing');
-        }
-        
-        // ✅ أخطاء الشبكة
-        if (error.code === 'ERR_NETWORK') {
-            console.error('❌ Cannot connect to server');
         }
         
         return Promise.reject(error);

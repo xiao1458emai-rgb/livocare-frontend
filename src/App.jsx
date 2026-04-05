@@ -7,14 +7,13 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 
-// ✅ مكون منفصل للتعامل مع المصادقة
+// ✅ مكون منفصل للتعامل مع المصادقة (داخل Router)
 function AppContent() {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [darkMode, setDarkMode] = useState(false);
 
     // ✅ دالة للتحقق من صحة التوكن
     const verifyToken = async (token) => {
@@ -48,6 +47,7 @@ function AppContent() {
             try {
                 // إعدادات اللغة
                 const savedLanguage = localStorage.getItem('livocare_language') || 'ar';
+                i18n.changeLanguage(savedLanguage);
                 document.documentElement.lang = savedLanguage;
                 document.documentElement.dir = savedLanguage === 'ar' ? 'rtl' : 'ltr';
 
@@ -69,7 +69,7 @@ function AppContent() {
         };
 
         initApp();
-    }, []);
+    }, [i18n]);
 
     // ✅ دالة نجاح تسجيل الدخول
     const handleLoginSuccess = () => {
@@ -136,7 +136,7 @@ function AppContent() {
                 } 
             />
             <Route 
-                path="/dashboard" 
+                path="/dashboard/*" 
                 element={
                     isAuthenticated ? 
                     <Dashboard onLogout={handleLogout} /> : 
@@ -151,7 +151,7 @@ function AppContent() {
     );
 }
 
-// ✅ المكون الرئيسي مع BrowserRouter
+// ✅ المكون الرئيسي - Router واحد فقط هنا
 function App() {
     return (
         <BrowserRouter>
