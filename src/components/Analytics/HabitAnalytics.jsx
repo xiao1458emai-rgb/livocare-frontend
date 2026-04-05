@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import './Analytics.css';
-import { useTheme } from '../../utils/themeManager';
+import { useTheme } from '../themeManager';
 
 // دالة لتقريب الأرقام
 const roundNumber = (num, decimals = 1) => {
