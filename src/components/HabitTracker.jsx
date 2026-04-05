@@ -759,531 +759,859 @@ const searchDrugInFDA = async (query, searchType = 'name') => {
             </div>
 
             <style jsx>{`
-                .habit-tracker-container {
-                    max-width: 900px;
-                    margin: 0 auto;
-                    padding: 24px;
-                    background: var(--bg-primary);
-                    min-height: 100vh;
-                }
-
-                /* رأس الصفحة */
-                .page-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 24px;
-                    flex-wrap: wrap;
-                    gap: 16px;
-                }
-
-                .page-header h2 {
-                    margin: 0;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    font-size: 1.6rem;
-                    color: var(--text-primary);
-                }
-
-                .header-icon {
-                    font-size: 2rem;
-                }
-
-                .header-date {
-                    color: var(--text-secondary);
-                    font-size: 0.9rem;
-                    background: var(--bg-secondary);
-                    padding: 6px 12px;
-                    border-radius: 40px;
-                }
-
-                /* بطاقة النقاط */
-                .points-card {
-                    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
-                    border-radius: 20px;
-                    padding: 20px;
-                    margin-bottom: 20px;
-                    color: white;
-                }
-
-                .points-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-bottom: 16px;
-                }
-
-                .points-icon {
-                    font-size: 1.5rem;
-                }
-
-                .points-title {
-                    font-weight: bold;
-                    font-size: 1rem;
-                }
-
-                .points-stats {
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 16px;
-                    text-align: center;
-                }
-
-                .points-stat {
-                    background: rgba(255,255,255,0.2);
-                    border-radius: 16px;
-                    padding: 12px;
-                }
-
-                .points-value {
-                    font-size: 1.5rem;
-                    font-weight: bold;
-                }
-
-                .points-label {
-                    font-size: 0.7rem;
-                    opacity: 0.9;
-                }
-
-                /* الرسائل */
-                .message {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 12px;
-                    border-radius: 12px;
-                    margin-bottom: 20px;
-                }
-
-                .message.success {
-                    background: var(--success-bg);
-                    color: var(--success-color);
-                    border: 1px solid var(--success-color);
-                }
-
-                .message.error {
-                    background: var(--error-bg);
-                    color: var(--error-color);
-                    border: 1px solid var(--error-color);
-                }
-
-                .message-icon {
-                    font-size: 1.1rem;
-                }
-
-                .message-text {
-                    flex: 1;
-                }
-
-                .message-close {
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                    font-size: 1rem;
-                    color: inherit;
-                }
-
-                /* بطاقة الإحصائيات */
-                .stats-card {
-                    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
-                    border-radius: 20px;
-                    padding: 20px;
-                    margin-bottom: 20px;
-                    color: white;
-                }
-
-                .stats-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 12px;
-                }
-
-                .stats-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
-
-                .stats-icon {
-                    font-size: 1.2rem;
-                }
-
-                .stats-header h4 {
-                    margin: 0;
-                }
-
-                .stats-badge {
-                    background: rgba(255,255,255,0.2);
-                    padding: 4px 12px;
-                    border-radius: 40px;
-                }
-
-                .completion-rate {
-                    font-weight: bold;
-                }
-
-                .stats-text {
-                    margin-bottom: 12px;
-                }
-
-                .stats-highlight {
-                    font-size: 1.2rem;
-                    font-weight: bold;
-                }
-
-                .progress-container {
-                    width: 100%;
-                }
-
-                .progress-bar {
-                    height: 8px;
-                    background: rgba(255,255,255,0.3);
-                    border-radius: 4px;
-                    overflow: hidden;
-                }
-
-                .progress-fill {
-                    height: 100%;
-                    background: white;
-                    border-radius: 4px;
-                    transition: width 0.3s;
-                }
-
-                /* بطاقات العادات */
-                .habit-form-card,
-                .habits-list-card {
-                    background: var(--bg-secondary);
-                    border-radius: 20px;
-                    padding: 20px;
-                    margin-bottom: 20px;
-                }
-
-                .card-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 20px;
-                    flex-wrap: wrap;
-                    gap: 12px;
-                }
-
-                .card-header h3 {
-                    margin: 0;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 1.1rem;
-                    color: var(--text-primary);
-                }
-
-                .card-icon {
-                    font-size: 1.2rem;
-                }
-
-                .scan-btn {
-                    padding: 8px 16px;
-                    background: var(--primary-color);
-                    color: white;
-                    border: none;
-                    border-radius: 40px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    font-size: 0.85rem;
-                }
-
-                .habits-count {
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                    background: var(--bg-primary);
-                    padding: 4px 12px;
-                    border-radius: 40px;
-                }
-
-                .count-number {
-                    font-weight: bold;
-                    color: var(--primary-color);
-                }
-
-                /* النموذج */
-                .habit-form {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                }
-
-                .form-group {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                }
-
-                .form-group label {
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    font-weight: 500;
-                    color: var(--text-primary);
-                }
-
-                .form-group input,
-                .form-group textarea {
-                    padding: 10px;
-                    border: 1px solid var(--border-color);
-                    border-radius: 12px;
-                    background: var(--bg-primary);
-                    color: var(--text-primary);
-                }
-
-                .submit-btn {
-                    padding: 12px;
-                    background: var(--primary-color);
-                    color: white;
-                    border: none;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 8px;
-                    font-weight: 600;
-                }
-
-                /* قائمة العادات */
-                .habit-list {
-                    list-style: none;
-                    padding: 0;
-                    margin: 0;
-                }
-
-                .habit-item {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 12px;
-                    border-bottom: 1px solid var(--border-color);
-                    gap: 12px;
-                }
-
-                .habit-item.completed {
-                    background: var(--success-bg);
-                    border-radius: 12px;
-                }
-
-                .habit-info {
-                    flex: 1;
-                }
-
-                .habit-main {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    flex-wrap: wrap;
-                }
-
-                .habit-name {
-                    font-weight: 600;
-                    color: var(--text-primary);
-                }
-
-                .completed-badge {
-                    font-size: 0.7rem;
-                    background: var(--success-color);
-                    color: white;
-                    padding: 2px 8px;
-                    border-radius: 20px;
-                }
-
-                .habit-description {
-                    margin: 4px 0 0;
-                    font-size: 0.8rem;
-                    color: var(--text-secondary);
-                }
-
-                .habit-btn {
-                    padding: 8px 16px;
-                    border: none;
-                    border-radius: 40px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    font-size: 0.85rem;
-                    white-space: nowrap;
-                }
-
-                .btn-complete {
-                    background: var(--success-color);
-                    color: white;
-                }
-
-                .btn-undo {
-                    background: var(--warning-color);
-                    color: white;
-                }
-
-                /* ماسح الباركود */
-                .scanner-modal {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0,0,0,0.85);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 1000;
-                }
-
-                .scanner-modal-content {
-                    background: var(--bg-primary);
-                    border-radius: 20px;
-                    width: 90%;
-                    max-width: 500px;
-                    max-height: 80vh;
-                    overflow-y: auto;
-                    padding: 20px;
-                }
-
-                .scanner-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 16px;
-                }
-
-                .close-btn {
-                    background: none;
-                    border: none;
-                    font-size: 1.2rem;
-                    cursor: pointer;
-                    color: var(--text-secondary);
-                }
-
-                .scanner-footer {
-                    margin-top: 16px;
-                    text-align: center;
-                }
-
-                .cancel-btn {
-                    margin-top: 12px;
-                    padding: 8px 20px;
-                    background: var(--bg-secondary);
-                    border: 1px solid var(--border-color);
-                    border-radius: 40px;
-                    cursor: pointer;
-                }
-
-                /* حالات فارغة */
-                .empty-state {
-                    text-align: center;
-                    padding: 40px;
-                }
-
-                .empty-icon {
-                    font-size: 3rem;
-                    margin-bottom: 12px;
-                    opacity: 0.5;
-                }
-
-                .empty-state h4 {
-                    margin: 0 0 8px;
-                    color: var(--text-primary);
-                }
-
-                .empty-state p {
-                    margin: 0 0 16px;
-                    color: var(--text-secondary);
-                }
-
-                .empty-scan-btn {
-                    padding: 8px 20px;
-                    background: var(--primary-color);
-                    color: white;
-                    border: none;
-                    border-radius: 40px;
-                    cursor: pointer;
-                }
-
-                .loading-state {
-                    text-align: center;
-                    padding: 40px;
-                }
-
-                .spinner {
-                    width: 40px;
-                    height: 40px;
-                    border: 3px solid var(--border-color);
-                    border-top-color: var(--primary-color);
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                    margin: 0 auto 12px;
-                }
-
-                .spinner-small {
-                    width: 16px;
-                    height: 16px;
-                    border: 2px solid rgba(255,255,255,0.3);
-                    border-top-color: white;
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                    display: inline-block;
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-
-                .analytics-wrapper {
-                    margin-top: 20px;
-                }
-
-                /* الثيم المظلم */
-                .dark-mode {
-                    --bg-primary: #1a1a2e;
-                    --bg-secondary: #16213e;
-                    --text-primary: #eee;
-                    --text-secondary: #aaa;
-                    --border-color: #2a2a3e;
-                    --primary-color: #8b5cf6;
-                    --success-color: #10b981;
-                    --success-bg: rgba(16, 185, 129, 0.2);
-                    --error-color: #ef4444;
-                    --error-bg: rgba(239, 68, 68, 0.2);
-                    --warning-color: #f59e0b;
-                }
-
-                /* استجابة */
-                @media (max-width: 768px) {
-                    .habit-tracker-container {
-                        padding: 16px;
-                    }
-                    
-                    .page-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-                    
-                    .habit-item {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-                    
-                    .habit-btn {
-                        width: 100%;
-                        justify-content: center;
-                    }
-                    
-                    .points-stats {
-                        grid-template-columns: 1fr;
-                        gap: 8px;
-                    }
-                }
+/* HabitTracker.css - متوافق مع ThemeManager */
+
+.habit-tracker-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+    background: var(--primary-bg);
+    min-height: 100vh;
+    transition: background var(--transition-medium);
+}
+
+/* ===== رأس الصفحة ===== */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
+
+.page-header h2 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 1.6rem;
+    color: var(--text-primary);
+}
+
+.header-icon {
+    font-size: 2rem;
+}
+
+.header-date {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    background: var(--secondary-bg);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-light);
+}
+
+/* ===== قسم البحث عن الأدوية ===== */
+.drug-search-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-md);
+}
+
+.drug-search-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.drug-search-icon {
+    font-size: 1.5rem;
+}
+
+.drug-search-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.drug-search-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.drug-search-input {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: all var(--transition-fast);
+}
+
+.drug-search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
+}
+
+.drug-search-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.drug-search-btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-medium);
+}
+
+.drug-search-btn.name-search {
+    background: var(--primary);
+    color: white;
+}
+
+.drug-search-btn.ndc-search {
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+}
+
+.drug-search-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.drug-search-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== نتائج البحث ===== */
+.drug-search-results {
+    margin-top: var(--spacing-md);
+    border-top: 1px solid var(--border-light);
+    padding-top: var(--spacing-md);
+}
+
+.results-header {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.drug-result-item {
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid var(--border-light);
+}
+
+.drug-result-item:hover {
+    background: var(--hover-bg);
+    transform: translateX(5px);
+    border-color: var(--primary);
+}
+
+[dir="rtl"] .drug-result-item:hover {
+    transform: translateX(-5px);
+}
+
+.drug-result-name {
+    margin-bottom: var(--spacing-xs);
+}
+
+.drug-result-name strong {
+    color: var(--text-primary);
+}
+
+.drug-generic {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    margin-right: var(--spacing-sm);
+}
+
+.drug-result-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.drug-warnings {
+    margin-top: var(--spacing-xs);
+    font-size: 0.7rem;
+    color: var(--warning);
+}
+
+/* ===== بطاقة النقاط ===== */
+.points-card {
+    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    color: white;
+}
+
+.points-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.points-icon {
+    font-size: 1.5rem;
+}
+
+.points-title {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.points-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md);
+    text-align: center;
+}
+
+.points-stat {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm);
+    backdrop-filter: blur(5px);
+}
+
+.points-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.points-label {
+    font-size: 0.7rem;
+    opacity: 0.9;
+}
+
+/* ===== الرسائل ===== */
+.message {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-lg);
+    animation: slideIn 0.3s ease;
+}
+
+.message.success {
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid var(--success-border);
+}
+
+.message.error {
+    background: var(--error-bg);
+    color: var(--error);
+    border: 1px solid var(--error-border);
+}
+
+.message-icon {
+    font-size: 1.1rem;
+}
+
+.message-text {
+    flex: 1;
+}
+
+.message-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    color: inherit;
+    opacity: 0.7;
+    transition: opacity var(--transition-fast);
+}
+
+.message-close:hover {
+    opacity: 1;
+}
+
+/* ===== بطاقة الإحصائيات ===== */
+.stats-card {
+    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    color: white;
+}
+
+.stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.stats-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.stats-icon {
+    font-size: 1.2rem;
+}
+
+.stats-header h4 {
+    margin: 0;
+}
+
+.stats-badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-full);
+}
+
+.completion-rate {
+    font-weight: 700;
+}
+
+.stats-text {
+    margin-bottom: var(--spacing-sm);
+}
+
+.stats-highlight {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.progress-container {
+    width: 100%;
+}
+
+.progress-bar {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: white;
+    border-radius: var(--radius-full);
+    transition: width var(--transition-medium);
+}
+
+/* ===== بطاقات العادات ===== */
+.habit-form-card,
+.habits-list-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-md);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.card-header h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.card-icon {
+    font-size: 1.2rem;
+}
+
+.scan-btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.85rem;
+    transition: all var(--transition-medium);
+}
+
+.scan-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.habits-count {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    background: var(--secondary-bg);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-light);
+}
+
+.count-number {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.count-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+/* ===== النموذج ===== */
+.habit-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.form-group label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.label-icon {
+    font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group textarea {
+    padding: var(--spacing-sm);
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: all var(--transition-fast);
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
+}
+
+.submit-btn {
+    padding: var(--spacing-sm);
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    font-weight: 600;
+    transition: all var(--transition-medium);
+}
+
+.submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== قائمة العادات ===== */
+.habit-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.habit-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-light);
+    gap: var(--spacing-sm);
+    transition: all var(--transition-fast);
+}
+
+.habit-item:last-child {
+    border-bottom: none;
+}
+
+.habit-item.completed {
+    background: var(--success-bg);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-xs);
+}
+
+.habit-info {
+    flex: 1;
+}
+
+.habit-main {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.habit-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.completed-badge {
+    font-size: 0.7rem;
+    background: var(--success);
+    color: white;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+}
+
+.habit-description {
+    margin: var(--spacing-xs) 0 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.habit-btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+}
+
+.habit-btn:hover:not(:disabled) {
+    transform: scale(1.05);
+}
+
+.habit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-complete {
+    background: var(--success);
+    color: white;
+}
+
+.btn-undo {
+    background: var(--warning);
+    color: white;
+}
+
+/* ===== ماسح الباركود ===== */
+.scanner-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+.scanner-modal-content {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: var(--spacing-lg);
+}
+
+.scanner-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.scanner-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.close-btn:hover {
+    color: var(--error);
+}
+
+.scanner-footer {
+    margin-top: var(--spacing-md);
+    text-align: center;
+}
+
+.scanner-footer p {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.cancel-btn {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+}
+
+.cancel-btn:hover {
+    background: var(--error-bg);
+    color: var(--error);
+    border-color: var(--error);
+}
+
+/* ===== حالات فارغة ===== */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+.empty-state h4 {
+    margin: 0 0 var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.empty-state p {
+    margin: 0 0 var(--spacing-md);
+    color: var(--text-secondary);
+}
+
+.empty-scan-btn {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+}
+
+.empty-scan-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.loading-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--spacing-sm);
+}
+
+.spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+}
+
+/* ===== تحليلات ===== */
+.analytics-wrapper {
+    margin-top: var(--spacing-lg);
+}
+
+/* ===== أنيميشن ===== */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+[dir="rtl"] @keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ===== استجابة ===== */
+@media (max-width: 768px) {
+    .habit-tracker-container {
+        padding: var(--spacing-md);
+    }
+    
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .habit-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .habit-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .points-stats {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+    }
+    
+    .drug-search-row {
+        flex-direction: column;
+    }
+    
+    .drug-search-buttons {
+        width: 100%;
+    }
+    
+    .drug-search-btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .scan-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .habit-main {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .drug-result-item:hover {
+    transform: translateX(-5px);
+}
+
+[dir="rtl"] .message {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .card-header {
+    flex-direction: row-reverse;
+}
+
+@media (max-width: 480px) {
+    [dir="rtl"] .card-header {
+        flex-direction: column;
+        align-items: flex-end;
+    }
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .habit-item,
+    .habit-btn,
+    .submit-btn,
+    .scan-btn {
+        transition: none !important;
+    }
+    
+    .spinner,
+    .spinner-small {
+        animation: none !important;
+    }
+    
+    .message,
+    .scanner-modal {
+        animation: none !important;
+    }
+}
             `}</style>
         </div>
     );

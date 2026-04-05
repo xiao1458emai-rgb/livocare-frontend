@@ -721,487 +721,861 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             </div>
 
             <style jsx>{`
-                .activity-form-container {
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 20px;
-                }
-
-                .watch-section {
-                    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-                    border-radius: 28px;
-                    padding: 24px;
-                    margin-bottom: 24px;
-                    color: white;
-                    transition: all 0.3s;
-                }
-
-                .watch-section.connected {
-                    background: linear-gradient(135deg, #1e3a5f 0%, #0f2b3a 100%);
-                    border: 1px solid #10b981;
-                }
-
-                .watch-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 20px;
-                    flex-wrap: wrap;
-                    gap: 12px;
-                }
-
-                .watch-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                }
-
-                .watch-icon-pulse {
-                    position: relative;
-                }
-
-                .watch-icon {
-                    font-size: 2rem;
-                }
-
-                .pulse-dot {
-                    position: absolute;
-                    bottom: 0;
-                    right: 0;
-                    width: 12px;
-                    height: 12px;
-                    background: #10b981;
-                    border-radius: 50%;
-                    animation: pulse 1.5s infinite;
-                    border: 2px solid white;
-                }
-
-                @keyframes pulse {
-                    0% { transform: scale(0.95); opacity: 1; }
-                    100% { transform: scale(1.5); opacity: 0; }
-                }
-
-                .watch-subtitle {
-                    font-size: 0.75rem;
-                    opacity: 0.8;
-                    margin: 0;
-                }
-
-                .watch-connect-btn, .watch-disconnect-btn {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    padding: 10px 24px;
-                    border: none;
-                    border-radius: 40px;
-                    cursor: pointer;
-                    font-weight: 600;
-                    transition: all 0.3s;
-                }
-
-                .watch-connect-btn.adb-connect {
-                    background: #10b981;
-                    color: white;
-                }
-
-                .watch-disconnect-btn {
-                    background: rgba(239,68,68,0.9);
-                    color: white;
-                }
-
-                .spinner-small {
-                    width: 16px;
-                    height: 16px;
-                    border: 2px solid rgba(255,255,255,0.3);
-                    border-top-color: white;
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                }
-
-                .adb-status {
-                    background: rgba(0,0,0,0.3);
-                    border-radius: 12px;
-                    padding: 12px;
-                    margin-bottom: 16px;
-                    font-size: 0.85rem;
-                }
-
-                .adb-status.connecting {
-                    background: rgba(16,185,129,0.2);
-                    border: 1px solid #10b981;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
-
-                .adb-status.error {
-                    background: rgba(239,68,68,0.2);
-                    border: 1px solid #ef4444;
-                }
-
-                .adb-status.error ul {
-                    margin: 8px 0 0 20px;
-                    font-size: 0.75rem;
-                }
-
-                .status-spinner {
-                    width: 16px;
-                    height: 16px;
-                    border: 2px solid rgba(255,255,255,0.3);
-                    border-top-color: white;
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                }
-
-                .health-stats-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 16px;
-                    margin-bottom: 20px;
-                }
-
-                .health-card {
-                    background: rgba(255,255,255,0.1);
-                    backdrop-filter: blur(10px);
-                    border-radius: 20px;
-                    padding: 20px;
-                    text-align: center;
-                }
-
-                .health-icon {
-                    font-size: 2rem;
-                    margin-bottom: 8px;
-                }
-
-                .health-value {
-                    font-size: 1.8rem;
-                    font-weight: 800;
-                    margin: 8px 0;
-                }
-
-                .value-number {
-                    font-size: 2rem;
-                }
-
-                .value-unit {
-                    font-size: 0.9rem;
-                    opacity: 0.8;
-                }
-
-                .health-status {
-                    font-size: 0.8rem;
-                    padding: 4px 12px;
-                    border-radius: 20px;
-                    display: inline-block;
-                }
-
-                .health-status.normal {
-                    background: rgba(16,185,129,0.2);
-                    color: #10b981;
-                }
-
-                .health-status.high {
-                    background: rgba(239,68,68,0.2);
-                    color: #f87171;
-                }
-
-                .health-status.low {
-                    background: rgba(245,158,11,0.2);
-                    color: #fbbf24;
-                }
-
-                .watch-last-update {
-                    font-size: 0.7rem;
-                    opacity: 0.7;
-                    text-align: center;
-                    margin-bottom: 16px;
-                }
-
-                .watch-actions {
-                    display: flex;
-                    gap: 12px;
-                }
-
-                .measure-btn, .add-activity-btn {
-                    flex: 1;
-                    padding: 12px;
-                    border: 1px solid rgba(255,255,255,0.3);
-                    border-radius: 40px;
-                    background: rgba(255,255,255,0.15);
-                    color: white;
-                    cursor: pointer;
-                    font-weight: 600;
-                    transition: all 0.3s;
-                }
-
-                .measure-btn:hover, .add-activity-btn:hover:not(:disabled) {
-                    background: rgba(255,255,255,0.3);
-                    transform: translateY(-2px);
-                }
-
-                .add-activity-btn:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-
-                .watch-alerts {
-                    margin-top: 16px;
-                }
-
-                .alert-item {
-                    background: rgba(239,68,68,0.2);
-                    border-radius: 10px;
-                    padding: 8px 12px;
-                    margin-top: 8px;
-                    font-size: 0.8rem;
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-
-                .card {
-                    background: var(--card-bg);
-                    border-radius: 24px;
-                    padding: 24px;
-                    margin-bottom: 24px;
-                    border: 1px solid var(--border-light);
-                }
-
-                .form-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 8px;
-                }
-
-                .form-header h3 {
-                    margin: 0;
-                    color: var(--text-primary);
-                }
-
-                .description {
-                    color: var(--text-secondary);
-                    font-size: 0.85rem;
-                    margin-bottom: 20px;
-                }
-
-                .form-row {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 16px;
-                }
-
-                .form-group {
-                    margin-bottom: 20px;
-                }
-
-                .form-group label {
-                    display: block;
-                    margin-bottom: 8px;
-                    font-weight: 500;
-                    color: var(--text-primary);
-                }
-
-                .activity-select, .duration-input, .datetime-input, .notes-textarea {
-                    width: 100%;
-                    padding: 12px 16px;
-                    border: 2px solid var(--border-light);
-                    border-radius: 12px;
-                    background: var(--bg-primary);
-                    color: var(--text-primary);
-                    font-size: 1rem;
-                }
-
-                .calculated-calories {
-                    background: linear-gradient(135deg, #fef3c7, #fde68a);
-                    border-radius: 12px;
-                    padding: 12px;
-                    margin-bottom: 20px;
-                    text-align: center;
-                }
-
-                .dark-mode .calculated-calories {
-                    background: linear-gradient(135deg, #78350f, #92400e);
-                }
-
-                .calories-badge {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 1.3rem;
-                    font-weight: 700;
-                }
-
-                .form-actions {
-                    display: flex;
-                    gap: 12px;
-                }
-
-                .submit-btn, .cancel-btn {
-                    flex: 1;
-                    padding: 12px;
-                    border: none;
-                    border-radius: 40px;
-                    font-size: 1rem;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.3s;
-                }
-
-                .submit-btn {
-                    background: linear-gradient(135deg, #667eea, #764ba2);
-                    color: white;
-                }
-
-                .cancel-btn {
-                    background: var(--secondary-bg);
-                    color: var(--text-primary);
-                }
-
-                .error-message, .success-message {
-                    padding: 12px;
-                    border-radius: 12px;
-                    margin-bottom: 16px;
-                }
-
-                .error-message { background: #fee2e2; color: #ef4444; }
-                .success-message { background: #d1fae5; color: #10b981; }
-
-                .activities-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 20px;
-                }
-
-                .activities-count {
-                    background: var(--secondary-bg);
-                    padding: 4px 12px;
-                    border-radius: 20px;
-                    font-size: 0.85rem;
-                }
-
-                .refresh-btn {
-                    width: 36px;
-                    height: 36px;
-                    border: none;
-                    border-radius: 50%;
-                    background: var(--secondary-bg);
-                    cursor: pointer;
-                }
-
-                .activities-grid {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 12px;
-                }
-
-                .activity-card {
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    padding: 16px;
-                }
-
-                .activity-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin-bottom: 12px;
-                }
-
-                .activity-icon {
-                    width: 48px;
-                    height: 48px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 1.5rem;
-                }
-
-                .activity-info {
-                    flex: 1;
-                }
-
-                .activity-info h4 {
-                    margin: 0 0 4px 0;
-                }
-
-                .activity-date {
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                .activity-buttons {
-                    display: flex;
-                    gap: 8px;
-                }
-
-                .edit-btn, .delete-btn {
-                    width: 32px;
-                    height: 32px;
-                    border: none;
-                    border-radius: 8px;
-                    cursor: pointer;
-                }
-
-                .edit-btn { background: #3b82f6; color: white; }
-                .delete-btn { background: #ef4444; color: white; }
-
-                .activity-details {
-                    display: flex;
-                    gap: 16px;
-                    margin-bottom: 8px;
-                }
-
-                .detail-item {
-                    display: flex;
-                    gap: 8px;
-                    font-size: 0.85rem;
-                }
-
-                .activity-notes {
-                    background: var(--card-bg);
-                    border-radius: 8px;
-                    padding: 8px;
-                    margin-top: 8px;
-                    font-size: 0.8rem;
-                }
-
-                .no-activities {
-                    text-align: center;
-                    padding: 48px;
-                }
-
-                .empty-icon {
-                    font-size: 4rem;
-                    margin-bottom: 16px;
-                }
-
-                .spinner {
-                    width: 40px;
-                    height: 40px;
-                    border: 3px solid var(--border-light);
-                    border-top-color: var(--primary-color);
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                    margin: 0 auto 16px;
-                }
-
-                @media (max-width: 768px) {
-                    .form-row, .watch-actions, .health-stats-grid {
-                        grid-template-columns: 1fr;
-                        flex-direction: column;
-                    }
-                    .watch-header {
-                        flex-direction: column;
-                        text-align: center;
-                    }
-                    .watch-title {
-                        justify-content: center;
-                    }
-                }
+/* ActivityForm.css - متوافق مع ThemeManager */
+
+.activity-form-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+    background: var(--primary-bg);
+    min-height: 100vh;
+    transition: background var(--transition-medium);
+}
+
+/* ===== قسم الساعة الذكية / ADB Monitor ===== */
+.watch-section {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    color: white;
+    transition: all var(--transition-medium);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.watch-section.connected {
+    background: linear-gradient(135deg, #1e3a5f 0%, #0f2b3a 100%);
+    border: 1px solid var(--success);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+}
+
+.watch-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.watch-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.watch-icon-pulse {
+    position: relative;
+}
+
+.watch-icon {
+    font-size: 2rem;
+}
+
+.pulse-dot {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+    background: var(--success);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+    border: 2px solid white;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.95); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+.watch-subtitle {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    margin: 0;
+}
+
+.watch-connect-btn,
+.watch-disconnect-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-medium);
+}
+
+.watch-connect-btn.adb-connect {
+    background: var(--success);
+    color: white;
+}
+
+.watch-connect-btn.adb-connect:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+}
+
+.watch-disconnect-btn {
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+}
+
+.watch-disconnect-btn:hover {
+    background: var(--error);
+    transform: translateY(-2px);
+}
+
+.spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+}
+
+/* ===== حالة ADB ===== */
+.adb-status {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.85rem;
+}
+
+.adb-status.connecting {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid var(--success);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.adb-status.error {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid var(--error);
+}
+
+.adb-status.error ul {
+    margin: var(--spacing-sm) 0 0 var(--spacing-lg);
+    font-size: 0.75rem;
+    color: #fca5a5;
+}
+
+.status-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* ===== إحصائيات الصحة ===== */
+.health-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.health-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    text-align: center;
+    transition: all var(--transition-medium);
+}
+
+.health-card:hover {
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.health-icon {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.health-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin: var(--spacing-sm) 0;
+}
+
+.value-number {
+    font-size: 2rem;
+}
+
+.value-unit {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.health-status {
+    font-size: 0.8rem;
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    display: inline-block;
+}
+
+.health-status.normal {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.health-status.high {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+}
+
+.health-status.low {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+}
+
+.watch-last-update {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    text-align: center;
+    margin-bottom: var(--spacing-md);
+}
+
+/* ===== أزرار الساعة ===== */
+.watch-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.measure-btn,
+.add-activity-btn {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-medium);
+}
+
+.measure-btn:hover,
+.add-activity-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.add-activity-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===== تنبيهات الساعة ===== */
+.watch-alerts {
+    margin-top: var(--spacing-md);
+}
+
+.alert-item {
+    background: rgba(239, 68, 68, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-top: var(--spacing-sm);
+    font-size: 0.8rem;
+    border-right: 3px solid var(--error);
+}
+
+[dir="rtl"] .alert-item {
+    border-right: none;
+    border-left: 3px solid var(--error);
+}
+
+/* ===== البطاقة الرئيسية ===== */
+.card {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-medium);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.form-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.3rem;
+}
+
+.cancel-edit-btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.cancel-edit-btn:hover {
+    background: var(--error-bg);
+    color: var(--error);
+    border-color: var(--error);
+}
+
+.description {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-light);
+}
+
+/* ===== حقول النموذج ===== */
+.form-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: var(--spacing-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+}
+
+.activity-select,
+.duration-input,
+.datetime-input,
+.notes-textarea {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all var(--transition-fast);
+}
+
+.activity-select:focus,
+.duration-input:focus,
+.datetime-input:focus,
+.notes-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
+}
+
+.field-hint {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    margin-top: var(--spacing-xs);
+}
+
+/* ===== السعرات المحسوبة ===== */
+.calculated-calories {
+    background: var(--warning-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+    border: 1px solid var(--warning-border);
+}
+
+.dark-mode .calculated-calories {
+    background: rgba(245, 158, 11, 0.15);
+}
+
+.calories-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--warning);
+}
+
+.calories-icon {
+    font-size: 1.5rem;
+}
+
+.calories-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+}
+
+/* ===== الرسائل ===== */
+.error-message,
+.success-message {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.error-message {
+    background: var(--error-bg);
+    color: var(--error);
+    border: 1px solid var(--error-border);
+}
+
+.success-message {
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid var(--success-border);
+}
+
+/* ===== أزرار الإجراء ===== */
+.form-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-lg);
+}
+
+.submit-btn,
+.cancel-btn {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    border-radius: var(--radius-full);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-medium);
+}
+
+.submit-btn {
+    background: var(--primary-gradient);
+    color: white;
+}
+
+.submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.cancel-btn {
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+}
+
+.cancel-btn:hover {
+    background: var(--error-bg);
+    color: var(--error);
+    border-color: var(--error);
+}
+
+/* ===== قائمة الأنشطة ===== */
+.activities-list-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+}
+
+.activities-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.activities-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.activities-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.activities-count {
+    background: var(--secondary-bg);
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.refresh-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+}
+
+.refresh-btn:hover:not(:disabled) {
+    background: var(--primary);
+    color: white;
+    transform: rotate(180deg);
+}
+
+.refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===== شبكة الأنشطة ===== */
+.activities-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: var(--spacing-sm);
+}
+
+.activities-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.activities-grid::-webkit-scrollbar-track {
+    background: var(--tertiary-bg);
+    border-radius: var(--radius-full);
+}
+
+.activities-grid::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: var(--radius-full);
+}
+
+.activity-card {
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+}
+
+.activity-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-light);
+}
+
+.activity-card.editing {
+    border: 2px solid var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
+}
+
+.activity-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.activity-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    transition: all var(--transition-fast);
+}
+
+.activity-card:hover .activity-icon {
+    transform: scale(1.05);
+}
+
+.activity-info {
+    flex: 1;
+}
+
+.activity-info h4 {
+    margin: 0 0 4px 0;
+    color: var(--text-primary);
+}
+
+.activity-date {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.activity-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.edit-btn,
+.delete-btn {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.edit-btn {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.edit-btn:hover {
+    background: #3b82f6;
+    color: white;
+    transform: scale(1.05);
+}
+
+.delete-btn {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.delete-btn:hover {
+    background: #ef4444;
+    color: white;
+    transform: scale(1.05);
+}
+
+.activity-details {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.detail-item {
+    display: flex;
+    gap: var(--spacing-sm);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.detail-item span:first-child {
+    font-weight: 500;
+}
+
+.detail-item span:last-child {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.activity-notes {
+    background: var(--card-bg);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    border-right: 3px solid var(--primary);
+}
+
+[dir="rtl"] .activity-notes {
+    border-right: none;
+    border-left: 3px solid var(--primary);
+}
+
+/* ===== حالات فارغة ===== */
+.no-activities {
+    text-align: center;
+    padding: var(--spacing-2xl);
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.6;
+}
+
+.no-activities h4 {
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.no-activities p {
+    color: var(--text-tertiary);
+}
+
+.loading-activities {
+    text-align: center;
+    padding: var(--spacing-2xl);
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--spacing-md);
+}
+
+.error-state {
+    text-align: center;
+    padding: var(--spacing-xl);
+}
+
+.retry-btn {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+}
+
+.retry-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== استجابة ===== */
+@media (max-width: 768px) {
+    .activity-form-container {
+        padding: var(--spacing-md);
+    }
+
+    .form-row,
+    .watch-actions,
+    .health-stats-grid {
+        grid-template-columns: 1fr;
+        flex-direction: column;
+    }
+
+    .watch-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .watch-title {
+        justify-content: center;
+    }
+
+    .activity-details {
+        flex-direction: column;
+        gap: var(--spacing-xs);
+    }
+
+    .activities-grid {
+        max-height: 400px;
+    }
+}
+
+@media (max-width: 480px) {
+    .form-header {
+        flex-direction: column;
+    }
+
+    .activity-header {
+        flex-wrap: wrap;
+    }
+
+    .activity-info {
+        order: 2;
+    }
+
+    .activity-buttons {
+        order: 3;
+    }
+
+    .activity-icon {
+        order: 1;
+    }
+
+    .calories-value {
+        font-size: 1.3rem;
+    }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .activities-grid {
+    padding-right: 0;
+    padding-left: var(--spacing-sm);
+}
+
+[dir="rtl"] .activity-notes {
+    border-right: none;
+    border-left: 3px solid var(--primary);
+}
+
+[dir="rtl"] .detail-item {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .alert-item {
+    border-right: none;
+    border-left: 3px solid var(--error);
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .watch-section,
+    .card,
+    .activity-card,
+    .submit-btn,
+    .edit-btn,
+    .delete-btn {
+        transition: none !important;
+    }
+
+    .activity-card:hover {
+        transform: none !important;
+    }
+
+    .pulse-dot {
+        animation: none !important;
+    }
+
+    .spinner,
+    .spinner-small {
+        animation: none !important;
+    }
+}
             `}</style>
         </div>
     );

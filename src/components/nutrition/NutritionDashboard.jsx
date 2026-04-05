@@ -566,491 +566,619 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
             </div>
 
             <style jsx>{`
-                .nutrition-dashboard-container {
-                    max-width: 1000px;
-                    margin: 0 auto;
-                    padding: 20px;
-                    background: var(--bg-primary);
-                    min-height: 100vh;
-                }
-
-                /* شريط التحكم */
-                .dashboard-control-bar {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 24px;
-                    flex-wrap: wrap;
-                    gap: 12px;
-                }
-
-                .dashboard-control-left {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    flex-wrap: wrap;
-                }
-
-                .dashboard-refresh-button {
-                    padding: 8px 16px;
-                    border: none;
-                    border-radius: 40px;
-                    background: var(--primary-color);
-                    color: white;
-                    cursor: pointer;
-                }
-
-                .dashboard-last-update {
-                    font-size: 0.75rem;
-                    color: var(--text-secondary);
-                }
-
-                .dashboard-auto-refresh {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    cursor: pointer;
-                }
-
-                /* التبويبات */
-                .dashboard-tabs {
-                    display: flex;
-                    gap: 8px;
-                    margin-bottom: 24px;
-                    background: var(--bg-secondary);
-                    padding: 6px;
-                    border-radius: 40px;
-                }
-
-                .dashboard-tab,
-                .dashboard-tab-active {
-                    flex: 1;
-                    padding: 10px;
-                    border: none;
-                    background: transparent;
-                    border-radius: 32px;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    font-size: 0.85rem;
-                }
-
-                .dashboard-tab-active {
-                    background: var(--primary-color);
-                    color: white;
-                }
-
-                /* بطاقات الإحصائيات */
-                .dashboard-stats-grid {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 16px;
-                    margin-bottom: 24px;
-                }
-
-                .dashboard-stat-card {
-                    background: var(--bg-secondary);
-                    border-radius: 16px;
-                    padding: 16px;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                }
-
-                .dashboard-stat-icon {
-                    font-size: 2rem;
-                }
-
-                .dashboard-stat-info {
-                    flex: 1;
-                }
-
-                .dashboard-stat-value {
-                    font-size: 1.5rem;
-                    font-weight: 700;
-                    color: var(--text-primary);
-                }
-
-                .dashboard-stat-label {
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                /* الأهداف */
-                .dashboard-goals-section {
-                    background: var(--bg-secondary);
-                    border-radius: 20px;
-                    padding: 20px;
-                    margin-bottom: 24px;
-                }
-
-                .dashboard-goals-section h3 {
-                    margin: 0 0 16px 0;
-                    font-size: 1rem;
-                }
-
-                .dashboard-goals-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                }
-
-                .dashboard-goal-item {
-                    width: 100%;
-                }
-
-                .dashboard-goal-header {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 8px;
-                    font-size: 0.85rem;
-                }
-
-                .dashboard-progress-bar {
-                    height: 8px;
-                    background: var(--bg-primary);
-                    border-radius: 4px;
-                    overflow: hidden;
-                }
-
-                .dashboard-progress-fill {
-                    height: 100%;
-                    background: var(--primary-color);
-                    border-radius: 4px;
-                    transition: width 0.3s;
-                }
-
-                .dashboard-goal-values {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-top: 8px;
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                /* توزيع الوجبات */
-                .dashboard-distribution-section {
-                    background: var(--bg-secondary);
-                    border-radius: 20px;
-                    padding: 20px;
-                    margin-bottom: 24px;
-                }
-
-                .dashboard-distribution-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 12px;
-                }
-
-                .dashboard-distribution-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    font-size: 0.85rem;
-                }
-
-                .dashboard-distribution-bar {
-                    flex: 1;
-                    height: 6px;
-                    background: var(--bg-primary);
-                    border-radius: 3px;
-                    overflow: hidden;
-                }
-
-                .dashboard-distribution-fill {
-                    height: 100%;
-                    background: var(--primary-color);
-                    border-radius: 3px;
-                }
-
-                /* الوجبات الأخيرة */
-                .dashboard-recent-meals {
-                    background: var(--bg-secondary);
-                    border-radius: 20px;
-                    padding: 20px;
-                }
-
-                .dashboard-recent-meals h3 {
-                    margin: 0 0 16px 0;
-                    font-size: 1rem;
-                }
-
-                .dashboard-meals-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 12px;
-                }
-
-                .dashboard-meal-item {
-                    padding: 12px;
-                    background: var(--bg-primary);
-                    border-radius: 12px;
-                }
-
-                .dashboard-meal-header {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 8px;
-                }
-
-                .dashboard-meal-type {
-                    font-size: 0.85rem;
-                }
-
-                .dashboard-meal-calories {
-                    font-size: 0.8rem;
-                    font-weight: 600;
-                }
-
-                .dashboard-meal-time {
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                    margin-bottom: 8px;
-                }
-
-                .dashboard-meal-ingredients {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 6px;
-                }
-
-                .dashboard-ingredient-badge {
-                    background: var(--bg-secondary);
-                    padding: 4px 8px;
-                    border-radius: 20px;
-                    font-size: 0.7rem;
-                }
-
-                .dashboard-more-badge {
-                    background: var(--bg-secondary);
-                    padding: 4px 8px;
-                    border-radius: 20px;
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                /* التحليلات */
-                .dashboard-insights-section {
-                    background: var(--bg-secondary);
-                    border-radius: 20px;
-                    padding: 20px;
-                }
-
-                .dashboard-insights-stats {
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 16px;
-                    margin-bottom: 24px;
-                }
-
-                .dashboard-insight-card {
-                    background: var(--bg-primary);
-                    border-radius: 16px;
-                    padding: 16px;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                }
-
-                .dashboard-insight-icon {
-                    font-size: 1.8rem;
-                }
-
-                .dashboard-insight-value {
-                    font-size: 1.3rem;
-                    font-weight: 700;
-                }
-
-                .dashboard-insight-label {
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                .dashboard-analysis-box {
-                    background: var(--bg-primary);
-                    border-radius: 16px;
-                    padding: 16px;
-                }
-
-                .dashboard-analysis-box h4 {
-                    margin: 0 0 12px 0;
-                }
-
-                .dashboard-analysis-items {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 12px;
-                }
-
-                .dashboard-analysis-item {
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 0.85rem;
-                }
-
-                .dashboard-good {
-                    color: #10b981;
-                }
-
-                .dashboard-warning {
-                    color: #f59e0b;
-                }
-
-                /* التوصيات */
-                .dashboard-recommendations-section {
-                    background: var(--bg-secondary);
-                    border-radius: 20px;
-                    padding: 20px;
-                }
-
-                .dashboard-recommendations-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 12px;
-                }
-
-                .dashboard-recommendation-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 12px;
-                    background: var(--bg-primary);
-                    border-radius: 12px;
-                }
-
-                .dashboard-rec-icon {
-                    font-size: 1.2rem;
-                }
-
-                /* التنبؤات */
-                .dashboard-prediction-section {
-                    background: var(--bg-secondary);
-                    border-radius: 20px;
-                    padding: 20px;
-                }
-
-                .dashboard-prediction-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin-bottom: 20px;
-                }
-
-                .dashboard-prediction-header h3 {
-                    margin: 0;
-                }
-
-                .dashboard-prediction-card {
-                    background: var(--bg-primary);
-                    border-radius: 16px;
-                    padding: 24px;
-                    text-align: center;
-                }
-
-                .dashboard-prediction-value {
-                    font-size: 2rem;
-                    font-weight: 700;
-                    margin-bottom: 8px;
-                }
-
-                .dashboard-prediction-period {
-                    color: var(--text-secondary);
-                    margin-bottom: 12px;
-                }
-
-                .dashboard-prediction-confidence {
-                    font-size: 0.85rem;
-                    color: var(--text-secondary);
-                    margin-bottom: 12px;
-                }
-
-                .dashboard-prediction-note {
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                .dashboard-prediction-disclaimer {
-                    margin-top: 16px;
-                    padding: 12px;
-                    background: rgba(245, 158, 11, 0.1);
-                    border-radius: 12px;
-                    font-size: 0.7rem;
-                    text-align: center;
-                }
-
-                /* حالات فارغة */
-                .dashboard-empty-state {
-                    text-align: center;
-                    padding: 40px;
-                    color: var(--text-secondary);
-                }
-
-                .dashboard-loading-state {
-                    text-align: center;
-                    padding: 40px;
-                }
-
-                .dashboard-spinner {
-                    width: 40px;
-                    height: 40px;
-                    border: 3px solid var(--border-color);
-                    border-top-color: var(--primary-color);
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                    margin: 0 auto 16px;
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-
-                /* استجابة */
-                @media (max-width: 768px) {
-                    .nutrition-dashboard-container {
-                        padding: 12px;
-                    }
-                    
-                    .dashboard-stats-grid {
-                        grid-template-columns: repeat(2, 1fr);
-                    }
-                    
-                    .dashboard-insights-stats {
-                        grid-template-columns: 1fr;
-                    }
-                    
-                    .dashboard-tabs {
-                        flex-wrap: wrap;
-                    }
-                    
-                    .dashboard-tab,
-                    .dashboard-tab-active {
-                        flex: none;
-                        width: calc(50% - 4px);
-                    }
-                }
-
-                @media (max-width: 480px) {
-                    .dashboard-stats-grid {
-                        grid-template-columns: 1fr;
-                    }
-                    
-                    .dashboard-control-bar {
-                        flex-direction: column;
-                        align-items: stretch;
-                    }
-                    
-                    .dashboard-control-left {
-                        justify-content: center;
-                    }
-                }
-
-                .dark-mode {
-                    --bg-primary: #1a1a2e;
-                    --bg-secondary: #16213e;
-                    --text-primary: #eee;
-                    --text-secondary: #aaa;
-                    --border-color: #2a2a3e;
-                    --primary-color: #667eea;
-                }
+/* NutritionDashboard.css - متوافق مع ThemeManager */
+
+.nutrition-dashboard-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+    background: var(--primary-bg);
+    min-height: 100vh;
+}
+
+/* شريط التحكم */
+.dashboard-control-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.dashboard-control-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.dashboard-refresh-button {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-full);
+    background: var(--primary-gradient);
+    color: white;
+    cursor: pointer;
+    transition: all var(--transition-medium);
+}
+
+.dashboard-refresh-button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.dashboard-last-update {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+}
+
+.dashboard-auto-refresh {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+/* التبويبات */
+.dashboard-tabs {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    background: var(--secondary-bg);
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-full);
+}
+
+.dashboard-tab,
+.dashboard-tab-active {
+    flex: 1;
+    padding: var(--spacing-sm);
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.dashboard-tab-active {
+    background: var(--primary-gradient);
+    color: white;
+}
+
+.dashboard-tab:hover:not(.dashboard-tab-active) {
+    background: var(--hover-bg);
+    color: var(--primary);
+}
+
+/* بطاقات الإحصائيات */
+.dashboard-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.dashboard-stat-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+}
+
+.dashboard-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+}
+
+.dashboard-stat-icon {
+    font-size: 2rem;
+}
+
+.dashboard-stat-info {
+    flex: 1;
+}
+
+.dashboard-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.dashboard-stat-label {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+}
+
+/* الأهداف */
+.dashboard-goals-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+}
+
+.dashboard-goals-section h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.dashboard-goals-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.dashboard-goal-item {
+    width: 100%;
+}
+
+.dashboard-goal-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-sm);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.dashboard-progress-bar {
+    height: 8px;
+    background: var(--tertiary-bg);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.dashboard-progress-fill {
+    height: 100%;
+    background: var(--primary-gradient);
+    border-radius: var(--radius-full);
+    transition: width var(--transition-medium);
+}
+
+.dashboard-goal-values {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--spacing-sm);
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+}
+
+/* توزيع الوجبات */
+.dashboard-distribution-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+}
+
+.dashboard-distribution-section h4 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--text-primary);
+}
+
+.dashboard-distribution-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.dashboard-distribution-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.dashboard-distribution-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--tertiary-bg);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.dashboard-distribution-fill {
+    height: 100%;
+    background: var(--primary-gradient);
+    border-radius: var(--radius-full);
+}
+
+/* الوجبات الأخيرة */
+.dashboard-recent-meals {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+}
+
+.dashboard-recent-meals h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.dashboard-meals-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.dashboard-meal-item {
+    padding: var(--spacing-sm);
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-fast);
+}
+
+.dashboard-meal-item:hover {
+    transform: translateX(5px);
+    border-color: var(--primary-light);
+}
+
+[dir="rtl"] .dashboard-meal-item:hover {
+    transform: translateX(-5px);
+}
+
+.dashboard-meal-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-sm);
+}
+
+.dashboard-meal-type {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.dashboard-meal-calories {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.dashboard-meal-time {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.dashboard-meal-ingredients {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.dashboard-ingredient-badge {
+    background: var(--tertiary-bg);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.dashboard-more-badge {
+    background: var(--tertiary-bg);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+}
+
+/* التحليلات */
+.dashboard-insights-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+}
+
+.dashboard-insights-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.dashboard-insight-card {
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    border: 1px solid var(--border-light);
+}
+
+.dashboard-insight-icon {
+    font-size: 1.8rem;
+}
+
+.dashboard-insight-info {
+    flex: 1;
+}
+
+.dashboard-insight-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.dashboard-insight-label {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+}
+
+.dashboard-analysis-box {
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-light);
+}
+
+.dashboard-analysis-box h4 {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--text-primary);
+}
+
+.dashboard-analysis-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.dashboard-analysis-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.dashboard-good {
+    color: var(--success);
+}
+
+.dashboard-warning {
+    color: var(--warning);
+}
+
+/* التوصيات */
+.dashboard-recommendations-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+}
+
+.dashboard-recommendations-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.dashboard-recommendation-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    border-right: 4px solid var(--primary);
+}
+
+[dir="rtl"] .dashboard-recommendation-item {
+    border-right: none;
+    border-left: 4px solid var(--primary);
+}
+
+.dashboard-rec-icon {
+    font-size: 1.2rem;
+}
+
+.dashboard-rec-text {
+    color: var(--text-primary);
+}
+
+/* التنبؤات */
+.dashboard-prediction-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+}
+
+.dashboard-prediction-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.dashboard-prediction-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.dashboard-prediction-card {
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-align: center;
+    border: 1px solid var(--border-light);
+}
+
+.dashboard-prediction-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-sm);
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.dashboard-prediction-period {
+    color: var(--text-tertiary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.dashboard-prediction-confidence {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.dashboard-prediction-note {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+}
+
+.dashboard-prediction-disclaimer {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background: var(--warning-bg);
+    border-radius: var(--radius-lg);
+    font-size: 0.7rem;
+    text-align: center;
+    color: var(--warning);
+}
+
+/* حالات فارغة */
+.dashboard-empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--text-tertiary);
+}
+
+.dashboard-loading-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+}
+
+.dashboard-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--spacing-md);
+}
+
+.dashboard-loading-container {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+}
+
+.dashboard-loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--border-light);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--spacing-md);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* استجابة */
+@media (max-width: 768px) {
+    .nutrition-dashboard-container {
+        padding: var(--spacing-md);
+    }
+    
+    .dashboard-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .dashboard-insights-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .dashboard-tab,
+    .dashboard-tab-active {
+        flex: none;
+        width: calc(50% - 4px);
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-control-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .dashboard-control-left {
+        justify-content: center;
+    }
+    
+    .dashboard-stat-card {
+        padding: var(--spacing-sm);
+    }
+    
+    .dashboard-stat-icon {
+        font-size: 1.5rem;
+    }
+    
+    .dashboard-stat-value {
+        font-size: 1.2rem;
+    }
+}
+
+/* دعم RTL */
+[dir="rtl"] .dashboard-meal-header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .dashboard-distribution-item {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .dashboard-insight-card {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .dashboard-stat-card {
+    flex-direction: row-reverse;
+}
+
+/* دعم الحركة المخفضة */
+@media (prefers-reduced-motion: reduce) {
+    .dashboard-stat-card:hover,
+    .dashboard-meal-item:hover,
+    .dashboard-refresh-button:hover {
+        transform: none !important;
+    }
+    
+    .dashboard-progress-fill,
+    .dashboard-distribution-fill {
+        transition: none !important;
+    }
+}
             `}</style>
         </div>
     );

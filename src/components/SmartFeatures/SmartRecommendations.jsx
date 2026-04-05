@@ -768,343 +768,611 @@ const SmartRecommendations = () => {
             )}
 
             <style jsx>{`
-                .smart-recommendations {
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    padding: 20px;
-                    background: var(--bg-primary);
-                    min-height: 100vh;
-                }
+/* SmartRecommendations.css - متوافق مع ThemeManager */
 
-                .recommendations-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 24px;
-                }
+.smart-recommendations {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+    background: var(--primary-bg);
+    min-height: 100vh;
+    transition: background var(--transition-medium);
+}
 
-                .recommendations-header h2 {
-                    margin: 0;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
+/* ===== رأس الصفحة ===== */
+.recommendations-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
 
-                .refresh-btn {
-                    width: 40px;
-                    height: 40px;
-                    border: none;
-                    border-radius: 20px;
-                    background: var(--bg-secondary);
-                    cursor: pointer;
-                }
+.recommendations-header h2 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--text-primary);
+    font-size: 1.5rem;
+}
 
-                /* درجة الصحة */
-                .health-score-card {
-                    background: var(--bg-secondary);
-                    border-radius: 20px;
-                    padding: 20px;
-                    margin-bottom: 24px;
-                }
+.refresh-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: var(--radius-full);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
 
-                .score-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin-bottom: 16px;
-                    flex-wrap: wrap;
-                }
+.refresh-btn:hover {
+    background: var(--primary);
+    color: white;
+    transform: rotate(180deg);
+}
 
-                .score-icon {
-                    font-size: 1.5rem;
-                }
+/* ===== درجة الصحة ===== */
+.health-score-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-medium);
+}
 
-                .score-title {
-                    font-weight: bold;
-                }
+.score-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+}
 
-                .score-value {
-                    font-size: 1.5rem;
-                    font-weight: bold;
-                    margin-left: auto;
-                }
+.score-icon {
+    font-size: 1.5rem;
+}
 
-                .score-value.score-A { color: #10b981; }
-                .score-value.score-B { color: #3b82f6; }
-                .score-value.score-C { color: #f59e0b; }
-                .score-value.score-D { color: #f97316; }
-                .score-value.score-E { color: #ef4444; }
+.score-title {
+    font-weight: 600;
+    color: var(--text-primary);
+}
 
-                .score-grade {
-                    padding: 4px 12px;
-                    border-radius: 20px;
-                    font-weight: bold;
-                }
+.score-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-left: auto;
+}
 
-                .score-progress {
-                    margin-bottom: 16px;
-                }
+.score-value.score-A { color: var(--success); }
+.score-value.score-B { color: var(--info); }
+.score-value.score-C { color: var(--warning); }
+.score-value.score-D { color: #f97316; }
+.score-value.score-E { color: var(--error); }
 
-                .progress-bar {
-                    height: 8px;
-                    background: var(--border-color);
-                    border-radius: 4px;
-                    overflow: hidden;
-                }
+.score-grade {
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    font-weight: 700;
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+}
 
-                .progress-fill {
-                    height: 100%;
-                    background: var(--primary-color);
-                    border-radius: 4px;
-                }
+[dir="rtl"] .score-value {
+    margin-left: 0;
+    margin-right: auto;
+}
 
-                .score-factors {
-                    display: flex;
-                    gap: 16px;
-                    flex-wrap: wrap;
-                }
+.score-progress {
+    margin-bottom: var(--spacing-md);
+}
 
-                .factor-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 0.85rem;
-                }
+.progress-bar {
+    height: 10px;
+    background: var(--tertiary-bg);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
 
-                .factor-impact {
-                    font-weight: bold;
-                }
+.progress-fill {
+    height: 100%;
+    background: var(--primary-gradient);
+    border-radius: var(--radius-full);
+    transition: width var(--transition-medium);
+}
 
-                /* العلاقات */
-                .correlations-section {
-                    margin-bottom: 24px;
-                }
+.score-factors {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
 
-                .correlations-section h3 {
-                    margin: 0 0 16px 0;
-                }
+.factor-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.85rem;
+    padding: 4px 12px;
+    background: var(--secondary-bg);
+    border-radius: var(--radius-full);
+    color: var(--text-secondary);
+}
 
-                .correlations-grid {
-                    display: grid;
-                    gap: 16px;
-                }
+.factor-impact {
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    background: var(--primary-bg);
+}
 
-                .correlation-card {
-                    background: var(--bg-secondary);
-                    border-radius: 16px;
-                    padding: 16px;
-                    display: flex;
-                    gap: 16px;
-                }
+.factor-impact[data-positive="true"] {
+    color: var(--success);
+}
 
-                .correlation-icon {
-                    font-size: 2rem;
-                }
+.factor-impact[data-negative="true"] {
+    color: var(--error);
+}
 
-                .correlation-content {
-                    flex: 1;
-                }
+/* ===== قسم العلاقات ===== */
+.correlations-section {
+    margin-bottom: var(--spacing-lg);
+}
 
-                .correlation-content h4 {
-                    margin: 0 0 8px 0;
-                }
+.correlations-section h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+}
 
-                .correlation-insight {
-                    margin: 0 0 12px 0;
-                    color: var(--text-secondary);
-                }
+.correlations-grid {
+    display: grid;
+    gap: var(--spacing-md);
+}
 
-                .correlation-strength {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin-bottom: 8px;
-                }
+.correlation-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    display: flex;
+    gap: var(--spacing-md);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+}
 
-                .strength-bar {
-                    flex: 1;
-                    height: 6px;
-                    background: var(--border-color);
-                    border-radius: 3px;
-                }
+.correlation-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
 
-                .strength-fill {
-                    height: 100%;
-                    background: var(--primary-color);
-                    border-radius: 3px;
-                }
+.correlation-icon {
+    font-size: 2.5rem;
+}
 
-                .strength-value {
-                    font-size: 0.85rem;
-                    font-weight: bold;
-                }
+.correlation-content {
+    flex: 1;
+}
 
-                .correlation-meta {
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                    margin-bottom: 8px;
-                }
+.correlation-content h4 {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--text-primary);
+}
 
-                .explain-btn {
-                    background: none;
-                    border: none;
-                    color: var(--primary-color);
-                    cursor: pointer;
-                    font-size: 0.8rem;
-                    padding: 4px 0;
-                }
+.correlation-insight {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
 
-                .explanation {
-                    margin-top: 12px;
-                    padding: 12px;
-                    background: var(--bg-primary);
-                    border-radius: 8px;
-                    font-size: 0.8rem;
-                }
+.correlation-strength {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
 
-                /* التوصيات */
-                .recommendations-grid {
-                    display: grid;
-                    gap: 20px;
-                }
+.strength-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--tertiary-bg);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
 
-                .recommendation-card {
-                    background: var(--bg-secondary);
-                    border-radius: 20px;
-                    padding: 20px;
-                }
+.strength-fill {
+    height: 100%;
+    background: var(--primary-gradient);
+    border-radius: var(--radius-full);
+}
 
-                .recommendation-card.priority-urgent {
-                    border-right: 4px solid #ef4444;
-                }
+.strength-value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary);
+}
 
-                .recommendation-card.priority-high {
-                    border-right: 4px solid #f59e0b;
-                }
+.correlation-meta {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    margin-bottom: var(--spacing-sm);
+}
 
-                .card-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin-bottom: 16px;
-                    flex-wrap: wrap;
-                }
+.explain-btn {
+    background: none;
+    border: none;
+    color: var(--primary);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: var(--spacing-xs) 0;
+    transition: all var(--transition-fast);
+}
 
-                .card-icon {
-                    font-size: 1.5rem;
-                }
+.explain-btn:hover {
+    text-decoration: underline;
+}
 
-                .card-category {
-                    padding: 4px 12px;
-                    background: var(--bg-primary);
-                    border-radius: 20px;
-                    font-size: 0.8rem;
-                }
+.explanation {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--secondary-bg);
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    border-right: 3px solid var(--primary);
+}
 
-                .card-priority {
-                    padding: 4px 12px;
-                    border-radius: 20px;
-                    font-size: 0.7rem;
-                    font-weight: bold;
-                }
+[dir="rtl"] .explanation {
+    border-right: none;
+    border-left: 3px solid var(--primary);
+}
 
-                .card-priority.priority-urgent {
-                    background: rgba(239, 68, 68, 0.2);
-                    color: #ef4444;
-                }
+/* ===== التوصيات ===== */
+.recommendations-grid {
+    display: grid;
+    gap: var(--spacing-lg);
+}
 
-                .card-priority.priority-high {
-                    background: rgba(245, 158, 11, 0.2);
-                    color: #f59e0b;
-                }
+.recommendation-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+    position: relative;
+    overflow: hidden;
+}
 
-                .card-title {
-                    margin: 0 0 12px 0;
-                    font-size: 1.1rem;
-                }
+.recommendation-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--primary-gradient);
+    transform: scaleX(0);
+    transition: transform var(--transition-medium);
+    transform-origin: left;
+}
 
-                .card-message {
-                    margin: 0 0 12px 0;
-                    color: var(--text-secondary);
-                }
+.recommendation-card:hover::before {
+    transform: scaleX(1);
+}
 
-                .card-advice {
-                    background: var(--bg-primary);
-                    padding: 12px;
-                    border-radius: 12px;
-                    margin-bottom: 12px;
-                }
+.recommendation-card.priority-urgent {
+    border-right: 4px solid var(--error);
+}
 
-                .card-actions ul {
-                    margin: 8px 0 0;
-                    padding-left: 20px;
-                }
+.recommendation-card.priority-high {
+    border-right: 4px solid var(--warning);
+}
 
-                .card-actions li {
-                    margin-bottom: 6px;
-                    font-size: 0.85rem;
-                }
+.recommendation-card.priority-medium {
+    border-right: 4px solid var(--info);
+}
 
-                .card-prediction {
-                    background: rgba(139, 92, 246, 0.1);
-                    padding: 8px 12px;
-                    border-radius: 8px;
-                    margin: 12px 0;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 0.85rem;
-                }
+[dir="rtl"] .recommendation-card.priority-urgent {
+    border-right: none;
+    border-left: 4px solid var(--error);
+}
 
-                .card-basedon {
-                    margin-top: 12px;
-                    text-align: right;
-                    color: var(--text-secondary);
-                }
+[dir="rtl"] .recommendation-card.priority-high {
+    border-right: none;
+    border-left: 4px solid var(--warning);
+}
 
-                .no-recommendations {
-                    text-align: center;
-                    padding: 40px;
-                    color: var(--text-secondary);
-                }
+[dir="rtl"] .recommendation-card.priority-medium {
+    border-right: none;
+    border-left: 4px solid var(--info);
+}
 
-                .recommendations-footer {
-                    margin-top: 24px;
-                    text-align: center;
-                }
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+}
 
-                /* استجابة */
-                @media (max-width: 768px) {
-                    .smart-recommendations {
-                        padding: 12px;
-                    }
-                    
-                    .correlation-card {
-                        flex-direction: column;
-                    }
-                    
-                    .score-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-                    
-                    .score-value {
-                        margin-left: 0;
-                    }
-                    
-                    .score-factors {
-                        flex-direction: column;
-                    }
-                }
+.card-icon {
+    font-size: 1.8rem;
+}
 
-                .dark-mode {
-                    --bg-primary: #1a1a2e;
-                    --bg-secondary: #16213e;
-                    --text-primary: #eee;
-                    --text-secondary: #aaa;
-                    --border-color: #2a2a3e;
-                    --primary-color: #8b5cf6;
-                }
+.card-category {
+    padding: 4px 12px;
+    background: var(--secondary-bg);
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.card-priority {
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.card-priority.priority-urgent {
+    background: var(--error-bg);
+    color: var(--error);
+}
+
+.card-priority.priority-high {
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+.card-priority.priority-medium {
+    background: var(--info-bg);
+    color: var(--info);
+}
+
+.card-title {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-message {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.card-advice {
+    background: var(--secondary-bg);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-sm);
+    border-right: 3px solid var(--primary);
+}
+
+[dir="rtl"] .card-advice {
+    border-right: none;
+    border-left: 3px solid var(--primary);
+}
+
+.card-advice strong {
+    color: var(--primary);
+}
+
+.card-actions {
+    margin-bottom: var(--spacing-sm);
+}
+
+.card-actions strong {
+    display: block;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.card-actions ul {
+    margin: 0;
+    padding-left: var(--spacing-lg);
+    list-style: none;
+}
+
+.card-actions li {
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.card-actions li::before {
+    content: '✓';
+    color: var(--success);
+    font-weight: bold;
+}
+
+[dir="rtl"] .card-actions ul {
+    padding-left: 0;
+    padding-right: var(--spacing-lg);
+}
+
+.card-prediction {
+    background: var(--primary-bg);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-lg);
+    margin: var(--spacing-sm) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+}
+
+.prediction-icon {
+    font-size: 1.1rem;
+}
+
+.card-basedon {
+    margin-top: var(--spacing-sm);
+    text-align: right;
+    color: var(--text-tertiary);
+    font-size: 0.7rem;
+}
+
+[dir="rtl"] .card-basedon {
+    text-align: left;
+}
+
+/* ===== حالات فارغة ===== */
+.no-recommendations {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    color: var(--text-tertiary);
+    border: 1px solid var(--border-light);
+}
+
+/* ===== تذييل ===== */
+.recommendations-footer {
+    margin-top: var(--spacing-lg);
+    text-align: center;
+    padding: var(--spacing-md);
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+}
+
+/* ===== حالات التحميل والخطأ ===== */
+.loading-container,
+.error-container {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--border-light);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--spacing-md);
+}
+
+.retry-btn {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+}
+
+.retry-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== استجابة ===== */
+@media (max-width: 768px) {
+    .smart-recommendations {
+        padding: var(--spacing-md);
+    }
+
+    .correlation-card {
+        flex-direction: column;
+    }
+
+    .score-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .score-value {
+        margin-left: 0;
+    }
+
+    [dir="rtl"] .score-value {
+        margin-right: 0;
+    }
+
+    .score-factors {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .factor-item {
+        justify-content: space-between;
+    }
+
+    .recommendation-card {
+        padding: var(--spacing-md);
+    }
+
+    .card-header {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 480px) {
+    .recommendations-header {
+        flex-direction: column;
+    }
+
+    .correlation-icon {
+        font-size: 2rem;
+    }
+
+    .card-title {
+        font-size: 1rem;
+    }
+
+    .card-actions li {
+        font-size: 0.8rem;
+    }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .recommendation-card::before {
+    left: auto;
+    right: 0;
+    transform-origin: right;
+}
+
+[dir="rtl"] .card-actions li::before {
+    margin-left: var(--spacing-sm);
+    margin-right: 0;
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .recommendation-card::before,
+    .progress-fill,
+    .refresh-btn:hover,
+    .correlation-card:hover {
+        transition: none !important;
+        transform: none !important;
+    }
+
+    .spinner {
+        animation: none !important;
+    }
+}
             `}</style>
         </div>
     );

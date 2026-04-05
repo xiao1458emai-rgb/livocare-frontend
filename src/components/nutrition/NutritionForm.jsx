@@ -976,127 +976,996 @@ const handleBarcodeScanned = async (result) => {
             )}
 
             <style jsx>{`
+/* NutritionForm.css - متوافق مع ThemeManager */
 
-                .camera-btn {
-                    width: 48px; height: 48px; border: none; border-radius: 50%; background: rgba(255,255,255,0.2);
-                    backdrop-filter: blur(5px); color: white; font-size: 1.5rem; cursor: pointer;
-                    transition: all 0.3s ease; display: flex; align-items: center; justify-content: center;
-                }
-                .camera-btn:hover:not(:disabled) { background: rgba(255,255,255,0.3); transform: scale(1.05); }
-                .camera-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-                
-                .nutrition-form-container { max-width: 1200px; margin: 0 auto; padding: 24px; }
-                .enhanced-header { position: relative; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 24px; overflow: hidden; margin-bottom: 32px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
-                .header-pattern { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
-                .header-content-wrapper { position: relative; display: flex; align-items: center; gap: 24px; padding: 32px; backdrop-filter: blur(10px); }
-                .header-icon-container { position: relative; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; }
-                .icon-glow { position: absolute; width: 100%; height: 100%; background: rgba(255,255,255,0.3); border-radius: 50%; animation: pulse 2s infinite; }
-                .header-icon { position: relative; font-size: 3.5rem; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2)); }
-                .header-text { flex: 1; }
-                .header-title { color: white; font-size: 2rem; font-weight: 700; margin: 0 0 8px 0; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                .header-subtitle { color: rgba(255,255,255,0.9); font-size: 1rem; margin: 0; }
-                .header-badge { background: rgba(255,255,255,0.2); backdrop-filter: blur(5px); padding: 12px 24px; border-radius: 50px; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,0.3); }
-                .badge-icon { font-size: 1.2rem; }
-                .badge-text { color: white; font-weight: 600; }
-                .enhanced-summary-card { background: var(--card-bg); border-radius: 20px; padding: 24px; margin-bottom: 32px; position: relative; overflow: hidden; border: 1px solid var(--border-light); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
-                .summary-gradient { position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #667eea, #764ba2, #f093fb); }
-                .summary-content { position: relative; }
-                .summary-title { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-                .summary-icon { font-size: 1.5rem; }
-                .summary-title h4 { margin: 0; color: var(--text-primary); font-size: 1.2rem; }
-                .summary-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-                .stat-item { background: var(--secondary-bg); border-radius: 16px; padding: 16px; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; }
-                .stat-item:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-                .stat-icon { width: 48px; height: 48px; background: var(--card-bg); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
-                .stat-info { flex: 1; }
-                .stat-value { display: block; font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
-                .stat-label { font-size: 0.85rem; color: var(--text-tertiary); }
-                .form-section { background: var(--card-bg); border-radius: 20px; padding: 24px; margin-bottom: 24px; border: 1px solid var(--border-light); }
-                .section-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-                .section-number { width: 36px; height: 36px; background: var(--primary-color); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; }
-                .section-title { margin: 0; color: var(--text-primary); font-size: 1.2rem; }
-                .section-line { flex: 1; height: 2px; background: linear-gradient(90deg, var(--primary-color), transparent); }
-                .form-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-                .form-label { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--text-secondary); font-weight: 600; font-size: 0.95rem; }
-                .meal-type-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-                .meal-type-chip { all: unset; padding: 12px 8px; border-radius: 50px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.3s ease; font-size: 0.9rem; border: 2px solid transparent; }
-                .meal-type-chip.active { background: var(--chip-color) !important; color: white; transform: scale(1.05); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
-                .meal-type-chip:not(.active) { background: var(--chip-bg); color: var(--chip-color); }
-                .time-input { width: 100%; padding: 14px 16px; background: var(--secondary-bg); border: 2px solid var(--border-light); border-radius: 12px; color: var(--text-primary); font-size: 1rem; }
-                .ingredients-container { display: flex; flex-direction: column; gap: 16px; }
-                .ingredient-card { background: var(--secondary-bg); border-radius: 16px; padding: 20px; border: 1px solid var(--border-light); transition: all 0.3s ease; }
-                .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-                .item-number-wrapper { width: 32px; height: 32px; background: var(--primary-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-                .item-number { color: white; font-weight: 600; font-size: 0.9rem; }
-                .remove-btn { width: 36px; height: 36px; border: none; border-radius: 8px; background: var(--error-bg); color: var(--error-color); cursor: pointer; transition: all 0.3s ease; }
-                .remove-btn:hover { background: var(--error-color); color: white; }
-                .ingredient-fields { display: flex; flex-direction: column; gap: 16px; }
-                .field-group { position: relative; }
-                .field-label { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem; }
-                .ingredient-input { width: 100%; padding: 12px 16px; background: var(--card-bg); border: 2px solid var(--border-light); border-radius: 10px; color: var(--text-primary); font-size: 1rem; }
-                .search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--card-bg); border: 1px solid var(--border-light); border-radius: 10px; margin-top: 4px; max-height: 300px; overflow-y: auto; z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-                .result-item { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s ease; }
-                .result-item:hover { background: var(--secondary-bg); }
-                .food-name { font-weight: 500; color: var(--text-primary); }
-                .result-nutrients { display: flex; gap: 8px; }
-                .nutrient { font-size: 0.85rem; padding: 4px 8px; border-radius: 20px; }
-                .nutrient.calories { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-                .nutrient.protein { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
-                .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-                .quantity-input, .unit-select { width: 100%; padding: 12px 16px; background: var(--card-bg); border: 2px solid var(--border-light); border-radius: 10px; color: var(--text-primary); font-size: 1rem; }
-                .nutrition-fields-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
-                .nutrition-input { width: 100%; padding: 8px 10px; background: var(--card-bg); border: 2px solid var(--border-light); border-radius: 8px; color: var(--text-primary); font-size: 0.9rem; }
-                .add-ingredient-btn { width: 100%; padding: 16px; background: var(--secondary-bg); border: 2px dashed var(--border-light); border-radius: 12px; color: var(--text-secondary); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.3s ease; }
-                .notes-textarea { width: 100%; padding: 16px; background: var(--secondary-bg); border: 2px solid var(--border-light); border-radius: 12px; color: var(--text-primary); font-size: 1rem; resize: vertical; min-height: 100px; }
-                .form-actions-enhanced { display: flex; gap: 16px; margin-top: 32px; }
-                .action-btn { flex: 1; padding: 16px; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.3s ease; }
-                .action-btn.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-                .action-btn.secondary { background: var(--secondary-bg); color: var(--text-primary); border: 1px solid var(--border-light); }
-                .enhanced-history-section { background: var(--card-bg); border-radius: 24px; padding: 32px; margin: 32px 0; border: 1px solid var(--border-light); }
-                .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-                .header-left { display: flex; align-items: center; gap: 12px; }
-                .history-icon { font-size: 1.8rem; }
-                .header-left h3 { margin: 0; color: var(--text-primary); }
-                .header-right { display: flex; align-items: center; gap: 16px; }
-                .meals-count { padding: 6px 12px; background: var(--secondary-bg); border-radius: 20px; color: var(--text-secondary); }
-                .refresh-history-btn { width: 40px; height: 40px; border: none; border-radius: 10px; background: var(--secondary-bg); color: var(--text-primary); cursor: pointer; transition: all 0.3s ease; }
-                .meals-timeline { position: relative; }
-                .meals-timeline::before { content: ''; position: absolute; left: 24px; top: 0; bottom: 0; width: 2px; background: var(--border-light); }
-                .timeline-item { position: relative; padding-left: 60px; margin-bottom: 24px; }
-                .timeline-marker { position: absolute; left: 12px; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-                .timeline-content { background: var(--secondary-bg); border-radius: 16px; padding: 20px; }
-                .content-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-                .meal-type { font-weight: 700; font-size: 1.1rem; }
-                .meal-actions { display: flex; gap: 8px; }
-                .icon-btn { width: 32px; height: 32px; border: none; border-radius: 6px; background: var(--card-bg); cursor: pointer; transition: all 0.2s ease; }
-                .icon-btn.edit:hover { background: var(--primary-color); color: white; }
-                .icon-btn.delete:hover { background: var(--error-color); color: white; }
-                .meal-time { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 8px; }
-                .nutrition-badges { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-                .nutrition-badges .badge { flex: 1; min-width: 60px; padding: 6px 4px; background: var(--card-bg); border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-                .badge-value { font-size: 0.9rem; font-weight: 700; }
-                .badge.calories .badge-value { color: #ef4444; }
-                .badge.protein .badge-value { color: #22c55e; }
-                .badge.carbs .badge-value { color: #f59e0b; }
-                .badge.fat .badge-value { color: #3b82f6; }
-                .badge-label { font-size: 0.6rem; color: var(--text-tertiary); }
-                .ingredients-list { border-top: 1px solid var(--border-light); padding-top: 12px; }
-                .ingredients-list ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-                .ingredients-list li { display: flex; align-items: center; gap: 4px; background: var(--card-bg); padding: 4px 8px; border-radius: 20px; font-size: 0.75rem; }
-                .more-tag { background: var(--card-bg); padding: 4px 8px; border-radius: 20px; font-size: 0.75rem; color: var(--text-secondary); }
-                .notification-message { position: fixed; bottom: 24px; right: 24px; padding: 16px 20px; border-radius: 12px; display: flex; align-items: center; gap: 16px; animation: slideIn 0.3s ease; z-index: 1000; }
-                .notification-message.success { background: #10b981; color: white; }
-                .notification-message.error { background: #ef4444; color: white; }
-                .notification-message.info { background: #3b82f6; color: white; }
-                .close-message { background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem; }
-                .loading-state { text-align: center; padding: 48px; color: var(--text-secondary); }
-                .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--border-light); border-top-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
-                .empty-state { text-align: center; padding: 48px; background: var(--secondary-bg); border-radius: 16px; }
-                .empty-illustration { font-size: 4rem; margin-bottom: 16px; }
-                @keyframes spin { to { transform: rotate(360deg); } }
-                @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.3; } 50% { transform: scale(1.2); opacity: 0.5; } }
-                @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-                @media (max-width: 768px) { .header-content-wrapper { flex-direction: column; text-align: center; } .form-row { grid-template-columns: 1fr; } .meal-type-grid { grid-template-columns: repeat(3, 1fr); } .summary-stats-grid { grid-template-columns: repeat(2, 1fr); } .field-row { grid-template-columns: 1fr; } .nutrition-fields-row { grid-template-columns: repeat(2, 1fr); } .form-actions-enhanced { flex-direction: column; } .timeline-item { padding-left: 50px; } .timeline-marker { left: 5px; width: 35px; height: 35px; } }
+.nutrition-form-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+}
+
+/* ===== رأس النموذج المحسن ===== */
+.enhanced-header {
+    position: relative;
+    background: var(--primary-gradient);
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    margin-bottom: var(--spacing-xl);
+    box-shadow: var(--shadow-xl);
+}
+
+.header-pattern {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.header-content-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-xl);
+    backdrop-filter: blur(10px);
+}
+
+.header-icon-container {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-glow {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.3);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.header-icon {
+    position: relative;
+    font-size: 3.5rem;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));
+}
+
+.header-text {
+    flex: 1;
+}
+
+.header-title {
+    color: white;
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 var(--spacing-sm) 0;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header-subtitle {
+    color: rgba(255,255,255,0.9);
+    font-size: 1rem;
+    margin: 0;
+}
+
+.header-badge {
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(5px);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+/* ===== زر مسح الباركود ===== */
+.barcode-button-container {
+    margin-bottom: var(--spacing-lg);
+}
+
+.barcode-scanner-btn {
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: linear-gradient(135deg, #10b981, #059669);
+    border: none;
+    border-radius: var(--radius-lg);
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    transition: all var(--transition-medium);
+}
+
+.barcode-scanner-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+}
+
+.barcode-scanner-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== ملخص التغذية ===== */
+.enhanced-summary-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-md);
+}
+
+.summary-gradient {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary-gradient);
+}
+
+.summary-content {
+    position: relative;
+}
+
+.summary-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.summary-icon {
+    font-size: 1.5rem;
+}
+
+.summary-title h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+}
+
+.summary-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-lg);
+}
+
+.stat-item {
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    transition: all var(--transition-medium);
+    border: 1px solid var(--border-light);
+}
+
+.stat-item:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--card-bg);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.stat-info {
+    flex: 1;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+}
+
+/* ===== أقسام النموذج ===== */
+.form-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.section-number {
+    width: 36px;
+    height: 36px;
+    background: var(--primary-gradient);
+    color: white;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.section-title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+}
+
+.section-line {
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary), transparent);
+}
+
+/* ===== أنواع الوجبات ===== */
+.meal-type-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--spacing-sm);
+}
+
+.meal-type-chip {
+    all: unset;
+    padding: var(--spacing-sm) var(--spacing-sm);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    font-size: 0.9rem;
+    border: 2px solid transparent;
+}
+
+.meal-type-chip.active {
+    background: var(--chip-color) !important;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: var(--shadow-md);
+}
+
+.meal-type-chip:not(.active) {
+    background: var(--chip-bg);
+    color: var(--chip-color);
+}
+
+/* ===== المدخلات ===== */
+.time-input,
+.ingredient-input,
+.quantity-input,
+.unit-select,
+.nutrition-input,
+.notes-textarea {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--secondary-bg);
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all var(--transition-fast);
+}
+
+.time-input:focus,
+.ingredient-input:focus,
+.quantity-input:focus,
+.unit-select:focus,
+.nutrition-input:focus,
+.notes-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
+}
+
+/* ===== مكونات الوجبة ===== */
+.ingredients-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.ingredient-card {
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+}
+
+.ingredient-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.item-number-wrapper {
+    width: 32px;
+    height: 32px;
+    background: var(--primary-gradient);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.item-number {
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.remove-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--error-bg);
+    color: var(--error);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.remove-btn:hover {
+    background: var(--error);
+    color: white;
+    transform: scale(1.05);
+}
+
+.ingredient-fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.field-group {
+    position: relative;
+}
+
+.field-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+}
+
+.nutrition-fields-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-sm);
+}
+
+/* ===== نتائج البحث ===== */
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    margin-top: var(--spacing-xs);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 100;
+    box-shadow: var(--shadow-lg);
+}
+
+.result-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.result-item:hover {
+    background: var(--hover-bg);
+}
+
+.food-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.result-nutrients {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.nutrient {
+    font-size: 0.85rem;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+}
+
+.nutrient.calories {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.nutrient.protein {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.searching-indicator {
+    margin-top: var(--spacing-xs);
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+}
+
+/* ===== زر إضافة مكون ===== */
+.add-ingredient-btn {
+    width: 100%;
+    padding: var(--spacing-md);
+    background: var(--secondary-bg);
+    border: 2px dashed var(--border-light);
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    transition: all var(--transition-medium);
+}
+
+.add-ingredient-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--hover-bg);
+}
+
+/* ===== أزرار الإجراء ===== */
+.form-actions-enhanced {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-xl);
+}
+
+.action-btn {
+    flex: 1;
+    padding: var(--spacing-md);
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    transition: all var(--transition-medium);
+}
+
+.action-btn.primary {
+    background: var(--primary-gradient);
+    color: white;
+}
+
+.action-btn.primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.action-btn.secondary {
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+}
+
+.action-btn.secondary:hover {
+    background: var(--hover-bg);
+    border-color: var(--primary);
+}
+
+.loading-spinner-small {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+/* ===== قسم الوجبات المسجلة ===== */
+.enhanced-history-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-xl);
+    margin-top: var(--spacing-xl);
+    border: 1px solid var(--border-light);
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.history-icon {
+    font-size: 1.8rem;
+}
+
+.header-left h3 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.meals-count {
+    padding: 4px 12px;
+    background: var(--secondary-bg);
+    border-radius: var(--radius-full);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.refresh-history-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+}
+
+.refresh-history-btn:hover:not(:disabled) {
+    background: var(--primary);
+    color: white;
+    transform: rotate(180deg);
+}
+
+/* ===== الخط الزمني ===== */
+.meals-timeline {
+    position: relative;
+}
+
+.meals-timeline::before {
+    content: '';
+    position: absolute;
+    left: 24px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border-light);
+}
+
+[dir="rtl"] .meals-timeline::before {
+    left: auto;
+    right: 24px;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 60px;
+    margin-bottom: var(--spacing-lg);
+}
+
+[dir="rtl"] .timeline-item {
+    padding-left: 0;
+    padding-right: 60px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-md);
+}
+
+[dir="rtl"] .timeline-marker {
+    left: auto;
+    right: 12px;
+}
+
+.timeline-content {
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+}
+
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.meal-type {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.meal-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.icon-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.icon-btn.edit:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.icon-btn.delete:hover {
+    background: var(--error);
+    color: white;
+}
+
+.meal-time {
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+/* ===== شارات التغذية ===== */
+.nutrition-badges {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.nutrition-badges .badge {
+    flex: 1;
+    min-width: 60px;
+    padding: 6px 4px;
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    box-shadow: var(--shadow-xs);
+}
+
+.badge-value {
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.badge.calories .badge-value { color: #ef4444; }
+.badge.protein .badge-value { color: #22c55e; }
+.badge.carbs .badge-value { color: #f59e0b; }
+.badge.fat .badge-value { color: #3b82f6; }
+
+.badge-label {
+    font-size: 0.6rem;
+    color: var(--text-tertiary);
+}
+
+.ingredients-list {
+    border-top: 1px solid var(--border-light);
+    padding-top: var(--spacing-sm);
+}
+
+.ingredients-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ingredients-list li {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--card-bg);
+    padding: 4px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.more-tag {
+    background: var(--card-bg);
+    padding: 4px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+}
+
+.notes {
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-light);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* ===== حالات التحميل والفارغة ===== */
+.loading-state,
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--spacing-md);
+}
+
+.empty-illustration {
+    font-size: 4rem;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.6;
+}
+
+/* ===== الإشعارات ===== */
+.notification-message {
+    position: fixed;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    animation: slideIn 0.3s ease;
+    z-index: 1000;
+    box-shadow: var(--shadow-lg);
+}
+
+[dir="rtl"] .notification-message {
+    right: auto;
+    left: var(--spacing-lg);
+}
+
+.notification-message.success {
+    background: var(--success);
+    color: white;
+}
+
+.notification-message.error {
+    background: var(--error);
+    color: white;
+}
+
+.notification-message.info {
+    background: var(--info);
+    color: white;
+}
+
+.close-message {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1.2rem;
+    opacity: 0.8;
+    transition: opacity var(--transition-fast);
+}
+
+.close-message:hover {
+    opacity: 1;
+}
+
+/* ===== كاميرا ===== */
+.camera-btn {
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(5px);
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.camera-btn:hover:not(:disabled) {
+    background: rgba(255,255,255,0.3);
+    transform: scale(1.05);
+}
+
+.camera-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===== أنيميشن ===== */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.3; }
+    50% { transform: scale(1.2); opacity: 0.5; }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+[dir="rtl"] @keyframes slideIn {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* ===== استجابة ===== */
+@media (max-width: 768px) {
+    .nutrition-form-container {
+        padding: var(--spacing-md);
+    }
+    
+    .header-content-wrapper {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .meal-type-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .summary-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .field-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .nutrition-fields-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .form-actions-enhanced {
+        flex-direction: column;
+    }
+    
+    .timeline-item {
+        padding-left: 50px;
+    }
+    
+    [dir="rtl"] .timeline-item {
+        padding-right: 50px;
+        padding-left: 0;
+    }
+    
+    .timeline-marker {
+        left: 5px;
+        width: 35px;
+        height: 35px;
+    }
+    
+    [dir="rtl"] .timeline-marker {
+        left: auto;
+        right: 5px;
+    }
+}
+
+@media (max-width: 480px) {
+    .meal-type-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .summary-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .nutrition-fields-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .notification-message {
+        left: var(--spacing-md);
+        right: var(--spacing-md);
+        bottom: var(--spacing-md);
+    }
+    
+    [dir="rtl"] .notification-message {
+        left: var(--spacing-md);
+        right: var(--spacing-md);
+    }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .section-line {
+    background: linear-gradient(90deg, transparent, var(--primary));
+}
+
+[dir="rtl"] .meals-timeline::before {
+    left: auto;
+    right: 24px;
+}
+
+[dir="rtl"] .result-nutrients {
+    flex-direction: row-reverse;
+}
             `}</style>
         </div>
     );

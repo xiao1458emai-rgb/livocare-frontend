@@ -1090,716 +1090,952 @@ function ProfileManager({ isAuthReady }) {
             </div>
 
             <style jsx>{`
-                .profile-manager {
-                    max-width: 1000px;
-                    margin: 0 auto;
-                    padding: 24px;
-                    background: var(--bg-primary);
-                    min-height: 100vh;
-                }
-
-                /* رأس الصفحة */
-                .profile-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 20px;
-                    margin-bottom: 32px;
-                }
-
-                .header-icon-wrapper {
-                    width: 80px;
-                    height: 80px;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    border-radius: 40px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .header-icon {
-                    font-size: 2.5rem;
-                }
-
-                .header-text h1 {
-                    margin: 0;
-                    font-size: 1.8rem;
-                }
-
-                .header-text p {
-                    margin: 4px 0 0;
-                    color: var(--text-secondary);
-                }
-
-                /* Smart Profile Card */
-                .smart-profile-card {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    border-radius: 20px;
-                    padding: 20px;
-                    margin-bottom: 24px;
-                    color: white;
-                }
-
-                .smart-profile-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-bottom: 16px;
-                }
-
-                .smart-icon {
-                    font-size: 1.5rem;
-                }
-
-                .smart-title {
-                    font-weight: bold;
-                }
-
-                .profile-stats {
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 20px;
-                    margin-bottom: 20px;
-                }
-
-                .stat {
-                    text-align: center;
-                }
-
-                .stat-label {
-                    display: block;
-                    font-size: 0.8rem;
-                    opacity: 0.8;
-                }
-
-                .stat-value {
-                    display: block;
-                    font-size: 1.8rem;
-                    font-weight: bold;
-                }
-
-                .stat-category {
-                    font-size: 0.7rem;
-                }
-
-                .score-container {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 8px;
-                }
-
-                .score-circle {
-                    width: 50px;
-                    height: 50px;
-                    border-radius: 25px;
-                    background: rgba(255,255,255,0.2);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .score-value {
-                    font-size: 1.2rem;
-                    font-weight: bold;
-                }
-
-                .score-bar {
-                    width: 100%;
-                    height: 4px;
-                    background: rgba(255,255,255,0.3);
-                    border-radius: 2px;
-                }
-
-                .score-fill {
-                    height: 100%;
-                    background: white;
-                    border-radius: 2px;
-                }
-
-                .smart-recommendations {
-                    background: rgba(255,255,255,0.1);
-                    border-radius: 12px;
-                    padding: 12px;
-                }
-
-                .smart-recommendations ul {
-                    margin: 8px 0 0;
-                    padding-left: 20px;
-                }
-
-                .smart-recommendations li {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-bottom: 4px;
-                }
-
-                /* التبويبات */
-                .tabs-navigation {
-                    display: flex;
-                    gap: 8px;
-                    margin-bottom: 24px;
-                    background: var(--bg-secondary);
-                    padding: 6px;
-                    border-radius: 40px;
-                }
-
-                .tab-btn {
-                    flex: 1;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 8px;
-                    padding: 10px;
-                    border: none;
-                    background: transparent;
-                    border-radius: 32px;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-
-                .tab-btn.active {
-                    background: var(--primary-color);
-                    color: white;
-                }
-
-                /* الرسائل */
-                .message {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 12px;
-                    border-radius: 12px;
-                    margin-bottom: 20px;
-                }
-
-                .message.success {
-                    background: rgba(16, 185, 129, 0.2);
-                    border: 1px solid #10b981;
-                }
-
-                .message.error {
-                    background: rgba(239, 68, 68, 0.2);
-                    border: 1px solid #ef4444;
-                }
-
-                .message button {
-                    margin-left: auto;
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                }
-
-                /* النماذج */
-                .form-section {
-                    background: var(--bg-secondary);
-                    border-radius: 20px;
-                    padding: 20px;
-                    margin-bottom: 20px;
-                }
-
-                .form-section h3 {
-                    margin: 0 0 20px 0;
-                }
-
-                .form-grid {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 20px;
-                }
-
-                .form-group {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                }
-
-                .form-group label {
-                    font-weight: 500;
-                }
-
-                .form-group input,
-                .form-group select {
-                    padding: 10px;
-                    border: 1px solid var(--border-color);
-                    border-radius: 10px;
-                    background: var(--bg-primary);
-                    color: var(--text-primary);
-                }
-
-                .input-with-unit {
-                    display: flex;
-                    gap: 8px;
-                }
-
-                .input-with-unit input {
-                    flex: 1;
-                }
-
-                .unit, .unit-select {
-                    padding: 10px;
-                    border: 1px solid var(--border-color);
-                    border-radius: 10px;
-                    background: var(--bg-primary);
-                }
-
-                .save-btn {
-                    width: 100%;
-                    padding: 12px;
-                    background: var(--primary-color);
-                    color: white;
-                    border: none;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    font-weight: 600;
-                }
-
-                /* الأهداف */
-                .add-goal-card {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    border-radius: 20px;
-                    padding: 20px;
-                    margin-bottom: 24px;
-                    color: white;
-                }
-
-                .add-goal-card h3 {
-                    margin: 0 0 20px 0;
-                }
-
-                .goal-form .form-group label {
-                    color: white;
-                }
-
-                .goal-form input,
-                .goal-form select {
-                    background: rgba(255,255,255,0.2);
-                    border-color: rgba(255,255,255,0.3);
-                    color: white;
-                }
-
-                .add-goal-btn {
-                    width: 100%;
-                    padding: 12px;
-                    background: white;
-                    color: #667eea;
-                    border: none;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    font-weight: 600;
-                }
-
-                .goals-stats {
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 16px;
-                    margin-bottom: 24px;
-                }
-
-                .stat-card {
-                    background: var(--bg-secondary);
-                    border-radius: 16px;
-                    padding: 16px;
-                    text-align: center;
-                }
-
-                .stat-value {
-                    display: block;
-                    font-size: 1.8rem;
-                    font-weight: bold;
-                    color: var(--primary-color);
-                }
-
-                .goals-grid {
-                    display: grid;
-                    gap: 16px;
-                }
-
-                .goal-card {
-                    background: var(--bg-secondary);
-                    border-radius: 16px;
-                    padding: 16px;
-                }
-
-                .goal-card.completed {
-                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                    color: white;
-                }
-
-                .goal-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 12px;
-                }
-
-                .goal-header h4 {
-                    margin: 0;
-                }
-
-                .goal-type {
-                    font-size: 0.7rem;
-                    opacity: 0.7;
-                }
-
-                .delete-btn {
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                    font-size: 1rem;
-                }
-
-                .goal-progress {
-                    margin-bottom: 12px;
-                }
-
-                .progress-info {
-                    display: flex;
-                    align-items: baseline;
-                    gap: 4px;
-                    margin-bottom: 8px;
-                }
-
-                .current {
-                    font-size: 1.2rem;
-                    font-weight: bold;
-                }
-
-                .target {
-                    color: var(--text-secondary);
-                }
-
-                .goal-card.completed .target {
-                    color: rgba(255,255,255,0.7);
-                }
-
-                .progress-bar-container {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
-
-                .progress-bar {
-                    flex: 1;
-                    height: 6px;
-                    background: var(--border-color);
-                    border-radius: 3px;
-                    overflow: hidden;
-                }
-
-                .progress-fill {
-                    height: 100%;
-                    background: var(--primary-color);
-                    border-radius: 3px;
-                }
-
-                .goal-card.completed .progress-fill {
-                    background: white;
-                }
-
-                .progress-percent {
-                    font-size: 0.8rem;
-                }
-
-                .goal-dates {
-                    font-size: 0.75rem;
-                    color: var(--text-secondary);
-                    margin-bottom: 12px;
-                }
-
-                .goal-card.completed .goal-dates {
-                    color: rgba(255,255,255,0.7);
-                }
-
-                .goal-daily-rate {
-                    background: rgba(0,0,0,0.05);
-                    padding: 8px;
-                    border-radius: 8px;
-                    font-size: 0.8rem;
-                    margin-bottom: 12px;
-                }
-
-                .goal-status {
-                    padding: 8px;
-                    border-radius: 8px;
-                    text-align: center;
-                    margin-bottom: 12px;
-                }
-
-                .goal-status.on-track {
-                    background: rgba(16, 185, 129, 0.2);
-                    color: #10b981;
-                }
-
-                .goal-status.off-track {
-                    background: rgba(239, 68, 68, 0.2);
-                    color: #ef4444;
-                }
-
-                .goal-status.achieved {
-                    background: rgba(16, 185, 129, 0.2);
-                    color: #10b981;
-                }
-
-                .goal-update input {
-                    width: 100%;
-                    padding: 8px;
-                    border: 1px solid var(--border-color);
-                    border-radius: 8px;
-                    background: var(--bg-primary);
-                    color: var(--text-primary);
-                    text-align: center;
-                }
-
-                .goal-update small {
-                    display: block;
-                    text-align: center;
-                    font-size: 0.7rem;
-                    margin-top: 4px;
-                    color: var(--text-secondary);
-                }
-
-                .empty-goals {
-                    text-align: center;
-                    padding: 40px;
-                    background: var(--bg-secondary);
-                    border-radius: 16px;
-                }
-
-                .empty-icon {
-                    font-size: 3rem;
-                    margin-bottom: 12px;
-                }
-
-                /* الإعدادات */
-                .settings-card {
-                    background: var(--bg-secondary);
-                    border-radius: 20px;
-                    padding: 20px;
-                    margin-bottom: 24px;
-                }
-
-                .setting-item {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 16px;
-                    background: var(--bg-primary);
-                    border-radius: 12px;
-                    margin-bottom: 12px;
-                }
-
-                .setting-item label {
-                    font-weight: 500;
-                }
-
-                .setting-item p {
-                    margin: 4px 0 0;
-                    font-size: 0.8rem;
-                    color: var(--text-secondary);
-                }
-
-                .toggle {
-                    position: relative;
-                    display: inline-block;
-                    width: 50px;
-                    height: 24px;
-                }
-
-                .toggle input {
-                    opacity: 0;
-                    width: 0;
-                    height: 0;
-                }
-
-                .toggle-slider {
-                    position: absolute;
-                    cursor: pointer;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background-color: var(--border-color);
-                    border-radius: 24px;
-                }
-
-                .toggle-slider:before {
-                    position: absolute;
-                    content: "";
-                    height: 18px;
-                    width: 18px;
-                    left: 3px;
-                    bottom: 3px;
-                    background-color: white;
-                    border-radius: 50%;
-                    transition: 0.2s;
-                }
-
-                input:checked + .toggle-slider {
-                    background-color: var(--primary-color);
-                }
-
-                input:checked + .toggle-slider:before {
-                    transform: translateX(26px);
-                }
-
-                .save-settings-btn {
-                    width: 100%;
-                    padding: 12px;
-                    background: var(--primary-color);
-                    color: white;
-                    border: none;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    font-weight: 600;
-                }
-
-                /* النسخ الاحتياطي */
-                .backup-section {
-                    margin-bottom: 24px;
-                }
-
-                .backup-cards {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 16px;
-                }
-
-                .backup-card {
-                    border-radius: 16px;
-                    padding: 20px;
-                    color: white;
-                }
-
-                .backup-card.full {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                }
-
-                .backup-card.restore {
-                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-                }
-
-                .backup-icon {
-                    font-size: 2rem;
-                    margin-bottom: 12px;
-                }
-
-                .backup-card h4 {
-                    margin: 0 0 8px;
-                }
-
-                .backup-card p {
-                    margin: 0 0 16px;
-                    font-size: 0.85rem;
-                    opacity: 0.9;
-                }
-
-                .backup-btn, .restore-btn {
-                    width: 100%;
-                    padding: 10px;
-                    background: white;
-                    border: none;
-                    border-radius: 10px;
-                    cursor: pointer;
-                    font-weight: 600;
-                    text-align: center;
-                    display: block;
-                }
-
-                .backup-btn {
-                    color: #667eea;
-                }
-
-                .restore-btn {
-                    color: #f5576c;
-                }
-
-                /* منطقة الخطر */
-                .danger-zone {
-                    border: 2px solid #ef4444;
-                    border-radius: 16px;
-                    padding: 20px;
-                    background: rgba(239, 68, 68, 0.05);
-                }
-
-                .danger-zone h4 {
-                    margin: 0 0 8px;
-                    color: #ef4444;
-                }
-
-                .danger-zone p {
-                    margin: 0 0 16px;
-                    color: var(--text-secondary);
-                }
-
-                .danger-actions {
-                    display: flex;
-                    gap: 12px;
-                }
-
-                .danger-btn {
-                    flex: 1;
-                    padding: 10px;
-                    border: none;
-                    border-radius: 10px;
-                    cursor: pointer;
-                    font-weight: 600;
-                }
-
-                .danger-btn.export {
-                    background: #f59e0b;
-                    color: white;
-                }
-
-                .danger-btn.delete {
-                    background: #ef4444;
-                    color: white;
-                }
-
-                /* استجابة */
-                @media (max-width: 768px) {
-                    .profile-manager {
-                        padding: 16px;
-                    }
-                    
-                    .profile-header {
-                        flex-direction: column;
-                        text-align: center;
-                    }
-                    
-                    .form-grid {
-                        grid-template-columns: 1fr;
-                    }
-                    
-                    .profile-stats {
-                        grid-template-columns: 1fr;
-                    }
-                    
-                    .goals-stats {
-                        grid-template-columns: 1fr;
-                    }
-                    
-                    .backup-cards {
-                        grid-template-columns: 1fr;
-                    }
-                    
-                    .danger-actions {
-                        flex-direction: column;
-                    }
-                    
-                    .tabs-navigation {
-                        flex-wrap: wrap;
-                    }
-                }
-
-                .dark-mode {
-                    --bg-primary: #1a1a2e;
-                    --bg-secondary: #16213e;
-                    --text-primary: #eee;
-                    --text-secondary: #aaa;
-                    --border-color: #2a2a3e;
-                    --primary-color: #667eea;
-                }
+/* ProfileManager.css - متوافق مع ThemeManager */
+
+.profile-manager {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+    background: var(--primary-bg);
+    min-height: 100vh;
+    transition: background var(--transition-medium);
+}
+
+/* ===== رأس الصفحة ===== */
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+    flex-wrap: wrap;
+}
+
+.header-icon-wrapper {
+    width: 80px;
+    height: 80px;
+    background: var(--primary-gradient);
+    border-radius: var(--radius-2xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-lg);
+}
+
+.header-icon {
+    font-size: 2.5rem;
+}
+
+.header-text h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    color: var(--text-primary);
+}
+
+.header-text p {
+    margin: var(--spacing-xs) 0 0;
+    color: var(--text-secondary);
+}
+
+/* ===== Smart Profile Card ===== */
+.smart-profile-card {
+    background: var(--primary-gradient);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    color: white;
+    box-shadow: var(--shadow-lg);
+}
+
+.smart-profile-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.smart-icon {
+    font-size: 1.5rem;
+}
+
+.smart-title {
+    font-weight: 700;
+}
+
+.profile-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.stat {
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.stat-category {
+    font-size: 0.7rem;
+}
+
+.score-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.score-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.score-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.score-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-full);
+}
+
+.score-fill {
+    height: 100%;
+    background: white;
+    border-radius: var(--radius-full);
+    transition: width var(--transition-medium);
+}
+
+.smart-recommendations {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm);
+}
+
+.smart-recommendations strong {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+}
+
+.smart-recommendations ul {
+    margin: 0;
+    padding-left: var(--spacing-lg);
+}
+
+.smart-recommendations li {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.rec-icon {
+    font-size: 1rem;
+}
+
+/* ===== التبويبات ===== */
+.tabs-navigation {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    background: var(--secondary-bg);
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-light);
+}
+
+.tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    color: var(--text-secondary);
+}
+
+.tab-btn:hover:not(.active) {
+    background: var(--hover-bg);
+    color: var(--primary);
+}
+
+.tab-btn.active {
+    background: var(--primary-gradient);
+    color: white;
+}
+
+/* ===== الرسائل ===== */
+.message {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-lg);
+    animation: slideIn 0.3s ease;
+}
+
+.message.success {
+    background: var(--success-bg);
+    border: 1px solid var(--success-border);
+    color: var(--success);
+}
+
+.message.error {
+    background: var(--error-bg);
+    border: 1px solid var(--error-border);
+    color: var(--error);
+}
+
+.message.info {
+    background: var(--info-bg);
+    border: 1px solid var(--info-border);
+    color: var(--info);
+}
+
+.message button {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+    transition: opacity var(--transition-fast);
+}
+
+.message button:hover {
+    opacity: 1;
+}
+
+/* ===== النماذج ===== */
+.form-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+}
+
+.form-section h3 {
+    margin: 0 0 var(--spacing-lg) 0;
+    color: var(--text-primary);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.form-group label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-group input,
+.form-group select {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    transition: all var(--transition-fast);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
+}
+
+.form-group input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.input-with-unit {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.input-with-unit input {
+    flex: 1;
+}
+
+.unit,
+.unit-select {
+    padding: var(--spacing-sm);
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+}
+
+.save-btn {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-medium);
+}
+
+.save-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.save-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== الأهداف ===== */
+.add-goal-card {
+    background: var(--primary-gradient);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    color: white;
+}
+
+.add-goal-card h3 {
+    margin: 0 0 var(--spacing-lg) 0;
+}
+
+.goal-form .form-group label {
+    color: white;
+}
+
+.goal-form input,
+.goal-form select {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.goal-form input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.goal-form option {
+    color: var(--text-primary);
+}
+
+.add-goal-btn {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: white;
+    color: var(--primary);
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-medium);
+}
+
+.add-goal-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.goals-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.stat-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    text-align: center;
+    border: 1px solid var(--border-light);
+}
+
+.stat-card .stat-value {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.stat-card .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* ===== قائمة الأهداف ===== */
+.goals-list h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--text-primary);
+}
+
+.goals-grid {
+    display: grid;
+    gap: var(--spacing-md);
+}
+
+.goal-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+}
+
+.goal-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.goal-card.completed {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.goal-card.completed .goal-header h4,
+.goal-card.completed .goal-dates {
+    color: white;
+}
+
+.goal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.goal-header h4 {
+    margin: 0;
+}
+
+.goal-type {
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    opacity: 0.6;
+    transition: opacity var(--transition-fast);
+}
+
+.delete-btn:hover {
+    opacity: 1;
+}
+
+.goal-progress {
+    margin-bottom: var(--spacing-sm);
+}
+
+.progress-info {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
+}
+
+.current {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.target {
+    color: var(--text-tertiary);
+}
+
+.goal-card.completed .target {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--tertiary-bg);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: var(--radius-full);
+    transition: width var(--transition-medium);
+}
+
+.goal-card.completed .progress-fill {
+    background: white;
+}
+
+.progress-percent {
+    font-size: 0.8rem;
+}
+
+.goal-dates {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.goal-daily-rate {
+    background: var(--secondary-bg);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-secondary);
+}
+
+.goal-status {
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    text-align: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.goal-status.on-track {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+}
+
+.goal-status.off-track {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error);
+}
+
+.goal-status.achieved {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+}
+
+.goal-update input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.goal-update input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.goal-update small {
+    display: block;
+    text-align: center;
+    font-size: 0.7rem;
+    margin-top: var(--spacing-xs);
+    color: var(--text-tertiary);
+}
+
+.empty-goals {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+/* ===== الإعدادات ===== */
+.settings-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.setting-item label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.setting-item p {
+    margin: var(--spacing-xs) 0 0;
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+}
+
+.setting-item select {
+    padding: var(--spacing-sm);
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    background: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.toggle {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border-medium);
+    border-radius: 24px;
+    transition: all var(--transition-fast);
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+}
+
+input:checked + .toggle-slider {
+    background-color: var(--primary);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+}
+
+[dir="rtl"] input:checked + .toggle-slider:before {
+    transform: translateX(-26px);
+}
+
+.save-settings-btn {
+    width: 100%;
+    padding: var(--spacing-sm);
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-medium);
+}
+
+.save-settings-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* ===== النسخ الاحتياطي ===== */
+.backup-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.backup-section h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--text-primary);
+}
+
+.backup-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+}
+
+.backup-card {
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    color: white;
+    transition: all var(--transition-medium);
+}
+
+.backup-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.backup-card.full {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.backup-card.restore {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.backup-icon {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.backup-card h4 {
+    margin: 0 0 var(--spacing-sm);
+}
+
+.backup-card p {
+    margin: 0 0 var(--spacing-md);
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+.backup-btn,
+.restore-btn {
+    width: 100%;
+    padding: var(--spacing-sm);
+    background: white;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: 600;
+    text-align: center;
+    display: block;
+    transition: all var(--transition-fast);
+}
+
+.backup-btn:hover,
+.restore-btn:hover {
+    transform: translateY(-2px);
+}
+
+.backup-btn {
+    color: #667eea;
+}
+
+.restore-btn {
+    color: #f5576c;
+}
+
+/* ===== منطقة الخطر ===== */
+.danger-zone {
+    border: 2px solid var(--error);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.danger-zone h4 {
+    margin: 0 0 var(--spacing-sm);
+    color: var(--error);
+}
+
+.danger-zone p {
+    margin: 0 0 var(--spacing-md);
+    color: var(--text-secondary);
+}
+
+.danger-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.danger-btn {
+    flex: 1;
+    padding: var(--spacing-sm);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-medium);
+}
+
+.danger-btn.export {
+    background: var(--warning);
+    color: white;
+}
+
+.danger-btn.delete {
+    background: var(--error);
+    color: white;
+}
+
+.danger-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* ===== حالة التحميل ===== */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--border-light);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: var(--spacing-md);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== استجابة ===== */
+@media (max-width: 768px) {
+    .profile-manager {
+        padding: var(--spacing-md);
+    }
+
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-stats {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+
+    .goals-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .backup-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .danger-actions {
+        flex-direction: column;
+    }
+
+    .tabs-navigation {
+        flex-wrap: wrap;
+    }
+
+    .tab-btn {
+        flex: none;
+        width: calc(50% - 4px);
+    }
+}
+
+@media (max-width: 480px) {
+    .tab-btn {
+        width: 100%;
+    }
+
+    .goal-dates {
+        flex-direction: column;
+        gap: var(--spacing-xs);
+    }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .smart-recommendations ul {
+    padding-left: 0;
+    padding-right: var(--spacing-lg);
+}
+
+[dir="rtl"] .message button {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+[dir="rtl"] .setting-item {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+}
+
+.reduce-motion .goal-card:hover,
+.reduce-motion .backup-card:hover,
+.reduce-motion .save-btn:hover {
+    transform: none !important;
+}
+
+.reduce-motion .spinner {
+    animation: none !important;
+}
             `}</style>
         </div>
     );

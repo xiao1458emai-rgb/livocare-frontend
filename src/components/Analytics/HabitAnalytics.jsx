@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import './Analytics.css';
+import { useTheme } from '../../utils/themeManager';
 
 // دالة لتقريب الأرقام
 const roundNumber = (num, decimals = 1) => {
@@ -57,36 +58,21 @@ const detectHabitType = (name) => {
 
 const HabitAnalytics = ({ refreshTrigger }) => {
     const { t, i18n } = useTranslation();
-    const [darkMode, setDarkMode] = useState(false);
+    const { darkMode } = useTheme(); // ✅ استخدام ThemeManager بدلاً من localStorage مباشرة
     const [smartInsights, setSmartInsights] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('insights');
 
-    // تحميل إعدادات الوضع المظلم
-    useEffect(() => {
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                             window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setDarkMode(savedDarkMode);
-    }, []);
-
-    useEffect(() => {
-        const handleThemeChange = (e) => {
-            setDarkMode(e.detail?.darkMode ?? false);
-        };
-        window.addEventListener('themeChange', handleThemeChange);
-        return () => window.removeEventListener('themeChange', handleThemeChange);
-    }, []);
-
     useEffect(() => {
         fetchSmartInsights();
-    }, [refreshTrigger]);
+    }, [refreshTrigger, i18n.language]);
 
     const fetchSmartInsights = async () => {
         setLoading(true);
+        setError(null);
         try {
             const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
-            // ✅ إزالة /api المكرر
             const response = await axiosInstance.get('/analytics/smart-insights/', {
                 params: { lang: currentLang }
             });
@@ -94,7 +80,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             if (response.data.success) {
                 setSmartInsights(response.data);
             } else {
-                // استخدام بيانات تجريبية إذا لم تكن هناك بيانات
                 setSmartInsights({
                     success: true,
                     data: getMockData()
@@ -102,7 +87,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             }
         } catch (err) {
             console.error('Error fetching insights:', err);
-            // استخدام بيانات تجريبية في حالة الخطأ
             setSmartInsights({
                 success: true,
                 data: getMockData()
@@ -230,28 +214,28 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                     <div className="summary-cards">
                         <div className="summary-card">
                             <span className="summary-icon">🌙</span>
-                            <div>
+                            <div className="summary-info">
                                 <span className="summary-label">{t('analytics.habit.summary.avgSleep')}</span>
                                 <span className="summary-value">{roundNumber(summary.avg_sleep || 0, 1)} {t('analytics.habit.summary.hours')}</span>
                             </div>
                         </div>
                         <div className="summary-card">
                             <span className="summary-icon">😊</span>
-                            <div>
+                            <div className="summary-info">
                                 <span className="summary-label">{t('analytics.habit.summary.dominantMood')}</span>
                                 <span className="summary-value">{summary.dominant_mood || t('analytics.habit.summary.notAvailable')}</span>
                             </div>
                         </div>
                         <div className="summary-card">
                             <span className="summary-icon">💊</span>
-                            <div>
+                            <div className="summary-info">
                                 <span className="summary-label">{t('analytics.habit.summary.avgHabits')}</span>
                                 <span className="summary-value">{roundNumber(summary.avg_habits || 0, 1)}/3</span>
                             </div>
                         </div>
                         <div className="summary-card">
                             <span className="summary-icon">🔥</span>
-                            <div>
+                            <div className="summary-info">
                                 <span className="summary-label">{t('analytics.habit.summary.avgCalories')}</span>
                                 <span className="summary-value">{Math.round(summary.avg_calories || 0)}</span>
                             </div>
@@ -277,7 +261,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                                                 className="strength-fill" 
                                                 style={{ 
                                                     width: `${Math.min(100, Math.max(0, corr.strength * 100))}%`,
-                                                    background: corr.strength > 0.7 ? '#10b981' : corr.strength > 0.4 ? '#f59e0b' : '#ef4444'
+                                                    backgroundColor: corr.strength > 0.7 ? 'var(--success)' : corr.strength > 0.4 ? 'var(--warning)' : 'var(--error)'
                                                 }}
                                             />
                                         </div>
@@ -302,7 +286,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                                 return (
                                     <div key={idx} className="recommendation-card">
                                         <div className="recommendation-header">
-                                            <span className="recommendation-icon" style={{ background: getTypeColor(formatted.type) }}>
+                                            <span className="recommendation-icon" style={{ backgroundColor: getTypeColor(formatted.type) }}>
                                                 {formatted.icon}
                                             </span>
                                             <div className="recommendation-title">
@@ -404,14 +388,14 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                             <div className="stat-item">
                                 <span className="stat-label">{t('analytics.habit.patterns.consistency')}</span>
                                 <div className="progress-bar">
-                                    <div className="progress-fill" style={{ width: `${pattern.consistency}%` }} />
+                                    <div className="progress-fill" style={{ width: `${pattern.consistency}%`, backgroundColor: 'var(--primary)' }} />
                                 </div>
                                 <span className="stat-value">{pattern.consistency}%</span>
                             </div>
                             <div className="stat-item">
                                 <span className="stat-label">{t('analytics.habit.patterns.impact')}</span>
                                 <div className="progress-bar">
-                                    <div className="progress-fill" style={{ width: `${pattern.impact}%` }} />
+                                    <div className="progress-fill" style={{ width: `${pattern.impact}%`, backgroundColor: 'var(--primary)' }} />
                                 </div>
                                 <span className="stat-value">{pattern.impact}%</span>
                             </div>
@@ -495,7 +479,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
 
     if (loading) {
         return (
-            <div className={`analytics-loading ${darkMode ? 'dark-mode' : ''}`}>
+            <div className="analytics-loading">
                 <div className="spinner"></div>
                 <p>{t('common.loading')}</p>
             </div>
@@ -504,7 +488,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
 
     if (error) {
         return (
-            <div className={`analytics-error ${darkMode ? 'dark-mode' : ''}`}>
+            <div className="analytics-error">
                 <p>❌ {error}</p>
                 <button onClick={fetchSmartInsights} className="retry-btn">
                     🔄 {t('common.retry')}
@@ -514,7 +498,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
     }
 
     return (
-        <div className={`analytics-container habit-analytics ${darkMode ? 'dark-mode' : ''}`}>
+        <div className="analytics-container habit-analytics">
             <div className="analytics-header">
                 <h2>📊 {t('analytics.habit.title')}</h2>
                 <button onClick={fetchSmartInsights} className="refresh-btn" title={t('common.refresh')}>
@@ -554,493 +538,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                     {t('analytics.habit.footer.lastUpdate')}: {new Date().toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}
                 </small>
             </div>
-            <style jsx>{`
-                .habit-analytics {
-                    background: var(--bg-primary);
-                    border-radius: 20px;
-                    padding: 20px;
-                }
-
-                .analytics-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 20px;
-                }
-
-                .analytics-header h2 {
-                    margin: 0;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
-
-                .refresh-btn {
-                    width: 36px;
-                    height: 36px;
-                    border: none;
-                    border-radius: 18px;
-                    background: var(--bg-secondary);
-                    cursor: pointer;
-                }
-
-                .analytics-tabs {
-                    display: flex;
-                    gap: 8px;
-                    margin-bottom: 20px;
-                    background: var(--bg-secondary);
-                    padding: 4px;
-                    border-radius: 40px;
-                }
-
-                .analytics-tabs button {
-                    flex: 1;
-                    padding: 10px;
-                    border: none;
-                    background: transparent;
-                    border-radius: 32px;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-
-                .analytics-tabs button.active {
-                    background: var(--primary-color);
-                    color: white;
-                }
-
-                /* الملخص السريع */
-                .quick-summary h3 {
-                    margin: 0 0 16px 0;
-                    font-size: 1rem;
-                }
-
-                .summary-cards {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 12px;
-                    margin-bottom: 24px;
-                }
-
-                .summary-card {
-                    background: var(--bg-secondary);
-                    border-radius: 16px;
-                    padding: 16px;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                }
-
-                .summary-icon {
-                    font-size: 1.8rem;
-                }
-
-                .summary-label {
-                    display: block;
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                .summary-value {
-                    display: block;
-                    font-size: 1.1rem;
-                    font-weight: bold;
-                }
-
-                /* العلاقات */
-                .correlations-section h3 {
-                    margin: 0 0 16px 0;
-                    font-size: 1rem;
-                }
-
-                .correlations-grid {
-                    display: grid;
-                    gap: 12px;
-                    margin-bottom: 24px;
-                }
-
-                .correlation-card {
-                    background: var(--bg-secondary);
-                    border-radius: 16px;
-                    padding: 16px;
-                }
-
-                .correlation-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin-bottom: 12px;
-                }
-
-                .correlation-icon {
-                    font-size: 1.5rem;
-                }
-
-                .correlation-title {
-                    font-weight: bold;
-                }
-
-                .correlation-desc {
-                    margin: 0 0 12px 0;
-                    font-size: 0.85rem;
-                    color: var(--text-secondary);
-                }
-
-                .correlation-strength {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin-bottom: 8px;
-                }
-
-                .strength-bar {
-                    flex: 1;
-                    height: 6px;
-                    background: var(--border-color);
-                    border-radius: 3px;
-                    overflow: hidden;
-                }
-
-                .strength-fill {
-                    height: 100%;
-                    border-radius: 3px;
-                }
-
-                .strength-value {
-                    font-size: 0.8rem;
-                    font-weight: bold;
-                }
-
-                .correlation-meta {
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                /* التوصيات */
-                .smart-recommendations h3 {
-                    margin: 0 0 16px 0;
-                    font-size: 1rem;
-                }
-
-                .recommendations-list {
-                    display: grid;
-                    gap: 16px;
-                    margin-bottom: 24px;
-                }
-
-                .recommendation-card {
-                    background: var(--bg-secondary);
-                    border-radius: 16px;
-                    padding: 16px;
-                }
-
-                .recommendation-header {
-                    display: flex;
-                    align-items: flex-start;
-                    gap: 12px;
-                    margin-bottom: 12px;
-                }
-
-                .recommendation-icon {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 20px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 1.2rem;
-                    flex-shrink: 0;
-                }
-
-                .recommendation-title h4 {
-                    margin: 0 0 4px 0;
-                    font-size: 1rem;
-                }
-
-                .recommendation-target {
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                .recommendation-description {
-                    margin: 0 0 12px 0;
-                    font-size: 0.85rem;
-                }
-
-                .recommendation-tips {
-                    margin-bottom: 12px;
-                }
-
-                .recommendation-tips strong {
-                    display: block;
-                    margin-bottom: 8px;
-                    font-size: 0.8rem;
-                }
-
-                .recommendation-tips ul {
-                    margin: 0;
-                    padding-left: 20px;
-                }
-
-                .recommendation-tips li {
-                    font-size: 0.8rem;
-                    margin-bottom: 4px;
-                }
-
-                .recommendation-prediction {
-                    background: rgba(139, 92, 246, 0.1);
-                    padding: 8px 12px;
-                    border-radius: 8px;
-                    margin-bottom: 12px;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 0.8rem;
-                }
-
-                .recommendation-meta {
-                    display: flex;
-                    gap: 16px;
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                /* التنبؤات */
-                .predictions-section h3 {
-                    margin: 0 0 16px 0;
-                    font-size: 1rem;
-                }
-
-                .predictions-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 12px;
-                }
-
-                .prediction-card {
-                    background: var(--bg-secondary);
-                    border-radius: 16px;
-                    padding: 16px;
-                    text-align: center;
-                }
-
-                .prediction-icon {
-                    font-size: 2rem;
-                    margin-bottom: 8px;
-                }
-
-                .prediction-label {
-                    display: block;
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                .prediction-value {
-                    display: block;
-                    font-size: 1.2rem;
-                    font-weight: bold;
-                }
-
-                .prediction-trend {
-                    display: inline-block;
-                    font-size: 0.8rem;
-                    margin-top: 4px;
-                }
-
-                .prediction-trend.positive {
-                    color: #10b981;
-                }
-
-                .prediction-trend.negative {
-                    color: #ef4444;
-                }
-
-                .prediction-note {
-                    margin-top: 8px;
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                /* الأنماط */
-                .detailed-patterns h3 {
-                    margin: 0 0 16px 0;
-                    font-size: 1rem;
-                }
-
-                .pattern-card {
-                    background: var(--bg-secondary);
-                    border-radius: 16px;
-                    padding: 16px;
-                    margin-bottom: 16px;
-                }
-
-                .pattern-header h4 {
-                    margin: 0 0 16px 0;
-                }
-
-                .pattern-stats {
-                    display: grid;
-                    gap: 12px;
-                    margin-bottom: 16px;
-                }
-
-                .stat-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                }
-
-                .stat-label {
-                    width: 100px;
-                    font-size: 0.8rem;
-                }
-
-                .progress-bar {
-                    flex: 1;
-                    height: 6px;
-                    background: var(--border-color);
-                    border-radius: 3px;
-                    overflow: hidden;
-                }
-
-                .progress-fill {
-                    height: 100%;
-                    background: var(--primary-color);
-                    border-radius: 3px;
-                }
-
-                .stat-value {
-                    width: 40px;
-                    font-size: 0.8rem;
-                    font-weight: bold;
-                }
-
-                .pattern-analysis {
-                    margin: 0 0 16px 0;
-                }
-
-                .pattern-insights,
-                .pattern-suggestions {
-                    margin-bottom: 12px;
-                }
-
-                .pattern-insights ul,
-                .pattern-suggestions ul {
-                    margin: 8px 0 0;
-                    padding-left: 20px;
-                }
-
-                .pattern-insights li,
-                .pattern-suggestions li {
-                    font-size: 0.85rem;
-                    margin-bottom: 4px;
-                }
-
-                /* التوصيات المتكاملة */
-                .integrated-recommendations h3 {
-                    margin: 0 0 16px 0;
-                    font-size: 1rem;
-                }
-
-                .recommendations-grid {
-                    display: grid;
-                    gap: 16px;
-                }
-
-                .integrated-card {
-                    background: var(--bg-secondary);
-                    border-radius: 16px;
-                    padding: 16px;
-                }
-
-                .card-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin-bottom: 12px;
-                }
-
-                .card-icon {
-                    font-size: 1.5rem;
-                }
-
-                .card-header h4 {
-                    margin: 0;
-                }
-
-                .card-analysis {
-                    margin: 0 0 12px 0;
-                }
-
-                .card-tips {
-                    margin-bottom: 12px;
-                }
-
-                .card-tips ul {
-                    margin: 8px 0 0;
-                    padding-left: 20px;
-                }
-
-                .card-tips li {
-                    font-size: 0.85rem;
-                    margin-bottom: 4px;
-                }
-
-                .card-outcome {
-                    background: rgba(16, 185, 129, 0.1);
-                    padding: 8px 12px;
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 0.8rem;
-                }
-
-                .no-data {
-                    text-align: center;
-                    padding: 40px;
-                    color: var(--text-secondary);
-                }
-
-                .analytics-footer {
-                    margin-top: 20px;
-                    text-align: center;
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                /* استجابة */
-                @media (max-width: 768px) {
-                    .summary-cards {
-                        grid-template-columns: repeat(2, 1fr);
-                    }
-                    
-                    .predictions-grid {
-                        grid-template-columns: 1fr;
-                    }
-                    
-                    .analytics-tabs {
-                        flex-wrap: wrap;
-                    }
-                    
-                    .stat-item {
-                        flex-wrap: wrap;
-                    }
-                    
-                    .stat-label {
-                        width: 100%;
-                    }
-                }
-
-                /* الثيم المظلم */
-                .dark-mode {
-                    --bg-primary: #1a1a2e;
-                    --bg-secondary: #16213e;
-                    --text-primary: #eee;
-                    --text-secondary: #aaa;
-                    --border-color: #2a2a3e;
-                    --primary-color: #8b5cf6;
-                }
-            `}</style>
         </div>
     );
 };
