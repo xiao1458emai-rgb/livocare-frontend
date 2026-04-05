@@ -1853,7 +1853,104 @@ const resources = {
       "completed": "العادات المنجزة",
       "completionRate": "نسبة الإنجاز"
     }
+  },
+  // ==================== التسجيل ====================
+register: {
+  title: "إنشاء حساب جديد",
+  subtitle: "انضم إلى LivoCare وابدأ رحلتك الصحية",
+  description: "أدخل بياناتك لإنشاء حساب جديد والاستفادة من جميع ميزات التطبيق",
+  firstName: "الاسم الأول",
+  firstNamePlaceholder: "أدخل اسمك الأول",
+  lastName: "اسم العائلة",
+  lastNamePlaceholder: "أدخل اسم العائلة",
+  username: "اسم المستخدم",
+  usernamePlaceholder: "مثال: testuser123",
+  email: "البريد الإلكتروني",
+  emailPlaceholder: "example@email.com",
+  password: "كلمة المرور",
+  passwordPlaceholder: "••••••••••",
+  passwordStrong: "يجب أن تحتوي على 8 أحرف على الأقل، حرف كبير، رقم، رمز",
+  confirmPassword: "تأكيد كلمة المرور",
+  confirmPasswordPlaceholder: "أعد إدخال كلمة المرور",
+  registerButton: "إنشاء حساب",
+  termsPrefix: "بالضغط على 'إنشاء حساب'، فإنك توافق على ",
+  termsOfService: "شروط الخدمة",
+  and: " و ",
+  privacyPolicy: "سياسة الخصوصية",
+  haveAccount: "لديك حساب بالفعل؟",
+  login: "تسجيل الدخول",
+  
+  // فوائد التسجيل
+  benefitsTitle: "🌟 لماذا تنضم إلى LivoCare؟",
+  benefit1: "📊 تتبع شامل للعلامات الحيوية",
+  benefit2: "🥗 خطط تغذية ذكية مخصصة",
+  benefit3: "🌙 تحليل عمق النوم وجودته",
+  benefit4: "😊 تسجيل الحالة المزاجية والعوامل المؤثرة",
+  benefit5: "💊 متابعة العادات والأدوية اليومية",
+  
+  // شهادة مستخدم
+  testimonial: '"منذ استخدام LivoCare، تحسنت صحتي بشكل ملحوظ وأصبحت أكثر وعياً بعاداتي اليومية"',
+  testimonialAuthor: "أحمد السيد - مستخدم مميز",
+  
+  // رسائل الخطأ
+  errors: {
+    firstNameRequired: "الاسم الأول مطلوب",
+    lastNameRequired: "اسم العائلة مطلوب",
+    usernameRequired: "اسم المستخدم مطلوب",
+    usernameMinLength: "اسم المستخدم يجب أن يكون 3 أحرف على الأقل",
+    usernameMaxLength: "اسم المستخدم يجب ألا يزيد عن 20 حرفاً",
+    usernameInvalid: "اسم المستخدم يمكن أن يحتوي فقط على أحرف وأرقام",
+    usernameTaken: "اسم المستخدم موجود بالفعل",
+    emailRequired: "البريد الإلكتروني مطلوب",
+    emailInvalid: "البريد الإلكتروني غير صالح",
+    emailTaken: "البريد الإلكتروني مسجل بالفعل",
+    passwordRequired: "كلمة المرور مطلوبة",
+    passwordMinLength: "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
+    passwordUppercase: "كلمة المرور يجب أن تحتوي على حرف كبير واحد على الأقل",
+    passwordLowercase: "كلمة المرور يجب أن تحتوي على حرف صغير واحد على الأقل",
+    passwordNumber: "كلمة المرور يجب أن تحتوي على رقم واحد على الأقل",
+    passwordSymbol: "كلمة المرور يجب أن تحتوي على رمز واحد على الأقل",
+    passwordsDoNotMatch: "كلمتا المرور غير متطابقتين",
+    termsRequired: "يجب الموافقة على الشروط وسياسة الخصوصية",
+    registerFailed: "فشل إنشاء الحساب. يرجى المحاولة مرة أخرى",
+    networkError: "خطأ في الاتصال. تحقق من الإنترنت وحاول مرة أخرى",
+    serverError: "خطأ في الخادم. حاول لاحقاً"
+  },
+  
+  // رسائل النجاح
+  success: {
+    accountCreated: "✅ تم إنشاء حسابك بنجاح!",
+    redirecting: "جاري تحويلك إلى لوحة التحكم...",
+    verificationEmailSent: "تم إرسال رابط التفعيل إلى بريدك الإلكتروني"
+  },
+  
+  // متطلبات كلمة المرور
+  passwordRequirements: {
+    title: "متطلبات كلمة المرور:",
+    minLength: "✔ 8 أحرف على الأقل",
+    uppercase: "✔ حرف كبير (A-Z)",
+    lowercase: "✔ حرف صغير (a-z)",
+    number: "✔ رقم (0-9)",
+    symbol: "✔ رمز (!@#$%^&*)"
+  },
+  
+  // حالة التحقق من كلمة المرور
+  passwordStrength: {
+    weak: "ضعيفة",
+    fair: "مقبولة",
+    good: "جيدة",
+    strong: "قوية جداً",
+    title: "قوة كلمة المرور:"
+  },
+  
+  // Social login
+  socialLogin: {
+    title: "أو سجل باستخدام",
+    google: "Google",
+    facebook: "Facebook",
+    apple: "Apple"
   }
+}
     }
   },
 
@@ -3700,7 +3797,103 @@ const resources = {
       "completed": "Completed Habits",
       "completionRate": "Completion Rate"
     }
+  },// ==================== Registration ====================
+register: {
+  title: "Create New Account",
+  subtitle: "Join LivoCare and start your health journey",
+  description: "Enter your details to create a new account and enjoy all app features",
+  firstName: "First Name",
+  firstNamePlaceholder: "Enter your first name",
+  lastName: "Last Name",
+  lastNamePlaceholder: "Enter your last name",
+  username: "Username",
+  usernamePlaceholder: "e.g., testuser123",
+  email: "Email",
+  emailPlaceholder: "example@email.com",
+  password: "Password",
+  passwordPlaceholder: "••••••••••",
+  passwordStrong: "Must contain at least 8 characters, uppercase, number, symbol",
+  confirmPassword: "Confirm Password",
+  confirmPasswordPlaceholder: "Re-enter your password",
+  registerButton: "Create Account",
+  termsPrefix: "By clicking 'Create Account', you agree to our ",
+  termsOfService: "Terms of Service",
+  and: " and ",
+  privacyPolicy: "Privacy Policy",
+  haveAccount: "Already have an account?",
+  login: "Login",
+  
+  // Registration benefits
+  benefitsTitle: "🌟 Why Join LivoCare?",
+  benefit1: "📊 Complete vital signs tracking",
+  benefit2: "🥗 Personalized smart nutrition plans",
+  benefit3: "🌙 Sleep depth and quality analysis",
+  benefit4: "😊 Mood tracking and influencing factors",
+  benefit5: "💊 Daily habits and medications tracking",
+  
+  // User testimonial
+  testimonial: '"Since using LivoCare, my health has improved significantly and I\'ve become more aware of my daily habits"',
+  testimonialAuthor: "Ahmed El-Sayed - Premium User",
+  
+  // Error messages
+  errors: {
+    firstNameRequired: "First name is required",
+    lastNameRequired: "Last name is required",
+    usernameRequired: "Username is required",
+    usernameMinLength: "Username must be at least 3 characters",
+    usernameMaxLength: "Username must not exceed 20 characters",
+    usernameInvalid: "Username can only contain letters and numbers",
+    usernameTaken: "Username is already taken",
+    emailRequired: "Email is required",
+    emailInvalid: "Invalid email address",
+    emailTaken: "Email is already registered",
+    passwordRequired: "Password is required",
+    passwordMinLength: "Password must be at least 8 characters",
+    passwordUppercase: "Password must contain at least one uppercase letter",
+    passwordLowercase: "Password must contain at least one lowercase letter",
+    passwordNumber: "Password must contain at least one number",
+    passwordSymbol: "Password must contain at least one symbol",
+    passwordsDoNotMatch: "Passwords do not match",
+    termsRequired: "You must agree to the terms and privacy policy",
+    registerFailed: "Registration failed. Please try again",
+    networkError: "Network error. Check your internet and try again",
+    serverError: "Server error. Please try later"
+  },
+  
+  // Success messages
+  success: {
+    accountCreated: "✅ Your account has been created successfully!",
+    redirecting: "Redirecting you to the dashboard...",
+    verificationEmailSent: "Verification link has been sent to your email"
+  },
+  
+  // Password requirements
+  passwordRequirements: {
+    title: "Password requirements:",
+    minLength: "✔ At least 8 characters",
+    uppercase: "✔ Uppercase letter (A-Z)",
+    lowercase: "✔ Lowercase letter (a-z)",
+    number: "✔ Number (0-9)",
+    symbol: "✔ Symbol (!@#$%^&*)"
+  },
+  
+  // Password strength indicator
+  passwordStrength: {
+    weak: "Weak",
+    fair: "Fair",
+    good: "Good",
+    strong: "Very Strong",
+    title: "Password strength:"
+  },
+  
+  // Social login
+  socialLogin: {
+    title: "Or sign up with",
+    google: "Google",
+    facebook: "Facebook",
+    apple: "Apple"
   }
+}
 
     }
   }
