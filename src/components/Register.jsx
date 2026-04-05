@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from 'react-i18next';
+import { Link, useNavigate } from 'react-router-dom'; // ✅ إضافة useNavigate
 import axiosInstance from '../services/api';
 import '../index.css';
 
 function Register({ onRegisterSuccess }) {
     const { t, i18n } = useTranslation();
+    const navigate = useNavigate(); // ✅ استخدام useNavigate
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -207,11 +209,13 @@ function Register({ onRegisterSuccess }) {
                     
                     if (isMountedRef.current && onRegisterSuccess) {
                         onRegisterSuccess();
+                    } else {
+                        navigate('/dashboard'); // ✅ استخدام navigate بدلاً من window.location
                     }
                 } catch (loginErr) {
                     console.error('Auto-login error:', loginErr);
                     if (isMountedRef.current) {
-                        window.location.href = '/';
+                        navigate('/login'); // ✅ استخدام navigate بدلاً من window.location
                     }
                 }
             }, 2000);
@@ -241,7 +245,7 @@ function Register({ onRegisterSuccess }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [formData, t, onRegisterSuccess, validateForm]);
+    }, [formData, t, onRegisterSuccess, validateForm, navigate]); // ✅ إضافة navigate إلى التبعيات
 
     // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
@@ -505,18 +509,17 @@ function Register({ onRegisterSuccess }) {
                             </p>
                         </div>
 
-                        {/* رابط تسجيل الدخول */}
+                        {/* ✅ رابط تسجيل الدخول - استخدام Link من react-router-dom */}
                         <div className="login-link">
                             <p>
                                 {t('register.haveAccount')} 
-                                <button 
-                                    type="button"
-                                    onClick={() => window.location.href = '/'}
+                                <Link 
+                                    to="/login"
                                     className="login-button-link"
                                 >
                                     {t('register.login')}
                                     <span className="btn-arrow">→</span>
-                                </button>
+                                </Link>
                             </p>
                         </div>
                     </form>

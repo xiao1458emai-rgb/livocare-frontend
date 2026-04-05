@@ -20,38 +20,40 @@ function Login({ onLoginSuccess }) {
     const [rememberMe, setRememberMe] = useState(false);
 
     // تحميل إعدادات الوضع المظلم واللغة المحفوظة
-    useEffect(() => {
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                             window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setDarkMode(savedDarkMode);
-        
-        const savedUsername = localStorage.getItem('saved_username');
-        if (savedUsername) {
-            setUsername(savedUsername);
-            setRememberMe(true);
-        }
-        
-        if (savedDarkMode) {
-            document.documentElement.classList.add('dark-mode');
-        }
-        
-        // ✅ التحقق من وجود توكن صالح
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            console.log('🔑 Existing token found, verifying...');
-            // اختبر التوكن
-            axiosInstance.get('/health_status/')
-                .then(() => {
-                    console.log('✅ Token is valid, auto-login');
-                    if (onLoginSuccess) onLoginSuccess();
-                })
-                .catch(() => {
-                    console.log('❌ Token invalid, clearing');
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('refresh_token');
-                });
-        }
-    }, [onLoginSuccess]);
+// في Login.jsx، قم بتعديل useEffect الأول:
+
+useEffect(() => {
+    const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
+                         window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setDarkMode(savedDarkMode);
+    
+    const savedUsername = localStorage.getItem('saved_username');
+    if (savedUsername) {
+        setUsername(savedUsername);
+        setRememberMe(true);
+    }
+    
+    if (savedDarkMode) {
+        document.documentElement.classList.add('dark-mode');
+    }
+    
+    // ✅ إزالة التحقق التلقائي من التوكن هنا لأنه يتم في App.js
+    // فقط إذا كان المستخدم في صفحة login ولديه توكن صالح، نوجهه للداشبورد
+    const token = localStorage.getItem('access_token');
+    if (token && onLoginSuccess) {
+        // اختبر التوكن بسرعة
+        axiosInstance.get('/health_status/')
+            .then(() => {
+                console.log('✅ Token is valid, redirecting to dashboard');
+                onLoginSuccess();
+            })
+            .catch(() => {
+                console.log('❌ Token invalid, staying on login');
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+            });
+    }
+}, [onLoginSuccess]);
 
     // استمع لتغييرات الوضع المظلم
     useEffect(() => {

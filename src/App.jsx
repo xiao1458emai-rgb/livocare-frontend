@@ -1,57 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import axiosInstance from './services/api';
 import './App.css';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 
-function App() {
+// ✅ مكون منفصل للتعامل مع المصادقة
+function AppContent() {
     const { t, i18n } = useTranslation();
+    const navigate = useNavigate();
+    const location = useLocation();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [darkMode, setDarkMode] = useState(false);
-    const [showRegister, setShowRegister] = useState(false);
 
-    // ✅ دالة للتحقق من صحة التوكن - أكثر صرامة
+    // ✅ دالة للتحقق من صحة التوكن
     const verifyToken = async (token) => {
         if (!token) return false;
         
         try {
             console.log('🔍 Verifying token...');
-            
-            // ✅ أولاً: جرب endpoint بسيط
             const response = await axiosInstance.get('/health_status/', {
                 timeout: 5000,
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
-            console.log('📊 Verification response status:', response.status);
-            
-            // ✅ التحقق من أن الرد ناجح وليس 401
             if (response.status === 200) {
-                console.log('✅ Token is valid (200 OK)');
+                console.log('✅ Token is valid');
                 return true;
             }
-            
             return false;
         } catch (error) {
-            console.log('❌ Token verification failed:', error.response?.status || error.message);
-            
-            // ✅ إذا كان 401 Unauthorized، التوكن غير صالح
+            console.log('❌ Token verification failed:', error.response?.status);
             if (error.response?.status === 401) {
-                console.log('❌ Token invalid (401)');
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
             }
-            
             return false;
         }
     };
 
+    // ✅ التحقق من المصادقة عند تحميل التطبيق
     useEffect(() => {
-        let isMounted = true;
-
         const initApp = async () => {
             try {
                 // إعدادات اللغة
@@ -63,100 +55,57 @@ function App() {
                 const token = localStorage.getItem('access_token');
                 const isValid = await verifyToken(token);
                 
-                console.log('🔑 Token valid result:', isValid);
+                setIsAuthenticated(isValid);
                 
-                if (isMounted) {
-                    setIsAuthenticated(isValid);
-                    
-                    // إذا كان التوكن غير صالح، نمسحه
-                    if (!isValid) {
-                        localStorage.removeItem('access_token');
-                        localStorage.removeItem('refresh_token');
-                    }
-                    
-                    // التحقق من الرابط
-                    if (window.location.hash === '#/register') {
-                        setShowRegister(true);
-                    }
-                    
-                    setIsLoading(false);
+                if (!isValid) {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
                 }
             } catch (error) {
                 console.error("Initialization error:", error);
-                if (isMounted) setIsLoading(false);
+            } finally {
+                setIsLoading(false);
             }
         };
 
         initApp();
-        
-        // مستمع لتغيرات الرابط
-        const handleHashChange = () => {
-            if (window.location.hash === '#/register') {
-                setShowRegister(true);
-            } else if (window.location.hash === '#/login' || window.location.hash === '#/dashboard') {
-                setShowRegister(false);
-            }
-        };
-        
-        window.addEventListener('hashchange', handleHashChange);
-        
-        return () => { 
-            isMounted = false;
-            window.removeEventListener('hashchange', handleHashChange);
-        };
     }, []);
 
     // ✅ دالة نجاح تسجيل الدخول
     const handleLoginSuccess = () => {
-        console.log('🔍 Login successful - verifying token...');
+        console.log('🔍 Login successful');
         const token = localStorage.getItem('access_token');
         
         if (token) {
             setIsAuthenticated(true);
-            setShowRegister(false);
-            window.location.hash = '#/dashboard';
+            navigate('/dashboard');
         } else {
             console.error('❌ No token found after login');
-            window.location.hash = '#/login';
+            navigate('/login');
         }
     };
 
     // ✅ دالة نجاح التسجيل
     const handleRegisterSuccess = () => {
-        console.log('🔍 Register successful - checking token...');
+        console.log('🔍 Register successful');
         const token = localStorage.getItem('access_token');
         
         if (token) {
             setIsAuthenticated(true);
-            setShowRegister(false);
-            window.location.hash = '#/dashboard';
+            navigate('/dashboard');
         } else {
             console.error('❌ No token found after registration');
-            window.location.hash = '#/login';
+            navigate('/login');
         }
     };
 
+    // ✅ دالة تسجيل الخروج
     const handleLogout = () => {
         console.log('🔍 Logging out');
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         setIsAuthenticated(false);
-        setShowRegister(false);
-        window.location.hash = '#/login';
-    };
-
-    const toggleDarkMode = () => {
-        const newDarkMode = !darkMode;
-        setDarkMode(newDarkMode);
-        window.dispatchEvent(new CustomEvent('themeChange', { detail: { darkMode: newDarkMode } }));
-    };
-
-    const changeLanguage = (lng) => {
-        i18n.changeLanguage(lng);
-        localStorage.setItem('livocare_language', lng);
-        document.documentElement.lang = lng;
-        document.documentElement.dir = lng === 'ar' ? 'rtl' : 'ltr';
-        window.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: lng } }));
+        navigate('/login');
     };
 
     if (isLoading) {
@@ -168,18 +117,47 @@ function App() {
         );
     }
 
-    if (isAuthenticated) {
-        return <Dashboard onLogout={handleLogout} />;
-    }
+    return (
+        <Routes>
+            <Route 
+                path="/login" 
+                element={
+                    isAuthenticated ? 
+                    <Navigate to="/dashboard" replace /> : 
+                    <Login onLoginSuccess={handleLoginSuccess} />
+                } 
+            />
+            <Route 
+                path="/register" 
+                element={
+                    isAuthenticated ? 
+                    <Navigate to="/dashboard" replace /> : 
+                    <Register onRegisterSuccess={handleRegisterSuccess} />
+                } 
+            />
+            <Route 
+                path="/dashboard" 
+                element={
+                    isAuthenticated ? 
+                    <Dashboard onLogout={handleLogout} /> : 
+                    <Navigate to="/login" replace />
+                } 
+            />
+            <Route 
+                path="/" 
+                element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} 
+            />
+        </Routes>
+    );
+}
 
-    if (showRegister) {
-        return <Register onRegisterSuccess={handleRegisterSuccess} />;
-    }
-
-    return <Login onLoginSuccess={handleLoginSuccess} onRegisterClick={() => {
-        setShowRegister(true);
-        window.location.hash = '#/register';
-    }} />;
+// ✅ المكون الرئيسي مع BrowserRouter
+function App() {
+    return (
+        <BrowserRouter>
+            <AppContent />
+        </BrowserRouter>
+    );
 }
 
 export default App;
