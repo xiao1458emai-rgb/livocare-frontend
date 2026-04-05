@@ -1,21 +1,19 @@
+// src/App.jsx
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import axiosInstance from './services/api';
 import './App.css';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 
-// ✅ مكون منفصل للتعامل مع المصادقة (داخل Router)
-function AppContent() {
+function App() {
     const { t, i18n } = useTranslation();
-    const navigate = useNavigate();
-    const location = useLocation();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
-    // ✅ دالة للتحقق من صحة التوكن
+    // ✅ دالة للتحقق من التوكن
     const verifyToken = async (token) => {
         if (!token) return false;
         
@@ -78,10 +76,8 @@ function AppContent() {
         
         if (token) {
             setIsAuthenticated(true);
-            navigate('/dashboard');
         } else {
             console.error('❌ No token found after login');
-            navigate('/login');
         }
     };
 
@@ -92,10 +88,8 @@ function AppContent() {
         
         if (token) {
             setIsAuthenticated(true);
-            navigate('/dashboard');
         } else {
             console.error('❌ No token found after registration');
-            navigate('/login');
         }
     };
 
@@ -105,7 +99,6 @@ function AppContent() {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         setIsAuthenticated(false);
-        navigate('/login');
     };
 
     if (isLoading) {
@@ -117,45 +110,39 @@ function AppContent() {
         );
     }
 
-    return (
-        <Routes>
-            <Route 
-                path="/login" 
-                element={
-                    isAuthenticated ? 
-                    <Navigate to="/dashboard" replace /> : 
-                    <Login onLoginSuccess={handleLoginSuccess} />
-                } 
-            />
-            <Route 
-                path="/register" 
-                element={
-                    isAuthenticated ? 
-                    <Navigate to="/dashboard" replace /> : 
-                    <Register onRegisterSuccess={handleRegisterSuccess} />
-                } 
-            />
-            <Route 
-                path="/dashboard/*" 
-                element={
-                    isAuthenticated ? 
-                    <Dashboard onLogout={handleLogout} /> : 
-                    <Navigate to="/login" replace />
-                } 
-            />
-            <Route 
-                path="/" 
-                element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} 
-            />
-        </Routes>
-    );
-}
-
-// ✅ المكون الرئيسي - Router واحد فقط هنا
-function App() {
+    // ✅ Router واحد فقط هنا
     return (
         <BrowserRouter>
-            <AppContent />
+            <Routes>
+                <Route 
+                    path="/login" 
+                    element={
+                        isAuthenticated ? 
+                        <Navigate to="/dashboard" replace /> : 
+                        <Login onLoginSuccess={handleLoginSuccess} />
+                    } 
+                />
+                <Route 
+                    path="/register" 
+                    element={
+                        isAuthenticated ? 
+                        <Navigate to="/dashboard" replace /> : 
+                        <Register onRegisterSuccess={handleRegisterSuccess} />
+                    } 
+                />
+                <Route 
+                    path="/dashboard/*" 
+                    element={
+                        isAuthenticated ? 
+                        <Dashboard onLogout={handleLogout} /> : 
+                        <Navigate to="/login" replace />
+                    } 
+                />
+                <Route 
+                    path="/" 
+                    element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} 
+                />
+            </Routes>
         </BrowserRouter>
     );
 }
