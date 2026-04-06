@@ -80,14 +80,11 @@ function Notifications({ isAuthReady }) {
     const { t, i18n } = useTranslation();
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [generating, setGenerating] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
     const [filter, setFilter] = useState('all');
     const [unreadCount, setUnreadCount] = useState(0);
     const [stats, setStats] = useState(null);
     const [showStats, setShowStats] = useState(false);
-    const [message, setMessage] = useState('');
-    const [messageType, setMessageType] = useState('');
     const [preferences, setPreferences] = useState({
         sleep: true,
         nutrition: true,
@@ -184,38 +181,6 @@ function Notifications({ isAuthReady }) {
             console.error('Error fetching stats:', error);
         }
     };
-
-    // ✅ دالة توليد الإشعارات التلقائية
-const generateAutoNotifications = async () => {
-    setGenerating(true);
-    setMessage('');
-    
-    try {
-        // ✅ استخدم المسار الجديد المستقل
-        const response = await axiosInstance.post('/generate-notifications/');
-        
-        if (response.data.success) {
-            setMessage(response.data.message);
-            setMessageType('success');
-            await fetchNotifications();
-            await fetchUnreadCount();
-            await fetchStats();
-            setTimeout(() => {
-                setMessage('');
-                setMessageType('');
-            }, 3000);
-        } else {
-            setMessage(response.data.error || 'فشل في إنشاء الإشعارات');
-            setMessageType('error');
-        }
-    } catch (error) {
-        console.error('Error generating notifications:', error);
-        setMessage('حدث خطأ أثناء إنشاء الإشعارات');
-        setMessageType('error');
-    } finally {
-        setGenerating(false);
-    }
-};
 
     const markAsRead = async (id) => {
         try {
@@ -343,16 +308,6 @@ const generateAutoNotifications = async () => {
                 </div>
                 
                 <div className="header-actions">
-                    {/* ✅ زر توليد الإشعارات التلقائية */}
-                    <button 
-                        className="generate-btn"
-                        onClick={generateAutoNotifications}
-                        disabled={generating}
-                        title={t('notifications.generate')}
-                    >
-                        {generating ? '⏳' : '✨'} {t('notifications.generate')}
-                    </button>
-                    
                     <button 
                         className="refresh-btn"
                         onClick={() => {
@@ -383,15 +338,6 @@ const generateAutoNotifications = async () => {
                     )}
                 </div>
             </div>
-
-            {/* رسالة التأكيد */}
-            {message && (
-                <div className={`notification-message ${messageType}`}>
-                    <span>{messageType === 'success' ? '✅' : '❌'}</span>
-                    <span>{message}</span>
-                    <button onClick={() => setMessage('')}>✕</button>
-                </div>
-            )}
 
             {/* إحصائيات سريعة */}
             {showStats && stats && (
@@ -496,13 +442,6 @@ const generateAutoNotifications = async () => {
                     <div className="empty-icon">🔔</div>
                     <h3>{t('notifications.noNotifications')}</h3>
                     <p>{t('notifications.noNotificationsDesc')}</p>
-                    <button 
-                        className="generate-empty-btn"
-                        onClick={generateAutoNotifications}
-                        disabled={generating}
-                    >
-                        ✨ {t('notifications.generateNow')}
-                    </button>
                 </div>
             ) : (
                 <div className="notifications-list">
