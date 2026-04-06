@@ -186,39 +186,36 @@ function Notifications({ isAuthReady }) {
     };
 
     // ✅ دالة توليد الإشعارات التلقائية
-    const generateAutoNotifications = async () => {
-        setGenerating(true);
-        setMessage('');
+const generateAutoNotifications = async () => {
+    setGenerating(true);
+    setMessage('');
+    
+    try {
+        // ✅ استخدم المسار الجديد المستقل
+        const response = await axiosInstance.post('/generate-notifications/');
         
-        try {
-            const response = await axiosInstance.post('/notifications/generate-auto/');
-            
-            if (response.data.success) {
-                setMessage(response.data.message);
-                setMessageType('success');
-                
-                // تحديث القائمة والإحصائيات
-                await fetchNotifications();
-                await fetchUnreadCount();
-                await fetchStats();
-                
-                // إخفاء الرسالة بعد 3 ثوانٍ
-                setTimeout(() => {
-                    setMessage('');
-                    setMessageType('');
-                }, 3000);
-            } else {
-                setMessage(response.data.error || 'فشل في إنشاء الإشعارات');
-                setMessageType('error');
-            }
-        } catch (error) {
-            console.error('Error generating notifications:', error);
-            setMessage('حدث خطأ أثناء إنشاء الإشعارات');
+        if (response.data.success) {
+            setMessage(response.data.message);
+            setMessageType('success');
+            await fetchNotifications();
+            await fetchUnreadCount();
+            await fetchStats();
+            setTimeout(() => {
+                setMessage('');
+                setMessageType('');
+            }, 3000);
+        } else {
+            setMessage(response.data.error || 'فشل في إنشاء الإشعارات');
             setMessageType('error');
-        } finally {
-            setGenerating(false);
         }
-    };
+    } catch (error) {
+        console.error('Error generating notifications:', error);
+        setMessage('حدث خطأ أثناء إنشاء الإشعارات');
+        setMessageType('error');
+    } finally {
+        setGenerating(false);
+    }
+};
 
     const markAsRead = async (id) => {
         try {
