@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
+
 // ===========================================
 // دوال التحليل
 // ===========================================
@@ -110,7 +111,7 @@ const analyzeHabitsData = (habitLogs, habitDefinitions) => {
 const calculateHealthScore = (sleep, nutrition, activity, mood, habits) => {
     let score = 0;
     
-    // نوم (30 نقطة)
+    // Sleep (30 points)
     if (sleep.hasData) {
         if (sleep.avgHours >= 7 && sleep.avgHours <= 8) score += 30;
         else if (sleep.avgHours >= 6 && sleep.avgHours < 7) score += 20;
@@ -120,7 +121,7 @@ const calculateHealthScore = (sleep, nutrition, activity, mood, habits) => {
         score += 15;
     }
     
-    // تغذية (25 نقطة)
+    // Nutrition (25 points)
     if (nutrition.hasData) {
         if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) score += 25;
         else if (nutrition.avgCaloriesPerDay >= 1500 && nutrition.avgCaloriesPerDay < 1800) score += 18;
@@ -130,7 +131,7 @@ const calculateHealthScore = (sleep, nutrition, activity, mood, habits) => {
         score += 12;
     }
     
-    // نشاط (20 نقطة)
+    // Activity (20 points)
     if (activity.hasData) {
         if (activity.avgMinutesPerDay >= 30) score += 20;
         else if (activity.avgMinutesPerDay >= 20) score += 15;
@@ -140,7 +141,7 @@ const calculateHealthScore = (sleep, nutrition, activity, mood, habits) => {
         score += 10;
     }
     
-    // مزاج (15 نقطة)
+    // Mood (15 points)
     if (mood.hasData) {
         if (mood.avgMood >= 4) score += 15;
         else if (mood.avgMood >= 3) score += 10;
@@ -150,7 +151,7 @@ const calculateHealthScore = (sleep, nutrition, activity, mood, habits) => {
         score += 7;
     }
     
-    // عادات (10 نقاط)
+    // Habits (10 points)
     if (habits.hasData) {
         if (habits.completionRate >= 80) score += 10;
         else if (habits.completionRate >= 60) score += 7;
@@ -206,111 +207,111 @@ const generateKeyEvents = (sleep, nutrition, activity, mood, habits, previous) =
     return events;
 };
 
-const generateTopRecommendation = (sleep, nutrition, activity, mood, habits) => {
+const generateTopRecommendation = (sleep, nutrition, activity, mood, habits, t) => {
     if (!sleep.hasData && !nutrition.hasData && !activity.hasData && !mood.hasData && !habits.hasData) {
         return {
             icon: '📝',
-            title: 'ابدأ بتسجيل بياناتك',
-            advice: 'كلما سجلت المزيد من البيانات، حصلت على توصيات أكثر دقة',
-            action: 'سجل أول قراءة صحية اليوم'
+            title: t('reports.recommendations.start.title'),
+            advice: t('reports.recommendations.start.advice'),
+            action: t('reports.recommendations.start.action')
         };
     }
     
     if (sleep.hasData && sleep.avgHours < 7) {
         return {
             icon: '🌙',
-            title: 'حسّن نومك',
-            advice: `تنام في المتوسط ${sleep.avgHours} ساعة فقط`,
-            action: 'حاول النوم 7-8 ساعات يومياً لتحسين صحتك'
+            title: t('reports.recommendations.sleepMore.title'),
+            advice: t('reports.recommendations.sleepMore.advice', { hours: sleep.avgHours }),
+            action: t('reports.recommendations.sleepMore.action')
         };
     }
     
     if (nutrition.hasData && nutrition.avgCaloriesPerDay < 1500) {
         return {
             icon: '🥗',
-            title: 'زد سعراتك',
-            advice: `تتناول ${nutrition.avgCaloriesPerDay} سعرة فقط في اليوم`,
-            action: 'أضف وجبات صحية غنية بالبروتين'
+            title: t('reports.recommendations.increaseCalories.title'),
+            advice: t('reports.recommendations.increaseCalories.advice', { calories: nutrition.avgCaloriesPerDay }),
+            action: t('reports.recommendations.increaseCalories.action')
         };
     }
     
     if (nutrition.hasData && nutrition.avgCaloriesPerDay > 2500) {
         return {
             icon: '🥗',
-            title: 'قلل سعراتك',
-            advice: `تتناول ${nutrition.avgCaloriesPerDay} سعرة في اليوم`,
-            action: 'ركز على الخضروات والبروتين وقلل الكربوهيدرات'
+            title: t('reports.recommendations.decreaseCalories.title'),
+            advice: t('reports.recommendations.decreaseCalories.advice', { calories: nutrition.avgCaloriesPerDay }),
+            action: t('reports.recommendations.decreaseCalories.action')
         };
     }
     
     if (activity.hasData && activity.avgMinutesPerDay < 30) {
         return {
             icon: '🏃',
-            title: 'زد نشاطك',
-            advice: `تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة فقط يومياً`,
-            action: 'المشي 30 دقيقة يومياً يحسن صحتك بشكل كبير'
+            title: t('reports.recommendations.increaseActivity.title'),
+            advice: t('reports.recommendations.increaseActivity.advice', { minutes: activity.avgMinutesPerDay }),
+            action: t('reports.recommendations.increaseActivity.action')
         };
     }
     
     if (mood.hasData && mood.avgMood < 3) {
         return {
             icon: '😊',
-            title: 'حسّن مزاجك',
-            advice: `مزاجك في المتوسط ${mood.avgMood}/5`,
-            action: 'جرب التأمل أو تمارين التنفس العميق'
+            title: t('reports.recommendations.improveMood.title'),
+            advice: t('reports.recommendations.improveMood.advice', { mood: mood.avgMood }),
+            action: t('reports.recommendations.improveMood.action')
         };
     }
     
     if (habits.hasData && habits.completionRate < 70) {
         return {
             icon: '💊',
-            title: 'التزم بعاداتك',
-            advice: `تلتزم بعاداتك بنسبة ${habits.completionRate}% فقط`,
-            action: 'ابدأ بعادة صغيرة وسهلة التطبيق'
+            title: t('reports.recommendations.improveHabits.title'),
+            advice: t('reports.recommendations.improveHabits.advice', { rate: habits.completionRate }),
+            action: t('reports.recommendations.improveHabits.action')
         };
     }
     
     return {
         icon: '🌟',
-        title: 'أحسنت!',
-        advice: 'جميع مؤشراتك الصحية جيدة',
-        action: 'استمر في هذا النمط الصحي الرائع'
+        title: t('reports.recommendations.excellent.title'),
+        advice: t('reports.recommendations.excellent.advice'),
+        action: t('reports.recommendations.excellent.action')
     };
 };
 
-const generateSmartStory = (sleep, nutrition, activity, mood, habits) => {
+const generateSmartStory = (sleep, nutrition, activity, mood, habits, t) => {
     const events = [];
     
     if (sleep.hasData) {
-        if (sleep.avgHours >= 7 && sleep.avgHours <= 8) events.push({ type: 'improvement', text: `نمت ${sleep.avgHours} ساعات في المتوسط - مثالي!` });
-        else if (sleep.avgHours >= 6) events.push({ type: 'warning', text: `نمت ${sleep.avgHours} ساعات - حاول زيادة نومك قليلاً` });
-        else if (sleep.avgHours > 0) events.push({ type: 'danger', text: `تنام فقط ${sleep.avgHours} ساعات - هذا قليل جداً` });
+        if (sleep.avgHours >= 7 && sleep.avgHours <= 8) events.push({ type: 'improvement', text: t('reports.story.sleepIdeal', { hours: sleep.avgHours }) });
+        else if (sleep.avgHours >= 6) events.push({ type: 'warning', text: t('reports.story.sleepLow', { hours: sleep.avgHours }) });
+        else if (sleep.avgHours > 0) events.push({ type: 'danger', text: t('reports.story.sleepVeryLow', { hours: sleep.avgHours }) });
     }
     
     if (nutrition.hasData) {
-        if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) events.push({ type: 'improvement', text: `تتناول ${nutrition.avgCaloriesPerDay} سعرة يومياً - نظام غذائي متوازن` });
-        else if (nutrition.avgCaloriesPerDay > 0) events.push({ type: 'warning', text: `تتناول ${nutrition.avgCaloriesPerDay} سعرة - حاول تحسين نظامك الغذائي` });
+        if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) events.push({ type: 'improvement', text: t('reports.story.nutritionIdeal', { calories: nutrition.avgCaloriesPerDay }) });
+        else if (nutrition.avgCaloriesPerDay > 0) events.push({ type: 'warning', text: t('reports.story.nutritionWarning', { calories: nutrition.avgCaloriesPerDay }) });
     }
     
     if (activity.hasData) {
-        if (activity.avgMinutesPerDay >= 30) events.push({ type: 'improvement', text: `تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة يومياً - ممتاز!` });
-        else if (activity.avgMinutesPerDay > 0) events.push({ type: 'warning', text: `تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة فقط - زد نشاطك` });
+        if (activity.avgMinutesPerDay >= 30) events.push({ type: 'improvement', text: t('reports.story.activityIdeal', { minutes: activity.avgMinutesPerDay }) });
+        else if (activity.avgMinutesPerDay > 0) events.push({ type: 'warning', text: t('reports.story.activityLow', { minutes: activity.avgMinutesPerDay }) });
     }
     
     if (mood.hasData) {
-        if (mood.avgMood >= 4) events.push({ type: 'improvement', text: `مزاجك ممتاز (${mood.avgMood}/5)` });
-        else if (mood.avgMood >= 3) events.push({ type: 'warning', text: `مزاجك جيد (${mood.avgMood}/5) - يمكن تحسينه` });
-        else if (mood.avgMood > 0) events.push({ type: 'danger', text: `مزاجك منخفض (${mood.avgMood}/5) - اهتم بصحتك النفسية` });
+        if (mood.avgMood >= 4) events.push({ type: 'improvement', text: t('reports.story.moodExcellent', { mood: mood.avgMood }) });
+        else if (mood.avgMood >= 3) events.push({ type: 'warning', text: t('reports.story.moodGood', { mood: mood.avgMood }) });
+        else if (mood.avgMood > 0) events.push({ type: 'danger', text: t('reports.story.moodLow', { mood: mood.avgMood }) });
     }
     
     if (events.length === 0) {
-        events.push({ type: 'info', text: 'سجل المزيد من البيانات للحصول على تحليل أفضل' });
+        events.push({ type: 'info', text: t('reports.story.noData') });
     }
     
     return events;
 };
 
-const generateSmartReports = (currentData, previousData, range) => {
+const generateSmartReports = (currentData, previousData, range, t) => {
     const sleep = analyzeSleepData(currentData.sleep);
     const previousSleep = analyzeSleepData(previousData.sleep);
     const nutrition = analyzeNutritionData(currentData.meals);
@@ -326,7 +327,7 @@ const generateSmartReports = (currentData, previousData, range) => {
     
     const healthScoreChange = calculateChange(healthScore.score, previousHealthScore.score);
     
-    const story = generateSmartStory(sleep, nutrition, activity, mood, habits);
+    const story = generateSmartStory(sleep, nutrition, activity, mood, habits, t);
     const keyEvents = generateKeyEvents(sleep, nutrition, activity, mood, habits, {
         sleep: previousSleep,
         nutrition: previousNutrition,
@@ -334,7 +335,7 @@ const generateSmartReports = (currentData, previousData, range) => {
         mood: previousMood,
         habits: previousHabits
     });
-    const topRecommendation = generateTopRecommendation(sleep, nutrition, activity, mood, habits);
+    const topRecommendation = generateTopRecommendation(sleep, nutrition, activity, mood, habits, t);
     
     return {
         summary: {
@@ -388,6 +389,7 @@ const generateSmartReports = (currentData, previousData, range) => {
         }
     };
 };
+
 // دالة لتقريب الأرقام
 const roundNumber = (num, decimals = 1) => {
     if (isNaN(num)) return 0;
@@ -528,7 +530,7 @@ const Reports = ({ isAuthReady }) => {
             
             if (!isMountedRef.current) return;
             
-            const reportData = generateSmartReports(currentData, previousData, { start, end });
+            const reportData = generateSmartReports(currentData, previousData, { start, end }, t);
             setReports(reportData);
         } catch (err) {
             if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
@@ -563,17 +565,6 @@ const Reports = ({ isAuthReady }) => {
             abortControllersRef.current.forEach(controller => controller.abort());
         };
     }, []);
-
-    // ... باقي دوال التحليل (analyzeHealthData, analyzeNutritionData, etc.) تبقى كما هي ...
-
-    // ✅ ملاحظة: الدوال التحليلية (analyzeHealthData, analyzeNutritionData, analyzeSleepData, 
-    // analyzeMoodData, analyzeActivityData, analyzeHabitsData, calculateHealthScore, 
-    // generateSmartStory, generateKeyEvents, generateTopRecommendation) تبقى كما هي دون تغيير
-
-    // أضف هنا جميع دوال التحليل كما هي في الكود الأصلي
-    // (analyzeHealthData, analyzeNutritionData, analyzeSleepData, analyzeMoodData, 
-    // analyzeActivityData, analyzeHabitsData, calculateHealthScore, generateSmartStory, 
-    // generateKeyEvents, generateTopRecommendation, generateSmartReports)
 
     const exportToPDF = () => {
         alert(t('reports.export.pdfComingSoon'));
@@ -682,7 +673,7 @@ const Reports = ({ isAuthReady }) => {
                             <div className="story-events">
                                 {reports.summary.story.map((event, i) => (
                                     <div key={i} className={`story-event ${event.type}`}>
-                                        <span className="event-icon">{event.type === 'improvement' ? '📈' : '📉'}</span>
+                                        <span className="event-icon">{event.type === 'improvement' ? '📈' : event.type === 'warning' ? '⚠️' : '🔴'}</span>
                                         <span className="event-text">{event.text}</span>
                                     </div>
                                 ))}
@@ -791,7 +782,7 @@ const Reports = ({ isAuthReady }) => {
                                         <span>🏃</span>
                                         <span>{t('reports.activity.title')}</span>
                                     </div>
-                                    <div className="stat-value">{reports.activity.avgMinutesPerDay || 0} {t('reports.activity.minutes')}</div>
+                                    <div className="stat-value">{reports.activity.avgMinutesPerDay || 0} {t('reports.minutes')}</div>
                                     {reports.activity.comparison && (
                                         <div className={`stat-change ${reports.activity.comparison.change > 0 ? 'positive' : 'negative'}`}>
                                             {reports.activity.comparison.change > 0 ? '↑' : '↓'} {Math.abs(reports.activity.comparison.change)}%

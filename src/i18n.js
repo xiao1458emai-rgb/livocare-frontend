@@ -27,7 +27,11 @@ const resources = {
         noDate: "لا يوجد تاريخ",
         recommendation: "توصية",
         suggestions: "اقتراحات",
-        dismiss: "إغلاق"
+        dismiss: "إغلاق",
+          saving: "جاري الحفظ...",
+  update: "تحديث",
+  retry: "إعادة المحاولة",
+  minutes: "دقيقة",
       },
 
       // ==================== النشاط البدني ====================
@@ -75,7 +79,20 @@ const resources = {
     "durationHint": "من 1 إلى 180 دقيقة",
     "id": "معرف",
     "unknown": "غير معروف",
-    "editCancelled": "تم إلغاء التعديل"
+    "editCancelled": "تم إلغاء التعديل",
+          addActivityTitle: "🏃‍♀️ إضافة نشاط جديد",
+  editActivityTitle: "✏️ تعديل النشاط",
+  addDescription: "سجل نشاطك الرياضي اليومي",
+  editDescription: "عدل بيانات النشاط الرياضي",
+  fetchErrorLog: "خطأ في جلب الأنشطة:",
+  deleteErrorLog: "خطأ في حذف النشاط:",
+  submissionErrorLog: "خطأ في إرسال النشاط:",
+  noActivities: "لا توجد أنشطة",
+  startAdding: "ابدأ بإضافة أول نشاط لك",
+  updated: "✅ تم تحديث النشاط بنجاح",
+  deleted: "✅ تم حذف النشاط بنجاح",
+  deleteConfirm: "هل أنت متأكد من حذف هذا النشاط؟",
+  deleteError: "❌ فشل في حذف النشاط",
       },
 
       // ==================== الحالة المزاجية ====================
@@ -173,7 +190,60 @@ const resources = {
         futureTimeError: "لا يمكن تسجيل نوم في المستقبل.",
         longDurationError: "مدة النوم طويلة جداً. يرجى التحقق من التواريخ.",
         switchToLight: "التبديل إلى الوضع الفاتح",
-        switchToDark: "التبديل إلى الوضع المظلم"
+        switchToDark: "التبديل إلى الوضع المظلم",
+          stats: {
+    avgHours: "متوسط ساعات النوم",
+    avgQuality: "متوسط جودة النوم",
+    totalHours: "إجمالي ساعات النوم",
+    nights: "ليالي مسجلة",
+    recorded: "تم التسجيل"
+  },
+  history: "📋 سجل النوم",
+  duration: "المدة",
+  submit: "تسجيل",
+  reset: "إعادة تعيين",
+  quality: {
+    average: "متوسط",
+    excellent: "ممتاز",
+    good: "جيد",
+    poor: "سيئ",
+    veryPoor: "سيء جداً"
+  },
+  score: "درجة النوم",
+  fair: "مقبول",
+  needsImprovement: "يحتاج تحسين",
+  youDontSleepEnough: "لا تنام كفاية",
+  youSleepHoursOnly: "تنام {{hours}} ساعات فقط (تحتاج 7-8)",
+  recommendations: {
+    sleepMore: {
+      title: "نم أكثر",
+      advice: "تحتاج {{hours}} ساعات نوم إضافية",
+      why: "لماذا؟",
+      how: "كيف؟",
+      reason: "تنام {{hours}} ساعات فقط (تحتاج 7-8)",
+      tips: {
+        bedtime: "⏱️ نم قبل 11 مساءً",
+        noScreens: "📱 ابتعد عن الشاشات قبل النوم بساعة",
+        darkRoom: "🌡️ حافظ على غرفة مظلمة وباردة",
+        meditate: "🧘 مارس التأمل 10 دقائق"
+      }
+    },
+    moveMore: {
+      title: "تحرك أكثر لتنام أفضل",
+      advice: "النشاط البدني يحسن النوم",
+      why: "لماذا؟",
+      how: "كيف؟",
+      reasons: {
+        exercise: "الرياضة تزيد إفراز هرمونات النوم",
+        stress: "تقلل التوتر والقلق",
+        deepSleep: "تحسن جودة النوم العميق"
+      },
+      tips: {
+        walk: "🚶‍♂️ امشِ 30 دقيقة يومياً",
+        yoga: "🧘 جرب اليوجا قبل النوم",
+        morning: "🌅 تمرن صباحاً لنتائج أفضل"
+      }
+    }}
       },
 
       // ==================== التغذية ====================
@@ -273,6 +343,67 @@ const resources = {
         invalidMealType: "❌ نوع الوجبة غير صالح",
         autoCalculated: "محسوب تلقائياً",
         addNewIngredient: "إضافة مكون جديد",
+          addMeal: "إضافة وجبة",
+  trackNutrition: "تتبع تغذيتك",
+  dailyIntake: "المدخول اليومي",
+  mealSummary: "ملخص الوجبة",
+  foodName: "اسم الطعام",
+  foodNamePlaceholder: "مثال: دجاج مشوي، أرز بني...",
+  addIngredient: "إضافة مكون",
+  reset: "إعادة تعيين",
+  scanBarcode: "مسح باركود المنتج",
+  totalCaloriesSummary: "إجمالي السعرات",
+  totalProtein: "إجمالي البروتين",
+  totalCarbs: "إجمالي الكربوهيدرات",
+  totalFat: "إجمالي الدهون",
+  quantity: "الكمية",
+  unit: "الوحدة",
+  kcal: "سعرة",
+  gram: "جرام",
+  grams: "جرامات",
+  serving: "حصة",
+  servings: "حصص",
+  ml: "ملليلتر",
+  piece: "قطعة",
+  pieces: "قطع",
+  cup: "كوب",
+  cups: "أكواب",
+  addMealTitle: "🥗 تسجيل وجبة جديدة",
+  dashboardTitle: "📊 لوحة المتابعة",
+  noMealsYet: "لا توجد وجبات مسجلة بعد",
+  startLogging: "ابدأ بتسجيل وجباتك",
+  editMeal: "تعديل الوجبة",
+  deleteMealConfirm: "هل أنت متأكد من حذف هذه الوجبة؟",
+  mealSaved: "تم حفظ الوجبة بنجاح",
+  mealUpdated: "تم تحديث الوجبة بنجاح",
+  mealDeleted: "تم حذف الوجبة بنجاح",
+  fillRequiredFields: "يرجى ملء جميع الحقول المطلوبة",
+  addAtLeastOneIngredient: "يرجى إضافة مكون واحد على الأقل",
+  caloriesShort: "سعرة",
+  proteinShort: "بروتين",
+  carbsShort: "كربوهيدرات",
+  fatShort: "دهون",
+  searchFood: "بحث عن طعام",
+  addCustomFood: "إضافة طعام مخصص",
+  recentMeals: "الوجبات الأخيرة",
+  todayMeals: "وجبات اليوم",
+  weeklySummary: "ملخص أسبوعي",
+  monthlySummary: "ملخص شهري",
+  nutritionTips: "نصائح غذائية",
+  drinkWater: "💧 اشرب الماء مع كل وجبة",
+  eatVegetables: "🥗 تناول الخضروات مع كل وجبة",
+  reduceSugar: "🍬 قلل من السكريات المضافة",
+  eatProtein: "🍗 تناول البروتين في كل وجبة",
+  healthyFats: "🥑 اختر الدهون الصحية",
+  caloriesProgress: "تقدم السعرات",
+  proteinProgress: "تقدم البروتين",
+  carbsProgress: "تقدم الكربوهيدرات",
+  fatProgress: "تقدم الدهون",
+  remainingCalories: "سعرات متبقية",
+  remainingProtein: "بروتين متبقي",
+  remainingCarbs: "كربوهيدرات متبقية",
+  remainingFat: "دهون متبقية",
+
         advanced: {
           title: "📊 إحصائيات تغذوية متقدمة",
           low: "⚠️ منخفض",
@@ -452,7 +583,8 @@ const resources = {
             invalidWeight: "❌ قيمة الوزن غير صالحة",
             invalidSystolic: "❌ قيمة الضغط الانقباضي غير صالحة",
             invalidDiastolic: "❌ قيمة الضغط الانبساطي غير صالحة",
-            invalidGlucose: "❌ قيمة الجلوكوز غير صالحة"
+            invalidGlucose: "❌ قيمة الجلوكوز غير صالحة",
+            mmHg: "مم زئبق"
           }
         }
       },
@@ -489,7 +621,12 @@ const resources = {
         min: "الحد الأدنى",
         max: "الحد الأقصى",
         systolic: "الضغط الانقباضي",
-        diastolic: "الضغط الانبساطي"
+        diastolic: "الضغط الانبساطي",
+          readingsCount: "قراءة",
+  daysCount: "يوم",
+  weightEvolution: "تطور الوزن",
+  bloodPressure: "ضغط الدم",
+  bloodGlucose: "جلوكوز الدم"
       },
 
       // ==================== السجل التاريخي ====================
@@ -710,7 +847,36 @@ const resources = {
     "switchToLight": "التبديل إلى الوضع الفاتح",
     "switchToDark": "التبديل إلى الوضع المظلم",
     "localData": "بيانات محلية",
-    "autoRefreshActive": "التحديث التلقائي نشط"
+    "autoRefreshActive": "التحديث التلقائي نشط",
+      logout: "تسجيل الخروج",
+  energyAnalysis: "تحليل استهلاك الطاقة",
+  weight: "الوزن",
+  bmr: "معدل الأيض الأساسي",
+  dailyBurn: "الحرق اليومي",
+  avgDailyIntake: "متوسط الاستهلاك اليومي",
+  dailyDeficit: "العجز اليومي",
+  pulsePressureAnalysis: "تحليل ضغط النبض",
+  pulsePressure: "ضغط النبض",
+  preExerciseRisk: "تحليل المخاطر قبل التمرين",
+  todaysActivity: "نشاط اليوم",
+  noExerciseYet: "لا يوجد تمرين بعد",
+  vitalSigns: "العلامات الحيوية",
+  high: "مرتفع",
+  low: "منخفض",
+  ideal: "مثالي",
+  readingsCount: "قراءة",
+  recordsCount: "سجل",
+  searchRecords: "بحث في السجلات...",
+  date: "التاريخ",
+  status: "الحالة",
+  actions: "الإجراءات",
+  normalStatus: "طبيعي",
+  editRecord: "تعديل",
+  deleteRecord: "حذف",
+  systolicDiastolic: "انقباضي / انبساطي",
+  glucoseLevel: "مستوى الجلوكوز",
+  lastUpdated: "آخر تحديث",
+  autoRefresh: "التحديث التلقائي"
       },
 
       // ==================== تطبيق ====================
@@ -1852,7 +2018,115 @@ const resources = {
       "totalHabits": "إجمالي العادات",
       "completed": "العادات المنجزة",
       "completionRate": "نسبة الإنجاز"
-    }
+    }  ,healthScore: "درجة الصحة",
+  story: {
+    title: "القصة الذكية لصحبتك",
+    sleepIdeal: "🌙 تنام {{hours}} ساعات في المتوسط - مثالي!",
+    sleepLow: "🌙 تنام {{hours}} ساعات - حاول زيادة نومك قليلاً",
+    sleepVeryLow: "🌙 تنام فقط {{hours}} ساعات - هذا قليل جداً",
+    nutritionIdeal: "🥗 تتناول {{calories}} سعرة يومياً - نظام غذائي متوازن",
+    nutritionWarning: "🥗 تتناول {{calories}} سعرة - حاول تحسين نظامك الغذائي",
+    activityIdeal: "🏃 تمارس الرياضة {{minutes}} دقيقة يومياً - ممتاز!",
+    activityLow: "🏃 تمارس الرياضة {{minutes}} دقيقة فقط - زد نشاطك",
+    moodExcellent: "😊 مزاجك ممتاز ({{mood}}/5)",
+    moodGood: "😊 مزاجك جيد ({{mood}}/5) - يمكن تحسينه",
+    moodLow: "😊 مزاجك منخفض ({{mood}}/5) - اهتم بصحتك النفسية",
+    noData: "سجل المزيد من البيانات للحصول على تحليل أفضل"
+  },
+  keyEvents: "أهم الأحداث",
+  topRecommendation: "التوصية الأولى",
+  minutes: "دقيقة",
+  perDay: "/يوم",
+  details: "التفاصيل",
+  avgScore: "متوسط الدرجة",
+  totalDays: "إجمالي الأيام",
+  completed: "المكتمل",
+  totalNights: "إجمالي الليالي",
+  avgCalories: "متوسط السعرات",
+  avgProtein: "متوسط البروتين",
+  totalMeals: "إجمالي الوجبات",
+  totalMinutes: "إجمالي الدقائق",
+  avgMinutes: "متوسط الدقائق",
+  records: "عدد التسجيلات",
+  quarterly: "ربع سنوي",
+  
+  sleep: {
+    title: "النوم",
+    details: "تفاصيل النوم",
+    avgHours: "متوسط ساعات النوم",
+    totalNights: "عدد الليالي المسجلة",
+    hours: "ساعات"
+  },
+  nutrition: {
+    title: "التغذية",
+    details: "تفاصيل التغذية",
+    avgCalories: "متوسط السعرات اليومية",
+    avgProtein: "متوسط البروتين",
+    totalMeals: "إجمالي الوجبات"
+  },
+  activity: {
+    title: "النشاط البدني",
+    details: "تفاصيل النشاط",
+    totalMinutes: "إجمالي دقائق النشاط",
+    avgMinutes: "متوسط النشاط اليومي",
+    records: "عدد الأنشطة",
+    minutes: "دقيقة",
+    perDay: "في اليوم"
+  },
+  mood: {
+    title: "المزاج",
+    details: "تفاصيل المزاج",
+    avgScore: "متوسط درجة المزاج",
+    totalDays: "عدد الأيام المسجلة"
+  },
+  habits: {
+    title: "العادات",
+    details: "تفاصيل العادات",
+    completionRate: "نسبة الالتزام",
+    completed: "العادات المنجزة"
+  },
+  
+  recommendations: {
+    start: {
+      title: "ابدأ بتسجيل بياناتك",
+      advice: "كلما سجلت المزيد من البيانات، حصلت على توصيات أكثر دقة",
+      action: "سجل أول قراءة صحية اليوم"
+    },
+    sleepMore: {
+      title: "حسّن نومك",
+      advice: "تنام في المتوسط {{hours}} ساعة فقط",
+      action: "حاول النوم 7-8 ساعات يومياً لتحسين صحتك"
+    },
+    increaseCalories: {
+      title: "زد سعراتك",
+      advice: "تتناول {{calories}} سعرة فقط في اليوم",
+      action: "أضف وجبات صحية غنية بالبروتين"
+    },
+    decreaseCalories: {
+      title: "قلل سعراتك",
+      advice: "تتناول {{calories}} سعرة في اليوم",
+      action: "ركز على الخضروات والبروتين وقلل الكربوهيدرات"
+    },
+    increaseActivity: {
+      title: "زد نشاطك",
+      advice: "تمارس الرياضة {{minutes}} دقيقة فقط يومياً",
+      action: "المشي 30 دقيقة يومياً يحسن صحتك بشكل كبير"
+    },
+    improveMood: {
+      title: "حسّن مزاجك",
+      advice: "مزاجك في المتوسط {{mood}}/5",
+      action: "جرب التأمل أو تمارين التنفس العميق"
+    },
+    improveHabits: {
+      title: "التزم بعاداتك",
+      advice: "تلتزم بعاداتك بنسبة {{rate}}% فقط",
+      action: "ابدأ بعادة صغيرة وسهلة التطبيق"
+    },
+    excellent: {
+      title: "أحسنت!",
+      advice: "جميع مؤشراتك الصحية جيدة",
+      action: "استمر في هذا النمط الصحي الرائع"
+    }}
   },
   // ==================== التسجيل ====================
 register: {
@@ -1952,7 +2226,51 @@ register: {
     facebook: "Facebook",
     apple: "Apple"
   }
-}
+},
+watch: {
+  // العربية
+  adbTitle: "ADB Monitor",
+  adbSubtitle: "اتصال عبر USB",
+  mobileDetected: "📱 تم اكتشاف جهاز محمول - تفعيل وضع ADB",
+  dataReceived: "📊 بيانات الساعة المستلمة:",
+  highHeartRate: "⚠️ ارتفاع ضربات القلب: {{value}} BPM",
+  lowHeartRate: "⚠️ انخفاض ضربات القلب: {{value}} BPM",
+  highBloodPressure: "⚠️ ارتفاع الضغط: {{systolic}}/{{diastolic}}",
+  lowBloodPressure: "⚠️ انخفاض الضغط: {{systolic}}/{{diastolic}}",
+  adbConnected: "✅ تم الاتصال بـ ADB Monitor",
+  adbDisconnected: "🔌 تم قطع الاتصال بـ ADB Monitor",
+  adbConnectionError: "❌ فشل الاتصال بـ ADB Monitor. تأكد من تشغيل الخادم على الحاسوب",
+  connectAdb: "اتصال ADB",
+  disconnect: "فصل",
+  connecting: "جارٍ الاتصال...",
+  connectingToAdb: "جاري الاتصال بخادم ADB...",
+  adbErrorTitle: "فشل الاتصال. تأكد من:",
+  adbErrorTip1: "تشغيل خادم ADB على الحاسوب (node adb-monitor.js)",
+  adbErrorTip2: "الهاتف متصل عبر USB مع تفعيل تصحيح USB",
+  adbErrorTip3: "الهاتف والحاسوب على نفس الشبكة",
+  adbConnectSuccess: "✅ تم الاتصال بـ ADB Monitor بنجاح",
+  adbConnectFailed: "فشل الاتصال",
+  adbConnectionFailedLog: "فشل اتصال ADB:",
+  adbConnectionInstructions: "❌ فشل الاتصال بـ ADB Monitor. تأكد من: 1) تشغيل خادم ADB على الحاسوب 2) اتصال الهاتف عبر USB 3) تفعيل تصحيح USB",
+  adbDisconnectedManual: "🔌 تم فصل الاتصال بـ ADB Monitor",
+  noWatchData: "لا توجد بيانات من الساعة",
+  heartRateNote: "ضربات القلب: {{value}} BPM",
+  bloodPressureNote: "ضغط الدم: {{systolic}}/{{diastolic}}",
+  activityNote: "بيانات من الساعة الذكية - {{notes}}",
+  watchDataAdded: "✅ تم إضافة بيانات الساعة كنشاط",
+  watchDataAddErrorLog: "خطأ في إضافة بيانات الساعة:",
+  watchDataAddError: "فشل في إضافة بيانات الساعة",
+  measurementRequested: "📱 تم إرسال طلب القياس. افتح تطبيق FitPro وقم بالقياس",
+  measurementRequestFailedLog: "فشل طلب القياس:",
+  measurementRequestFailed: "فشل طلب القياس",
+  requestMeasurement: "طلب قياس جديد",
+  addAsActivity: "إضافة كنشاط",
+  lastUpdate: "آخر تحديث",
+  highStatus: "⚠️ مرتفع",
+  lowStatus: "⚠️ منخفض",
+  normalStatus: "✅ طبيعي",
+  waitingData: "⏳ انتظار البيانات"
+},
     }
   },
 
@@ -1975,7 +2293,11 @@ register: {
         noDate: "No date",
         recommendation: "Recommendation",
         suggestions: "Suggestions",
-        dismiss: "Dismiss"
+        dismiss: "Dismiss",
+          saving: "Saving...",
+  update: "Update",
+  retry: "Retry",
+  minutes: "minutes",
       },
 
       // ==================== النشاط البدني ====================
@@ -2025,7 +2347,20 @@ register: {
     "durationHint": "From 1 to 180 minutes",
     "id": "ID",
     "unknown": "Unknown",
-    "editCancelled": "Edit cancelled"
+    "editCancelled": "Edit cancelled",
+    addActivityTitle: "🏃‍♀️ Add New Activity",
+  editActivityTitle: "✏️ Edit Activity",
+  addDescription: "Log your daily physical activity",
+  editDescription: "Edit your physical activity data",
+  fetchErrorLog: "Error fetching activities:",
+  deleteErrorLog: "Error deleting activity:",
+  submissionErrorLog: "Error submitting activity:",
+  noActivities: "No activities found",
+  startAdding: "Start by adding your first activity",
+  updated: "✅ Activity updated successfully",
+  deleted: "✅ Activity deleted successfully",
+  deleteConfirm: "Are you sure you want to delete this activity?",
+  deleteError: "❌ Failed to delete activity"
       },
 
       // ==================== الحالة المزاجية ====================
@@ -2124,7 +2459,60 @@ register: {
         futureTimeError: "Cannot log sleep in the future.",
         longDurationError: "Sleep duration is too long. Please check dates.",
         switchToLight: "Switch to Light Mode",
-        switchToDark: "Switch to Dark Mode"
+        switchToDark: "Switch to Dark Mode",
+          stats: {
+    avgHours: "Average Sleep Hours",
+    avgQuality: "Average Sleep Quality",
+    totalHours: "Total Sleep Hours",
+    nights: "Nights Recorded",
+    recorded: "recorded"
+  },
+  history: "📋 Sleep History",
+  duration: "Duration",
+  submit: "Submit",
+  reset: "Reset",
+  quality: {
+    average: "Average",
+    excellent: "Excellent",
+    good: "Good",
+    poor: "Poor",
+    veryPoor: "Very Poor"
+  },
+  score: "Sleep Score",
+  fair: "Fair",
+  needsImprovement: "Needs Improvement",
+  youDontSleepEnough: "You don't sleep enough",
+  youSleepHoursOnly: "You sleep {{hours}} hours only (need 7-8)",
+  recommendations: {
+    sleepMore: {
+      title: "Sleep More",
+      advice: "You need {{hours}} more hours of sleep",
+      why: "Why?",
+      how: "How?",
+      reason: "You sleep {{hours}} hours only (need 7-8)",
+      tips: {
+        bedtime: "⏱️ Sleep before 11 PM",
+        noScreens: "📱 Avoid screens 1 hour before bed",
+        darkRoom: "🌡️ Keep your room dark and cool",
+        meditate: "🧘 Meditate for 10 minutes"
+      }
+    },
+    moveMore: {
+      title: "Move More to Sleep Better",
+      advice: "Physical activity improves sleep",
+      why: "Why?",
+      how: "How?",
+      reasons: {
+        exercise: "Exercise increases sleep hormones",
+        stress: "Reduces stress and anxiety",
+        deepSleep: "Improves deep sleep quality"
+      },
+      tips: {
+        walk: "🚶‍♂️ Walk 30 minutes daily",
+        yoga: "🧘 Try yoga before bed",
+        morning: "🌅 Exercise in the morning for best results"
+      }
+    }}
       },
 
       // ==================== التغذية ====================
@@ -2187,6 +2575,67 @@ register: {
         ingredients: "Ingredients",
         notes: "Notes",
         smartRecommendations: "Smart Recommendations",
+        // أضف داخل قسم nutrition في الكائن en:
+addMeal: "Add Meal",
+trackNutrition: "Track Your Nutrition",
+dailyIntake: "Daily Intake",
+mealSummary: "Meal Summary",
+foodName: "Food Name",
+foodNamePlaceholder: "Example: Grilled chicken, brown rice...",
+addIngredient: "Add Ingredient",
+reset: "Reset",
+scanBarcode: "Scan Barcode",
+totalCaloriesSummary: "Total Calories",
+totalProtein: "Total Protein",
+totalCarbs: "Total Carbs",
+totalFat: "Total Fat",
+quantity: "Quantity",
+unit: "Unit",
+kcal: "kcal",
+gram: "gram",
+grams: "grams",
+serving: "serving",
+servings: "servings",
+ml: "ml",
+piece: "piece",
+pieces: "pieces",
+cup: "cup",
+cups: "cups",
+addMealTitle: "🥗 Log New Meal",
+dashboardTitle: "📊 Dashboard",
+noMealsYet: "No meals logged yet",
+startLogging: "Start logging your meals",
+editMeal: "Edit Meal",
+deleteMealConfirm: "Are you sure you want to delete this meal?",
+mealSaved: "Meal saved successfully",
+mealUpdated: "Meal updated successfully",
+mealDeleted: "Meal deleted successfully",
+fillRequiredFields: "Please fill all required fields",
+addAtLeastOneIngredient: "Please add at least one ingredient",
+caloriesShort: "cal",
+proteinShort: "protein",
+carbsShort: "carbs",
+fatShort: "fat",
+searchFood: "Search Food",
+addCustomFood: "Add Custom Food",
+recentMeals: "Recent Meals",
+todayMeals: "Today's Meals",
+weeklySummary: "Weekly Summary",
+monthlySummary: "Monthly Summary",
+nutritionTips: "Nutrition Tips",
+drinkWater: "💧 Drink water with every meal",
+eatVegetables: "🥗 Eat vegetables with every meal",
+reduceSugar: "🍬 Reduce added sugars",
+eatProtein: "🍗 Eat protein with every meal",
+healthyFats: "🥑 Choose healthy fats",
+caloriesProgress: "Calories Progress",
+proteinProgress: "Protein Progress",
+carbsProgress: "Carbs Progress",
+fatProgress: "Fat Progress",
+remainingCalories: "Remaining Calories",
+remainingProtein: "Remaining Protein",
+remainingCarbs: "Remaining Carbs",
+remainingFat: "Remaining Fat",
         recommendations: {
           caloriesGoal: "🎯 You're close to your daily calorie goal! Keep it balanced",
           moreProtein: "💪 Try to increase protein intake in your meals (sources: chicken, fish, eggs)",
@@ -2392,7 +2841,8 @@ register: {
             invalidWeight: "❌ Invalid weight value",
             invalidSystolic: "❌ Invalid systolic value",
             invalidDiastolic: "❌ Invalid diastolic value",
-            invalidGlucose: "❌ Invalid glucose value"
+            invalidGlucose: "❌ Invalid glucose value",
+            mmHg: "mmHg"
           }
         }
       },
@@ -2431,7 +2881,12 @@ register: {
         systolic: "Systolic",
         diastolic: "Diastolic",
         reading: "reading",
-        day: "day"
+        day: "day",
+          readingsCount: "reading",
+  daysCount: "day",
+  weightEvolution: "Weight Evolution",
+  bloodPressure: "Blood Pressure",
+  bloodGlucose: "Blood Glucose"
       },
 
       // ==================== السجل التاريخي ====================
@@ -2643,7 +3098,36 @@ register: {
     "switchToLight": "Switch to Light Mode",
     "switchToDark": "Switch to Dark Mode",
     "localData": "Local Data",
-    "autoRefreshActive": "Auto Refresh Active"
+    "autoRefreshActive": "Auto Refresh Active",
+      logout: "Logout",
+  energyAnalysis: "Energy Consumption Analysis",
+  weight: "Weight",
+  bmr: "BMR",
+  dailyBurn: "Daily Burn",
+  avgDailyIntake: "Avg Daily Intake",
+  dailyDeficit: "Daily Deficit",
+  pulsePressureAnalysis: "Pulse Pressure Analysis",
+  pulsePressure: "Pulse Pressure",
+  preExerciseRisk: "Pre-Exercise Risk Analysis",
+  todaysActivity: "Today's Activity",
+  noExerciseYet: "No exercise yet",
+  vitalSigns: "Vital Signs",
+  high: "High",
+  low: "Low",
+  ideal: "Ideal",
+  readingsCount: "readings",
+  recordsCount: "record",
+  searchRecords: "Search records...",
+  date: "Date",
+  status: "Status",
+  actions: "Actions",
+  normalStatus: "Normal",
+  editRecord: "Edit",
+  deleteRecord: "Delete",
+  systolicDiastolic: "Systolic / Diastolic",
+  glucoseLevel: "Glucose Level",
+  lastUpdated: "Last Updated",
+  autoRefresh: "Auto Refresh"
       },
 
       // ==================== تطبيق ====================
@@ -3798,7 +4282,117 @@ register: {
       "totalHabits": "Total Habits",
       "completed": "Completed Habits",
       "completionRate": "Completion Rate"
+    },
+      healthScore: "Health Score",
+  story: {
+    title: "Your Health Story",
+    sleepIdeal: "🌙 You sleep {{hours}} hours on average - Ideal!",
+    sleepLow: "🌙 You sleep {{hours}} hours - Try to increase your sleep a bit",
+    sleepVeryLow: "🌙 You only sleep {{hours}} hours - This is too little",
+    nutritionIdeal: "🥗 You consume {{calories}} calories daily - Balanced diet",
+    nutritionWarning: "🥗 You consume {{calories}} calories - Try to improve your diet",
+    activityIdeal: "🏃 You exercise {{minutes}} minutes daily - Excellent!",
+    activityLow: "🏃 You only exercise {{minutes}} minutes - Increase your activity",
+    moodExcellent: "😊 Your mood is excellent ({{mood}}/5)",
+    moodGood: "😊 Your mood is good ({{mood}}/5) - Can be improved",
+    moodLow: "😊 Your mood is low ({{mood}}/5) - Take care of your mental health",
+    noData: "Log more data to get better analysis"
+  },
+  keyEvents: "Key Events",
+  topRecommendation: "Top Recommendation",
+  minutes: "minutes",
+  perDay: "/day",
+  details: "Details",
+  avgScore: "Average Score",
+  totalDays: "Total Days",
+  completed: "Completed",
+  totalNights: "Total Nights",
+  avgCalories: "Average Calories",
+  avgProtein: "Average Protein",
+  totalMeals: "Total Meals",
+  totalMinutes: "Total Minutes",
+  avgMinutes: "Average Minutes",
+  records: "Records",
+  quarterly: "Quarterly",
+  
+  sleep: {
+    title: "Sleep",
+    details: "Sleep Details",
+    avgHours: "Average Sleep Hours",
+    totalNights: "Nights Recorded",
+    hours: "hours"
+  },
+  nutrition: {
+    title: "Nutrition",
+    details: "Nutrition Details",
+    avgCalories: "Average Daily Calories",
+    avgProtein: "Average Protein",
+    totalMeals: "Total Meals"
+  },
+  activity: {
+    title: "Physical Activity",
+    details: "Activity Details",
+    totalMinutes: "Total Activity Minutes",
+    avgMinutes: "Average Daily Activity",
+    records: "Activities Count",
+    minutes: "minutes",
+    perDay: "per day"
+  },
+  mood: {
+    title: "Mood",
+    details: "Mood Details",
+    avgScore: "Average Mood Score",
+    totalDays: "Days Recorded"
+  },
+  habits: {
+    title: "Habits",
+    details: "Habits Details",
+    completionRate: "Completion Rate",
+    completed: "Habits Completed"
+  },
+  
+  recommendations: {
+    start: {
+      title: "Start Recording Your Data",
+      advice: "The more data you record, the more accurate recommendations you get",
+      action: "Record your first health reading today"
+    },
+    sleepMore: {
+      title: "Improve Your Sleep",
+      advice: "You sleep an average of {{hours}} hours only",
+      action: "Try to sleep 7-8 hours daily to improve your health"
+    },
+    increaseCalories: {
+      title: "Increase Your Calories",
+      advice: "You only consume {{calories}} calories per day",
+      action: "Add healthy protein-rich meals"
+    },
+    decreaseCalories: {
+      title: "Reduce Your Calories",
+      advice: "You consume {{calories}} calories per day",
+      action: "Focus on vegetables and protein, reduce carbohydrates"
+    },
+    increaseActivity: {
+      title: "Increase Your Activity",
+      advice: "You only exercise {{minutes}} minutes daily",
+      action: "Walking 30 minutes daily significantly improves your health"
+    },
+    improveMood: {
+      title: "Improve Your Mood",
+      advice: "Your average mood is {{mood}}/5",
+      action: "Try meditation or deep breathing exercises"
+    },
+    improveHabits: {
+      title: "Commit to Your Habits",
+      advice: "You only commit to your habits by {{rate}}%",
+      action: "Start with a small, easy-to-apply habit"
+    },
+    excellent: {
+      title: "Well done!",
+      advice: "All your health indicators are good",
+      action: "Continue this great healthy pattern"
     }
+  }
   },// ==================== Registration ====================
 register: {
   title: "Create New Account",
@@ -3897,9 +4491,51 @@ register: {
     facebook: "Facebook",
     apple: "Apple"
   }
-}
-
-    }
+},
+watch: {
+  // English
+  adbTitle: "ADB Monitor",
+  adbSubtitle: "USB Connection",
+  mobileDetected: "📱 Mobile device detected - enabling ADB Mode",
+  dataReceived: "📊 Watch data received:",
+  highHeartRate: "⚠️ High heart rate: {{value}} BPM",
+  lowHeartRate: "⚠️ Low heart rate: {{value}} BPM",
+  highBloodPressure: "⚠️ High blood pressure: {{systolic}}/{{diastolic}}",
+  lowBloodPressure: "⚠️ Low blood pressure: {{systolic}}/{{diastolic}}",
+  adbConnected: "✅ Connected to ADB Monitor",
+  adbDisconnected: "🔌 Disconnected from ADB Monitor",
+  adbConnectionError: "❌ Failed to connect to ADB Monitor. Make sure the server is running on your computer",
+  connectAdb: "Connect ADB",
+  disconnect: "Disconnect",
+  connecting: "Connecting...",
+  connectingToAdb: "Connecting to ADB server...",
+  adbErrorTitle: "Connection failed. Make sure:",
+  adbErrorTip1: "ADB server is running on computer (node adb-monitor.js)",
+  adbErrorTip2: "Phone is connected via USB with USB debugging enabled",
+  adbErrorTip3: "Phone and computer are on the same network",
+  adbConnectSuccess: "✅ Successfully connected to ADB Monitor",
+  adbConnectFailed: "Connection failed",
+  adbConnectionFailedLog: "ADB connection failed:",
+  adbConnectionInstructions: "❌ Failed to connect to ADB Monitor. Make sure: 1) ADB server is running on computer 2) Phone is connected via USB 3) USB debugging is enabled",
+  adbDisconnectedManual: "🔌 Disconnected from ADB Monitor",
+  noWatchData: "No watch data available",
+  heartRateNote: "Heart rate: {{value}} BPM",
+  bloodPressureNote: "Blood pressure: {{systolic}}/{{diastolic}}",
+  activityNote: "Data from smart watch - {{notes}}",
+  watchDataAdded: "✅ Watch data added as activity",
+  watchDataAddErrorLog: "Error adding watch data:",
+  watchDataAddError: "Failed to add watch data",
+  measurementRequested: "📱 Measurement request sent. Open FitPro app and take a measurement",
+  measurementRequestFailedLog: "Measurement request failed:",
+  measurementRequestFailed: "Measurement request failed",
+  requestMeasurement: "Request New Measurement",
+  addAsActivity: "Add as Activity",
+  lastUpdate: "Last Update",
+  highStatus: "⚠️ High",
+  lowStatus: "⚠️ Low",
+  normalStatus: "✅ Normal",
+  waitingData: "⏳ Waiting for data"
+}}
   }
 };
 
