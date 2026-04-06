@@ -80,11 +80,14 @@ function Notifications({ isAuthReady }) {
     const { t, i18n } = useTranslation();
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [generating, setGenerating] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
     const [filter, setFilter] = useState('all');
     const [unreadCount, setUnreadCount] = useState(0);
     const [stats, setStats] = useState(null);
     const [showStats, setShowStats] = useState(false);
+    const [message, setMessage] = useState('');
+    const [messageType, setMessageType] = useState('');
     const [preferences, setPreferences] = useState({
         sleep: true,
         nutrition: true,
@@ -146,7 +149,6 @@ function Notifications({ isAuthReady }) {
         setLoading(true);
         try {
             const response = await axiosInstance.get('/notifications/');
-            // تصفية حسب التفضيلات
             let filtered = response.data || [];
             filtered = filtered.filter(n => {
                 if (!preferences[n.type]) return false;
@@ -180,6 +182,41 @@ function Notifications({ isAuthReady }) {
             setStats(response.data);
         } catch (error) {
             console.error('Error fetching stats:', error);
+        }
+    };
+
+    // ✅ دالة توليد الإشعارات التلقائية
+    const generateAutoNotifications = async () => {
+        setGenerating(true);
+        setMessage('');
+        
+        try {
+            const response = await axiosInstance.post('/notifications/generate-auto/');
+            
+            if (response.data.success) {
+                setMessage(response.data.message);
+                setMessageType('success');
+                
+                // تحديث القائمة والإحصائيات
+                await fetchNotifications();
+                await fetchUnreadCount();
+                await fetchStats();
+                
+                // إخفاء الرسالة بعد 3 ثوانٍ
+                setTimeout(() => {
+                    setMessage('');
+                    setMessageType('');
+                }, 3000);
+            } else {
+                setMessage(response.data.error || 'فشل في إنشاء الإشعارات');
+                setMessageType('error');
+            }
+        } catch (error) {
+            console.error('Error generating notifications:', error);
+            setMessage('حدث خطأ أثناء إنشاء الإشعارات');
+            setMessageType('error');
+        } finally {
+            setGenerating(false);
         }
     };
 
@@ -279,7 +316,6 @@ function Notifications({ isAuthReady }) {
         return date.toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US');
     };
 
-    // تحديث تفضيلات الإشعارات
     const togglePreference = (key) => {
         const newPrefs = { ...preferences, [key]: !preferences[key] };
         savePreferences(newPrefs);
@@ -310,6 +346,16 @@ function Notifications({ isAuthReady }) {
                 </div>
                 
                 <div className="header-actions">
+                    {/* ✅ زر توليد الإشعارات التلقائية */}
+                    <button 
+                        className="generate-btn"
+                        onClick={generateAutoNotifications}
+                        disabled={generating}
+                        title={t('notifications.generate')}
+                    >
+                        {generating ? '⏳' : '✨'} {t('notifications.generate')}
+                    </button>
+                    
                     <button 
                         className="refresh-btn"
                         onClick={() => {
@@ -340,6 +386,15 @@ function Notifications({ isAuthReady }) {
                     )}
                 </div>
             </div>
+
+            {/* رسالة التأكيد */}
+            {message && (
+                <div className={`notification-message ${messageType}`}>
+                    <span>{messageType === 'success' ? '✅' : '❌'}</span>
+                    <span>{message}</span>
+                    <button onClick={() => setMessage('')}>✕</button>
+                </div>
+            )}
 
             {/* إحصائيات سريعة */}
             {showStats && stats && (
@@ -444,6 +499,13 @@ function Notifications({ isAuthReady }) {
                     <div className="empty-icon">🔔</div>
                     <h3>{t('notifications.noNotifications')}</h3>
                     <p>{t('notifications.noNotificationsDesc')}</p>
+                    <button 
+                        className="generate-empty-btn"
+                        onClick={generateAutoNotifications}
+                        disabled={generating}
+                    >
+                        ✨ {t('notifications.generateNow')}
+                    </button>
                 </div>
             ) : (
                 <div className="notifications-list">
@@ -548,6 +610,91 @@ function Notifications({ isAuthReady }) {
             )}
 
             <style jsx>{`
+            /* زر التوليد التلقائي */
+.generate-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    color: white;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.generate-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.generate-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* زر التوليد في الحالة الفارغة */
+.generate-empty-btn {
+    margin-top: 16px;
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    color: white;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.generate-empty-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+/* رسالة التأكيد */
+.notification-message {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    animation: slideIn 0.3s ease;
+}
+
+.notification-message.success {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid #10b981;
+    color: #10b981;
+}
+
+.notification-message.error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid #ef4444;
+    color: #ef4444;
+}
+
+.notification-message button {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: inherit;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
                 .notifications-container {
                     max-width: 900px;
                     margin: 0 auto;
