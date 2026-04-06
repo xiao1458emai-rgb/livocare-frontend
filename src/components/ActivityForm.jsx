@@ -68,33 +68,33 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             const isMobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
             
             if (isTouchDevice || isMobileScreen || isMobileUA) {
-                console.log('📱 Mobile device detected - forcing ADB Mode');
+                console.log(t('watch.mobileDetected'));
                 watchService.setMobileMode(true, '192.168.8.187');
                 watchService.connectADBMonitor();
             }
         };
         
         enableADB();
-    }, []);
+    }, [t]);
 
     // ✅ استماع لبيانات الساعة عبر watchService
     useEffect(() => {
         const handleWatchData = (type, data) => {
             if (!isMountedRef.current) return;
             
-            console.log('📊 Watch data received:', type, data);
+            console.log(t('watch.dataReceived'), type, data);
             
             if (type === 'heartRate') {
                 setWatchHeartRate(data);
                 setWatchData(prev => ({ ...prev, heartRate: data, lastUpdate: new Date() }));
                 
                 if (data > 100) {
-                    setWatchAlerts(prev => [`⚠️ ارتفاع ضربات القلب: ${data} BPM`, ...prev].slice(0, 3));
+                    setWatchAlerts(prev => [t('watch.highHeartRate', { value: data }), ...prev].slice(0, 3));
                     setTimeout(() => {
                         if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
                     }, 5000);
                 } else if (data < 60) {
-                    setWatchAlerts(prev => [`⚠️ انخفاض ضربات القلب: ${data} BPM`, ...prev].slice(0, 3));
+                    setWatchAlerts(prev => [t('watch.lowHeartRate', { value: data }), ...prev].slice(0, 3));
                     setTimeout(() => {
                         if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
                     }, 5000);
@@ -106,12 +106,12 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 setWatchData(prev => ({ ...prev, bloodPressure: data, lastUpdate: new Date() }));
                 
                 if (data.systolic > 140 || data.diastolic > 90) {
-                    setWatchAlerts(prev => [`⚠️ ارتفاع الضغط: ${data.systolic}/${data.diastolic}`, ...prev].slice(0, 3));
+                    setWatchAlerts(prev => [t('watch.highBloodPressure', { systolic: data.systolic, diastolic: data.diastolic }), ...prev].slice(0, 3));
                     setTimeout(() => {
                         if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
                     }, 5000);
                 } else if (data.systolic < 90 || data.diastolic < 60) {
-                    setWatchAlerts(prev => [`⚠️ انخفاض الضغط: ${data.systolic}/${data.diastolic}`, ...prev].slice(0, 3));
+                    setWatchAlerts(prev => [t('watch.lowBloodPressure', { systolic: data.systolic, diastolic: data.diastolic }), ...prev].slice(0, 3));
                     setTimeout(() => {
                         if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
                     }, 5000);
@@ -122,7 +122,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 setWatchConnected(true);
                 setAdbModeActive(true);
                 setAdbServerStatus('connected');
-                setMessage('✅ تم الاتصال بـ ADB Monitor');
+                setMessage(t('watch.adbConnected'));
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
                 }, 3000);
@@ -132,7 +132,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 setWatchConnected(false);
                 setAdbModeActive(false);
                 setAdbServerStatus('disconnected');
-                setMessage('🔌 تم قطع الاتصال بـ ADB Monitor');
+                setMessage(t('watch.adbDisconnected'));
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
                 }, 3000);
@@ -140,7 +140,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             
             if (type === 'error') {
                 setAdbServerStatus('error');
-                setError('فشل الاتصال بـ ADB Monitor. تأكد من تشغيل الخادم على الحاسوب');
+                setError(t('watch.adbConnectionError'));
                 setTimeout(() => {
                     if (isMountedRef.current) setError(null);
                 }, 5000);
@@ -153,7 +153,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             const index = watchService.onDataCallbacks.indexOf(handleWatchData);
             if (index > -1) watchService.onDataCallbacks.splice(index, 1);
         };
-    }, []);
+    }, [t]);
 
     // ✅ جلب الأنشطة - مع useCallback
     const fetchActivities = useCallback(async () => {
@@ -170,7 +170,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 setError(null);
             }
         } catch (err) {
-            console.error('خطأ في جلب الأنشطة:', err);
+            console.error(t('activities.fetchErrorLog'), err);
             if (isMountedRef.current) {
                 setError(t('activities.fetchError'));
                 setActivities([]);
@@ -242,7 +242,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 if (id === editingId) { resetForm(); setIsEditing(false); setEditingId(null); }
             }
         } catch (err) {
-            console.error('خطأ:', err);
+            console.error(t('activities.deleteErrorLog'), err);
             if (isMountedRef.current) {
                 setError(t('activities.deleteError'));
             }
@@ -332,7 +332,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 }, 3000);
             }
         } catch (err) {
-            console.error('خطأ:', err);
+            console.error(t('activities.submissionErrorLog'), err);
             if (isMountedRef.current) {
                 setError(t('activities.submissionError'));
             }
@@ -375,18 +375,18 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 setWatchConnected(true);
                 setAdbModeActive(true);
                 setAdbServerStatus('connected');
-                setMessage('✅ تم الاتصال بـ ADB Monitor بنجاح');
+                setMessage(t('watch.adbConnectSuccess'));
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
                 }, 3000);
             } else {
-                throw new Error('فشل الاتصال');
+                throw new Error(t('watch.adbConnectFailed'));
             }
         } catch (error) {
-            console.error('ADB connection failed:', error);
+            console.error(t('watch.adbConnectionFailedLog'), error);
             if (isMountedRef.current) {
                 setAdbServerStatus('error');
-                setError('❌ فشل الاتصال بـ ADB Monitor. تأكد من: 1) تشغيل خادم ADB على الحاسوب 2) اتصال الهاتف عبر USB 3) تفعيل تصحيح USB');
+                setError(t('watch.adbConnectionInstructions'));
                 setTimeout(() => {
                     if (isMountedRef.current) setError(null);
                 }, 8000);
@@ -405,7 +405,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         setWatchHeartRate(null);
         setWatchBloodPressure(null);
         setWatchData({ heartRate: null, bloodPressure: null, lastUpdate: null });
-        setMessage('🔌 تم فصل الاتصال بـ ADB Monitor');
+        setMessage(t('watch.adbDisconnectedManual'));
         setTimeout(() => {
             if (isMountedRef.current) setMessage('');
         }, 3000);
@@ -414,7 +414,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
     // ✅ إضافة بيانات الساعة كنشاط
     const addWatchDataAsActivity = async () => {
         if (!watchHeartRate && !watchBloodPressure) {
-            setError('لا توجد بيانات من الساعة');
+            setError(t('watch.noWatchData'));
             setTimeout(() => {
                 if (isMountedRef.current) setError(null);
             }, 3000);
@@ -424,14 +424,14 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         setLoading(true);
         
         const notes = [];
-        if (watchHeartRate) notes.push(`ضربات القلب: ${watchHeartRate} BPM`);
-        if (watchBloodPressure) notes.push(`ضغط الدم: ${watchBloodPressure.systolic}/${watchBloodPressure.diastolic}`);
+        if (watchHeartRate) notes.push(t('watch.heartRateNote', { value: watchHeartRate }));
+        if (watchBloodPressure) notes.push(t('watch.bloodPressureNote', { systolic: watchBloodPressure.systolic, diastolic: watchBloodPressure.diastolic }));
         
         const watchActivity = {
             activity_type: 'walking',
             duration_minutes: 30,
             start_time: watchData.lastUpdate ? new Date(watchData.lastUpdate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-            notes: `بيانات من الساعة الذكية - ${notes.join(' - ')}`
+            notes: t('watch.activityNote', { notes: notes.join(' - ') })
         };
         
         const calculatedCalories = calculateCalories('walking', 30);
@@ -447,7 +447,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             const response = await axiosInstance.post('/activities/', dataToSend);
             if (isMountedRef.current) {
                 setActivities(prev => [{ ...response.data, activity_type: 'walking' }, ...prev]);
-                setMessage('✅ تم إضافة بيانات الساعة كنشاط');
+                setMessage(t('watch.watchDataAdded'));
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
                 }, 3000);
@@ -455,9 +455,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 if (onDataSubmitted) onDataSubmitted();
             }
         } catch (err) {
-            console.error('خطأ:', err);
+            console.error(t('watch.watchDataAddErrorLog'), err);
             if (isMountedRef.current) {
-                setError('فشل في إضافة بيانات الساعة');
+                setError(t('watch.watchDataAddError'));
             }
         } finally {
             if (isMountedRef.current) setLoading(false);
@@ -470,15 +470,15 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         try {
             await watchService.requestMeasurement();
             if (isMountedRef.current) {
-                setMessage('📱 تم إرسال طلب القياس. افتح تطبيق FitPro وقم بالقياس');
+                setMessage(t('watch.measurementRequested'));
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
                 }, 5000);
             }
         } catch (error) {
-            console.error('Measurement request failed:', error);
+            console.error(t('watch.measurementRequestFailedLog'), error);
             if (isMountedRef.current) {
-                setError('فشل طلب القياس');
+                setError(t('watch.measurementRequestFailed'));
             }
         } finally {
             if (isMountedRef.current) setLoading(false);
@@ -504,8 +504,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                             {adbModeActive && <span className="pulse-dot"></span>}
                         </div>
                         <div>
-                            <h3>{t('watch.adbTitle', 'ADB Monitor')}</h3>
-                            <p className="watch-subtitle">{t('watch.adbSubtitle', 'اتصال عبر USB')}</p>
+                            <h3>{t('watch.adbTitle')}</h3>
+                            <p className="watch-subtitle">{t('watch.adbSubtitle')}</p>
                         </div>
                     </div>
                     
@@ -518,18 +518,18 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                             {watchConnecting ? (
                                 <>
                                     <span className="spinner-small"></span>
-                                    <span>جارٍ الاتصال...</span>
+                                    <span>{t('watch.connecting')}</span>
                                 </>
                             ) : (
                                 <>
                                     <span>📱</span>
-                                    <span>اتصال ADB</span>
+                                    <span>{t('watch.connectAdb')}</span>
                                 </>
                             )}
                         </button>
                     ) : (
                         <button onClick={disconnectADB} className="watch-disconnect-btn">
-                            🔌 فصل
+                            🔌 {t('watch.disconnect')}
                         </button>
                     )}
                 </div>
@@ -537,18 +537,18 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 {adbServerStatus === 'connecting' && (
                     <div className="adb-status connecting">
                         <span className="status-spinner"></span>
-                        <span>جاري الاتصال بخادم ADB...</span>
+                        <span>{t('watch.connectingToAdb')}</span>
                     </div>
                 )}
 
                 {adbServerStatus === 'error' && (
                     <div className="adb-status error">
                         <span>⚠️</span>
-                        <span>فشل الاتصال. تأكد من:</span>
+                        <span>{t('watch.adbErrorTitle')}</span>
                         <ul>
-                            <li>تشغيل خادم ADB على الحاسوب (node adb-monitor.js)</li>
-                            <li>الهاتف متصل عبر USB مع تفعيل تصحيح USB</li>
-                            <li>الهاتف والحاسوب على نفس الشبكة</li>
+                            <li>{t('watch.adbErrorTip1')}</li>
+                            <li>{t('watch.adbErrorTip2')}</li>
+                            <li>{t('watch.adbErrorTip3')}</li>
                         </ul>
                     </div>
                 )}
@@ -563,10 +563,10 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                                     <span className="value-unit">BPM</span>
                                 </div>
                                 <div className={`health-status ${watchHeartRate > 100 ? 'high' : watchHeartRate < 60 ? 'low' : watchHeartRate ? 'normal' : ''}`}>
-                                    {watchHeartRate > 100 && '⚠️ مرتفع'}
-                                    {watchHeartRate < 60 && '⚠️ منخفض'}
-                                    {watchHeartRate >= 60 && watchHeartRate <= 100 && watchHeartRate && '✅ طبيعي'}
-                                    {!watchHeartRate && '⏳ انتظار البيانات'}
+                                    {watchHeartRate > 100 && t('watch.highStatus')}
+                                    {watchHeartRate < 60 && t('watch.lowStatus')}
+                                    {watchHeartRate >= 60 && watchHeartRate <= 100 && watchHeartRate && t('watch.normalStatus')}
+                                    {!watchHeartRate && t('watch.waitingData')}
                                 </div>
                             </div>
 
@@ -579,30 +579,30 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                                     <span className="value-unit">mmHg</span>
                                 </div>
                                 <div className={`health-status ${watchBloodPressure?.systolic > 140 ? 'high' : watchBloodPressure?.systolic < 90 ? 'low' : watchBloodPressure ? 'normal' : ''}`}>
-                                    {watchBloodPressure?.systolic > 140 && '⚠️ ارتفاع'}
-                                    {watchBloodPressure?.systolic < 90 && '⚠️ انخفاض'}
-                                    {watchBloodPressure?.systolic >= 90 && watchBloodPressure?.systolic <= 140 && watchBloodPressure && '✅ طبيعي'}
-                                    {!watchBloodPressure && '⏳ انتظار البيانات'}
+                                    {watchBloodPressure?.systolic > 140 && t('watch.highStatus')}
+                                    {watchBloodPressure?.systolic < 90 && t('watch.lowStatus')}
+                                    {watchBloodPressure?.systolic >= 90 && watchBloodPressure?.systolic <= 140 && watchBloodPressure && t('watch.normalStatus')}
+                                    {!watchBloodPressure && t('watch.waitingData')}
                                 </div>
                             </div>
                         </div>
 
                         {watchData.lastUpdate && (
                             <div className="watch-last-update">
-                                آخر تحديث: {new Date(watchData.lastUpdate).toLocaleTimeString()}
+                                {t('watch.lastUpdate')}: {new Date(watchData.lastUpdate).toLocaleTimeString()}
                             </div>
                         )}
 
                         <div className="watch-actions">
                             <button onClick={requestMeasurement} disabled={loading} className="measure-btn">
-                                📊 طلب قياس جديد
+                                📊 {t('watch.requestMeasurement')}
                             </button>
                             <button 
                                 onClick={addWatchDataAsActivity} 
                                 disabled={loading || (!watchHeartRate && !watchBloodPressure)} 
                                 className="add-activity-btn"
                             >
-                                ➕ إضافة كنشاط
+                                ➕ {t('watch.addAsActivity')}
                             </button>
                         </div>
                     </div>
@@ -617,20 +617,20 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 )}
             </div>
 
-            {/* باقي الكود - نموذج الأنشطة */}
+            {/* نموذج إضافة/تعديل النشاط */}
             <div className="card data-form">
                 <div className="form-header">
-                    <h3>{isEditing ? '✏️ تعديل النشاط' : '🏃‍♀️ إضافة نشاط جديد'}</h3>
-                    {isEditing && <button onClick={cancelEdit} className="cancel-edit-btn">❌ إلغاء</button>}
+                    <h3>{isEditing ? t('activities.editActivityTitle') : t('activities.addActivityTitle')}</h3>
+                    {isEditing && <button onClick={cancelEdit} className="cancel-edit-btn">❌ {t('common.cancel')}</button>}
                 </div>
                 
-                <p className="description">{isEditing ? 'عدل بيانات النشاط الرياضي' : 'سجل نشاطك الرياضي اليومي'}</p>
+                <p className="description">{isEditing ? t('activities.editDescription') : t('activities.addDescription')}</p>
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label>🏃 نوع النشاط</label>
+                        <label>🏃 {t('activities.activityType')}</label>
                         <select name="activity_type" value={formData.activity_type} onChange={handleChange} required className="activity-select">
-                            <option value="">اختر النشاط</option>
+                            <option value="">{t('activities.selectActivity')}</option>
                             {getActivityOptions().map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
                             ))}
@@ -639,12 +639,12 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
 
                     <div className="form-row">
                         <div className="form-group half-width">
-                            <label>⏱️ المدة (دقائق)</label>
-                            <input type="number" name="duration_minutes" value={formData.duration_minutes} onChange={handleChange} required min="1" max="180" placeholder="30" className="duration-input" />
-                            <small className="field-hint">من 1 إلى 180 دقيقة</small>
+                            <label>⏱️ {t('activities.duration')}</label>
+                            <input type="number" name="duration_minutes" value={formData.duration_minutes} onChange={handleChange} required min="1" max="180" placeholder={t('activities.durationPlaceholder')} className="duration-input" />
+                            <small className="field-hint">{t('activities.durationHint')}</small>
                         </div>
                         <div className="form-group half-width">
-                            <label>📅 وقت البداية</label>
+                            <label>📅 {t('activities.startTime')}</label>
                             <input type="datetime-local" name="start_time" value={formData.start_time} onChange={handleChange} required className="datetime-input" />
                         </div>
                     </div>
@@ -654,14 +654,14 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                             <div className="calories-badge">
                                 <span className="calories-icon">🔥</span>
                                 <span className="calories-value">{calculateCalories(formData.activity_type, formData.duration_minutes)}</span>
-                                <span className="calories-label">سعرة متوقعة</span>
+                                <span className="calories-label">{t('activities.estimatedCalories')}</span>
                             </div>
                         </div>
                     )}
 
                     <div className="form-group">
-                        <label>📝 ملاحظات</label>
-                        <textarea name="notes" value={formData.notes} onChange={handleChange} rows="2" placeholder="أضف ملاحظات..." className="notes-textarea" />
+                        <label>📝 {t('activities.notes')}</label>
+                        <textarea name="notes" value={formData.notes} onChange={handleChange} rows="2" placeholder={t('activities.notesPlaceholder')} className="notes-textarea" />
                     </div>
                     
                     {error && <div className="error-message">⚠️ {error}</div>}
@@ -669,9 +669,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
 
                     <div className="form-actions">
                         <button type="submit" disabled={loading} className="submit-btn">
-                            {loading ? '⏳ جاري الحفظ...' : (isEditing ? '✏️ تحديث' : '➕ حفظ النشاط')}
+                            {loading ? t('common.saving') : (isEditing ? t('common.update') : t('common.save'))}
                         </button>
-                        {isEditing && <button type="button" onClick={cancelEdit} className="cancel-btn">❌ إلغاء</button>}
+                        {isEditing && <button type="button" onClick={cancelEdit} className="cancel-btn">❌ {t('common.cancel')}</button>}
                     </div>
                 </form>
             </div>
@@ -679,19 +679,19 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             {/* قائمة الأنشطة */}
             <div className="activities-list-section">
                 <div className="activities-header">
-                    <h3>📋 سجل الأنشطة</h3>
+                    <h3>{t('activities.history')}</h3>
                     <div className="activities-actions">
-                        <span className="activities-count">{activities.length} نشاط</span>
+                        <span className="activities-count">{activities.length} {t('activities.count')}</span>
                         <button onClick={fetchActivities} className="refresh-btn" disabled={fetching || loading}>{fetching ? '⏳' : '🔄'}</button>
                     </div>
                 </div>
 
                 {fetching ? (
-                    <div className="loading-activities"><div className="spinner"></div><p>جاري التحميل...</p></div>
+                    <div className="loading-activities"><div className="spinner"></div><p>{t('common.loading')}</p></div>
                 ) : error ? (
-                    <div className="error-state"><p>⚠️ {error}</p><button onClick={fetchActivities} className="retry-btn">🔄 إعادة المحاولة</button></div>
+                    <div className="error-state"><p>⚠️ {error}</p><button onClick={fetchActivities} className="retry-btn">🔄 {t('common.retry')}</button></div>
                 ) : activities.length === 0 ? (
-                    <div className="no-activities"><div className="empty-icon">🏃‍♀️</div><h4>لا توجد أنشطة</h4><p>ابدأ بإضافة أول نشاط لك</p></div>
+                    <div className="no-activities"><div className="empty-icon">🏃‍♀️</div><h4>{t('activities.noActivities')}</h4><p>{t('activities.startAdding')}</p></div>
                 ) : (
                     <div className="activities-grid">
                         {activities.map((activity) => (
@@ -710,8 +710,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                                     </div>
                                 </div>
                                 <div className="activity-details">
-                                    <div className="detail-item"><span>⏱️ المدة:</span><span>{safeValue(activity.duration_minutes)} دقيقة</span></div>
-                                    <div className="detail-item"><span>🔥 السعرات:</span><span>{safeValue(activity.calories_burned)} سعرة</span></div>
+                                    <div className="detail-item"><span>⏱️ {t('activities.duration')}:</span><span>{safeValue(activity.duration_minutes)} {t('common.minutes')}</span></div>
+                                    <div className="detail-item"><span>🔥 {t('activities.calories')}:</span><span>{safeValue(activity.calories_burned)} {t('common.calories')}</span></div>
                                 </div>
                                 {activity.notes && <div className="activity-notes"><p>📝 {activity.notes}</p></div>}
                             </div>
