@@ -82,8 +82,8 @@ async function subscribeToPush() {
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
         
-        // ✅ استخدم المسار الجديد (بدون webpush)
-        await axiosInstance.post('/notifications/save-push-subscription/', subscription);
+        // ✅ استخدم المسار البسيط الجديد
+        await axiosInstance.post('/push-subscribe/', subscription);
         console.log('✅ Push subscription saved to server');
         
         return true;
@@ -96,8 +96,7 @@ async function subscribeToPush() {
 // إرسال إشعار تجريبي (للاختبار)
 export async function sendTestNotification() {
     try {
-        // ✅ استخدم المسار الجديد
-        await axiosInstance.post('/notifications/send-push/', {
+        await axiosInstance.post('/push-send/', {
             title: 'إشعار تجريبي',
             message: 'هذا إشعار تجريبي من تطبيق LivoCare'
         });
