@@ -13,6 +13,38 @@ function urlBase64ToUint8Array(base64String) {
     return outputArray;
 }
 
+// تسجيل Service Worker
+async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) {
+        console.log('❌ Service Worker not supported');
+        return null;
+    }
+    
+    try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        console.log('✅ Service Worker registered:', registration);
+        
+        // انتظر حتى يصبح Service Worker نشطاً
+        if (registration.active) {
+            return registration;
+        }
+        
+        // انتظر حتى يتم تنشيط Service Worker
+        return new Promise((resolve) => {
+            if (registration.active) {
+                resolve(registration);
+            } else {
+                registration.addEventListener('activate', () => {
+                    resolve(registration);
+                });
+            }
+        });
+    } catch (error) {
+        console.error('❌ Service Worker registration failed:', error);
+        return null;
+    }
+}
+
 // طلب إذن الإشعارات والاشتراك
 export async function requestNotificationPermission() {
     if (!('Notification' in window)) {
@@ -38,20 +70,18 @@ export async function requestNotificationPermission() {
 
 // الاشتراك في Push Notifications
 async function subscribeToPush() {
-    if (!('serviceWorker' in navigator)) {
-        console.log('Service Worker غير مدعوم');
-        return;
+    // ✅ أولاً: تسجيل Service Worker
+    const registration = await registerServiceWorker();
+    if (!registration) {
+        console.log('❌ Cannot subscribe: No Service Worker');
+        return false;
     }
     
     try {
-        // تسجيل Service Worker
-        const registration = await navigator.serviceWorker.register('/sw.js');
-        console.log('✅ Service Worker registered');
-        
         // المفتاح العام VAPID (من settings.py)
         const VAPID_PUBLIC_KEY = 'BHlznz8R_5JWZ7C-JtA-kV60tNuqOU4vdW55C9p8iIhU6hJIHiJSH3SpkvYT_0HB81yj_P2Wv0IT5mG_YNmjf4E';
         
-        // الاشتراك
+        // الاشتراك (بعد التأكد من وجود Service Worker نشط)
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
