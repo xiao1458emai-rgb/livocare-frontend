@@ -7,7 +7,8 @@ import './App.css';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
-import AuthCallback from './components/AuthCallback';  // ✅ أضف هذا
+import AuthCallback from './components/AuthCallback';
+import { requestNotificationPermission } from './utils/pushNotifications'; // ✅ أضف هذا السطر
 
 function App() {
     const { t, i18n } = useTranslation();
@@ -44,13 +45,11 @@ function App() {
     useEffect(() => {
         const initApp = async () => {
             try {
-                // إعدادات اللغة
                 const savedLanguage = localStorage.getItem('livocare_language') || 'ar';
                 i18n.changeLanguage(savedLanguage);
                 document.documentElement.lang = savedLanguage;
                 document.documentElement.dir = savedLanguage === 'ar' ? 'rtl' : 'ltr';
 
-                // التحقق من التوكن
                 const token = localStorage.getItem('access_token');
                 const isValid = await verifyToken(token);
                 
@@ -69,6 +68,14 @@ function App() {
 
         initApp();
     }, [i18n]);
+
+    // ✅ طلب إذن الإشعارات بعد تسجيل الدخول
+    useEffect(() => {
+        if (isAuthenticated) {
+            // ✅ طلب إذن الإشعارات الفورية
+            requestNotificationPermission();
+        }
+    }, [isAuthenticated]);
 
     // ✅ دالة نجاح تسجيل الدخول
     const handleLoginSuccess = () => {
@@ -111,7 +118,6 @@ function App() {
         );
     }
 
-    // ✅ Router واحد فقط هنا
     return (
         <BrowserRouter>
             <Routes>
