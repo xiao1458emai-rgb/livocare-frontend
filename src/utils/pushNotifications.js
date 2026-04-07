@@ -24,12 +24,10 @@ async function registerServiceWorker() {
         const registration = await navigator.serviceWorker.register('/sw.js');
         console.log('✅ Service Worker registered:', registration);
         
-        // انتظر حتى يصبح Service Worker نشطاً
         if (registration.active) {
             return registration;
         }
         
-        // انتظر حتى يتم تنشيط Service Worker
         return new Promise((resolve) => {
             if (registration.active) {
                 resolve(registration);
@@ -70,7 +68,6 @@ export async function requestNotificationPermission() {
 
 // الاشتراك في Push Notifications
 async function subscribeToPush() {
-    // ✅ أولاً: تسجيل Service Worker
     const registration = await registerServiceWorker();
     if (!registration) {
         console.log('❌ Cannot subscribe: No Service Worker');
@@ -78,17 +75,15 @@ async function subscribeToPush() {
     }
     
     try {
-        // المفتاح العام VAPID (من settings.py)
         const VAPID_PUBLIC_KEY = 'BHlznz8R_5JWZ7C-JtA-kV60tNuqOU4vdW55C9p8iIhU6hJIHiJSH3SpkvYT_0HB81yj_P2Wv0IT5mG_YNmjf4E';
         
-        // الاشتراك (بعد التأكد من وجود Service Worker نشط)
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
         
-        // إرسال الاشتراك إلى الخادم
-        await axiosInstance.post('/webpush/save-subscription/', subscription);
+        // ✅ استخدم المسار الجديد (بدون webpush)
+        await axiosInstance.post('/notifications/save-push-subscription/', subscription);
         console.log('✅ Push subscription saved to server');
         
         return true;
@@ -101,7 +96,11 @@ async function subscribeToPush() {
 // إرسال إشعار تجريبي (للاختبار)
 export async function sendTestNotification() {
     try {
-        await axiosInstance.post('/webpush/send-test-notification/');
+        // ✅ استخدم المسار الجديد
+        await axiosInstance.post('/notifications/send-push/', {
+            title: 'إشعار تجريبي',
+            message: 'هذا إشعار تجريبي من تطبيق LivoCare'
+        });
         console.log('✅ Test notification sent');
     } catch (error) {
         console.error('❌ Failed to send test notification:', error);
