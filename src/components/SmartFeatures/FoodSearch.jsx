@@ -18,40 +18,57 @@ const FoodSearch = ({ onSelectFood }) => {
         setError(null);
         
         try {
-            // ✅ استخدام API البحث الصحيح
-            const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20&fields=code,product_name,generic_name,brands,nutriments,image_front_small_url,serving_size`;
+            // ✅ الاتصال مباشرة بـ Open Food Facts API
+            const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=15&fields=code,product_name,generic_name,brands,nutriments,image_front_small_url,serving_size`;
             
-            console.log('🔍 Searching URL:', searchUrl);
+            console.log('🔍 Searching:', searchUrl);
             
             const response = await axios.get(searchUrl, {
                 timeout: 15000,
                 headers: {
+                    'Accept': 'application/json',
                     'User-Agent': 'LivocareApp/1.0 (https://livocare.onrender.com)'
                 }
             });
             
-            console.log('📡 API Response:', response.data);
+            console.log('📡 Response:', response.data);
             
             if (response.data && response.data.products && response.data.products.length > 0) {
                 const products = response.data.products
                     .filter(product => {
-                        // تصفية المنتجات التي لها اسم
-                        const hasName = product.product_name || product.generic_name;
-                        return hasName;
+                        const name = product.product_name || product.generic_name;
+                        return name && name.length > 1;
                     })
+                    .slice(0, 15)
                     .map(product => {
                         const nutriments = product.nutriments || {};
+                        const name = product.product_name || product.generic_name || 'منتج غذائي';
+                        
+                        // استخراج القيم الغذائية
+                        let calories = nutriments['energy-kcal'] || nutriments['energy'] || 0;
+                        let protein = nutriments['proteins'] || nutriments['protein'] || 0;
+                        let carbs = nutriments['carbohydrates'] || nutriments['carbs'] || 0;
+                        let fat = nutriments['fat'] || 0;
+                        let fiber = nutriments['fiber'] || 0;
+                        
+                        // تحويل إلى أرقام
+                        calories = parseFloat(calories) || 0;
+                        protein = parseFloat(protein) || 0;
+                        carbs = parseFloat(carbs) || 0;
+                        fat = parseFloat(fat) || 0;
+                        fiber = parseFloat(fiber) || 0;
+                        
                         return {
                             id: product.code,
-                            name: product.product_name || product.generic_name || 'منتج غذائي',
-                            calories: nutriments['energy-kcal'] || nutriments['energy'] || 0,
-                            protein: nutriments['proteins'] || nutriments['protein'] || 0,
-                            carbs: nutriments['carbohydrates'] || nutriments['carbs'] || 0,
-                            fat: nutriments['fat'] || 0,
-                            fiber: nutriments['fiber'] || 0,
+                            name: name,
+                            calories: Math.round(calories),
+                            protein: Math.round(protein * 10) / 10,
+                            carbs: Math.round(carbs * 10) / 10,
+                            fat: Math.round(fat * 10) / 10,
+                            fiber: Math.round(fiber * 10) / 10,
                             image: product.image_front_small_url || null,
-                            serving_size: product.serving_size || '100g',
-                            brand: product.brands || null
+                            brand: product.brands || null,
+                            serving_size: product.serving_size || '100g'
                         };
                     });
                 
@@ -67,7 +84,7 @@ const FoodSearch = ({ onSelectFood }) => {
             }
         } catch (err) {
             console.error('Food search error:', err);
-            setError('حدث خطأ في البحث');
+            setError('حدث خطأ في البحث. تأكد من اتصالك بالإنترنت.');
         } finally {
             setLoading(false);
         }
@@ -78,17 +95,15 @@ const FoodSearch = ({ onSelectFood }) => {
     };
 
     const formatNumber = (value) => {
-        if (value === undefined || value === null) return '';
-        const num = Number(value);
-        if (isNaN(num) || num === 0) return '';
-        return Math.round(num * 10) / 10;
+        if (!value || value === 0) return '';
+        return value;
     };
 
     return (
         <div className="food-search">
             <div className="search-header">
                 <h3>🔍 بحث عن طعام</h3>
-                <p className="search-subtitle">ابحث عن الأطعمة والمكونات الغذائية من قاعدة بيانات عالمية</p>
+                <p className="search-subtitle">ابحث عن الأطعمة والمكونات الغذائية</p>
             </div>
             
             <div className="search-box">
@@ -97,7 +112,7 @@ const FoodSearch = ({ onSelectFood }) => {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="مثال: تفاح، دجاج، أرز، زبادي..."
+                    placeholder="مثال: تفاح، دجاج، أرز أبيض، زبادي..."
                     className="search-input"
                 />
                 <button 
@@ -128,7 +143,7 @@ const FoodSearch = ({ onSelectFood }) => {
                     <div className="no-results-icon">🔍</div>
                     <p>لم يتم العثور على نتائج لـ "{query}"</p>
                     <p className="no-results-hint">
-                        💡 جرب: تفاح، دجاج، أرز، خبز، زبادي، موز، سمك
+                        💡 جرب: تفاح، دجاج، أرز، خبز، زبادي، موز
                     </p>
                 </div>
             )}
@@ -144,7 +159,7 @@ const FoodSearch = ({ onSelectFood }) => {
                                 key={food.id || index} 
                                 className="food-card"
                                 onClick={() => {
-                                    console.log('✅ Selected food:', food);
+                                    console.log('✅ Selected:', food);
                                     if (onSelectFood) onSelectFood(food);
                                 }}
                             >
@@ -156,34 +171,22 @@ const FoodSearch = ({ onSelectFood }) => {
                                     {food.brand && <p className="food-brand">🏭 {food.brand}</p>}
                                     <div className="food-nutrients">
                                         {formatNumber(food.calories) > 0 && (
-                                            <span className="nutrient calories">
-                                                🔥 {formatNumber(food.calories)} سعرة
-                                            </span>
+                                            <span className="nutrient calories">🔥 {food.calories} سعرة</span>
                                         )}
                                         {formatNumber(food.protein) > 0 && (
-                                            <span className="nutrient protein">
-                                                💪 {formatNumber(food.protein)}g بروتين
-                                            </span>
+                                            <span className="nutrient protein">💪 {food.protein}g بروتين</span>
                                         )}
                                         {formatNumber(food.carbs) > 0 && (
-                                            <span className="nutrient carbs">
-                                                🌾 {formatNumber(food.carbs)}g كارب
-                                            </span>
+                                            <span className="nutrient carbs">🌾 {food.carbs}g كارب</span>
                                         )}
                                         {formatNumber(food.fat) > 0 && (
-                                            <span className="nutrient fat">
-                                                🫒 {formatNumber(food.fat)}g دهون
-                                            </span>
+                                            <span className="nutrient fat">🫒 {food.fat}g دهون</span>
                                         )}
                                     </div>
                                     {food.fiber > 0 && (
-                                        <div className="food-fiber">
-                                            🌿 ألياف: {formatNumber(food.fiber)}g
-                                        </div>
+                                        <div className="food-fiber">🌿 ألياف: {food.fiber}g</div>
                                     )}
-                                    <div className="select-hint">
-                                        ✨ انقر للإضافة
-                                    </div>
+                                    <div className="select-hint">✨ انقر للإضافة</div>
                                 </div>
                             </div>
                         ))}
