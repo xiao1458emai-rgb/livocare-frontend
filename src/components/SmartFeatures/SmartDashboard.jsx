@@ -248,42 +248,6 @@ const SmartDashboard = () => {
         );
     };
 
-    const ScoreExplanationCard = ({ healthScore }) => {
-        if (!healthScore || healthScore.total > 50) return null;
-        
-        const weakFactors = healthScore.factors.filter(f => !f.isGood);
-        if (weakFactors.length === 0) return null;
-        
-        return (
-            <div className="score-explanation-card">
-                <div className="explanation-header">
-                    <span className="explanation-icon">❓</span>
-                    <h4>{isArabic ? 'لماذا هذه الدرجة؟' : 'Why this score?'}</h4>
-                </div>
-                <div className="explanation-content">
-                    <p>{isArabic 
-                        ? 'درجة صحتك الحالية تحتاج إلى تحسين. إليك العوامل المؤثرة:' 
-                        : 'Your current health score needs improvement. Here are the affecting factors:'}
-                    </p>
-                    <ul className="improvement-list">
-                        {weakFactors.map((factor, idx) => (
-                            <li key={idx}>
-                                <span className="factor-icon">{factor.icon}</span>
-                                <span className="factor-text">{factor.name}</span>
-                                <span className="factor-impact">{factor.value}</span>
-                            </li>
-                        ))}
-                    </ul>
-                    <div className="improvement-tip">
-                        💡 {isArabic 
-                            ? 'ابدأ بتحسين عامل واحد فقط هذا الأسبوع للحصول على نتائج ملحوظة'
-                            : 'Start by improving just one factor this week for noticeable results'}
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
     const CorrelationsSection = () => (
         <section className="correlations-section">
             <h3>🔗 {t('smartDashboard.correlations.title')}</h3>
@@ -489,7 +453,6 @@ const SmartDashboard = () => {
                 <div className="smart-column">
                     <WeatherWidget />
                     <HealthScoreCard healthScore={healthScore} />
-                    <ScoreExplanationCard healthScore={healthScore} />
                 </div>
 
                 {/* العمود الأيسر - التحليلات الذكية */}
