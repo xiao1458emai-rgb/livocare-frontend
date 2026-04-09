@@ -74,61 +74,68 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         }
     };
 
-    const fetchAllData = async () => {
-        setLoading(true);
-        setError(null);
+// في دالة fetchAllData، أضف console.log لمعرفة البيانات القادمة
+
+const fetchAllData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+        const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
         
-        try {
-            const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
-            
-            const [
-                mealsRes,
-                sleepRes,
-                moodRes,
-                activitiesRes,
-                habitsRes,
-                healthRes
-            ] = await Promise.all([
-                axiosInstance.get('/meals/').catch(() => ({ data: [] })),
-                axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
-                axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
-                axiosInstance.get('/activities/').catch(() => ({ data: [] })),
-                axiosInstance.get('/habit-logs/').catch(() => ({ data: [] })),
-                axiosInstance.get('/health_status/').catch(() => ({ data: [] }))
-            ]);
+        // ✅ جلب الوجبات فقط أولاً للاختبار
+        const mealsResponse = await axiosInstance.get('/meals/');
+        console.log('📊 Meals API Response:', mealsResponse.data);
+        console.log('📊 Meals count:', mealsResponse.data?.length || 0);
+        
+        const [
+            mealsRes,
+            sleepRes,
+            moodRes,
+            activitiesRes,
+            habitsRes,
+            healthRes
+        ] = await Promise.all([
+            axiosInstance.get('/meals/').catch(() => ({ data: [] })),
+            axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
+            axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
+            axiosInstance.get('/activities/').catch(() => ({ data: [] })),
+            axiosInstance.get('/habit-logs/').catch(() => ({ data: [] })),
+            axiosInstance.get('/health_status/').catch(() => ({ data: [] }))
+        ]);
 
-            // ✅ التأكد من أن البيانات مصفوفات
-            const allData = {
-                meals: Array.isArray(mealsRes.data) ? mealsRes.data : [],
-                sleep: Array.isArray(sleepRes.data) ? sleepRes.data : [],
-                mood: Array.isArray(moodRes.data) ? moodRes.data : [],
-                activities: Array.isArray(activitiesRes.data) ? activitiesRes.data : [],
-                habits: Array.isArray(habitsRes.data) ? habitsRes.data : [],
-                health: Array.isArray(healthRes.data) ? healthRes.data : []
-            };
-            
-            console.log('🍽️ تحليل تغذوي ذكي...', {
-                meals: allData.meals.length,
-                sleep: allData.sleep.length,
-                mood: allData.mood.length,
-                activities: allData.activities.length,
-                health: allData.health.length
-            });
-            
-            // تجهيز البيانات الأسبوعية للرسوم البيانية
-            const weekly = processWeeklyData(allData.meals);
-            setWeeklyData(weekly);
-            
-            const analysis = analyzeNutritionIntelligently(allData);
-            setSmartInsights(analysis);
-
-        } catch (err) {
-            console.error('❌ Error:', err);
-            setError(t('analytics.common.error'));
-        } finally {
-            setLoading(false);
+        // ✅ تأكد من أن البيانات مصفوفات
+        const allData = {
+            meals: Array.isArray(mealsRes.data) ? mealsRes.data : (mealsRes.data?.results || []),
+            sleep: Array.isArray(sleepRes.data) ? sleepRes.data : (sleepRes.data?.results || []),
+            mood: Array.isArray(moodRes.data) ? moodRes.data : (moodRes.data?.results || []),
+            activities: Array.isArray(activitiesRes.data) ? activitiesRes.data : (activitiesRes.data?.results || []),
+            habits: Array.isArray(habitsRes.data) ? habitsRes.data : (habitsRes.data?.results || []),
+            health: Array.isArray(healthRes.data) ? healthRes.data : (healthRes.data?.results || [])
+        };
+        
+        console.log('🍽️ Final meals data:', allData.meals);
+        console.log('🍽️ Meals count:', allData.meals.length);
+        
+        // ✅ إذا كانت الوجبات فارغة، اعرض رسالة
+        if (allData.meals.length === 0) {
+            console.warn('⚠️ No meals found! Please add some meals first.');
         }
-    };
+        
+        // تجهيز البيانات الأسبوعية للرسوم البيانية
+        const weekly = processWeeklyData(allData.meals);
+        setWeeklyData(weekly);
+        
+        const analysis = analyzeNutritionIntelligently(allData);
+        setSmartInsights(analysis);
+
+    } catch (err) {
+        console.error('❌ Error fetching data:', err);
+        setError(t('analytics.common.error'));
+    } finally {
+        setLoading(false);
+    }
+};
 
     // تجهيز البيانات الأسبوعية
     const processWeeklyData = (meals) => {

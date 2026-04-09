@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
+import NutritionAnalytics from '../Analytics/NutritionAnalytics';
 import '../../index.css';
 
 // دالة لتقريب الأرقام
@@ -34,9 +35,7 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
     const [lastUpdate, setLastUpdate] = useState(null);
     const [darkMode, setDarkMode] = useState(false);
     const [activeTab, setActiveTab] = useState('basic');
-    const [nutritionInsights, setNutritionInsights] = useState(null);
-    const [loadingInsights, setLoadingInsights] = useState(false);
-    const [refreshCounter, setRefreshCounter] = useState(0);
+    const [refreshAnalytics, setRefreshAnalytics] = useState(0);
     const [nutritionGoals] = useState({
         dailyCalories: 2000,
         dailyProtein: 50,
@@ -48,14 +47,13 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
     const isMountedRef = useRef(true);
     const autoRefreshRef = useRef(autoRefresh);
     const intervalRef = useRef(null);
-    const isFetchingInsightsRef = useRef(false);  // ✅ منع الطلبات المتزامنة
 
     // تحديث ref عند تغيير autoRefresh
     useEffect(() => {
         autoRefreshRef.current = autoRefresh;
     }, [autoRefresh]);
 
-    // تحميل إعدادات الوضع المظلم - مرة واحدة فقط
+    // تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -70,37 +68,7 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // ✅ جلب التحليلات المتقدمة - مع منع التحديث المتكرر
-    const fetchNutritionInsights = useCallback(async () => {
-        // ✅ منع الطلبات المتزامنة
-        if (isFetchingInsightsRef.current || !isMountedRef.current) return;
-        
-        isFetchingInsightsRef.current = true;
-        setLoadingInsights(true);
-        
-        try {
-            const response = await axiosInstance.get('/analytics/nutrition-insights/');
-            if (isMountedRef.current) {
-                setNutritionInsights(response.data);
-            }
-        } catch (error) {
-            console.error('Error fetching nutrition insights:', error);
-        } finally {
-            if (isMountedRef.current) {
-                setLoadingInsights(false);
-            }
-            isFetchingInsightsRef.current = false;
-        }
-    }, []);
-
-    // ✅ تحميل التحليلات فقط عند تغيير التبويب أو refreshCounter
-    useEffect(() => {
-        if (activeTab !== 'basic') {
-            fetchNutritionInsights();
-        }
-    }, [activeTab, refreshCounter, fetchNutritionInsights]);
-
-    // ✅ تحديث تلقائي - مع تنظيف صحيح
+    // ✅ تحديث تلقائي
     useEffect(() => {
         if (!autoRefresh) {
             if (intervalRef.current) {
@@ -113,9 +81,7 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         intervalRef.current = setInterval(() => {
             if (autoRefreshRef.current && onRefresh) {
                 onRefresh();
-                if (activeTab !== 'basic') {
-                    setRefreshCounter(prev => prev + 1);
-                }
+                setRefreshAnalytics(prev => prev + 1);
                 setLastUpdate(new Date());
             }
         }, 60000);
@@ -126,7 +92,7 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                 intervalRef.current = null;
             }
         };
-    }, [autoRefresh, onRefresh, activeTab]);
+    }, [autoRefresh, onRefresh]);
 
     // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
@@ -139,7 +105,7 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         };
     }, []);
 
-    // الإحصائيات الأساسية
+    // ✅ الإحصائيات الأساسية - تعتمد فقط على meals القادمة من NutritionMain
     const nutritionStats = useMemo(() => {
         if (!meals || meals.length === 0) {
             return {
@@ -188,7 +154,7 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         };
     }, [meals]);
 
-    // التقدم نحو الأهداف
+    // ✅ التقدم نحو الأهداف
     const goalProgress = useMemo(() => {
         const todayMeals = meals?.filter(meal => 
             new Date(meal.meal_time).toDateString() === new Date().toDateString()
@@ -236,40 +202,40 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         });
     };
 
-    // التوصيات الذكية
+    // ✅ التوصيات الذكية - تعتمد على البيانات المحلية
     const getRecommendations = () => {
-        if (nutritionInsights?.recommendations) {
-            return nutritionInsights.recommendations.map(r => r.message);
-        }
-
         const recommendations = [];
         const todayMeals = meals?.filter(meal => 
             new Date(meal.meal_time).toDateString() === new Date().toDateString()
         ) || [];
 
+        if (nutritionStats.totalMeals === 0) {
+            recommendations.push(t('nutrition.recommendations.startTracking'));
+        }
+        
         if (goalProgress.calories >= 80) {
             recommendations.push(t('nutrition.recommendations.caloriesGoal'));
         }
-        if (nutritionStats.avgProtein < 50) {
+        if (nutritionStats.avgProtein < 50 && nutritionStats.avgProtein > 0) {
             recommendations.push(t('nutrition.recommendations.moreProtein'));
         }
         if (nutritionStats.avgCarbs > 300) {
             recommendations.push(t('nutrition.recommendations.lessCarbs'));
         }
-        if (todayMeals.filter(meal => meal.meal_type === 'Breakfast').length === 0) {
+        if (todayMeals.filter(meal => meal.meal_type === 'Breakfast').length === 0 && todayMeals.length > 0) {
             recommendations.push(t('nutrition.recommendations.eatBreakfast'));
         }
 
         return recommendations.length > 0 ? recommendations : [t('nutrition.recommendations.balancedDiet')];
     };
 
-    // التنبؤات الواقعية
+    // ✅ التنبؤات
     const getRealisticPrediction = () => {
-        const avgCalories = nutritionInsights?.avg_calories || nutritionStats.avgProtein * 20 || 0;
-        const totalMeals = nutritionInsights?.total_meals || nutritionStats.totalMeals;
+        const totalMeals = nutritionStats.totalMeals;
         
         if (totalMeals < 5) return null;
         
+        const avgCalories = nutritionStats.totalCalories / totalMeals;
         const dailyDeficit = avgCalories - nutritionGoals.dailyCalories;
         const weeklyWeightChange = (dailyDeficit * 7) / 7700;
         const maxChange = Math.min(Math.abs(weeklyWeightChange), 1);
@@ -424,6 +390,9 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                             {meals?.length === 0 ? (
                                 <div className="dashboard-empty-state">
                                     <p>{t('nutrition.noMeals')}</p>
+                                    <button onClick={onRefresh} className="refresh-btn">
+                                        🔄 {t('nutrition.refresh')}
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="dashboard-meals-list">
@@ -436,7 +405,7 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                                                 <span className="dashboard-meal-calories">🔥 {meal.total_calories}</span>
                                             </div>
                                             <div className="dashboard-meal-time">{formatDate(meal.meal_time)}</div>
-                                            {meal.ingredients && (
+                                            {meal.ingredients && meal.ingredients.length > 0 && (
                                                 <div className="dashboard-meal-ingredients">
                                                     {mergeDuplicateItems(meal.ingredients).slice(0, 3).map((ing, i) => (
                                                         <span key={i} className="dashboard-ingredient-badge">
@@ -456,65 +425,9 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                     </>
                 )}
 
-                {/* تبويب التحليلات */}
+                {/* تبويب التحليلات - يعرض NutritionAnalytics */}
                 {activeTab === 'insights' && (
-                    <div className="dashboard-insights-section">
-                        {loadingInsights ? (
-                            <div className="dashboard-loading-state"><div className="dashboard-spinner"></div><p>{t('nutrition.loading')}</p></div>
-                        ) : nutritionInsights ? (
-                            <>
-                                <div className="dashboard-insights-stats">
-                                    <div className="dashboard-insight-card">
-                                        <div className="dashboard-insight-icon">🍽️</div>
-                                        <div className="dashboard-insight-info">
-                                            <div className="dashboard-insight-value">{nutritionInsights.total_meals || 0}</div>
-                                            <div className="dashboard-insight-label">{t('nutrition.totalMeals')}</div>
-                                        </div>
-                                    </div>
-                                    <div className="dashboard-insight-card">
-                                        <div className="dashboard-insight-icon">🔥</div>
-                                        <div className="dashboard-insight-info">
-                                            <div className="dashboard-insight-value">{roundNumber(nutritionInsights.avg_calories || 0, 0)}</div>
-                                            <div className="dashboard-insight-label">{t('nutrition.avgCalories')}</div>
-                                        </div>
-                                    </div>
-                                    <div className="dashboard-insight-card">
-                                        <div className="dashboard-insight-icon">💪</div>
-                                        <div className="dashboard-insight-info">
-                                            <div className="dashboard-insight-value">{roundNumber(nutritionInsights.avg_protein || 0, 1)}g</div>
-                                            <div className="dashboard-insight-label">{t('nutrition.avgProtein')}</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="dashboard-analysis-box">
-                                    <h4>📊 {t('nutrition.nutritionAnalysis')}</h4>
-                                    <div className="dashboard-analysis-items">
-                                        <div className="dashboard-analysis-item">
-                                            <span>{t('nutrition.calorieBalance')}</span>
-                                            <span className={nutritionInsights.avg_calories < 1500 ? 'dashboard-warning' : nutritionInsights.avg_calories > 3000 ? 'dashboard-warning' : 'dashboard-good'}>
-                                                {nutritionInsights.avg_calories < 1500 ? t('nutrition.tooLow') :
-                                                 nutritionInsights.avg_calories > 3000 ? t('nutrition.tooHigh') :
-                                                 t('nutrition.good')}
-                                            </span>
-                                        </div>
-                                        <div className="dashboard-analysis-item">
-                                            <span>{t('nutrition.proteinIntake')}</span>
-                                            <span className={nutritionInsights.avg_protein < 50 ? 'dashboard-warning' : 'dashboard-good'}>
-                                                {nutritionInsights.avg_protein < 50 ? t('nutrition.low') : t('nutrition.good')}
-                                            </span>
-                                        </div>
-                                        <div className="dashboard-analysis-item">
-                                            <span>{t('nutrition.mealVariety')}</span>
-                                            <span>{Object.keys(nutritionInsights.meal_distribution || {}).length} {t('nutrition.types')}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="dashboard-empty-state"><p>{t('nutrition.insufficientData')}</p></div>
-                        )}
-                    </div>
+                    <NutritionAnalytics refreshTrigger={refreshAnalytics} />
                 )}
 
                 {/* تبويب التوصيات */}
@@ -559,6 +472,9 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                         ) : (
                             <div className="dashboard-empty-state">
                                 <p>📊 {t('nutrition.needMoreDataPrediction', 'سجل 5 وجبات على الأقل للحصول على تنبؤات دقيقة')}</p>
+                                <button onClick={onRefresh} className="refresh-btn">
+                                    🔄 {t('nutrition.refresh')}
+                                </button>
                             </div>
                         )}
                     </div>
