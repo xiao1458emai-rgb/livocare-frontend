@@ -10,103 +10,6 @@ const roundNumber = (num, decimals = 1) => {
     return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 };
 
-// دالة لحساب درجة الصحة (0-100)
-const calculateHealthScore = (data) => {
-    let score = 65; // نقطة انطلاق متوسطة
-    const factors = [];
-
-    // تأثير النوم (30 نقطة)
-    if (data.sleep && data.sleep.avgHours) {
-        if (data.sleep.avgHours >= 7 && data.sleep.avgHours <= 8) {
-            score += 25;
-            factors.push({ name: 'sleep', impact: '+25', message: 'نوم ممتاز' });
-        } else if (data.sleep.avgHours >= 6 && data.sleep.avgHours < 7) {
-            score += 15;
-            factors.push({ name: 'sleep', impact: '+15', message: 'نوم جيد' });
-        } else if (data.sleep.avgHours >= 5 && data.sleep.avgHours < 6) {
-            score += 5;
-            factors.push({ name: 'sleep', impact: '+5', message: 'نوم مقبول' });
-        } else if (data.sleep.avgHours < 5) {
-            score -= 10;
-            factors.push({ name: 'sleep', impact: '-10', message: 'قلة نوم شديدة' });
-        }
-    }
-
-    // تأثير المزاج (20 نقطة)
-    if (data.mood && data.mood.avg) {
-        if (data.mood.avg >= 4) {
-            score += 20;
-            factors.push({ name: 'mood', impact: '+20', message: 'مزاج ممتاز' });
-        } else if (data.mood.avg >= 3) {
-            score += 10;
-            factors.push({ name: 'mood', impact: '+10', message: 'مزاج جيد' });
-        } else if (data.mood.avg >= 2) {
-            score += 0;
-            factors.push({ name: 'mood', impact: '0', message: 'مزاج متوسط' });
-        } else {
-            score -= 10;
-            factors.push({ name: 'mood', impact: '-10', message: 'مزاج منخفض' });
-        }
-    }
-
-    // تأثير النشاط (20 نقطة)
-    if (data.activity && data.activity.weeklyMinutes) {
-        if (data.activity.weeklyMinutes >= 150) {
-            score += 20;
-            factors.push({ name: 'activity', impact: '+20', message: 'نشاط ممتاز' });
-        } else if (data.activity.weeklyMinutes >= 100) {
-            score += 12;
-            factors.push({ name: 'activity', impact: '+12', message: 'نشاط جيد' });
-        } else if (data.activity.weeklyMinutes >= 50) {
-            score += 5;
-            factors.push({ name: 'activity', impact: '+5', message: 'نشاط مقبول' });
-        } else {
-            score -= 5;
-            factors.push({ name: 'activity', impact: '-5', message: 'نشاط منخفض' });
-        }
-    }
-
-    // تأثير التغذية (15 نقطة)
-    if (data.nutrition && data.nutrition.avgCalories) {
-        if (data.nutrition.avgCalories >= 1800 && data.nutrition.avgCalories <= 2200) {
-            score += 15;
-            factors.push({ name: 'nutrition', impact: '+15', message: 'تغذية متوازنة' });
-        } else if (data.nutrition.avgCalories >= 1500 && data.nutrition.avgCalories < 1800) {
-            score += 8;
-            factors.push({ name: 'nutrition', impact: '+8', message: 'تغذية جيدة' });
-        } else if (data.nutrition.avgCalories > 2500) {
-            score -= 5;
-            factors.push({ name: 'nutrition', impact: '-5', message: 'سعرات زائدة' });
-        } else if (data.nutrition.avgCalories < 1200) {
-            score -= 10;
-            factors.push({ name: 'nutrition', impact: '-10', message: 'سعرات منخفضة جداً' });
-        }
-    }
-
-    // تأثير العادات (15 نقطة)
-    if (data.habits && data.habits.completionRate) {
-        if (data.habits.completionRate >= 80) {
-            score += 15;
-            factors.push({ name: 'habits', impact: '+15', message: 'التزام ممتاز' });
-        } else if (data.habits.completionRate >= 60) {
-            score += 8;
-            factors.push({ name: 'habits', impact: '+8', message: 'التزام جيد' });
-        } else if (data.habits.completionRate >= 40) {
-            score += 3;
-            factors.push({ name: 'habits', impact: '+3', message: 'التزام مقبول' });
-        } else {
-            score -= 5;
-            factors.push({ name: 'habits', impact: '-5', message: 'تحتاج تنظيم عاداتك' });
-        }
-    }
-
-    return {
-        score: Math.min(100, Math.max(0, Math.round(score))),
-        grade: score >= 85 ? 'A' : score >= 70 ? 'B' : score >= 55 ? 'C' : score >= 40 ? 'D' : 'E',
-        factors
-    };
-};
-
 // دالة لحساب الارتباط بين متغيرين
 const calculateCorrelation = (x, y) => {
     if (x.length < 3 || y.length < 3) return 0;
@@ -143,7 +46,8 @@ const SmartRecommendations = () => {
     const [error, setError] = useState(null);
     const [darkMode, setDarkMode] = useState(false);
     const [lastUpdate, setLastUpdate] = useState(null);
-    const [expandedCard, setExpandedCard] = useState(null);
+    const [weather, setWeather] = useState(null);
+    const [predictions, setPredictions] = useState(null);
 
     const isArabic = i18n.language.startsWith('ar');
 
@@ -154,14 +58,13 @@ const SmartRecommendations = () => {
 
     useEffect(() => {
         fetchAllData();
-        const interval = setInterval(fetchAllData, 60 * 60 * 1000);
+        const interval = setInterval(fetchAllData, 30 * 60 * 1000); // كل 30 دقيقة
         return () => clearInterval(interval);
     }, []);
 
     const fetchAllData = async () => {
         setLoading(true);
         try {
-            const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
             const [
                 healthRes,
                 mealsRes,
@@ -169,6 +72,7 @@ const SmartRecommendations = () => {
                 moodRes,
                 habitsRes,
                 activitiesRes,
+                habitDefRes,
                 weatherRes
             ] = await Promise.all([
                 axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
@@ -177,6 +81,7 @@ const SmartRecommendations = () => {
                 axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
                 axiosInstance.get('/habit-logs/').catch(() => ({ data: [] })),
                 axiosInstance.get('/activities/').catch(() => ({ data: [] })),
+                axiosInstance.get('/habit-definitions/').catch(() => ({ data: [] })),
                 axiosInstance.get('/weather/').catch(() => ({ data: null }))
             ]);
 
@@ -187,77 +92,103 @@ const SmartRecommendations = () => {
                 mood: moodRes.data || [],
                 habits: habitsRes.data || [],
                 activities: activitiesRes.data || [],
-                weather: weatherRes.data || null,
-                language: currentLang
+                habitDefinitions: habitDefRes.data || [],
+                weather: weatherRes.data?.success ? weatherRes.data.data : null,
+                language: i18n.language
             };
 
-            // تحليل البيانات
+            // تحليل البيانات الحقيقية فقط
             const analyzedData = analyzeAllData(allData);
             
-            // حساب درجة الصحة
-            const score = calculateHealthScore(analyzedData);
+            // حساب درجة الصحة من البيانات الحقيقية
+            const score = calculateRealHealthScore(analyzedData);
             setHealthScore(score);
             
-            // حساب العلاقات
-            const correlationsData = calculateCorrelationsData(allData);
+            // حساب العلاقات الحقيقية
+            const correlationsData = calculateRealCorrelations(allData);
             setCorrelations(correlationsData);
             
-            // توليد التوصيات
-            const smartRecs = generateSmartRecommendations(analyzedData, allData);
+            // توليد التوصيات من البيانات الحقيقية
+            const smartRecs = generateRealRecommendations(analyzedData, allData);
             setRecommendations(smartRecs);
+            
+            // توليد التنبؤات
+            const preds = generateRealPredictions(analyzedData);
+            setPredictions(preds);
+            
+            // الطقس
+            if (allData.weather) {
+                setWeather(allData.weather);
+            }
             
             setLastUpdate(new Date());
             setError(null);
 
         } catch (err) {
             console.error('Error fetching data:', err);
-            setError(t('smartRecommendations.error'));
+            setError(isArabic ? 'حدث خطأ في جلب البيانات' : 'Error fetching data');
         } finally {
             setLoading(false);
         }
     };
 
     const analyzeAllData = (rawData) => {
-        // تحليل النوم
-        const sleep = analyzeSleepData(rawData.sleep);
+        // تحليل النوم - بيانات حقيقية فقط
+        const sleep = analyzeRealSleepData(rawData.sleep);
         
         // تحليل المزاج
-        const mood = analyzeMoodData(rawData.mood);
+        const mood = analyzeRealMoodData(rawData.mood);
         
         // تحليل النشاط
-        const activity = analyzeActivityData(rawData.activities);
+        const activity = analyzeRealActivityData(rawData.activities);
         
         // تحليل التغذية
-        const nutrition = analyzeNutritionData(rawData.meals);
+        const nutrition = analyzeRealNutritionData(rawData.meals);
         
         // تحليل العادات
-        const habits = analyzeHabitsData(rawData.habits);
+        const habits = analyzeRealHabitsData(rawData.habits, rawData.habitDefinitions);
         
         // تحليل الصحة
-        const health = analyzeHealthData(rawData.health);
+        const health = analyzeRealHealthData(rawData.health);
         
-        return { sleep, mood, activity, nutrition, habits, health, weather: rawData.weather };
+        return { sleep, mood, activity, nutrition, habits, health };
     };
 
-    const analyzeSleepData = (sleep) => {
+    const analyzeRealSleepData = (sleep) => {
         if (!sleep || sleep.length === 0) return null;
         
-        const hours = sleep.map(s => {
-            const start = new Date(s.sleep_start || s.start_time);
-            const end = new Date(s.sleep_end || s.end_time);
-            return (end - start) / (1000 * 60 * 60);
-        }).filter(h => h > 0 && h < 24);
+        const validSleep = [];
+        sleep.forEach(s => {
+            const start = s.sleep_start || s.start_time;
+            const end = s.sleep_end || s.end_time;
+            if (start && end) {
+                const hours = (new Date(end) - new Date(start)) / (1000 * 60 * 60);
+                if (hours > 0 && hours <= 24) {
+                    validSleep.push({
+                        hours,
+                        quality: s.quality_rating || 3,
+                        date: new Date(start).toDateString()
+                    });
+                }
+            }
+        });
+        
+        if (validSleep.length === 0) return null;
+        
+        const avgHours = validSleep.reduce((sum, s) => sum + s.hours, 0) / validSleep.length;
+        const avgQuality = validSleep.reduce((sum, s) => sum + s.quality, 0) / validSleep.length;
         
         return {
-            avgHours: hours.length > 0 ? roundNumber(hours.reduce((a, b) => a + b, 0) / hours.length, 1) : 0,
-            quality: sleep.length > 0 ? roundNumber(sleep.reduce((a, b) => a + (b.quality_rating || 3), 0) / sleep.length, 1) : 0,
-            lastHours: hours[0] || 0,
-            lastQuality: sleep[0]?.quality_rating || 3,
-            totalDays: sleep.length
+            avgHours: roundNumber(avgHours, 1),
+            avgQuality: roundNumber(avgQuality, 1),
+            lastHours: validSleep[0]?.hours || 0,
+            lastQuality: validSleep[0]?.quality || 3,
+            totalDays: validSleep.length,
+            records: validSleep
         };
     };
 
-    const analyzeMoodData = (mood) => {
+    const analyzeRealMoodData = (mood) => {
         if (!mood || mood.length === 0) return null;
         
         const getScore = (m) => {
@@ -265,25 +196,28 @@ const SmartRecommendations = () => {
             return map[m.mood] || 3;
         };
         
-        const scores = mood.map(m => getScore(m));
+        const validMood = mood.filter(m => m.mood);
+        if (validMood.length === 0) return null;
+        
+        const scores = validMood.map(m => getScore(m));
         
         return {
             avg: roundNumber(scores.reduce((a, b) => a + b, 0) / scores.length, 1),
-            last: mood[0]?.mood || 'Neutral',
-            lastScore: getScore(mood[0]),
-            totalDays: mood.length,
-            recentTrend: scores.slice(0, 5).reduce((a, b) => a + b, 0) / Math.min(5, scores.length)
+            last: validMood[0]?.mood || 'Neutral',
+            lastScore: getScore(validMood[0]),
+            totalDays: validMood.length,
+            records: validMood
         };
     };
 
-    const analyzeActivityData = (activities) => {
+    const analyzeRealActivityData = (activities) => {
         if (!activities || activities.length === 0) return null;
         
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
         
         const weeklyActivities = activities.filter(a => {
-            const actDate = new Date(a.date || a.created_at);
+            const actDate = new Date(a.start_time || a.created_at);
             return actDate >= oneWeekAgo;
         });
         
@@ -292,11 +226,12 @@ const SmartRecommendations = () => {
         return {
             weeklyMinutes: totalMinutes,
             dailyAverage: roundNumber(totalMinutes / 7, 0),
-            count: weeklyActivities.length
+            count: weeklyActivities.length,
+            totalActivities: activities.length
         };
     };
 
-    const analyzeNutritionData = (meals) => {
+    const analyzeRealNutritionData = (meals) => {
         if (!meals || meals.length === 0) return null;
         
         const today = new Date().toDateString();
@@ -305,304 +240,371 @@ const SmartRecommendations = () => {
             return mealDate === today;
         });
         
-        const avgCalories = meals.length > 0 ? 
-            meals.reduce((sum, m) => sum + (m.total_calories || 0), 0) / meals.length : 0;
+        const totalCalories = meals.reduce((sum, m) => sum + (m.total_calories || 0), 0);
+        const avgCalories = meals.length > 0 ? totalCalories / meals.length : 0;
         
         return {
             totalMeals: meals.length,
             todayMeals: todayMeals.length,
-            avgCalories: Math.round(avgCalories)
+            avgCalories: Math.round(avgCalories),
+            totalCalories: Math.round(totalCalories)
         };
     };
 
-    const analyzeHabitsData = (habits) => {
+    const analyzeRealHabitsData = (habits, definitions) => {
         if (!habits || habits.length === 0) return null;
         
         const today = new Date().toDateString();
         const todayHabits = habits.filter(h => {
-            const habitDate = new Date(h.date || h.created_at).toDateString();
+            const habitDate = new Date(h.log_date || h.date).toDateString();
             return habitDate === today;
         });
         
         const completed = todayHabits.filter(h => h.is_completed).length;
         const total = todayHabits.length;
         
+        // حساب نسبة الالتزام للأدوية
+        const medHabits = definitions.filter(d => 
+            d.name?.toLowerCase().includes('دواء') || 
+            d.name?.toLowerCase().includes('medication') ||
+            d.description?.toLowerCase().includes('دواء')
+        );
+        
+        const medHabitIds = medHabits.map(h => h.id);
+        const medLogs = habits.filter(h => medHabitIds.includes(h.habit));
+        const medCompleted = medLogs.filter(h => h.is_completed).length;
+        const medTotal = medLogs.length;
+        
         return {
             completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
             completed,
-            total
+            total,
+            medicationAdherence: medTotal > 0 ? Math.round((medCompleted / medTotal) * 100) : 0,
+            medCompleted,
+            medTotal
         };
     };
 
-    const analyzeHealthData = (health) => {
+    const analyzeRealHealthData = (health) => {
         if (!health || health.length === 0) return null;
         
         const latest = health[0];
-        const weight = parseFloat(latest.weight_kg);
-        const height = parseFloat(latest.height_cm) / 100;
+        const weight = latest.weight_kg ? parseFloat(latest.weight_kg) : null;
+        
+        // حساب مؤشر كتلة الجسم إذا كان الطول متوفراً
+        let bmi = null;
+        if (weight && latest.height_cm) {
+            const height = parseFloat(latest.height_cm) / 100;
+            bmi = roundNumber(weight / (height * height), 1);
+        }
         
         return {
             weight,
-            height,
-            bmi: weight && height ? roundNumber(weight / (height * height), 1) : null,
-            systolic: latest.systolic_pressure,
-            diastolic: latest.diastolic_pressure,
-            glucose: latest.blood_glucose ? parseFloat(latest.blood_glucose) : null
+            bmi,
+            systolic: latest.systolic_pressure || null,
+            diastolic: latest.diastolic_pressure || null,
+            glucose: latest.blood_glucose ? parseFloat(latest.blood_glucose) : null,
+            recorded_at: latest.recorded_at
         };
     };
 
-    const calculateCorrelationsData = (rawData) => {
-        const correlations = [];
+    const calculateRealHealthScore = (data) => {
+        let score = 50;
+        const factors = [];
         
-        // ربط النوم بالمزاج
-        if (rawData.sleep.length > 3 && rawData.mood.length > 3) {
-            const sleepHours = rawData.sleep.slice(0, 10).map(s => {
-                const start = new Date(s.sleep_start || s.start_time);
-                const end = new Date(s.sleep_end || s.end_time);
-                return (end - start) / (1000 * 60 * 60);
-            }).filter(h => h > 0);
-            
-            const getMoodScore = (m) => {
-                const map = { 'Excellent': 5, 'Good': 4, 'Neutral': 3, 'Stressed': 2, 'Anxious': 2, 'Sad': 1 };
-                return map[m.mood] || 3;
-            };
-            const moodScores = rawData.mood.slice(0, 10).map(m => getMoodScore(m));
-            
-            const correlation = calculateCorrelation(sleepHours, moodScores);
-            const absCorr = Math.abs(correlation);
-            
-            if (absCorr > 0.3) {
-                correlations.push({
-                    type: 'sleep_mood',
-                    icon: '😴 ↔️ 😊',
-                    title: t('correlations.sleepMood.title', 'النوم والمزاج'),
-                    description: t('correlations.sleepMood.desc', 'العلاقة بين عدد ساعات النوم وجودة المزاج'),
-                    strength: correlation,
-                    strengthPercent: Math.round(absCorr * 100),
-                    sampleSize: Math.min(sleepHours.length, moodScores.length),
-                    insight: correlation > 0 ? 
-                        t('correlations.sleepMood.positive', 'عندما تنام أكثر، يتحسن مزاجك') :
-                        t('correlations.sleepMood.negative', 'قلة النوم تؤثر سلباً على مزاجك')
-                });
+        // النوم (25 نقطة)
+        if (data.sleep) {
+            if (data.sleep.avgHours >= 7 && data.sleep.avgHours <= 8) {
+                score += 25;
+                factors.push({ name: 'sleep', impact: '+25', message: isArabic ? 'نوم مثالي' : 'Ideal sleep' });
+            } else if (data.sleep.avgHours >= 6) {
+                score += 15;
+                factors.push({ name: 'sleep', impact: '+15', message: isArabic ? 'نوم جيد' : 'Good sleep' });
+            } else if (data.sleep.avgHours >= 5) {
+                score += 5;
+                factors.push({ name: 'sleep', impact: '+5', message: isArabic ? 'نوم مقبول' : 'Fair sleep' });
+            } else if (data.sleep.avgHours > 0) {
+                score -= 10;
+                factors.push({ name: 'sleep', impact: '-10', message: isArabic ? 'قلة نوم' : 'Poor sleep' });
             }
         }
         
-        // ربط النشاط بالمزاج
-        if (rawData.activities.length > 3 && rawData.mood.length > 3) {
-            const activityMinutes = rawData.activities.slice(0, 10).map(a => a.duration_minutes || 0);
-            const getMoodScore = (m) => {
-                const map = { 'Excellent': 5, 'Good': 4, 'Neutral': 3, 'Stressed': 2, 'Anxious': 2, 'Sad': 1 };
-                return map[m.mood] || 3;
-            };
-            const moodScores = rawData.mood.slice(0, 10).map(m => getMoodScore(m));
+        // المزاج (20 نقطة)
+        if (data.mood) {
+            if (data.mood.avg >= 4) {
+                score += 20;
+                factors.push({ name: 'mood', impact: '+20', message: isArabic ? 'مزاج ممتاز' : 'Excellent mood' });
+            } else if (data.mood.avg >= 3) {
+                score += 10;
+                factors.push({ name: 'mood', impact: '+10', message: isArabic ? 'مزاج جيد' : 'Good mood' });
+            } else if (data.mood.avg >= 2) {
+                score += 0;
+                factors.push({ name: 'mood', impact: '0', message: isArabic ? 'مزاج متوسط' : 'Fair mood' });
+            } else if (data.mood.avg > 0) {
+                score -= 10;
+                factors.push({ name: 'mood', impact: '-10', message: isArabic ? 'مزاج منخفض' : 'Low mood' });
+            }
+        }
+        
+        // النشاط (20 نقطة)
+        if (data.activity) {
+            if (data.activity.weeklyMinutes >= 150) {
+                score += 20;
+                factors.push({ name: 'activity', impact: '+20', message: isArabic ? 'نشاط ممتاز' : 'Excellent activity' });
+            } else if (data.activity.weeklyMinutes >= 100) {
+                score += 12;
+                factors.push({ name: 'activity', impact: '+12', message: isArabic ? 'نشاط جيد' : 'Good activity' });
+            } else if (data.activity.weeklyMinutes >= 50) {
+                score += 5;
+                factors.push({ name: 'activity', impact: '+5', message: isArabic ? 'نشاط مقبول' : 'Fair activity' });
+            } else if (data.activity.weeklyMinutes > 0) {
+                score -= 5;
+                factors.push({ name: 'activity', impact: '-5', message: isArabic ? 'قلة نشاط' : 'Low activity' });
+            }
+        }
+        
+        // التغذية (15 نقطة)
+        if (data.nutrition && data.nutrition.avgCalories > 0) {
+            if (data.nutrition.avgCalories >= 1800 && data.nutrition.avgCalories <= 2200) {
+                score += 15;
+                factors.push({ name: 'nutrition', impact: '+15', message: isArabic ? 'تغذية متوازنة' : 'Balanced diet' });
+            } else if (data.nutrition.avgCalories >= 1500) {
+                score += 8;
+                factors.push({ name: 'nutrition', impact: '+8', message: isArabic ? 'تغذية جيدة' : 'Good diet' });
+            } else if (data.nutrition.avgCalories > 0) {
+                score += 0;
+                factors.push({ name: 'nutrition', impact: '0', message: isArabic ? 'تغذية تحتاج تحسين' : 'Diet needs improvement' });
+            }
+        }
+        
+        // العادات (20 نقطة)
+        if (data.habits) {
+            if (data.habits.completionRate >= 80) {
+                score += 20;
+                factors.push({ name: 'habits', impact: '+20', message: isArabic ? 'التزام ممتاز' : 'Excellent commitment' });
+            } else if (data.habits.completionRate >= 60) {
+                score += 12;
+                factors.push({ name: 'habits', impact: '+12', message: isArabic ? 'التزام جيد' : 'Good commitment' });
+            } else if (data.habits.completionRate >= 40) {
+                score += 5;
+                factors.push({ name: 'habits', impact: '+5', message: isArabic ? 'التزام مقبول' : 'Fair commitment' });
+            } else if (data.habits.total > 0) {
+                score -= 5;
+                factors.push({ name: 'habits', impact: '-5', message: isArabic ? 'تحتاج تنظيم عاداتك' : 'Need to organize habits' });
+            }
+        }
+        
+        return {
+            score: Math.min(100, Math.max(0, Math.round(score))),
+            grade: score >= 85 ? 'A' : score >= 70 ? 'B' : score >= 55 ? 'C' : score >= 40 ? 'D' : 'E',
+            factors: factors.slice(0, 4)
+        };
+    };
+
+    const calculateRealCorrelations = (rawData) => {
+        const correlations = [];
+        
+        // ربط النوم بالمزاج
+        if (rawData.sleep.length >= 3 && rawData.mood.length >= 3) {
+            const sleepData = [];
+            const moodData = [];
             
-            const correlation = calculateCorrelation(activityMinutes, moodScores);
-            const absCorr = Math.abs(correlation);
+            // محاذاة البيانات حسب التاريخ
+            rawData.sleep.forEach(sleep => {
+                const sleepDate = new Date(sleep.sleep_start || sleep.start_time).toDateString();
+                const moodOnSameDay = rawData.mood.find(m => 
+                    new Date(m.entry_time).toDateString() === sleepDate
+                );
+                
+                if (moodOnSameDay) {
+                    const hours = (new Date(sleep.sleep_end || sleep.end_time) - new Date(sleep.sleep_start || sleep.start_time)) / (1000 * 60 * 60);
+                    if (hours > 0 && hours <= 24) {
+                        sleepData.push(hours);
+                        const moodMap = { 'Excellent': 5, 'Good': 4, 'Neutral': 3, 'Stressed': 2, 'Anxious': 2, 'Sad': 1 };
+                        moodData.push(moodMap[moodOnSameDay.mood] || 3);
+                    }
+                }
+            });
             
-            if (absCorr > 0.3) {
-                correlations.push({
-                    type: 'activity_mood',
-                    icon: '🏃 ↔️ 😊',
-                    title: t('correlations.activityMood.title', 'النشاط والمزاج'),
-                    description: t('correlations.activityMood.desc', 'العلاقة بين مدة النشاط البدني وجودة المزاج'),
-                    strength: correlation,
-                    strengthPercent: Math.round(absCorr * 100),
-                    sampleSize: Math.min(activityMinutes.length, moodScores.length),
-                    insight: correlation > 0 ? 
-                        t('correlations.activityMood.positive', 'النشاط البدني يحسن مزاجك') :
-                        t('correlations.activityMood.negative', 'قلة النشاط مرتبطة بمزاج أقل')
-                });
+            if (sleepData.length >= 3) {
+                const correlation = calculateCorrelation(sleepData, moodData);
+                const absCorr = Math.abs(correlation);
+                
+                if (absCorr > 0.2) {
+                    correlations.push({
+                        type: 'sleep_mood',
+                        icon: '😴 ↔️ 😊',
+                        title: isArabic ? 'النوم والمزاج' : 'Sleep & Mood',
+                        insight: correlation > 0 ? 
+                            (isArabic ? 'عندما تنام أكثر، يتحسن مزاجك' : 'Better sleep leads to better mood') :
+                            (isArabic ? 'قلة النوم تؤثر سلباً على مزاجك' : 'Poor sleep affects your mood negatively'),
+                        strength: correlation,
+                        strengthPercent: Math.min(95, Math.max(5, Math.round(absCorr * 100))),
+                        sampleSize: sleepData.length
+                    });
+                }
+            }
+        }
+        
+        // ربط العادات بالصحة
+        if (rawData.habits.length >= 3 && rawData.health.length >= 3) {
+            const habitCompletion = [];
+            const healthScores = [];
+            
+            rawData.habits.forEach(habit => {
+                const habitDate = new Date(habit.log_date || habit.date).toDateString();
+                const healthOnSameDay = rawData.health.find(h => 
+                    new Date(h.recorded_at).toDateString() === habitDate
+                );
+                
+                if (healthOnSameDay && healthOnSameDay.weight_kg) {
+                    habitCompletion.push(habit.is_completed ? 1 : 0);
+                    healthScores.push(parseFloat(healthOnSameDay.weight_kg));
+                }
+            });
+            
+            if (habitCompletion.length >= 3) {
+                const correlation = calculateCorrelation(habitCompletion, healthScores);
+                const absCorr = Math.abs(correlation);
+                
+                if (absCorr > 0.2) {
+                    correlations.push({
+                        type: 'habits_health',
+                        icon: '💊 ↔️ ⚖️',
+                        title: isArabic ? 'العادات والوزن' : 'Habits & Weight',
+                        insight: correlation < 0 ?
+                            (isArabic ? 'الالتزام بالعادات يساعد في التحكم بالوزن' : 'Following habits helps with weight management') :
+                            (isArabic ? 'عاداتك تؤثر على صحتك' : 'Your habits affect your health'),
+                        strength: -Math.abs(correlation),
+                        strengthPercent: Math.min(95, Math.max(5, Math.round(absCorr * 100))),
+                        sampleSize: habitCompletion.length
+                    });
+                }
             }
         }
         
         return correlations;
     };
 
-    const generateSmartRecommendations = (data, rawData) => {
+    const generateRealRecommendations = (data, rawData) => {
         const recommendations = [];
-        const now = new Date();
-        const currentHour = now.getHours();
         
-        // 1. توصيات الصحة - مع درجات واقعية
+        // توصيات النوم
+        if (data.sleep && data.sleep.avgHours < 7 && data.sleep.avgHours > 0) {
+            recommendations.push({
+                id: 'sleep-more',
+                icon: '😴',
+                category: isArabic ? 'النوم' : 'Sleep',
+                priority: data.sleep.avgHours < 6 ? 'high' : 'medium',
+                title: isArabic ? 'حسّن نومك' : 'Improve your sleep',
+                message: isArabic 
+                    ? `متوسط نومك ${data.sleep.avgHours} ساعات يومياً`
+                    : `Your average sleep is ${data.sleep.avgHours} hours per day`,
+                advice: isArabic 
+                    ? `حاول النوم ${Math.round(8 - data.sleep.avgHours)} ساعات إضافية`
+                    : `Try to sleep ${Math.round(8 - data.sleep.avgHours)} more hours`,
+                actions: [
+                    isArabic ? '🌙 نام قبل الساعة 11 مساءً' : '🌙 Sleep before 11 PM',
+                    isArabic ? '📱 تجنب الشاشات قبل النوم بساعة' : '📱 Avoid screens 1 hour before bed',
+                    isArabic ? '🕯️ اجعل غرفة النوم مظلمة وهادئة' : '🕯️ Keep bedroom dark and quiet',
+                    isArabic ? '🧘 مارس تمارين الاسترخاء' : '🧘 Practice relaxation exercises'
+                ],
+                basedOn: isArabic ? `بناءً على آخر ${data.sleep.totalDays} يوم` : `Based on last ${data.sleep.totalDays} days`
+            });
+        }
+        
+        // توصيات النشاط
+        if (data.activity && data.activity.weeklyMinutes < 150 && data.activity.weeklyMinutes > 0) {
+            const remaining = 150 - data.activity.weeklyMinutes;
+            recommendations.push({
+                id: 'activity-more',
+                icon: '🏃',
+                category: isArabic ? 'النشاط' : 'Activity',
+                priority: 'high',
+                title: isArabic ? 'زد نشاطك البدني' : 'Increase physical activity',
+                message: isArabic 
+                    ? `${data.activity.weeklyMinutes} دقيقة هذا الأسبوع`
+                    : `${data.activity.weeklyMinutes} minutes this week`,
+                advice: isArabic 
+                    ? `تحتاج ${remaining} دقيقة إضافية لتحقيق الهدف الأسبوعي`
+                    : `Need ${remaining} more minutes to reach weekly goal`,
+                actions: [
+                    isArabic ? '🚶 مشي 20 دقيقة يومياً' : '🚶 Walk 20 minutes daily',
+                    isArabic ? '🧘 تمارين منزلية 10 دقائق' : '🧘 10 minutes home exercise',
+                    isArabic ? '🚴 ركوب الدراجة' : '🚴 Cycling',
+                    isArabic ? '🏊 السباحة مرتين أسبوعياً' : '🏊 Swim twice a week'
+                ],
+                basedOn: isArabic ? 'الهدف: 150 دقيقة أسبوعياً' : 'Goal: 150 minutes weekly'
+            });
+        }
+        
+        // توصيات الالتزام بالأدوية
+        if (data.habits && data.habits.medicationAdherence < 80 && data.habits.medTotal > 0) {
+            recommendations.push({
+                id: 'medication-adherence',
+                icon: '💊',
+                category: isArabic ? 'الأدوية' : 'Medications',
+                priority: data.habits.medicationAdherence < 60 ? 'urgent' : 'high',
+                title: isArabic ? 'التزم بأدويتك' : 'Medication adherence',
+                message: isArabic 
+                    ? `التزامك بالأدوية ${data.habits.medicationAdherence}%`
+                    : `Your medication adherence is ${data.habits.medicationAdherence}%`,
+                advice: isArabic 
+                    ? 'حافظ على انتظام جرعات الدواء'
+                    : 'Maintain regular medication doses',
+                actions: [
+                    isArabic ? '🔔 اضبط تذكيراً يومياً' : '🔔 Set a daily reminder',
+                    isArabic ? '📅 استخدم علبة أدوية أسبوعية' : '📅 Use a weekly pill organizer',
+                    isArabic ? '📝 سجل جرعاتك فور تناولها' : '📝 Log doses immediately after taking',
+                    isArabic ? '👨‍⚕️ استشر طبيبك عن أي صعوبات' : '👨‍⚕️ Consult your doctor about difficulties'
+                ],
+                basedOn: isArabic ? `بناءً على آخر ${data.habits.medTotal} جرعة` : `Based on last ${data.habits.medTotal} doses`
+            });
+        }
+        
+        // توصيات الوزن
         if (data.health && data.health.bmi) {
             if (data.health.bmi > 30) {
                 recommendations.push({
                     id: 'weight-high',
                     icon: '⚖️',
-                    category: t('categories.health'),
+                    category: isArabic ? 'الصحة' : 'Health',
                     priority: 'high',
-                    title: t('recommendations.weightHigh.title', 'تحسين الوزن'),
-                    message: t('recommendations.weightHigh.message', `مؤشر كتلة الجسم ${data.health.bmi}`),
-                    advice: t('recommendations.weightHigh.advice', 'فقدان 0.5-1 كجم أسبوعياً'),
+                    title: isArabic ? 'تحسين الوزن' : 'Improve weight',
+                    message: isArabic 
+                        ? `مؤشر كتلة الجسم ${data.health.bmi}`
+                        : `BMI is ${data.health.bmi}`,
+                    advice: isArabic 
+                        ? 'فقدان 0.5-1 كجم أسبوعياً'
+                        : 'Lose 0.5-1 kg weekly',
                     actions: [
-                        t('recommendations.weightHigh.action1', '🚶 مشي 30 دقيقة يومياً'),
-                        t('recommendations.weightHigh.action2', '🥗 تقليل السكريات والنشويات'),
-                        t('recommendations.weightHigh.action3', '💧 شرب 2-3 لتر ماء يومياً'),
-                        t('recommendations.weightHigh.action4', '🍎 تناول وجبات صغيرة متعددة')
+                        isArabic ? '🥗 قلل السعرات 500 سعرة يومياً' : '🥗 Reduce calories by 500 daily',
+                        isArabic ? '🚶 مشي 30 دقيقة يومياً' : '🚶 Walk 30 minutes daily',
+                        isArabic ? '💧 اشرب 3 لتر ماء يومياً' : '💧 Drink 3 liters water daily',
+                        isArabic ? '🍎 تناول خضروات مع كل وجبة' : '🍎 Eat vegetables with every meal'
                     ],
-                    basedOn: t('recommendations.weightHigh.basedOn', 'بناءً على آخر 7 أيام')
+                    basedOn: isArabic ? 'توصية صحية عامة' : 'General health recommendation'
                 });
-            } else if (data.health.bmi < 18.5) {
+            } else if (data.health.bmi < 18.5 && data.health.bmi > 0) {
                 recommendations.push({
                     id: 'weight-low',
                     icon: '⚖️',
-                    category: t('categories.health'),
-                    priority: 'high',
-                    title: t('recommendations.weightLow.title', 'زيادة الوزن'),
-                    message: t('recommendations.weightLow.message', `مؤشر كتلة الجسم ${data.health.bmi}`),
-                    advice: t('recommendations.weightLow.advice', 'زيادة 0.5-1 كجم شهرياً'),
-                    actions: [
-                        t('recommendations.weightLow.action1', '🥜 إضافة مكسرات وزبدة الفول السوداني'),
-                        t('recommendations.weightLow.action2', '🥑 أطعمة غنية بالدهون الصحية'),
-                        t('recommendations.weightLow.action3', '🍚 زيادة كمية الكربوهيدرات الصحية'),
-                        t('recommendations.weightLow.action4', '💪 تمارين تقوية العضلات')
-                    ],
-                    basedOn: t('recommendations.weightLow.basedOn', 'بناءً على آخر 7 أيام')
-                });
-            }
-        }
-        
-        // 2. توصيات النوم - مع بيانات حقيقية
-        if (data.sleep) {
-            if (data.sleep.avgHours < 6) {
-                recommendations.push({
-                    id: 'sleep-more',
-                    icon: '😴',
-                    category: t('categories.sleep'),
-                    priority: 'high',
-                    title: t('recommendations.sleepMore.title', 'تحسين النوم'),
-                    message: t('recommendations.sleepMore.message', `متوسط نومك ${data.sleep.avgHours} ساعات`),
-                    advice: t('recommendations.sleepMore.advice', `حاول النوم ${8 - data.sleep.avgHours} ساعات إضافية`),
-                    actions: [
-                        t('recommendations.sleepMore.action1', '🌙 النوم قبل 11 مساءً'),
-                        t('recommendations.sleepMore.action2', '📱 تجنب الشاشات قبل النوم بساعة'),
-                        t('recommendations.sleepMore.action3', '🕯️ اجعل الغرفة مظلمة وهادئة'),
-                        t('recommendations.sleepMore.action4', '🧘 تمارين الاسترخاء قبل النوم')
-                    ],
-                    basedOn: t('recommendations.sleepMore.basedOn', `بناءً على آخر ${data.sleep.totalDays} يوم`),
-                    prediction: t('recommendations.sleepMore.prediction', 'تحسن المزاج والطاقة')
-                });
-            }
-            
-            if (data.sleep.quality < 3) {
-                recommendations.push({
-                    id: 'sleep-quality',
-                    icon: '⭐',
-                    category: t('categories.sleep'),
+                    category: isArabic ? 'الصحة' : 'Health',
                     priority: 'medium',
-                    title: t('recommendations.sleepQuality.title', 'جودة النوم'),
-                    message: t('recommendations.sleepQuality.message', `جودة نومك ${data.sleep.quality}/5`),
-                    advice: t('recommendations.sleepQuality.advice', 'تحسين بيئة النوم'),
+                    title: isArabic ? 'زيادة الوزن' : 'Gain weight',
+                    message: isArabic 
+                        ? `مؤشر كتلة الجسم ${data.health.bmi}`
+                        : `BMI is ${data.health.bmi}`,
+                    advice: isArabic 
+                        ? 'زيادة 0.5-1 كجم شهرياً'
+                        : 'Gain 0.5-1 kg monthly',
                     actions: [
-                        t('recommendations.sleepQuality.action1', '🌡️ درجة حرارة الغرفة 18-22°C'),
-                        t('recommendations.sleepQuality.action2', '🚫 تجنب الكافيين بعد العصر'),
-                        t('recommendations.sleepQuality.action3', '🛏️ فراش مريح'),
-                        t('recommendations.sleepQuality.action4', '🎵 موسيقى هادئة قبل النوم')
+                        isArabic ? '🥑 أضف دهون صحية' : '🥑 Add healthy fats',
+                        isArabic ? '💪 تمارين تقوية العضلات' : '💪 Strength training',
+                        isArabic ? '🍚 زد الكربوهيدرات الصحية' : '🍚 Increase healthy carbs',
+                        isArabic ? '🥜 تناول مكسرات يومياً' : '🥜 Eat nuts daily'
                     ],
-                    basedOn: t('recommendations.sleepQuality.basedOn', `بناءً على آخر ${data.sleep.totalDays} يوم`)
-                });
-            }
-        }
-        
-        // 3. توصيات النشاط
-        if (data.activity && data.activity.weeklyMinutes < 150) {
-            const remaining = 150 - data.activity.weeklyMinutes;
-            recommendations.push({
-                id: 'activity-more',
-                icon: '🏃',
-                category: t('categories.activity'),
-                priority: 'high',
-                title: t('recommendations.activityMore.title', 'زيادة النشاط'),
-                message: t('recommendations.activityMore.message', `${data.activity.weeklyMinutes} دقيقة هذا الأسبوع`),
-                advice: t('recommendations.activityMore.advice', `نقص ${remaining} دقيقة عن الهدف الأسبوعي`),
-                actions: [
-                    t('recommendations.activityMore.action1', '🚶 مشي 20 دقيقة يومياً'),
-                    t('recommendations.activityMore.action2', '🧘 تمارين منزلية 10 دقائق'),
-                    t('recommendations.activityMore.action3', '🚴 ركوب الدراجة'),
-                    t('recommendations.activityMore.action4', '🏊 السباحة مرتين أسبوعياً')
-                ],
-                basedOn: t('recommendations.activityMore.basedOn', 'الهدف: 150 دقيقة أسبوعياً')
-            });
-        }
-        
-        // 4. توصيات التغذية حسب الوقت
-        if (currentHour >= 5 && currentHour <= 9) {
-            recommendations.push({
-                id: 'breakfast-time',
-                icon: '🍳',
-                category: t('categories.nutrition'),
-                priority: 'high',
-                title: t('recommendations.breakfast.title', 'وقت الإفطار'),
-                message: t('recommendations.breakfast.message', 'وجبة الفطور تمنحك الطاقة لليوم'),
-                advice: t('recommendations.breakfast.advice', 'اختر وجبة متوازنة'),
-                actions: [
-                    t('recommendations.breakfast.action1', '🥚 بيض + خبز أسمر'),
-                    t('recommendations.breakfast.action2', '🥣 شوفان مع فواكه'),
-                    t('recommendations.breakfast.action3', '🥑 توست أفوكادو'),
-                    t('recommendations.breakfast.action4', '🍌 زبادي مع مكسرات')
-                ],
-                basedOn: t('recommendations.breakfast.basedOn', 'أفضل وقت للإفطار')
-            });
-        }
-        
-        // 5. توصيات المزاج
-        if (data.mood && data.mood.avg < 3) {
-            recommendations.push({
-                id: 'mood-low',
-                icon: '😊',
-                category: t('categories.mood'),
-                priority: 'high',
-                title: t('recommendations.moodLow.title', 'تحسين المزاج'),
-                message: t('recommendations.moodLow.message', `متوسط مزاجك ${data.mood.avg}/5`),
-                advice: t('recommendations.moodLow.advice', 'أنشطة تساعد على تحسين المزاج'),
-                actions: [
-                    t('recommendations.moodLow.action1', '🚶 مشي 20 دقيقة في الهواء الطلق'),
-                    t('recommendations.moodLow.action2', '💬 تحدث مع شخص تثق به'),
-                    t('recommendations.moodLow.action3', '📝 اكتب 3 أشياء إيجابية اليوم'),
-                    t('recommendations.moodLow.action4', '🎵 استمع لموسيقى تحبها')
-                ],
-                basedOn: t('recommendations.moodLow.basedOn', `بناءً على آخر ${data.mood.totalDays} يوم`)
-            });
-        }
-        
-        // 6. تنبيهات خطر حقيقية
-        if (data.sleep && data.sleep.lastHours < 4) {
-            recommendations.push({
-                id: 'danger-sleep',
-                icon: '🚨',
-                category: t('categories.alert'),
-                priority: 'urgent',
-                title: t('recommendations.dangerSleep.title', '⚠️ خطر قلة النوم'),
-                message: t('recommendations.dangerSleep.message', `نمت ${data.sleep.lastHours} ساعات فقط`),
-                advice: t('recommendations.dangerSleep.advice', 'قلة النوم المستمرة تؤثر على صحتك'),
-                actions: [
-                    t('recommendations.dangerSleep.action1', '😴 نام مبكراً الليلة'),
-                    t('recommendations.dangerSleep.action2', '☕ قلل الكافيين اليوم'),
-                    t('recommendations.dangerSleep.action3', '📱 تجنب الشاشات قبل النوم')
-                ],
-                basedOn: t('recommendations.dangerSleep.basedOn', 'تسجيل نوم الليلة الماضية')
-            });
-        }
-        
-        // 7. توصيات الطقس (مع موقع دقيق)
-        if (rawData.weather) {
-            const weather = rawData.weather;
-            if (weather.temperature > 35) {
-                recommendations.push({
-                    id: 'weather-hot',
-                    icon: '☀️',
-                    category: t('categories.weather'),
-                    priority: 'medium',
-                    title: t('recommendations.weatherHot.title', 'طقس حار'),
-                    message: t('recommendations.weatherHot.message', `${weather.temperature}°C - ${weather.city || ''}`),
-                    advice: t('recommendations.weatherHot.advice', 'اشرب ماء بانتظام'),
-                    actions: [
-                        t('recommendations.weatherHot.action1', '💧 اشرب 3-4 لتر ماء'),
-                        t('recommendations.weatherHot.action2', '🌳 تجنب الخروج في الظهيرة'),
-                        t('recommendations.weatherHot.action3', '🧢 ارتدِ قبعة ونظارات شمسية'),
-                        t('recommendations.weatherHot.action4', '🍉 تناول فواكه غنية بالماء')
-                    ],
-                    basedOn: t('recommendations.weatherHot.basedOn', `طقس ${weather.city || 'موقعك'}`)
+                    basedOn: isArabic ? 'توصية صحية عامة' : 'General health recommendation'
                 });
             }
         }
@@ -610,12 +612,55 @@ const SmartRecommendations = () => {
         return recommendations;
     };
 
+    const generateRealPredictions = (data) => {
+        const predictions = [];
+        
+        // تنبؤ الوزن
+        if (data.health && data.health.weight) {
+            predictions.push({
+                icon: '⚖️',
+                label: isArabic ? 'الوزن المتوقع' : 'Expected Weight',
+                value: `${data.health.weight} kg`,
+                trend: 'stable',
+                note: isArabic ? 'بناءً على قراءاتك الحالية' : 'Based on your current readings'
+            });
+        }
+        
+        // تنبؤ النوم
+        if (data.sleep && data.sleep.avgHours > 0) {
+            const predictedSleep = Math.min(8, data.sleep.avgHours + 0.5);
+            predictions.push({
+                icon: '🌙',
+                label: isArabic ? 'النوم المتوقع' : 'Expected Sleep',
+                value: `${predictedSleep} ${isArabic ? 'ساعات' : 'hours'}`,
+                trend: data.sleep.avgHours < 7 ? 'up' : 'stable',
+                note: isArabic ? 'مع تطبيق نصائح النوم' : 'With sleep tips applied'
+            });
+        }
+        
+        // تنبؤ المزاج
+        if (data.mood && data.mood.avg > 0) {
+            const predictedMood = Math.min(5, data.mood.avg + 0.3);
+            predictions.push({
+                icon: '😊',
+                label: isArabic ? 'المزاج المتوقع' : 'Expected Mood',
+                value: predictedMood >= 4 ? (isArabic ? 'ممتاز' : 'Excellent') : 
+                       predictedMood >= 3 ? (isArabic ? 'جيد' : 'Good') : 
+                       (isArabic ? 'متوسط' : 'Fair'),
+                trend: data.mood.avg < 3.5 ? 'up' : 'stable',
+                note: isArabic ? 'مع تحسين النوم والعادات' : 'With improved sleep and habits'
+            });
+        }
+        
+        return predictions;
+    };
+
     if (loading) {
         return (
             <div className={`smart-recommendations ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="loading-container">
                     <div className="spinner"></div>
-                    <p>{t('smartRecommendations.loading')}</p>
+                    <p>{isArabic ? 'جاري تحليل بياناتك...' : 'Analyzing your data...'}</p>
                 </div>
             </div>
         );
@@ -627,7 +672,7 @@ const SmartRecommendations = () => {
                 <div className="error-container">
                     <p>❌ {error}</p>
                     <button onClick={fetchAllData} className="retry-btn">
-                        🔄 {t('smartRecommendations.retry')}
+                        🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                     </button>
                 </div>
             </div>
@@ -637,18 +682,39 @@ const SmartRecommendations = () => {
     return (
         <div className={`smart-recommendations ${darkMode ? 'dark-mode' : ''}`}>
             <div className="recommendations-header">
-                <h2>🧠 {t('smartRecommendations.title')}</h2>
-                <button onClick={fetchAllData} className="refresh-btn" title={t('smartRecommendations.refresh')}>
+                <h2>🧠 {isArabic ? 'تحليلات وتوصيات ذكية' : 'Smart Analytics & Recommendations'}</h2>
+                <button onClick={fetchAllData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
             </div>
 
-            {/* درجة الصحة المحسنة */}
+            {/* الطقس */}
+            {weather && (
+                <div className="weather-card">
+                    <div className="weather-header">
+                        <span className="weather-icon">🌤️</span>
+                        <span className="weather-location">📍 {weather.city || isArabic ? 'موقعك' : 'Your location'}</span>
+                        <button onClick={fetchAllData} className="weather-refresh">🔄</button>
+                    </div>
+                    <div className="weather-info">
+                        <div className="weather-temp">{Math.round(weather.temperature)}°C</div>
+                        <div className="weather-details">
+                            <span>💧 {weather.humidity || '—'}%</span>
+                            <span>🌬️ {weather.wind_speed || '—'} km/h</span>
+                        </div>
+                    </div>
+                    {weather.recommendation && (
+                        <div className="weather-recommendation">💡 {weather.recommendation}</div>
+                    )}
+                </div>
+            )}
+
+            {/* درجة الصحة */}
             {healthScore && (
                 <div className="health-score-card">
                     <div className="score-header">
                         <span className="score-icon">📊</span>
-                        <span className="score-title">{t('smartRecommendations.healthScore')}</span>
+                        <span className="score-title">{isArabic ? 'درجة صحتك الشخصية' : 'Your Health Score'}</span>
                         <span className={`score-value score-${healthScore.grade}`}>
                             {healthScore.score}/100
                         </span>
@@ -659,21 +725,22 @@ const SmartRecommendations = () => {
                             <div className="progress-fill" style={{ width: `${healthScore.score}%` }} />
                         </div>
                     </div>
-                    <div className="score-factors">
-                        {healthScore.factors.slice(0, 3).map((f, i) => (
-                            <div key={i} className="factor-item">
-                                <span className="factor-impact">{f.impact}</span>
-                                <span className="factor-message">{f.message}</span>
-                            </div>
-                        ))}
+                    <div className="score-message">
+                        {healthScore.score >= 80 ? '🌟 ' : 
+                         healthScore.score >= 60 ? '👍 ' : 
+                         healthScore.score >= 40 ? '📈 ' : '⚠️ '}
+                        {healthScore.score >= 80 ? (isArabic ? 'أحسنت! صحتك ممتازة' : 'Excellent! Your health is great') :
+                         healthScore.score >= 60 ? (isArabic ? 'صحتك جيدة، يمكنك التحسن' : 'Good health, you can improve') :
+                         healthScore.score >= 40 ? (isArabic ? 'صحتك متوسطة، اتبع التوصيات' : 'Fair health, follow recommendations') :
+                         (isArabic ? 'صحتك تحتاج اهتمام، ابدأ بخطوات صغيرة' : 'Your health needs attention, start with small steps')}
                     </div>
                 </div>
             )}
 
-            {/* العلاقات مع بيانات حقيقية */}
+            {/* العلاقات المهمة */}
             {correlations.length > 0 && (
                 <div className="correlations-section">
-                    <h3>🔗 {t('smartRecommendations.correlations')}</h3>
+                    <h3>🔗 {isArabic ? 'علاقات مهمة في بياناتك' : 'Important correlations in your data'}</h3>
                     <div className="correlations-grid">
                         {correlations.map((corr, idx) => (
                             <div key={idx} className="correlation-card">
@@ -688,20 +755,8 @@ const SmartRecommendations = () => {
                                         <span className="strength-value">{corr.strengthPercent}%</span>
                                     </div>
                                     <div className="correlation-meta">
-                                        📊 {t('smartRecommendations.basedOn')} {corr.sampleSize} {t('smartRecommendations.days')}
+                                        📊 {isArabic ? `بناءً على ${corr.sampleSize} يوم` : `Based on ${corr.sampleSize} days`}
                                     </div>
-                                    <button 
-                                        className="explain-btn"
-                                        onClick={() => setExpandedCard(expandedCard === idx ? null : idx)}
-                                    >
-                                        {expandedCard === idx ? '📖 إخفاء التفاصيل' : '📖 كيف تم الحساب؟'}
-                                    </button>
-                                    {expandedCard === idx && (
-                                        <div className="explanation">
-                                            <p>{t('correlations.explanation')}</p>
-                                            <small>{t('correlations.formula')}: r = {corr.strength.toFixed(3)}</small>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         ))}
@@ -709,12 +764,9 @@ const SmartRecommendations = () => {
                 </div>
             )}
 
-            {/* التوصيات الذكية */}
-            {recommendations.length === 0 ? (
-                <div className="no-recommendations">
-                    <p>✨ {t('smartRecommendations.noRecommendations')}</p>
-                </div>
-            ) : (
+            {/* خطة متكاملة */}
+            <div className="integrated-plan">
+                <h3>🎯 {isArabic ? 'خطة متكاملة لتحسين صحتك' : 'Integrated plan to improve your health'}</h3>
                 <div className="recommendations-grid">
                     {recommendations.map((rec) => (
                         <div key={rec.id} className={`recommendation-card priority-${rec.priority}`}>
@@ -722,9 +774,9 @@ const SmartRecommendations = () => {
                                 <span className="card-icon">{rec.icon}</span>
                                 <span className="card-category">{rec.category}</span>
                                 <span className={`card-priority priority-${rec.priority}`}>
-                                    {rec.priority === 'urgent' ? t('priority.urgent') : 
-                                     rec.priority === 'high' ? t('priority.high') : 
-                                     rec.priority === 'medium' ? t('priority.medium') : t('priority.low')}
+                                    {rec.priority === 'urgent' ? (isArabic ? 'عاجل' : 'Urgent') : 
+                                     rec.priority === 'high' ? (isArabic ? 'مهم' : 'Important') : 
+                                     rec.priority === 'medium' ? (isArabic ? 'متوسط' : 'Medium') : (isArabic ? 'منخفض' : 'Low')}
                                 </span>
                             </div>
                             
@@ -732,24 +784,17 @@ const SmartRecommendations = () => {
                             <p className="card-message">{rec.message}</p>
                             
                             <div className="card-advice">
-                                <strong>💡 {t('smartRecommendations.tip')}:</strong> {rec.advice}
+                                <strong>💡 {isArabic ? 'نصيحة' : 'Tip'}:</strong> {rec.advice}
                             </div>
                             
                             {rec.actions && rec.actions.length > 0 && (
                                 <div className="card-actions">
-                                    <strong>📋 {t('smartRecommendations.suggestions')}:</strong>
+                                    <strong>📋 {isArabic ? 'اقتراحات' : 'Suggestions'}:</strong>
                                     <ul>
-                                        {rec.actions.slice(0, 3).map((action, i) => (
+                                        {rec.actions.map((action, i) => (
                                             <li key={i}>{action}</li>
                                         ))}
                                     </ul>
-                                </div>
-                            )}
-                            
-                            {rec.prediction && (
-                                <div className="card-prediction">
-                                    <span className="prediction-icon">🔮</span>
-                                    <span>{rec.prediction}</span>
                                 </div>
                             )}
                             
@@ -759,14 +804,41 @@ const SmartRecommendations = () => {
                         </div>
                     ))}
                 </div>
+            </div>
+
+            {/* توقعات الأسبوع القادم */}
+            {predictions && predictions.length > 0 && (
+                <div className="predictions-section">
+                    <h3>🔮 {isArabic ? 'توقعات للأسبوع القادم' : 'Predictions for next week'}</h3>
+                    <div className="predictions-grid">
+                        {predictions.map((pred, idx) => (
+                            <div key={idx} className="prediction-card">
+                                <div className="prediction-icon">{pred.icon}</div>
+                                <div className="prediction-content">
+                                    <div className="prediction-label">{pred.label}</div>
+                                    <div className="prediction-value">{pred.value}</div>
+                                    <div className={`prediction-trend ${pred.trend}`}>
+                                        {pred.trend === 'up' ? '⬆️' : pred.trend === 'down' ? '⬇️' : '➡️'}
+                                    </div>
+                                </div>
+                                {pred.note && <div className="prediction-note">ℹ️ {pred.note}</div>}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="predictions-note">
+                        ⚠️ {isArabic 
+                            ? '* هذه التوقعات تقديرية وتعتمد على التزامك بالتوصيات المقترحة'
+                            : '* These predictions are estimates based on following the recommended tips'}
+                    </div>
+                </div>
             )}
 
             {lastUpdate && (
                 <div className="recommendations-footer">
-                    <small>🕒 {t('smartRecommendations.lastUpdate')}: {lastUpdate.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}</small>
+                    <small>🕒 {isArabic ? 'آخر تحديث' : 'Last update'}: {lastUpdate.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}</small>
                 </div>
             )}
-
+  
             <style jsx>{`
 /* SmartRecommendations.css - متوافق مع ThemeManager */
 
