@@ -34,7 +34,6 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [lastUpdate, setLastUpdate] = useState(null);
     const [darkMode, setDarkMode] = useState(false);
-    const [activeTab, setActiveTab] = useState('basic');
     const [refreshAnalytics, setRefreshAnalytics] = useState(0);
     const [nutritionGoals] = useState({
         dailyCalories: 2000,
@@ -43,17 +42,13 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         dailyFat: 70
     });
     
-    // ✅ useRef لمنع التحديثات المتكررة
-    const isMountedRef = useRef(true);
     const autoRefreshRef = useRef(autoRefresh);
     const intervalRef = useRef(null);
 
-    // تحديث ref عند تغيير autoRefresh
     useEffect(() => {
         autoRefreshRef.current = autoRefresh;
     }, [autoRefresh]);
 
-    // تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -61,23 +56,16 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
     }, []);
 
     useEffect(() => {
-        const handleThemeChange = (e) => {
-            setDarkMode(e.detail?.darkMode ?? false);
-        };
+        const handleThemeChange = (e) => setDarkMode(e.detail?.darkMode ?? false);
         window.addEventListener('themeChange', handleThemeChange);
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // ✅ تحديث تلقائي
     useEffect(() => {
         if (!autoRefresh) {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-                intervalRef.current = null;
-            }
+            if (intervalRef.current) clearInterval(intervalRef.current);
             return;
         }
-
         intervalRef.current = setInterval(() => {
             if (autoRefreshRef.current && onRefresh) {
                 onRefresh();
@@ -85,47 +73,17 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                 setLastUpdate(new Date());
             }
         }, 60000);
-
-        return () => {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-                intervalRef.current = null;
-            }
-        };
+        return () => clearInterval(intervalRef.current);
     }, [autoRefresh, onRefresh]);
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
-    useEffect(() => {
-        isMountedRef.current = true;
-        return () => {
-            isMountedRef.current = false;
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-            }
-        };
-    }, []);
-
-    // ✅ الإحصائيات الأساسية - تعتمد فقط على meals القادمة من NutritionMain
+    // الإحصائيات الأساسية
     const nutritionStats = useMemo(() => {
-        if (!meals || meals.length === 0) {
-            return {
-                totalCalories: 0,
-                avgProtein: 0,
-                avgCarbs: 0,
-                avgFat: 0,
-                todayCalories: 0,
-                totalProtein: 0,
-                totalCarbs: 0,
-                totalFat: 0,
-                totalMeals: 0
-            };
+        if (!meals?.length) {
+            return { totalCalories: 0, avgProtein: 0, avgCarbs: 0, avgFat: 0, todayCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0, totalMeals: 0 };
         }
 
         const stats = meals.reduce((acc, meal) => {
-            const mealDate = new Date(meal.meal_time);
-            const today = new Date();
-            const isToday = mealDate.toDateString() === today.toDateString();
-            
+            const isToday = new Date(meal.meal_time).toDateString() === new Date().toDateString();
             const ingredients = meal.ingredients || [];
             const mealProtein = ingredients.reduce((sum, item) => sum + (item.protein || 0), 0);
             const mealCarbs = ingredients.reduce((sum, item) => sum + (item.carbs || 0), 0);
@@ -154,12 +112,9 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         };
     }, [meals]);
 
-    // ✅ التقدم نحو الأهداف
+    // التقدم نحو الأهداف
     const goalProgress = useMemo(() => {
-        const todayMeals = meals?.filter(meal => 
-            new Date(meal.meal_time).toDateString() === new Date().toDateString()
-        ) || [];
-
+        const todayMeals = meals?.filter(meal => new Date(meal.meal_time).toDateString() === new Date().toDateString()) || [];
         const todayNutrition = todayMeals.reduce((acc, meal) => {
             const ingredients = meal.ingredients || [];
             return {
@@ -178,80 +133,38 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         };
     }, [meals, nutritionGoals]);
 
-    const getMealTypeIcon = (type) => {
-        const icons = { 'Breakfast': '🍳', 'Lunch': '🍲', 'Dinner': '🍽️', 'Snack': '🍎', 'Other': '📝' };
-        return icons[type] || '🍽️';
-    };
+    const getMealTypeIcon = (type) => ({ 'Breakfast': '🍳', 'Lunch': '🍲', 'Dinner': '🍽️', 'Snack': '🍎', 'Other': '📝' }[type] || '🍽️');
+    const getMealTypeLabel = (type) => ({ 'Breakfast': t('nutrition.breakfast'), 'Lunch': t('nutrition.lunch'), 'Dinner': t('nutrition.dinner'), 'Snack': t('nutrition.snack'), 'Other': t('nutrition.other') }[type] || type);
+    const formatDate = (dateString) => new Date(dateString).toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-    const getMealTypeLabel = (type) => {
-        const labels = {
-            'Breakfast': t('nutrition.breakfast'),
-            'Lunch': t('nutrition.lunch'),
-            'Dinner': t('nutrition.dinner'),
-            'Snack': t('nutrition.snack'),
-            'Other': t('nutrition.other')
-        };
-        return labels[type] || type;
-    };
-
-    const formatDate = (dateString) => {
-        const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-US';
-        return new Date(dateString).toLocaleDateString(locale, {
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    };
-
-    // ✅ التوصيات الذكية - تعتمد على البيانات المحلية
     const getRecommendations = () => {
-        const recommendations = [];
-        const todayMeals = meals?.filter(meal => 
-            new Date(meal.meal_time).toDateString() === new Date().toDateString()
-        ) || [];
-
-        if (nutritionStats.totalMeals === 0) {
-            recommendations.push(t('nutrition.recommendations.startTracking'));
-        }
+        const recs = [];
+        const todayMeals = meals?.filter(meal => new Date(meal.meal_time).toDateString() === new Date().toDateString()) || [];
         
-        if (goalProgress.calories >= 80) {
-            recommendations.push(t('nutrition.recommendations.caloriesGoal'));
-        }
-        if (nutritionStats.avgProtein < 50 && nutritionStats.avgProtein > 0) {
-            recommendations.push(t('nutrition.recommendations.moreProtein'));
-        }
-        if (nutritionStats.avgCarbs > 300) {
-            recommendations.push(t('nutrition.recommendations.lessCarbs'));
-        }
-        if (todayMeals.filter(meal => meal.meal_type === 'Breakfast').length === 0 && todayMeals.length > 0) {
-            recommendations.push(t('nutrition.recommendations.eatBreakfast'));
-        }
-
-        return recommendations.length > 0 ? recommendations : [t('nutrition.recommendations.balancedDiet')];
+        if (nutritionStats.totalMeals === 0) recs.push('📝 ابدأ بتسجيل أول وجبة لك');
+        if (goalProgress.calories >= 80) recs.push('🎯 ممتاز! أنت قريب من هدف السعرات اليومي');
+        if (nutritionStats.avgProtein < 50 && nutritionStats.avgProtein > 0) recs.push('💪 زد من تناول البروتين (دجاج، بيض، بقوليات)');
+        if (nutritionStats.avgCarbs > 300) recs.push('🌾 قلل من الكربوهيدرات (خبز، أرز، مكرونة)');
+        if (todayMeals.filter(m => m.meal_type === 'Breakfast').length === 0 && todayMeals.length > 0) recs.push('🌅 لا تنسَ وجبة الفطور لبدء يومك بنشاط');
+        
+        return recs.length ? recs : ['✅ نظامك الغذائي متوازن، استمر!'];
     };
 
-    // ✅ التنبؤات
-    const getRealisticPrediction = () => {
+    const getPrediction = () => {
         const totalMeals = nutritionStats.totalMeals;
-        
         if (totalMeals < 5) return null;
         
         const avgCalories = nutritionStats.totalCalories / totalMeals;
-        const dailyDeficit = avgCalories - nutritionGoals.dailyCalories;
-        const weeklyWeightChange = (dailyDeficit * 7) / 7700;
-        const maxChange = Math.min(Math.abs(weeklyWeightChange), 1);
-        const direction = weeklyWeightChange > 0 ? 'gain' : 'loss';
+        const weeklyChange = ((avgCalories - nutritionGoals.dailyCalories) * 7) / 7700;
+        const maxChange = Math.min(Math.abs(weeklyChange), 1);
         
-        return {
-            weightChange: roundNumber(maxChange, 1),
-            direction,
-            confidence: totalMeals > 20 ? 85 : totalMeals > 10 ? 70 : 50,
-            basedOn: totalMeals
-        };
+        if (weeklyChange > 0.2) return { icon: '📈', text: `زيادة متوقعة ${maxChange.toFixed(1)} كجم أسبوعياً`, color: '#f59e0b' };
+        if (weeklyChange < -0.2) return { icon: '📉', text: `خسارة متوقعة ${maxChange.toFixed(1)} كجم أسبوعياً`, color: '#10b981' };
+        return { icon: '➡️', text: 'وزن مستقر متوقع', color: '#3b82f6' };
     };
 
-    const prediction = getRealisticPrediction();
+    const prediction = getPrediction();
 
-    // ✅ تحميل مؤقت
     if (loading) {
         return (
             <div className="dashboard-loading-container">
@@ -266,14 +179,8 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
             {/* شريط التحكم */}
             <div className="dashboard-control-bar">
                 <div className="dashboard-control-left">
-                    <button onClick={onRefresh} className="dashboard-refresh-button">
-                        🔄 {t('nutrition.refresh')}
-                    </button>
-                    {lastUpdate && (
-                        <span className="dashboard-last-update">
-                            {t('nutrition.lastUpdate')}: {lastUpdate.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}
-                        </span>
-                    )}
+                    <button onClick={onRefresh} className="dashboard-refresh-button">🔄 {t('nutrition.refresh')}</button>
+                    {lastUpdate && <span className="dashboard-last-update">🕒 {lastUpdate.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}</span>}
                 </div>
                 <div className="dashboard-control-right">
                     <label className="dashboard-auto-refresh">
@@ -283,101 +190,58 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                 </div>
             </div>
 
-            {/* تبويبات */}
+            {/* تبويبات مبسطة */}
             <div className="dashboard-tabs">
-                <button className={activeTab === 'basic' ? 'dashboard-tab-active' : 'dashboard-tab'} onClick={() => setActiveTab('basic')}>
-                    📊 {t('nutrition.tabs.basic')}
-                </button>
-                <button className={activeTab === 'insights' ? 'dashboard-tab-active' : 'dashboard-tab'} onClick={() => setActiveTab('insights')}>
-                    📈 {t('nutrition.tabs.insights')}
-                </button>
-                <button className={activeTab === 'recommendations' ? 'dashboard-tab-active' : 'dashboard-tab'} onClick={() => setActiveTab('recommendations')}>
-                    💡 {t('nutrition.tabs.recommendations')}
-                </button>
-                <button className={activeTab === 'prediction' ? 'dashboard-tab-active' : 'dashboard-tab'} onClick={() => setActiveTab('prediction')}>
-                    🔮 {t('nutrition.tabs.prediction')}
-                </button>
+                <button className={activeTab === 'basic' ? 'dashboard-tab-active' : 'dashboard-tab'} onClick={() => setActiveTab('basic')}>📊 ملخص</button>
+                <button className={activeTab === 'insights' ? 'dashboard-tab-active' : 'dashboard-tab'} onClick={() => setActiveTab('insights')}>📈 تحليلات</button>
             </div>
 
-            {/* المحتوى حسب التبويب */}
             <div className="dashboard-tab-content">
-                {/* التبويب الأساسي */}
                 {activeTab === 'basic' && (
                     <>
-                        {/* بطاقات الإحصائيات */}
-                        <div className="dashboard-stats-grid">
-                            <div className="dashboard-stat-card">
-                                <div className="dashboard-stat-icon">🍽️</div>
-                                <div className="dashboard-stat-info">
-                                    <div className="dashboard-stat-value">{nutritionStats.totalMeals}</div>
-                                    <div className="dashboard-stat-label">{t('nutrition.totalMeals')}</div>
-                                </div>
-                            </div>
-                            <div className="dashboard-stat-card">
-                                <div className="dashboard-stat-icon">🔥</div>
-                                <div className="dashboard-stat-info">
-                                    <div className="dashboard-stat-value">{nutritionStats.totalCalories}</div>
-                                    <div className="dashboard-stat-label">{t('nutrition.totalCalories')}</div>
-                                </div>
-                            </div>
-                            <div className="dashboard-stat-card">
-                                <div className="dashboard-stat-icon">💪</div>
-                                <div className="dashboard-stat-info">
-                                    <div className="dashboard-stat-value">{nutritionStats.avgProtein}g</div>
-                                    <div className="dashboard-stat-label">{t('nutrition.avgProtein')}</div>
-                                </div>
-                            </div>
-                            <div className="dashboard-stat-card">
-                                <div className="dashboard-stat-icon">📅</div>
-                                <div className="dashboard-stat-info">
-                                    <div className="dashboard-stat-value">{nutritionStats.todayCalories}</div>
-                                    <div className="dashboard-stat-label">{t('nutrition.todayCalories')}</div>
-                                </div>
-                            </div>
+                        {/* بطاقات سريعة */}
+                        <div className="stats-grid">
+                            <div className="stat-card"><div className="stat-icon">🍽️</div><div className="stat-value">{nutritionStats.totalMeals}</div><div className="stat-label">وجبة</div></div>
+                            <div className="stat-card"><div className="stat-icon">🔥</div><div className="stat-value">{nutritionStats.totalCalories}</div><div className="stat-label">سعرة</div></div>
+                            <div className="stat-card"><div className="stat-icon">💪</div><div className="stat-value">{nutritionStats.avgProtein}g</div><div className="stat-label">بروتين</div></div>
+                            <div className="stat-card"><div className="stat-icon">📅</div><div className="stat-value">{nutritionStats.todayCalories}</div><div className="stat-label">اليوم</div></div>
                         </div>
 
-                        {/* تقدم الأهداف */}
-                        <div className="dashboard-goals-section">
-                            <h3>🎯 {t('nutrition.dailyGoals')}</h3>
-                            <div className="dashboard-goals-list">
-                                {[
-                                    { key: 'calories', label: t('nutrition.calories'), icon: '🔥', goal: nutritionGoals.dailyCalories, unit: t('nutrition.caloriesUnit'), current: nutritionStats.todayCalories },
-                                    { key: 'protein', label: t('nutrition.protein'), icon: '💪', goal: nutritionGoals.dailyProtein, unit: 'g', current: nutritionStats.totalProtein },
-                                    { key: 'carbs', label: t('nutrition.carbs'), icon: '🌾', goal: nutritionGoals.dailyCarbs, unit: 'g', current: nutritionStats.totalCarbs },
-                                    { key: 'fat', label: t('nutrition.fat'), icon: '🫒', goal: nutritionGoals.dailyFat, unit: 'g', current: nutritionStats.totalFat }
-                                ].map(({ key, label, icon, goal, unit, current }) => (
-                                    <div key={key} className="dashboard-goal-item">
-                                        <div className="dashboard-goal-header">
-                                            <span>{icon} {label}</span>
-                                            <span>{goalProgress[key]}%</span>
-                                        </div>
-                                        <div className="dashboard-progress-bar">
-                                            <div className="dashboard-progress-fill" style={{ width: `${goalProgress[key]}%` }}></div>
-                                        </div>
-                                        <div className="dashboard-goal-values">
-                                            <span>{roundNumber(current, 0)}{unit}</span>
-                                            <span>/</span>
-                                            <span>{goal}{unit}</span>
-                                        </div>
-                                    </div>
-                                ))}
+                        {/* التنبؤ السريع */}
+                        {prediction && (
+                            <div className="prediction-card" style={{ borderColor: prediction.color }}>
+                                <span className="prediction-icon">{prediction.icon}</span>
+                                <span>{prediction.text}</span>
                             </div>
+                        )}
+
+                        {/* تقدم الأهداف */}
+                        <div className="goals-section">
+                            <h3>🎯 أهداف اليوم</h3>
+                            {[
+                                { key: 'calories', label: 'سعرات', icon: '🔥', current: nutritionStats.todayCalories, goal: nutritionGoals.dailyCalories, unit: 'سعرة' },
+                                { key: 'protein', label: 'بروتين', icon: '💪', current: nutritionStats.totalProtein, goal: nutritionGoals.dailyProtein, unit: 'g' }
+                            ].map(({ key, label, icon, current, goal, unit }) => (
+                                <div key={key} className="goal-item">
+                                    <div className="goal-header"><span>{icon} {label}</span><span>{goalProgress[key]}%</span></div>
+                                    <div className="progress-bar"><div className="progress-fill" style={{ width: `${goalProgress[key]}%` }}></div></div>
+                                    <div className="goal-values">{Math.round(current)}{unit} / {goal}{unit}</div>
+                                </div>
+                            ))}
                         </div>
 
                         {/* توزيع الوجبات */}
-                        <div className="dashboard-distribution-section">
-                            <h4>📊 {t('nutrition.mealDistribution')}</h4>
-                            <div className="dashboard-distribution-list">
-                                {['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Other'].map(type => {
-                                    const count = meals?.filter(meal => meal.meal_type === type).length || 0;
-                                    const percentage = meals?.length ? Math.round((count / meals.length) * 100) : 0;
+                        <div className="distribution-section">
+                            <h4>📊 توزيع الوجبات</h4>
+                            <div className="distribution-list">
+                                {['Breakfast', 'Lunch', 'Dinner', 'Snack'].map(type => {
+                                    const count = meals?.filter(m => m.meal_type === type).length || 0;
+                                    const percent = meals?.length ? Math.round((count / meals.length) * 100) : 0;
                                     return (
-                                        <div key={type} className="dashboard-distribution-item">
+                                        <div key={type} className="distribution-item">
                                             <span>{getMealTypeIcon(type)} {getMealTypeLabel(type)}</span>
-                                            <div className="dashboard-distribution-bar">
-                                                <div className="dashboard-distribution-fill" style={{ width: `${percentage}%` }}></div>
-                                            </div>
-                                            <span>{percentage}%</span>
+                                            <div className="progress-bar"><div className="progress-fill" style={{ width: `${percent}%`, background: '#667eea' }}></div></div>
+                                            <span>{percent}%</span>
                                         </div>
                                     );
                                 })}
@@ -385,103 +249,35 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                         </div>
 
                         {/* آخر الوجبات */}
-                        <div className="dashboard-recent-meals">
-                            <h3>📝 {t('nutrition.recentMeals')}</h3>
+                        <div className="recent-meals">
+                            <h3>📝 آخر الوجبات</h3>
                             {meals?.length === 0 ? (
-                                <div className="dashboard-empty-state">
-                                    <p>{t('nutrition.noMeals')}</p>
-                                    <button onClick={onRefresh} className="refresh-btn">
-                                        🔄 {t('nutrition.refresh')}
-                                    </button>
-                                </div>
+                                <div className="empty-state"><p>لا توجد وجبات مسجلة</p><button onClick={onRefresh} className="refresh-btn">🔄 تحديث</button></div>
                             ) : (
-                                <div className="dashboard-meals-list">
-                                    {meals.slice(0, 5).map(meal => (
-                                        <div key={meal.id} className="dashboard-meal-item">
-                                            <div className="dashboard-meal-header">
-                                                <span className="dashboard-meal-type">
-                                                    {getMealTypeIcon(meal.meal_type)} {getMealTypeLabel(meal.meal_type)}
-                                                </span>
-                                                <span className="dashboard-meal-calories">🔥 {meal.total_calories}</span>
+                                meals.slice(0, 5).map(meal => (
+                                    <div key={meal.id} className="meal-item">
+                                        <div className="meal-header"><span>{getMealTypeIcon(meal.meal_type)} {getMealTypeLabel(meal.meal_type)}</span><span>🔥 {meal.total_calories}</span></div>
+                                        <div className="meal-time">{formatDate(meal.meal_time)}</div>
+                                        {meal.ingredients?.length > 0 && (
+                                            <div className="meal-ingredients">
+                                                {meal.ingredients.slice(0, 3).map((ing, i) => <span key={i} className="ingredient-badge">{ing.name} {Math.round(ing.quantity)}{ing.unit}</span>)}
+                                                {meal.ingredients.length > 3 && <span className="more-badge">+{meal.ingredients.length - 3}</span>}
                                             </div>
-                                            <div className="dashboard-meal-time">{formatDate(meal.meal_time)}</div>
-                                            {meal.ingredients && meal.ingredients.length > 0 && (
-                                                <div className="dashboard-meal-ingredients">
-                                                    {mergeDuplicateItems(meal.ingredients).slice(0, 3).map((ing, i) => (
-                                                        <span key={i} className="dashboard-ingredient-badge">
-                                                            {ing.name} {roundNumber(ing.quantity, 0)}{ing.unit}
-                                                        </span>
-                                                    ))}
-                                                    {meal.ingredients.length > 3 && (
-                                                        <span className="dashboard-more-badge">+{meal.ingredients.length - 3}</span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
+                                        )}
+                                    </div>
+                                ))
                             )}
                         </div>
                     </>
                 )}
 
-                {/* تبويب التحليلات - يعرض NutritionAnalytics */}
                 {activeTab === 'insights' && (
                     <NutritionAnalytics refreshTrigger={refreshAnalytics} />
-                )}
-
-                {/* تبويب التوصيات */}
-                {activeTab === 'recommendations' && (
-                    <div className="dashboard-recommendations-section">
-                        <div className="dashboard-recommendations-list">
-                            {getRecommendations().map((rec, idx) => (
-                                <div key={idx} className="dashboard-recommendation-item">
-                                    <span className="dashboard-rec-icon">💡</span>
-                                    <span className="dashboard-rec-text">{rec}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* تبويب التنبؤات */}
-                {activeTab === 'prediction' && (
-                    <div className="dashboard-prediction-section">
-                        {prediction ? (
-                            <>
-                                <div className="dashboard-prediction-header">
-                                    <span className="dashboard-prediction-icon">🔮</span>
-                                    <h3>{t('nutrition.weightPrediction')}</h3>
-                                </div>
-                                <div className="dashboard-prediction-card">
-                                    <div className="dashboard-prediction-value">
-                                        {prediction.direction === 'gain' ? '📈 +' : '📉 -'}{prediction.weightChange} kg
-                                    </div>
-                                    <div className="dashboard-prediction-period">{t('nutrition.weeklyEstimate')}</div>
-                                    <div className="dashboard-prediction-confidence">
-                                        {t('nutrition.confidence')}: {prediction.confidence}%
-                                    </div>
-                                    <div className="dashboard-prediction-note">
-                                        {t('nutrition.predictionNote', 'بناءً على')} {prediction.basedOn} {t('nutrition.meals')}
-                                    </div>
-                                </div>
-                                <div className="dashboard-prediction-disclaimer">
-                                    ⚠️ {t('nutrition.predictionDisclaimer', 'هذه تقديرات تقريبية، استشر أخصائي تغذية')}
-                                </div>
-                            </>
-                        ) : (
-                            <div className="dashboard-empty-state">
-                                <p>📊 {t('nutrition.needMoreDataPrediction', 'سجل 5 وجبات على الأقل للحصول على تنبؤات دقيقة')}</p>
-                                <button onClick={onRefresh} className="refresh-btn">
-                                    🔄 {t('nutrition.refresh')}
-                                </button>
-                            </div>
-                        )}
-                    </div>
                 )}
             </div>
 
             <style jsx>{`
+ 
 /* NutritionDashboard.css - متوافق مع ThemeManager */
 
 .nutrition-dashboard-container {
