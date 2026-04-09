@@ -5,7 +5,7 @@ import axiosInstance from '../services/api';
 import '../index.css';
 
 // ===========================================
-// دوال التحليل
+// دوال التحليل - المعدلة
 // ===========================================
 
 const analyzeHealthData = (healthData) => {
@@ -19,7 +19,8 @@ const analyzeHealthData = (healthData) => {
         avgWeight: weights.length > 0 ? roundNumber(weights.reduce((a, b) => a + b, 0) / weights.length, 1) : 0,
         avgSystolic: systolic.length > 0 ? roundNumber(systolic.reduce((a, b) => a + b, 0) / systolic.length, 0) : 0,
         avgDiastolic: diastolic.length > 0 ? roundNumber(diastolic.reduce((a, b) => a + b, 0) / diastolic.length, 0) : 0,
-        records: healthData.length
+        records: healthData.length,
+        hasData: healthData.length > 0
     };
 };
 
@@ -34,10 +35,10 @@ const analyzeNutritionData = (mealsData) => {
     }, 0);
     
     return {
-        avgCaloriesPerDay: uniqueDays.length > 0 ? Math.round(totalCalories / uniqueDays.length) : 0,
+        avgCaloriesPerDay: uniqueDays.length > 0 ? Math.round(totalCalories / uniqueDays.length) : (mealsData.length > 0 ? Math.round(totalCalories / mealsData.length) : 0),
         avgProtein: mealsData.length > 0 ? roundNumber(totalProtein / mealsData.length, 1) : 0,
         totalMeals: mealsData.length,
-        hasData: true
+        hasData: mealsData.length > 0
     };
 };
 
@@ -76,7 +77,7 @@ const analyzeMoodData = (moodData) => {
     return {
         avgMood: roundNumber(avgMood, 1),
         totalDays: uniqueDays.length,
-        hasData: true
+        hasData: moodData.length > 0
     };
 };
 
@@ -88,9 +89,9 @@ const analyzeActivityData = (activityData) => {
     
     return {
         totalMinutes: totalMinutes,
-        avgMinutesPerDay: uniqueDays.length > 0 ? Math.round(totalMinutes / uniqueDays.length) : 0,
+        avgMinutesPerDay: uniqueDays.length > 0 ? Math.round(totalMinutes / uniqueDays.length) : (activityData.length > 0 ? Math.round(totalMinutes / activityData.length) : 0),
         records: activityData.length,
-        hasData: true
+        hasData: activityData.length > 0
     };
 };
 
@@ -104,7 +105,7 @@ const analyzeHabitsData = (habitLogs, habitDefinitions) => {
         completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
         completed: completed,
         total: total,
-        hasData: true
+        hasData: habitLogs.length > 0
     };
 };
 
@@ -282,23 +283,23 @@ const generateTopRecommendation = (sleep, nutrition, activity, mood, habits, t) 
 const generateSmartStory = (sleep, nutrition, activity, mood, habits, t) => {
     const events = [];
     
-    if (sleep.hasData) {
+    if (sleep.hasData && sleep.avgHours > 0) {
         if (sleep.avgHours >= 7 && sleep.avgHours <= 8) events.push({ type: 'improvement', text: t('reports.story.sleepIdeal', { hours: sleep.avgHours }) });
         else if (sleep.avgHours >= 6) events.push({ type: 'warning', text: t('reports.story.sleepLow', { hours: sleep.avgHours }) });
         else if (sleep.avgHours > 0) events.push({ type: 'danger', text: t('reports.story.sleepVeryLow', { hours: sleep.avgHours }) });
     }
     
-    if (nutrition.hasData) {
+    if (nutrition.hasData && nutrition.avgCaloriesPerDay > 0) {
         if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) events.push({ type: 'improvement', text: t('reports.story.nutritionIdeal', { calories: nutrition.avgCaloriesPerDay }) });
         else if (nutrition.avgCaloriesPerDay > 0) events.push({ type: 'warning', text: t('reports.story.nutritionWarning', { calories: nutrition.avgCaloriesPerDay }) });
     }
     
-    if (activity.hasData) {
+    if (activity.hasData && activity.avgMinutesPerDay > 0) {
         if (activity.avgMinutesPerDay >= 30) events.push({ type: 'improvement', text: t('reports.story.activityIdeal', { minutes: activity.avgMinutesPerDay }) });
         else if (activity.avgMinutesPerDay > 0) events.push({ type: 'warning', text: t('reports.story.activityLow', { minutes: activity.avgMinutesPerDay }) });
     }
     
-    if (mood.hasData) {
+    if (mood.hasData && mood.avgMood > 0) {
         if (mood.avgMood >= 4) events.push({ type: 'improvement', text: t('reports.story.moodExcellent', { mood: mood.avgMood }) });
         else if (mood.avgMood >= 3) events.push({ type: 'warning', text: t('reports.story.moodGood', { mood: mood.avgMood }) });
         else if (mood.avgMood > 0) events.push({ type: 'danger', text: t('reports.story.moodLow', { mood: mood.avgMood }) });
@@ -353,36 +354,49 @@ const generateSmartReports = (currentData, previousData, range, t) => {
             }
         },
         sleep: {
-            ...sleep,
-            comparison: previousSleep.hasData ? {
+            avgHours: sleep.avgHours,
+            totalNights: sleep.totalNights,
+            hasData: sleep.hasData,
+            comparison: previousSleep.hasData && sleep.hasData ? {
                 change: calculateChange(sleep.avgHours, previousSleep.avgHours),
                 previous: previousSleep.avgHours
             } : null
         },
         nutrition: {
-            ...nutrition,
-            comparison: previousNutrition.hasData ? {
+            avgCaloriesPerDay: nutrition.avgCaloriesPerDay,
+            avgProtein: nutrition.avgProtein,
+            totalMeals: nutrition.totalMeals,
+            hasData: nutrition.hasData,
+            comparison: previousNutrition.hasData && nutrition.hasData ? {
                 change: calculateChange(nutrition.avgCaloriesPerDay, previousNutrition.avgCaloriesPerDay),
                 previous: previousNutrition.avgCaloriesPerDay
             } : null
         },
         activity: {
-            ...activity,
-            comparison: previousActivity.hasData ? {
+            totalMinutes: activity.totalMinutes,
+            avgMinutesPerDay: activity.avgMinutesPerDay,
+            records: activity.records,
+            hasData: activity.hasData,
+            comparison: previousActivity.hasData && activity.hasData ? {
                 change: calculateChange(activity.avgMinutesPerDay, previousActivity.avgMinutesPerDay),
                 previous: previousActivity.avgMinutesPerDay
             } : null
         },
         mood: {
-            ...mood,
-            comparison: previousMood.hasData ? {
+            avgMood: mood.avgMood,
+            totalDays: mood.totalDays,
+            hasData: mood.hasData,
+            comparison: previousMood.hasData && mood.hasData ? {
                 change: calculateChange(mood.avgMood, previousMood.avgMood),
                 previous: previousMood.avgMood
             } : null
         },
         habits: {
-            ...habits,
-            comparison: previousHabits.hasData ? {
+            completionRate: habits.completionRate,
+            completed: habits.completed,
+            total: habits.total,
+            hasData: habits.hasData,
+            comparison: previousHabits.hasData && habits.hasData ? {
                 change: calculateChange(habits.completionRate, previousHabits.completionRate),
                 previous: previousHabits.completionRate
             } : null
@@ -488,6 +502,7 @@ const Reports = ({ isAuthReady }) => {
                 const response = await axiosInstance.get(url, {
                     signal: controller.signal
                 });
+                console.log(`✅ Data fetched from ${url}:`, response.data?.length || 0, 'records');
                 return { data: response.data, index };
             } catch (err) {
                 if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
@@ -500,7 +515,7 @@ const Reports = ({ isAuthReady }) => {
         
         const results = await Promise.all(promises);
         
-        return {
+        const fetchedData = {
             health: results.find(r => r.index === 0)?.data || [],
             meals: results.find(r => r.index === 1)?.data || [],
             sleep: results.find(r => r.index === 2)?.data || [],
@@ -509,6 +524,17 @@ const Reports = ({ isAuthReady }) => {
             habits: results.find(r => r.index === 5)?.data || [],
             habitDefinitions: results.find(r => r.index === 6)?.data || []
         };
+        
+        console.log('📊 Fetched data summary:', {
+            health: fetchedData.health.length,
+            meals: fetchedData.meals.length,
+            sleep: fetchedData.sleep.length,
+            mood: fetchedData.mood.length,
+            activities: fetchedData.activities.length,
+            habits: fetchedData.habits.length
+        });
+        
+        return fetchedData;
     }, []);
 
     // ✅ جلب التقارير - مع useCallback ومنع الطلبات المتزامنة
@@ -523,6 +549,8 @@ const Reports = ({ isAuthReady }) => {
             const { start, end } = getDateRange(reportType, dateRange.start, dateRange.end);
             const previousRange = getPreviousRange(start, end);
             
+            console.log('📅 Date range:', { start, end, previousStart: previousRange.start, previousEnd: previousRange.end });
+            
             const [currentData, previousData] = await Promise.all([
                 fetchDataInRange(start, end),
                 fetchDataInRange(previousRange.start, previousRange.end)
@@ -531,6 +559,13 @@ const Reports = ({ isAuthReady }) => {
             if (!isMountedRef.current) return;
             
             const reportData = generateSmartReports(currentData, previousData, { start, end }, t);
+            console.log('📈 Generated report:', {
+                sleep: reportData.sleep,
+                nutrition: reportData.nutrition,
+                activity: reportData.activity,
+                mood: reportData.mood,
+                habits: reportData.habits
+            });
             setReports(reportData);
         } catch (err) {
             if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
@@ -756,7 +791,7 @@ const Reports = ({ isAuthReady }) => {
                                         <span>🌙</span>
                                         <span>{t('reports.sleep.title')}</span>
                                     </div>
-                                    <div className="stat-value">{reports.sleep.avgHours || 0} {t('reports.sleep.hours')}</div>
+                                    <div className="stat-value">{reports.sleep.hasData ? reports.sleep.avgHours : 0} {t('reports.sleep.hours')}</div>
                                     {reports.sleep.comparison && (
                                         <div className={`stat-change ${reports.sleep.comparison.change > 0 ? 'positive' : 'negative'}`}>
                                             {reports.sleep.comparison.change > 0 ? '↑' : '↓'} {Math.abs(reports.sleep.comparison.change)}%
@@ -769,7 +804,7 @@ const Reports = ({ isAuthReady }) => {
                                         <span>🥗</span>
                                         <span>{t('reports.nutrition.title')}</span>
                                     </div>
-                                    <div className="stat-value">{reports.nutrition.avgCaloriesPerDay || 0}</div>
+                                    <div className="stat-value">{reports.nutrition.hasData ? reports.nutrition.avgCaloriesPerDay : 0}</div>
                                     {reports.nutrition.comparison && (
                                         <div className={`stat-change ${reports.nutrition.comparison.change > 0 ? 'positive' : 'negative'}`}>
                                             {reports.nutrition.comparison.change > 0 ? '↑' : '↓'} {Math.abs(reports.nutrition.comparison.change)}%
@@ -782,7 +817,7 @@ const Reports = ({ isAuthReady }) => {
                                         <span>🏃</span>
                                         <span>{t('reports.activity.title')}</span>
                                     </div>
-                                    <div className="stat-value">{reports.activity.avgMinutesPerDay || 0} {t('reports.minutes')}</div>
+                                    <div className="stat-value">{reports.activity.hasData ? reports.activity.avgMinutesPerDay : 0} {t('reports.minutes')}</div>
                                     {reports.activity.comparison && (
                                         <div className={`stat-change ${reports.activity.comparison.change > 0 ? 'positive' : 'negative'}`}>
                                             {reports.activity.comparison.change > 0 ? '↑' : '↓'} {Math.abs(reports.activity.comparison.change)}%
@@ -795,7 +830,7 @@ const Reports = ({ isAuthReady }) => {
                                         <span>😊</span>
                                         <span>{t('reports.mood.title')}</span>
                                     </div>
-                                    <div className="stat-value">{reports.mood.avgMood || 0}/5</div>
+                                    <div className="stat-value">{reports.mood.hasData ? reports.mood.avgMood : 0}/5</div>
                                     {reports.mood.comparison && (
                                         <div className={`stat-change ${reports.mood.comparison.change > 0 ? 'positive' : 'negative'}`}>
                                             {reports.mood.comparison.change > 0 ? '↑' : '↓'} {Math.abs(reports.mood.comparison.change)}%
@@ -805,116 +840,136 @@ const Reports = ({ isAuthReady }) => {
                             </div>
                         )}
                         
-                        {activeTab === 'sleep' && reports.sleep.hasData && (
+                        {activeTab === 'sleep' && (
                             <div className="detail-card">
                                 <h3>🌙 {t('reports.sleep.details')}</h3>
-                                <div className="detail-grid">
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.sleep.avgHours')}</span>
-                                        <span className="detail-value">{reports.sleep.avgHours} {t('reports.sleep.hours')}</span>
-                                        {reports.sleep.comparison && (
-                                            <span className={`detail-change ${reports.sleep.comparison.change > 0 ? 'positive' : 'negative'}`}>
-                                                {reports.sleep.comparison.change > 0 ? '+' : ''}{reports.sleep.comparison.change}%
-                                            </span>
-                                        )}
+                                {reports.sleep.hasData ? (
+                                    <div className="detail-grid">
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.sleep.avgHours')}</span>
+                                            <span className="detail-value">{reports.sleep.avgHours} {t('reports.sleep.hours')}</span>
+                                            {reports.sleep.comparison && (
+                                                <span className={`detail-change ${reports.sleep.comparison.change > 0 ? 'positive' : 'negative'}`}>
+                                                    {reports.sleep.comparison.change > 0 ? '+' : ''}{reports.sleep.comparison.change}%
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.sleep.totalNights')}</span>
+                                            <span className="detail-value">{reports.sleep.totalNights}</span>
+                                        </div>
                                     </div>
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.sleep.totalNights')}</span>
-                                        <span className="detail-value">{reports.sleep.totalNights}</span>
-                                    </div>
-                                </div>
+                                ) : (
+                                    <p className="no-data-message">{t('reports.sleep.noData')}</p>
+                                )}
                             </div>
                         )}
                         
-                        {activeTab === 'nutrition' && reports.nutrition.hasData && (
+                        {activeTab === 'nutrition' && (
                             <div className="detail-card">
                                 <h3>🥗 {t('reports.nutrition.details')}</h3>
-                                <div className="detail-grid">
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.nutrition.avgCalories')}</span>
-                                        <span className="detail-value">{reports.nutrition.avgCaloriesPerDay}</span>
-                                        {reports.nutrition.comparison && (
-                                            <span className={`detail-change ${reports.nutrition.comparison.change > 0 ? 'positive' : 'negative'}`}>
-                                                {reports.nutrition.comparison.change > 0 ? '+' : ''}{reports.nutrition.comparison.change}%
-                                            </span>
-                                        )}
+                                {reports.nutrition.hasData ? (
+                                    <div className="detail-grid">
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.nutrition.avgCalories')}</span>
+                                            <span className="detail-value">{reports.nutrition.avgCaloriesPerDay}</span>
+                                            {reports.nutrition.comparison && (
+                                                <span className={`detail-change ${reports.nutrition.comparison.change > 0 ? 'positive' : 'negative'}`}>
+                                                    {reports.nutrition.comparison.change > 0 ? '+' : ''}{reports.nutrition.comparison.change}%
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.nutrition.avgProtein')}</span>
+                                            <span className="detail-value">{reports.nutrition.avgProtein}g</span>
+                                        </div>
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.nutrition.totalMeals')}</span>
+                                            <span className="detail-value">{reports.nutrition.totalMeals}</span>
+                                        </div>
                                     </div>
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.nutrition.avgProtein')}</span>
-                                        <span className="detail-value">{reports.nutrition.avgProtein}g</span>
-                                    </div>
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.nutrition.totalMeals')}</span>
-                                        <span className="detail-value">{reports.nutrition.totalMeals}</span>
-                                    </div>
-                                </div>
+                                ) : (
+                                    <p className="no-data-message">{t('reports.nutrition.noData')}</p>
+                                )}
                             </div>
                         )}
                         
-                        {activeTab === 'activity' && reports.activity.hasData && (
+                        {activeTab === 'activity' && (
                             <div className="detail-card">
                                 <h3>🏃 {t('reports.activity.details')}</h3>
-                                <div className="detail-grid">
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.activity.totalMinutes')}</span>
-                                        <span className="detail-value">{reports.activity.totalMinutes}</span>
+                                {reports.activity.hasData ? (
+                                    <div className="detail-grid">
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.activity.totalMinutes')}</span>
+                                            <span className="detail-value">{reports.activity.totalMinutes}</span>
+                                        </div>
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.activity.avgMinutes')}</span>
+                                            <span className="detail-value">{reports.activity.avgMinutesPerDay} {t('reports.activity.perDay')}</span>
+                                            {reports.activity.comparison && (
+                                                <span className={`detail-change ${reports.activity.comparison.change > 0 ? 'positive' : 'negative'}`}>
+                                                    {reports.activity.comparison.change > 0 ? '+' : ''}{reports.activity.comparison.change}%
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.activity.records')}</span>
+                                            <span className="detail-value">{reports.activity.records}</span>
+                                        </div>
                                     </div>
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.activity.avgMinutes')}</span>
-                                        <span className="detail-value">{reports.activity.avgMinutesPerDay} {t('reports.activity.perDay')}</span>
-                                        {reports.activity.comparison && (
-                                            <span className={`detail-change ${reports.activity.comparison.change > 0 ? 'positive' : 'negative'}`}>
-                                                {reports.activity.comparison.change > 0 ? '+' : ''}{reports.activity.comparison.change}%
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.activity.records')}</span>
-                                        <span className="detail-value">{reports.activity.records}</span>
-                                    </div>
-                                </div>
+                                ) : (
+                                    <p className="no-data-message">{t('reports.activity.noData')}</p>
+                                )}
                             </div>
                         )}
                         
-                        {activeTab === 'mood' && reports.mood.hasData && (
+                        {activeTab === 'mood' && (
                             <div className="detail-card">
                                 <h3>😊 {t('reports.mood.details')}</h3>
-                                <div className="detail-grid">
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.mood.avgScore')}</span>
-                                        <span className="detail-value">{reports.mood.avgMood}/5</span>
-                                        {reports.mood.comparison && (
-                                            <span className={`detail-change ${reports.mood.comparison.change > 0 ? 'positive' : 'negative'}`}>
-                                                {reports.mood.comparison.change > 0 ? '+' : ''}{reports.mood.comparison.change}%
-                                            </span>
-                                        )}
+                                {reports.mood.hasData ? (
+                                    <div className="detail-grid">
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.mood.avgScore')}</span>
+                                            <span className="detail-value">{reports.mood.avgMood}/5</span>
+                                            {reports.mood.comparison && (
+                                                <span className={`detail-change ${reports.mood.comparison.change > 0 ? 'positive' : 'negative'}`}>
+                                                    {reports.mood.comparison.change > 0 ? '+' : ''}{reports.mood.comparison.change}%
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.mood.totalDays')}</span>
+                                            <span className="detail-value">{reports.mood.totalDays}</span>
+                                        </div>
                                     </div>
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.mood.totalDays')}</span>
-                                        <span className="detail-value">{reports.mood.totalDays}</span>
-                                    </div>
-                                </div>
+                                ) : (
+                                    <p className="no-data-message">{t('reports.mood.noData')}</p>
+                                )}
                             </div>
                         )}
                         
-                        {activeTab === 'habits' && reports.habits.hasData && (
+                        {activeTab === 'habits' && (
                             <div className="detail-card">
                                 <h3>💊 {t('reports.habits.details')}</h3>
-                                <div className="detail-grid">
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.habits.completionRate')}</span>
-                                        <span className="detail-value">{reports.habits.completionRate}%</span>
-                                        {reports.habits.comparison && (
-                                            <span className={`detail-change ${reports.habits.comparison.change > 0 ? 'positive' : 'negative'}`}>
-                                                {reports.habits.comparison.change > 0 ? '+' : ''}{reports.habits.comparison.change}%
-                                            </span>
-                                        )}
+                                {reports.habits.hasData ? (
+                                    <div className="detail-grid">
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.habits.completionRate')}</span>
+                                            <span className="detail-value">{reports.habits.completionRate}%</span>
+                                            {reports.habits.comparison && (
+                                                <span className={`detail-change ${reports.habits.comparison.change > 0 ? 'positive' : 'negative'}`}>
+                                                    {reports.habits.comparison.change > 0 ? '+' : ''}{reports.habits.comparison.change}%
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.habits.completed')}</span>
+                                            <span className="detail-value">{reports.habits.completed}/{reports.habits.total}</span>
+                                        </div>
                                     </div>
-                                    <div className="detail-item">
-                                        <span className="detail-label">{t('reports.habits.completed')}</span>
-                                        <span className="detail-value">{reports.habits.completed}/{reports.habits.total}</span>
-                                    </div>
-                                </div>
+                                ) : (
+                                    <p className="no-data-message">{t('reports.habits.noData')}</p>
+                                )}
                             </div>
                         )}
                     </div>
