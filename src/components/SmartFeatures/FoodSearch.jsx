@@ -18,7 +18,7 @@ const FoodSearch = ({ onSelectFood }) => {
         setError(null);
         
         try {
-            // ✅ الاتصال مباشرة بـ Open Food Facts API
+            // ✅ الاتصال مباشرة بـ Open Food Facts API (بدون المرور بـ Backend)
             const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=15&fields=code,product_name,generic_name,brands,nutriments,image_front_small_url,serving_size`;
             
             console.log('🔍 Searching:', searchUrl);
@@ -44,14 +44,12 @@ const FoodSearch = ({ onSelectFood }) => {
                         const nutriments = product.nutriments || {};
                         const name = product.product_name || product.generic_name || 'منتج غذائي';
                         
-                        // استخراج القيم الغذائية
                         let calories = nutriments['energy-kcal'] || nutriments['energy'] || 0;
                         let protein = nutriments['proteins'] || nutriments['protein'] || 0;
                         let carbs = nutriments['carbohydrates'] || nutriments['carbs'] || 0;
                         let fat = nutriments['fat'] || 0;
                         let fiber = nutriments['fiber'] || 0;
                         
-                        // تحويل إلى أرقام
                         calories = parseFloat(calories) || 0;
                         protein = parseFloat(protein) || 0;
                         carbs = parseFloat(carbs) || 0;
@@ -103,7 +101,7 @@ const FoodSearch = ({ onSelectFood }) => {
         <div className="food-search">
             <div className="search-header">
                 <h3>🔍 بحث عن طعام</h3>
-                <p className="search-subtitle">ابحث عن الأطعمة والمكونات الغذائية</p>
+                <p className="search-subtitle">ابحث عن الأطعمة والمكونات الغذائية من قاعدة بيانات عالمية</p>
             </div>
             
             <div className="search-box">
@@ -127,7 +125,7 @@ const FoodSearch = ({ onSelectFood }) => {
             {loading && (
                 <div className="search-loading">
                     <div className="spinner-small"></div>
-                    <p>جاري البحث...</p>
+                    <p>جاري البحث في قاعدة البيانات...</p>
                 </div>
             )}
 
@@ -143,7 +141,7 @@ const FoodSearch = ({ onSelectFood }) => {
                     <div className="no-results-icon">🔍</div>
                     <p>لم يتم العثور على نتائج لـ "{query}"</p>
                     <p className="no-results-hint">
-                        💡 جرب: تفاح، دجاج، أرز، خبز، زبادي، موز
+                        💡 جرب: تفاح، دجاج، أرز، خبز، زبادي، موز، سمك
                     </p>
                 </div>
             )}
@@ -159,7 +157,7 @@ const FoodSearch = ({ onSelectFood }) => {
                                 key={food.id || index} 
                                 className="food-card"
                                 onClick={() => {
-                                    console.log('✅ Selected:', food);
+                                    console.log('✅ Selected food:', food);
                                     if (onSelectFood) onSelectFood(food);
                                 }}
                             >
@@ -186,7 +184,7 @@ const FoodSearch = ({ onSelectFood }) => {
                                     {food.fiber > 0 && (
                                         <div className="food-fiber">🌿 ألياف: {food.fiber}g</div>
                                     )}
-                                    <div className="select-hint">✨ انقر للإضافة</div>
+                                    <div className="select-hint">✨ انقر لإضافة هذا الطعام</div>
                                 </div>
                             </div>
                         ))}
