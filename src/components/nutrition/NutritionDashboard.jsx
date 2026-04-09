@@ -34,6 +34,7 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [lastUpdate, setLastUpdate] = useState(null);
     const [darkMode, setDarkMode] = useState(false);
+    const [activeTab, setActiveTab] = useState('basic');
     const [refreshAnalytics, setRefreshAnalytics] = useState(0);
     const [nutritionGoals] = useState({
         dailyCalories: 2000,
