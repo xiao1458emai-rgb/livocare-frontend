@@ -18,7 +18,7 @@ const FoodSearch = ({ onSelectFood }) => {
         setError(null);
         
         try {
-            // ✅ الاتصال مباشرة بـ Open Food Facts API (بدون المرور بـ Backend)
+            // ✅ الاتصال المباشر بـ Open Food Facts API
             const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=15&fields=code,product_name,generic_name,brands,nutriments,image_front_small_url,serving_size`;
             
             console.log('🔍 Searching:', searchUrl);
@@ -27,7 +27,7 @@ const FoodSearch = ({ onSelectFood }) => {
                 timeout: 15000,
                 headers: {
                     'Accept': 'application/json',
-                    'User-Agent': 'LivocareApp/1.0 (https://livocare.onrender.com)'
+                    'User-Agent': 'LivocareApp/1.0'
                 }
             });
             
@@ -101,7 +101,7 @@ const FoodSearch = ({ onSelectFood }) => {
         <div className="food-search">
             <div className="search-header">
                 <h3>🔍 بحث عن طعام</h3>
-                <p className="search-subtitle">ابحث عن الأطعمة والمكونات الغذائية من قاعدة بيانات عالمية</p>
+                <p className="search-subtitle">ابحث عن الأطعمة والمكونات الغذائية</p>
             </div>
             
             <div className="search-box">
@@ -110,7 +110,7 @@ const FoodSearch = ({ onSelectFood }) => {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="مثال: تفاح، دجاج، أرز أبيض، زبادي..."
+                    placeholder="مثال: تفاح، دجاج، أرز، زبادي..."
                     className="search-input"
                 />
                 <button 
@@ -125,7 +125,7 @@ const FoodSearch = ({ onSelectFood }) => {
             {loading && (
                 <div className="search-loading">
                     <div className="spinner-small"></div>
-                    <p>جاري البحث في قاعدة البيانات...</p>
+                    <p>جاري البحث...</p>
                 </div>
             )}
 
@@ -141,7 +141,7 @@ const FoodSearch = ({ onSelectFood }) => {
                     <div className="no-results-icon">🔍</div>
                     <p>لم يتم العثور على نتائج لـ "{query}"</p>
                     <p className="no-results-hint">
-                        💡 جرب: تفاح، دجاج، أرز، خبز، زبادي، موز، سمك
+                        💡 جرب: تفاح، دجاج، أرز، خبز، زبادي، موز
                     </p>
                 </div>
             )}
@@ -157,7 +157,7 @@ const FoodSearch = ({ onSelectFood }) => {
                                 key={food.id || index} 
                                 className="food-card"
                                 onClick={() => {
-                                    console.log('✅ Selected food:', food);
+                                    console.log('✅ Selected:', food);
                                     if (onSelectFood) onSelectFood(food);
                                 }}
                             >
@@ -184,7 +184,7 @@ const FoodSearch = ({ onSelectFood }) => {
                                     {food.fiber > 0 && (
                                         <div className="food-fiber">🌿 ألياف: {food.fiber}g</div>
                                     )}
-                                    <div className="select-hint">✨ انقر لإضافة هذا الطعام</div>
+                                    <div className="select-hint">✨ انقر للإضافة</div>
                                 </div>
                             </div>
                         ))}
