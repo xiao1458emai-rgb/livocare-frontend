@@ -1,543 +1,617 @@
 // src/components/Analytics/HabitAnalytics.jsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import './Analytics.css';
-import { useTheme } from '../themeManager';
-
-// دالة لتقريب الأرقام
-const roundNumber = (num, decimals = 1) => {
-    if (isNaN(num)) return 0;
-    return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
-};
-
-// دالة للحصول على أيقونة حسب النوع
-const getTypeIcon = (type) => {
-    const icons = {
-        sleep: '😴',
-        water: '💧',
-        exercise: '🏃',
-        nutrition: '🥗',
-        medication: '💊',
-        reading: '📚',
-        meditation: '🧘',
-        default: '✅'
-    };
-    return icons[type] || icons.default;
-};
-
-// دالة للحصول على لون حسب النوع
-const getTypeColor = (type) => {
-    const colors = {
-        sleep: '#8b5cf6',
-        water: '#3b82f6',
-        exercise: '#10b981',
-        nutrition: '#f59e0b',
-        medication: '#ef4444',
-        reading: '#06b6d4',
-        meditation: '#ec4899',
-        default: '#6b7280'
-    };
-    return colors[type] || colors.default;
-};
-
-// دالة لتحليل نوع العادة من الاسم
-const detectHabitType = (name) => {
-    const nameLower = (name || '').toLowerCase();
-    
-    if (nameLower.includes('نوم') || nameLower.includes('sleep')) return 'sleep';
-    if (nameLower.includes('ماء') || nameLower.includes('water')) return 'water';
-    if (nameLower.includes('رياضة') || nameLower.includes('exercise') || nameLower.includes('مشي')) return 'exercise';
-    if (nameLower.includes('غذاء') || nameLower.includes('nutrition') || nameLower.includes('أكل')) return 'nutrition';
-    if (nameLower.includes('دواء') || nameLower.includes('medication')) return 'medication';
-    if (nameLower.includes('قراءة') || nameLower.includes('reading')) return 'reading';
-    if (nameLower.includes('تأمل') || nameLower.includes('meditation')) return 'meditation';
-    
-    return 'default';
-};
 
 const HabitAnalytics = ({ refreshTrigger }) => {
     const { t, i18n } = useTranslation();
-    const { darkMode } = useTheme(); // ✅ استخدام ThemeManager بدلاً من localStorage مباشرة
-    const [smartInsights, setSmartInsights] = useState(null);
+    const [darkMode, setDarkMode] = useState(false);
+    const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [activeTab, setActiveTab] = useState('insights');
+    const [activeTab, setActiveTab] = useState('medications');
+    const isArabic = i18n.language.startsWith('ar');
 
     useEffect(() => {
-        fetchSmartInsights();
-    }, [refreshTrigger, i18n.language]);
+        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
+                             window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setDarkMode(savedDarkMode);
+    }, []);
 
-    const fetchSmartInsights = async () => {
+    useEffect(() => {
+        fetchData();
+    }, [refreshTrigger]);
+
+    const fetchData = async () => {
         setLoading(true);
         setError(null);
         try {
-            const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
-            const response = await axiosInstance.get('/analytics/smart-insights/', {
-                params: { lang: currentLang }
-            });
-            
-            if (response.data.success) {
-                setSmartInsights(response.data);
-            } else {
-                setSmartInsights({
-                    success: true,
-                    data: getMockData()
-                });
-            }
+            // جلب بيانات العادات والأدوية
+            const [habitsRes, logsRes, userMedsRes] = await Promise.all([
+                axiosInstance.get('/habit-definitions/').catch(() => ({ data: [] })),
+                axiosInstance.get('/habit-logs/').catch(() => ({ data: [] })),
+                axiosInstance.get('/medications/user/').catch(() => ({ data: [] }))
+            ]);
+
+            const habits = habitsRes.data || [];
+            const logs = logsRes.data || [];
+            const userMedications = userMedsRes.data?.data || [];
+
+            const analysis = analyzeData(habits, logs, userMedications);
+            setData(analysis);
         } catch (err) {
-            console.error('Error fetching insights:', err);
-            setSmartInsights({
-                success: true,
-                data: getMockData()
-            });
+            console.error('Error fetching habit data:', err);
+            setError(isArabic ? 'حدث خطأ في تحميل البيانات' : 'Error loading data');
         } finally {
             setLoading(false);
         }
     };
 
-    // بيانات تجريبية للعرض
-    const getMockData = () => ({
-        summary: {
-            avg_sleep: 6.5,
-            dominant_mood: i18n.language === 'ar' ? 'جيد' : 'Good',
-            avg_habits: 2.3,
-            avg_calories: 1850
-        },
-        correlations: [
-            {
-                type: 'sleep_mood',
-                icon: '😴',
-                title: t('habits.correlations.sleepMood', 'النوم والمزاج'),
-                description: t('habits.correlations.sleepMoodDesc', 'النوم الجيد يحسن المزاج'),
-                strength: 0.75,
-                sample_size: 12
-            },
-            {
-                type: 'exercise_energy',
-                icon: '🏃',
-                title: t('habits.correlations.exerciseEnergy', 'الرياضة والطاقة'),
-                description: t('habits.correlations.exerciseEnergyDesc', 'النشاط البدني يزيد الطاقة'),
-                strength: 0.68,
-                sample_size: 10
-            }
-        ],
-        recommendations: [
-            {
-                type: 'sleep',
-                title: t('habits.recommendations.sleep.title', 'تحسين جودة النوم'),
-                description: t('habits.recommendations.sleep.desc', 'النوم 7-8 ساعات يحسن المزاج والطاقة'),
-                target: '7-8 ساعات',
-                tips: [
-                    t('habits.recommendations.sleep.tip1', 'تجنب الشاشات قبل النوم بساعة'),
-                    t('habits.recommendations.sleep.tip2', 'حافظ على وقت نوم منتظم'),
-                    t('habits.recommendations.sleep.tip3', 'اجعل غرفة النوم مظلمة وهادئة')
-                ],
-                prediction: t('habits.recommendations.sleep.prediction', 'تحسن في المزاج والطاقة'),
-                based_on: t('habits.recommendations.sleep.basedOn', 'تحليل 12 يوم'),
-                improvement_chance: 85
-            }
-        ],
-        predictions: [
-            {
-                icon: '😴',
-                label: t('habits.predictions.sleep', 'النوم المتوقع'),
-                value: i18n.language === 'ar' ? '7.2 ساعات' : '7.2 hours',
-                trend: t('habits.predictions.improving', 'تحسن'),
-                note: t('habits.predictions.sleepNote', 'مع تطبيق نصائح النوم')
-            }
-        ],
-        patterns: [
-            {
-                title: t('habits.patterns.sleep.title', 'نمط النوم'),
-                consistency: 72,
-                impact: 68,
-                analysis: t('habits.patterns.sleep.analysis', 'نومك منتظم في أيام الأسبوع ويقل في الإجازات'),
-                insights: [
-                    t('habits.patterns.sleep.insight1', 'تنام أفضل في أيام العمل'),
-                    t('habits.patterns.sleep.insight2', 'قلة النوم تؤثر على مزاجك في اليوم التالي')
-                ],
-                suggestions: [
-                    t('habits.patterns.sleep.suggestion1', 'حافظ على وقت نوم ثابت في الإجازات'),
-                    t('habits.patterns.sleep.suggestion2', 'قلل الكافيين بعد الظهر')
-                ]
-            }
-        ],
-        integrated_recommendations: [
-            {
-                icon: '🌟',
-                title: t('habits.integrated.sleepHealth', 'النوم والصحة'),
-                analysis: t('habits.integrated.sleepHealthAnalysis', 'تحسين نومك سينعكس إيجاباً على صحتك العامة'),
-                tips: [
-                    t('habits.integrated.sleepHealthTip1', 'نم 7-8 ساعات يومياً'),
-                    t('habits.integrated.sleepHealthTip2', 'تجنب الأكل الثقيل قبل النوم')
-                ],
-                expected_outcome: t('habits.integrated.sleepHealthOutcome', 'طاقة أفضل وتركيز أعلى')
-            }
-        ]
-    });
-
-    // تنسيق التوصية
-    const formatRecommendation = (rec) => {
-        const habitType = detectHabitType(rec.title);
+    const analyzeData = (habits, logs, medications) => {
+        // تصنيف العادات حسب النوع
+        const medicationHabits = [];
+        const generalHabits = [];
         
-        return {
-            icon: getTypeIcon(habitType),
-            type: habitType,
-            title: rec.title,
-            description: rec.description,
-            target: rec.target || '',
-            tips: rec.tips || [],
-            prediction: rec.prediction || '',
-            based_on: rec.based_on || '',
-            improvement_chance: rec.improvement_chance || 0
+        habits.forEach(habit => {
+            const name = (habit.name || '').toLowerCase();
+            const isMedication = name.includes('دواء') || name.includes('medication') || 
+                                name.includes('حبة') || name.includes('pill') ||
+                                name.includes('علاج') || name.includes('treatment');
+            
+            if (isMedication) {
+                medicationHabits.push(habit);
+            } else {
+                generalHabits.push(habit);
+            }
+        });
+
+        // حساب الالتزام بالأدوية
+        const today = new Date().toISOString().split('T')[0];
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const weekAgoStr = weekAgo.toISOString().split('T')[0];
+        
+        let medicationCompliance = {
+            total: 0,
+            completed: 0,
+            rate: 0,
+            missed: [],
+            streak: 0
         };
-    };
 
-    // عرض التحليلات الذكية
-    const renderSmartInsights = () => {
-        if (!smartInsights?.data) {
-            return (
-                <div className="no-data">
-                    <p>{t('analytics.habit.noData')}</p>
-                </div>
-            );
+        medicationHabits.forEach(habit => {
+            const habitLogs = logs.filter(log => log.habit === habit.id);
+            const completed = habitLogs.filter(log => log.is_completed).length;
+            medicationCompliance.total += habitLogs.length;
+            medicationCompliance.completed += completed;
+        });
+        
+        medicationCompliance.rate = medicationCompliance.total > 0 
+            ? Math.round((medicationCompliance.completed / medicationCompliance.total) * 100) 
+            : 0;
+
+        // حساب السلسلة المتتالية للأدوية
+        let streak = 0;
+        const checkDate = new Date();
+        for (let i = 0; i < 30; i++) {
+            const dateStr = checkDate.toISOString().split('T')[0];
+            const hasLog = logs.some(log => {
+                const habit = medicationHabits.find(h => h.id === log.habit);
+                return habit && log.log_date === dateStr && log.is_completed;
+            });
+            if (hasLog) streak++;
+            else break;
+            checkDate.setDate(checkDate.getDate() - 1);
+        }
+        medicationCompliance.streak = streak;
+
+        // أدوية المستخدم
+        const userMeds = medications.map(med => ({
+            id: med.id,
+            name: med.medication?.brand_name || med.medication_name || 'دواء',
+            genericName: med.medication?.generic_name,
+            dosage: med.dosage,
+            frequency: med.frequency,
+            startDate: med.start_date,
+            reminderTime: med.reminder_time
+        }));
+
+        // التنبؤات بناءً على الالتزام
+        const predictions = [];
+        
+        if (medicationCompliance.rate < 70 && medicationCompliance.rate > 0) {
+            predictions.push({
+                icon: '⚠️',
+                title: isArabic ? 'انخفاض الالتزام بالأدوية' : 'Low medication adherence',
+                description: isArabic 
+                    ? `التزامك بالأدوية ${medicationCompliance.rate}% فقط، قد يؤثر ذلك على فعالية العلاج`
+                    : `Your medication adherence is only ${medicationCompliance.rate}%, which may affect treatment effectiveness`,
+                severity: 'high',
+                suggestion: isArabic 
+                    ? 'اضبط تذكيراً يومياً لأخذ أدويتك في الوقت المحدد'
+                    : 'Set a daily reminder to take your medications on time'
+            });
         }
 
-        const { summary = {}, correlations = [], recommendations = [], predictions = [] } = smartInsights.data;
-
-        return (
-            <div className="smart-insights">
-                {/* الملخص السريع */}
-                <div className="quick-summary">
-                    <h3>{t('analytics.habit.summary.title')}</h3>
-                    <div className="summary-cards">
-                        <div className="summary-card">
-                            <span className="summary-icon">🌙</span>
-                            <div className="summary-info">
-                                <span className="summary-label">{t('analytics.habit.summary.avgSleep')}</span>
-                                <span className="summary-value">{roundNumber(summary.avg_sleep || 0, 1)} {t('analytics.habit.summary.hours')}</span>
-                            </div>
-                        </div>
-                        <div className="summary-card">
-                            <span className="summary-icon">😊</span>
-                            <div className="summary-info">
-                                <span className="summary-label">{t('analytics.habit.summary.dominantMood')}</span>
-                                <span className="summary-value">{summary.dominant_mood || t('analytics.habit.summary.notAvailable')}</span>
-                            </div>
-                        </div>
-                        <div className="summary-card">
-                            <span className="summary-icon">💊</span>
-                            <div className="summary-info">
-                                <span className="summary-label">{t('analytics.habit.summary.avgHabits')}</span>
-                                <span className="summary-value">{roundNumber(summary.avg_habits || 0, 1)}/3</span>
-                            </div>
-                        </div>
-                        <div className="summary-card">
-                            <span className="summary-icon">🔥</span>
-                            <div className="summary-info">
-                                <span className="summary-label">{t('analytics.habit.summary.avgCalories')}</span>
-                                <span className="summary-value">{Math.round(summary.avg_calories || 0)}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* العلاقات المترابطة */}
-                {correlations.length > 0 && (
-                    <div className="correlations-section">
-                        <h3>{t('analytics.habit.correlations.title')}</h3>
-                        <div className="correlations-grid">
-                            {correlations.map((corr, idx) => (
-                                <div key={idx} className="correlation-card">
-                                    <div className="correlation-header">
-                                        <span className="correlation-icon">{corr.icon}</span>
-                                        <span className="correlation-title">{corr.title}</span>
-                                    </div>
-                                    <p className="correlation-desc">{corr.description}</p>
-                                    <div className="correlation-strength">
-                                        <div className="strength-bar">
-                                            <div 
-                                                className="strength-fill" 
-                                                style={{ 
-                                                    width: `${Math.min(100, Math.max(0, corr.strength * 100))}%`,
-                                                    backgroundColor: corr.strength > 0.7 ? 'var(--success)' : corr.strength > 0.4 ? 'var(--warning)' : 'var(--error)'
-                                                }}
-                                            />
-                                        </div>
-                                        <span className="strength-value">{Math.round(corr.strength * 100)}%</span>
-                                    </div>
-                                    <div className="correlation-meta">
-                                        {t('analytics.habit.correlations.basedOn', { days: corr.sample_size })}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* التوصيات الذكية */}
-                {recommendations.length > 0 && (
-                    <div className="smart-recommendations">
-                        <h3>{t('analytics.habit.recommendations.title')}</h3>
-                        <div className="recommendations-list">
-                            {recommendations.map((rec, idx) => {
-                                const formatted = formatRecommendation(rec);
-                                return (
-                                    <div key={idx} className="recommendation-card">
-                                        <div className="recommendation-header">
-                                            <span className="recommendation-icon" style={{ backgroundColor: getTypeColor(formatted.type) }}>
-                                                {formatted.icon}
-                                            </span>
-                                            <div className="recommendation-title">
-                                                <h4>{formatted.title}</h4>
-                                                {formatted.target && (
-                                                    <span className="recommendation-target">
-                                                        🎯 {t('analytics.habit.recommendations.target')}: {formatted.target}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        
-                                        <p className="recommendation-description">{formatted.description}</p>
-                                        
-                                        {formatted.tips.length > 0 && (
-                                            <div className="recommendation-tips">
-                                                <strong>💡 {t('analytics.habit.recommendations.tips')}:</strong>
-                                                <ul>
-                                                    {formatted.tips.slice(0, 3).map((tip, i) => (
-                                                        <li key={i}>{tip}</li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                        
-                                        {formatted.prediction && (
-                                            <div className="recommendation-prediction">
-                                                <span className="prediction-icon">🔮</span>
-                                                <span>{formatted.prediction}</span>
-                                            </div>
-                                        )}
-                                        
-                                        <div className="recommendation-meta">
-                                            {formatted.based_on && (
-                                                <span className="meta-based">
-                                                    📊 {t('analytics.habit.recommendations.basedOn')}: {formatted.based_on}
-                                                </span>
-                                            )}
-                                            {formatted.improvement_chance > 0 && (
-                                                <span className="meta-chance">
-                                                    📈 {t('analytics.habit.recommendations.improvement')}: {formatted.improvement_chance}%
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* التنبؤات */}
-                {predictions.length > 0 && (
-                    <div className="predictions-section">
-                        <h3>{t('analytics.habit.predictions.title')}</h3>
-                        <div className="predictions-grid">
-                            {predictions.map((pred, idx) => (
-                                <div key={idx} className="prediction-card">
-                                    <div className="prediction-icon">{pred.icon}</div>
-                                    <div className="prediction-content">
-                                        <span className="prediction-label">{pred.label}</span>
-                                        <span className="prediction-value">{pred.value}</span>
-                                        <span className={`prediction-trend ${pred.trend === t('habits.predictions.improving') ? 'positive' : pred.trend === t('habits.predictions.declining') ? 'negative' : 'neutral'}`}>
-                                            {pred.trend}
-                                        </span>
-                                    </div>
-                                    {pred.note && (
-                                        <div className="prediction-note">ℹ️ {pred.note}</div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    };
-
-    // عرض الأنماط المفصلة
-    const renderDetailedPatterns = () => {
-        if (!smartInsights?.data?.patterns?.length) {
-            return (
-                <div className="no-data">
-                    <p>{t('analytics.habit.noPatterns')}</p>
-                </div>
-            );
+        if (medicationCompliance.streak === 0 && medicationCompliance.total > 0) {
+            predictions.push({
+                icon: '📅',
+                title: isArabic ? 'انقطاع عن الأدوية' : 'Medication gap detected',
+                description: isArabic 
+                    ? 'لم تسجل أي جرعة دواء اليوم، حافظ على انتظام جرعاتك'
+                    : 'No medication recorded today, maintain your regular schedule',
+                severity: 'medium',
+                suggestion: isArabic 
+                    ? 'حاول ألا تفوت جرعات الدواء لضمان فعالية العلاج'
+                    : 'Try not to miss medication doses to ensure treatment effectiveness'
+            });
         }
 
-        return (
-            <div className="detailed-patterns">
-                <h3>{t('analytics.habit.patterns.title')}</h3>
-                {smartInsights.data.patterns.map((pattern, idx) => (
-                    <div key={idx} className="pattern-card">
-                        <div className="pattern-header">
-                            <h4>{pattern.title}</h4>
-                        </div>
-                        
-                        <div className="pattern-stats">
-                            <div className="stat-item">
-                                <span className="stat-label">{t('analytics.habit.patterns.consistency')}</span>
-                                <div className="progress-bar">
-                                    <div className="progress-fill" style={{ width: `${pattern.consistency}%`, backgroundColor: 'var(--primary)' }} />
-                                </div>
-                                <span className="stat-value">{pattern.consistency}%</span>
-                            </div>
-                            <div className="stat-item">
-                                <span className="stat-label">{t('analytics.habit.patterns.impact')}</span>
-                                <div className="progress-bar">
-                                    <div className="progress-fill" style={{ width: `${pattern.impact}%`, backgroundColor: 'var(--primary)' }} />
-                                </div>
-                                <span className="stat-value">{pattern.impact}%</span>
-                            </div>
-                        </div>
-                        
-                        <p className="pattern-analysis">{pattern.analysis}</p>
-                        
-                        {pattern.insights?.length > 0 && (
-                            <div className="pattern-insights">
-                                <strong>🔍 {t('analytics.habit.patterns.insights')}:</strong>
-                                <ul>
-                                    {pattern.insights.map((insight, i) => (
-                                        <li key={i}>{insight}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                        
-                        {pattern.suggestions?.length > 0 && (
-                            <div className="pattern-suggestions">
-                                <strong>💡 {t('analytics.habit.patterns.suggestions')}:</strong>
-                                <ul>
-                                    {pattern.suggestions.map((suggestion, i) => (
-                                        <li key={i}>✓ {suggestion}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
-        );
-    };
-
-    // عرض التوصيات الشاملة
-    const renderIntegratedRecommendations = () => {
-        if (!smartInsights?.data?.integrated_recommendations?.length) {
-            return (
-                <div className="no-data">
-                    <p>{t('analytics.habit.noRecommendations')}</p>
-                </div>
-            );
+        if (medicationCompliance.rate >= 90 && medicationCompliance.total > 5) {
+            predictions.push({
+                icon: '🌟',
+                title: isArabic ? 'التزام ممتاز بالأدوية' : 'Excellent medication adherence',
+                description: isArabic 
+                    ? `التزامك ${medicationCompliance.rate}%، استمر بهذا المستوى الرائع`
+                    : `Your adherence is ${medicationCompliance.rate}%, keep up this great level`,
+                severity: 'positive',
+                suggestion: isArabic 
+                    ? 'أحسنت! استمر في هذا الالتزام الممتاز'
+                    : 'Great job! Keep up this excellent adherence'
+            });
         }
 
-        return (
-            <div className="integrated-recommendations">
-                <h3>{t('analytics.habit.integrated.title')}</h3>
-                <div className="recommendations-grid">
-                    {smartInsights.data.integrated_recommendations.map((rec, idx) => (
-                        <div key={idx} className="integrated-card">
-                            <div className="card-header">
-                                <span className="card-icon">{rec.icon}</span>
-                                <h4>{rec.title}</h4>
-                            </div>
-                            
-                            <p className="card-analysis">{rec.analysis}</p>
-                            
-                            {rec.tips?.length > 0 && (
-                                <div className="card-tips">
-                                    <strong>💡 {t('analytics.habit.integrated.tips')}:</strong>
-                                    <ul>
-                                        {rec.tips.map((tip, i) => (
-                                            <li key={i}>{tip}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                            
-                            {rec.expected_outcome && (
-                                <div className="card-outcome">
-                                    <span className="outcome-icon">🎯</span>
-                                    <span>{t('analytics.habit.integrated.expectedOutcome')}: {rec.expected_outcome}</span>
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
+        // الأمراض المحتملة بناءً على الأدوية
+        const conditions = [];
+        const conditionMap = {
+            'atorvastatin': { name: isArabic ? 'ارتفاع الكوليسترول' : 'High Cholesterol', type: 'chronic' },
+            'lisinopril': { name: isArabic ? 'ارتفاع ضغط الدم' : 'Hypertension', type: 'chronic' },
+            'metformin': { name: isArabic ? 'السكري من النوع 2' : 'Type 2 Diabetes', type: 'chronic' },
+            'levothyroxine': { name: isArabic ? 'قصور الغدة الدرقية' : 'Hypothyroidism', type: 'chronic' },
+            'albuterol': { name: isArabic ? 'الربو' : 'Asthma', type: 'respiratory' },
+            'omeprazole': { name: isArabic ? 'ارتجاع المريء' : 'GERD', type: 'digestive' },
+            'sertraline': { name: isArabic ? 'الاكتئاب' : 'Depression', type: 'mental' },
+            'amoxicillin': { name: isArabic ? 'عدوى بكتيرية' : 'Bacterial Infection', type: 'acute' }
+        };
+
+        userMeds.forEach(med => {
+            const name = (med.name + ' ' + (med.genericName || '')).toLowerCase();
+            for (const [key, condition] of Object.entries(conditionMap)) {
+                if (name.includes(key)) {
+                    if (!conditions.find(c => c.name === condition.name)) {
+                        conditions.push(condition);
+                    }
+                }
+            }
+        });
+
+        // العادات الأكثر تكراراً
+        const habitStats = generalHabits.map(habit => {
+            const habitLogs = logs.filter(log => log.habit === habit.id);
+            const completed = habitLogs.filter(log => log.is_completed).length;
+            const total = habitLogs.length;
+            return {
+                id: habit.id,
+                name: habit.name,
+                description: habit.description,
+                completed,
+                total,
+                rate: total > 0 ? Math.round((completed / total) * 100) : 0,
+                frequency: habit.frequency
+            };
+        }).sort((a, b) => b.rate - a.rate);
+
+        // توصيات مخصصة
+        const recommendations = [];
+
+        if (medicationCompliance.rate < 80 && medicationCompliance.total > 0) {
+            recommendations.push({
+                icon: '💊',
+                title: isArabic ? 'تحسين الالتزام بالأدوية' : 'Improve medication adherence',
+                advice: isArabic 
+                    ? `التزامك الحالي ${medicationCompliance.rate}%. حاول ضبط تذكير يومي`
+                    : `Your current adherence is ${medicationCompliance.rate}%. Try setting a daily reminder`,
+                action: isArabic ? 'أضف تذكيراً للأدوية في الإعدادات' : 'Add medication reminders in settings'
+            });
+        }
+
+        if (habitStats.length > 0 && habitStats[0].rate < 50) {
+            recommendations.push({
+                icon: '🎯',
+                title: isArabic ? 'ابدأ بعادة صغيرة' : 'Start with a small habit',
+                advice: isArabic 
+                    ? 'حاول إضافة عادة صغيرة وسهلة مثل شرب كوب ماء صباحاً'
+                    : 'Try adding a small, easy habit like drinking a glass of water in the morning',
+                action: isArabic ? 'أضف عادة جديدة' : 'Add a new habit'
+            });
+        }
+
+        if (conditions.length > 0) {
+            recommendations.push({
+                icon: '🩺',
+                title: isArabic ? 'استشارة طبية موصى بها' : 'Medical consultation recommended',
+                advice: isArabic 
+                    ? `بناءً على أدويتك، يبدو أنك تعاني من ${conditions.map(c => c.name).join(' و ')}. استشر طبيبك بانتظام`
+                    : `Based on your medications, you may have ${conditions.map(c => c.name).join(' and ')}. Consult your doctor regularly`,
+                action: isArabic ? 'حدد موعداً مع طبيبك' : 'Schedule an appointment with your doctor'
+            });
+        }
+
+        return {
+            medications: {
+                list: userMeds,
+                count: userMeds.length,
+                compliance: medicationCompliance,
+                conditions
+            },
+            habits: habitStats,
+            predictions,
+            recommendations,
+            lastUpdated: new Date().toISOString()
+        };
     };
 
     if (loading) {
         return (
-            <div className="analytics-loading">
+            <div className={`analytics-loading ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="spinner"></div>
                 <p>{t('common.loading')}</p>
             </div>
         );
     }
 
-    if (error) {
+    if (error || !data) {
         return (
-            <div className="analytics-error">
-                <p>❌ {error}</p>
-                <button onClick={fetchSmartInsights} className="retry-btn">
-                    🔄 {t('common.retry')}
-                </button>
+            <div className={`analytics-error ${darkMode ? 'dark-mode' : ''}`}>
+                <p>❌ {error || (isArabic ? 'لا توجد بيانات كافية' : 'Insufficient data')}</p>
+                <button onClick={fetchData} className="retry-btn">🔄 {t('common.retry')}</button>
             </div>
         );
     }
 
     return (
-        <div className="analytics-container habit-analytics">
+        <div className={`analytics-container habit-analytics ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
-                <h2>📊 {t('analytics.habit.title')}</h2>
-                <button onClick={fetchSmartInsights} className="refresh-btn" title={t('common.refresh')}>
-                    🔄
-                </button>
+                <h2>💊 {isArabic ? 'تحليل العادات والأدوية' : 'Habits & Medications Analytics'}</h2>
+                <button onClick={fetchData} className="refresh-btn" title={t('common.refresh')}>🔄</button>
             </div>
 
+            {/* بطاقات سريعة */}
+            <div className="quick-stats">
+                <div className="stat-card">
+                    <div className="stat-icon">💊</div>
+                    <div className="stat-value">{data.medications.count}</div>
+                    <div className="stat-label">{isArabic ? 'أدوية مسجلة' : 'Medications'}</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-icon">✅</div>
+                    <div className="stat-value">{data.medications.compliance.rate}%</div>
+                    <div className="stat-label">{isArabic ? 'نسبة الالتزام' : 'Adherence'}</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-icon">📅</div>
+                    <div className="stat-value">{data.medications.compliance.streak}</div>
+                    <div className="stat-label">{isArabic ? 'أيام متتالية' : 'Day streak'}</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-icon">📋</div>
+                    <div className="stat-value">{data.habits.length}</div>
+                    <div className="stat-label">{isArabic ? 'عادات مسجلة' : 'Habits'}</div>
+                </div>
+            </div>
+
+            {/* تبويبات */}
             <div className="analytics-tabs">
-                <button 
-                    className={activeTab === 'insights' ? 'active' : ''} 
-                    onClick={() => setActiveTab('insights')}
-                >
-                    🧠 {t('analytics.habit.tabs.insights')}
+                <button className={activeTab === 'medications' ? 'active' : ''} onClick={() => setActiveTab('medications')}>
+                    💊 {isArabic ? 'الأدوية والالتزام' : 'Medications'}
                 </button>
-                <button 
-                    className={activeTab === 'patterns' ? 'active' : ''} 
-                    onClick={() => setActiveTab('patterns')}
-                >
-                    📊 {t('analytics.habit.tabs.patterns')}
+                <button className={activeTab === 'habits' ? 'active' : ''} onClick={() => setActiveTab('habits')}>
+                    📋 {isArabic ? 'العادات' : 'Habits'}
                 </button>
-                <button 
-                    className={activeTab === 'recommendations' ? 'active' : ''} 
-                    onClick={() => setActiveTab('recommendations')}
-                >
-                    💡 {t('analytics.habit.tabs.recommendations')}
+                <button className={activeTab === 'insights' ? 'active' : ''} onClick={() => setActiveTab('insights')}>
+                    🧠 {isArabic ? 'تحليلات وتنبؤات' : 'Insights'}
                 </button>
             </div>
 
             <div className="tab-content">
-                {activeTab === 'insights' && renderSmartInsights()}
-                {activeTab === 'patterns' && renderDetailedPatterns()}
-                {activeTab === 'recommendations' && renderIntegratedRecommendations()}
+                {/* تبويب الأدوية */}
+                {activeTab === 'medications' && (
+                    <div className="medications-section">
+                        {data.medications.list.length === 0 ? (
+                            <div className="empty-state">
+                                <span>💊</span>
+                                <p>{isArabic ? 'لا توجد أدوية مسجلة' : 'No medications recorded'}</p>
+                                <button onClick={() => window.location.href = '/habits'} className="add-btn">
+                                    ➕ {isArabic ? 'أضف دواء' : 'Add medication'}
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="compliance-card">
+                                    <div className="compliance-circle" style={{
+                                        background: `conic-gradient(#10b981 0% ${data.medications.compliance.rate}%, #e5e7eb ${data.medications.compliance.rate}% 100%)`
+                                    }}>
+                                        <span>{data.medications.compliance.rate}%</span>
+                                    </div>
+                                    <div className="compliance-info">
+                                        <h4>{isArabic ? 'نسبة الالتزام بالأدوية' : 'Medication Adherence'}</h4>
+                                        <p>{isArabic 
+                                            ? `سجلت ${data.medications.compliance.completed} من أصل ${data.medications.compliance.total} جرعة`
+                                            : `${data.medications.compliance.completed} out of ${data.medications.compliance.total} doses recorded`}
+                                        </p>
+                                        <div className="streak-info">📅 {isArabic ? 'أيام متتالية' : 'Current streak'}: {data.medications.compliance.streak}</div>
+                                    </div>
+                                </div>
+
+                                <div className="medications-list">
+                                    <h3>{isArabic ? 'قائمة أدويتك' : 'Your Medications'}</h3>
+                                    {data.medications.list.map(med => (
+                                        <div key={med.id} className="medication-item">
+                                            <div className="med-icon">💊</div>
+                                            <div className="med-info">
+                                                <div className="med-name">{med.name}</div>
+                                                {med.dosage && <div className="med-dosage">💊 {med.dosage}</div>}
+                                                {med.frequency && <div className="med-frequency">🕒 {med.frequency}</div>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {data.medications.conditions.length > 0 && (
+                                    <div className="conditions-card">
+                                        <h3>🩺 {isArabic ? 'الأمراض المحتملة' : 'Potential Conditions'}</h3>
+                                        <div className="conditions-list">
+                                            {data.medications.conditions.map((cond, i) => (
+                                                <div key={i} className="condition-item">
+                                                    <span className="condition-icon">🏥</span>
+                                                    <span className="condition-name">{cond.name}</span>
+                                                    <span className={`condition-type ${cond.type}`}>
+                                                        {cond.type === 'chronic' ? (isArabic ? 'مزمن' : 'Chronic') : 
+                                                         cond.type === 'acute' ? (isArabic ? 'حاد' : 'Acute') : 
+                                                         (isArabic ? 'تنفسي' : 'Respiratory')}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <p className="conditions-note">
+                                            ⚠️ {isArabic 
+                                                ? 'هذه تقديرات بناءً على أدويتك، استشر طبيبك للتشخيص الدقيق'
+                                                : 'These are estimates based on your medications, consult your doctor for accurate diagnosis'}
+                                        </p>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* تبويب العادات */}
+                {activeTab === 'habits' && (
+                    <div className="habits-section">
+                        {data.habits.length === 0 ? (
+                            <div className="empty-state">
+                                <span>📋</span>
+                                <p>{isArabic ? 'لا توجد عادات مسجلة' : 'No habits recorded'}</p>
+                                <button onClick={() => window.location.href = '/habits'} className="add-btn">
+                                    ➕ {isArabic ? 'أضف عادة' : 'Add habit'}
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="habits-list">
+                                {data.habits.map(habit => (
+                                    <div key={habit.id} className="habit-card">
+                                        <div className="habit-header">
+                                            <span className="habit-name">{habit.name}</span>
+                                            <span className={`habit-rate ${habit.rate >= 70 ? 'high' : habit.rate >= 40 ? 'medium' : 'low'}`}>
+                                                {habit.rate}%
+                                            </span>
+                                        </div>
+                                        {habit.description && <p className="habit-desc">{habit.description}</p>}
+                                        <div className="habit-stats">
+                                            <span>✅ {habit.completed}/{habit.total}</span>
+                                            <span>🔄 {habit.frequency || 'Daily'}</span>
+                                        </div>
+                                        <div className="progress-bar">
+                                            <div className="progress-fill" style={{ width: `${habit.rate}%` }}></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* تبويب التحليلات */}
+                {activeTab === 'insights' && (
+                    <div className="insights-section">
+                        {/* التنبؤات */}
+                        {data.predictions.length > 0 && (
+                            <div className="predictions-card">
+                                <h3>🔮 {isArabic ? 'تنبؤات وتنبيهات' : 'Predictions & Alerts'}</h3>
+                                {data.predictions.map((pred, i) => (
+                                    <div key={i} className={`prediction-item severity-${pred.severity || 'medium'}`}>
+                                        <div className="prediction-header">
+                                            <span className="prediction-icon">{pred.icon}</span>
+                                            <span className="prediction-title">{pred.title}</span>
+                                        </div>
+                                        <p className="prediction-desc">{pred.description}</p>
+                                        <div className="prediction-suggestion">
+                                            💡 {pred.suggestion}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* التوصيات */}
+                        {data.recommendations.length > 0 && (
+                            <div className="recommendations-card">
+                                <h3>💡 {isArabic ? 'توصيات ذكية' : 'Smart Recommendations'}</h3>
+                                {data.recommendations.map((rec, i) => (
+                                    <div key={i} className="recommendation-item">
+                                        <div className="rec-header">
+                                            <span className="rec-icon">{rec.icon}</span>
+                                            <span className="rec-title">{rec.title}</span>
+                                        </div>
+                                        <p className="rec-advice">{rec.advice}</p>
+                                        <div className="rec-action">
+                                            🎯 {rec.action}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* نصائح سريعة */}
+                        <div className="quick-tips-card">
+                            <h3>💡 {isArabic ? 'نصائح سريعة' : 'Quick Tips'}</h3>
+                            <ul className="tips-list">
+                                <li>💊 {isArabic ? 'استخدم تذكيرات الأدوية لتحسين الالتزام' : 'Use medication reminders to improve adherence'}</li>
+                                <li>📅 {isArabic ? 'حافظ على روتين يومي ثابت للعادات' : 'Maintain a consistent daily routine for habits'}</li>
+                                <li>🩺 {isArabic ? 'استشر طبيبك بانتظام لمتابعة حالتك' : 'Consult your doctor regularly to monitor your condition'}</li>
+                            </ul>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="analytics-footer">
-                <small>
-                    {t('analytics.habit.footer.lastUpdate')}: {new Date().toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}
-                </small>
+                <small>{isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(data.lastUpdated).toLocaleString(isArabic ? 'ar-EG' : 'en-US')}</small>
             </div>
+
+            <style jsx>{`
+                .quick-stats {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 12px;
+                    margin-bottom: 20px;
+                }
+                .stat-card {
+                    background: var(--secondary-bg);
+                    border-radius: 16px;
+                    padding: 12px;
+                    text-align: center;
+                }
+                .stat-icon { font-size: 1.5rem; display: block; }
+                .stat-value { font-size: 1.3rem; font-weight: bold; color: var(--text-primary); }
+                .stat-label { font-size: 0.7rem; color: var(--text-tertiary); }
+                
+                .analytics-tabs {
+                    display: flex;
+                    gap: 8px;
+                    margin-bottom: 20px;
+                    border-bottom: 1px solid var(--border-light);
+                }
+                .analytics-tabs button {
+                    padding: 10px 16px;
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    font-size: 0.9rem;
+                    color: var(--text-secondary);
+                }
+                .analytics-tabs button.active {
+                    color: var(--primary-color);
+                    border-bottom: 2px solid var(--primary-color);
+                }
+                
+                .compliance-card {
+                    display: flex;
+                    align-items: center;
+                    gap: 20px;
+                    background: var(--secondary-bg);
+                    border-radius: 20px;
+                    padding: 20px;
+                    margin-bottom: 20px;
+                }
+                .compliance-circle {
+                    width: 100px;
+                    height: 100px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                }
+                .medications-list, .habits-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+                .medication-item, .habit-card {
+                    background: var(--secondary-bg);
+                    border-radius: 12px;
+                    padding: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+                .med-icon { font-size: 1.5rem; }
+                .med-info { flex: 1; }
+                .med-name { font-weight: 600; }
+                .med-dosage, .med-frequency { font-size: 0.7rem; color: var(--text-tertiary); }
+                
+                .conditions-card {
+                    background: rgba(239, 68, 68, 0.1);
+                    border-radius: 16px;
+                    padding: 16px;
+                    margin-top: 16px;
+                }
+                .condition-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 8px 0;
+                    border-bottom: 1px solid rgba(0,0,0,0.1);
+                }
+                .condition-type {
+                    font-size: 0.7rem;
+                    padding: 2px 8px;
+                    border-radius: 20px;
+                    background: rgba(0,0,0,0.1);
+                }
+                .condition-type.chronic { background: rgba(245,158,11,0.2); color: #f59e0b; }
+                .condition-type.acute { background: rgba(239,68,68,0.2); color: #ef4444; }
+                .conditions-note { font-size: 0.7rem; margin-top: 12px; color: var(--text-tertiary); }
+                
+                .habit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+                .habit-rate { font-weight: bold; }
+                .habit-rate.high { color: #10b981; }
+                .habit-rate.medium { color: #f59e0b; }
+                .habit-rate.low { color: #ef4444; }
+                .habit-desc { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px; }
+                .habit-stats { display: flex; gap: 12px; font-size: 0.7rem; color: var(--text-tertiary); margin-bottom: 8px; }
+                .progress-bar { background: var(--border-light); border-radius: 10px; height: 4px; overflow: hidden; }
+                .progress-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, #667eea, #764ba2); }
+                
+                .predictions-card, .recommendations-card, .quick-tips-card {
+                    background: var(--secondary-bg);
+                    border-radius: 16px;
+                    padding: 16px;
+                    margin-bottom: 16px;
+                }
+                .prediction-item, .recommendation-item {
+                    padding: 12px;
+                    border-radius: 12px;
+                    margin-bottom: 10px;
+                    background: var(--card-bg);
+                }
+                .prediction-item.severity-high { border-left: 3px solid #ef4444; }
+                .prediction-item.severity-medium { border-left: 3px solid #f59e0b; }
+                .prediction-header, .rec-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+                .prediction-title, .rec-title { font-weight: 600; }
+                .prediction-desc, .rec-advice { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; }
+                .prediction-suggestion, .rec-action { font-size: 0.8rem; color: var(--primary-color); }
+                
+                .tips-list { list-style: none; padding: 0; margin: 0; }
+                .tips-list li { padding: 6px 0; font-size: 0.85rem; }
+                .empty-state { text-align: center; padding: 40px; color: var(--text-secondary); }
+                .add-btn { background: var(--primary-color); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 10px; }
+                .analytics-footer { text-align: center; font-size: 0.7rem; color: var(--text-tertiary); margin-top: 16px; }
+                
+                @media (max-width: 600px) { .quick-stats { grid-template-columns: repeat(2, 1fr); } }
+                .dark-mode .stat-card, .dark-mode .medication-item, .dark-mode .habit-card,
+                .dark-mode .compliance-card, .dark-mode .predictions-card, .dark-mode .recommendations-card { background: #1e293b; }
+                .dark-mode .condition-item { border-color: #334155; }
+            `}</style>
         </div>
     );
 };
