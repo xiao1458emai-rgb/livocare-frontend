@@ -1,7 +1,7 @@
 // src/components/SmartFeatures/FoodSearch.jsx
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import axiosInstance from '../../services/api'; // ✅ تغيير: استخدم axiosInstance مباشرة
+import axios from 'axios';
 import './SmartFeatures.css';
 
 const FoodSearch = ({ onSelectFood }) => {
@@ -18,13 +18,32 @@ const FoodSearch = ({ onSelectFood }) => {
         setError(null);
         
         try {
-            // ✅ استخدم axiosInstance مباشرة مع المسار الصحيح
-            const response = await axiosInstance.get(`/food/search/?query=${encodeURIComponent(query)}`);
+            // ✅ استخدام Open Food Facts API مباشرة
+            const response = await axios.get(
+                `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20`,
+                { timeout: 10000 }
+            );
             
-            if (response.data && response.data.success !== false) {
-                setResults(response.data.data || response.data.results || []);
+            console.log('🔍 Open Food Facts response:', response.data);
+            
+            if (response.data && response.data.products && response.data.products.length > 0) {
+                const products = response.data.products.map(product => ({
+                    id: product.code,
+                    name: product.product_name || product.generic_name || product.product_name_fr || 'منتج غير معروف',
+                    calories: product.nutriments?.['energy-kcal'] || product.nutriments?.energy || 0,
+                    protein: product.nutriments?.proteins || 0,
+                    carbs: product.nutriments?.carbohydrates || 0,
+                    fat: product.nutriments?.fat || 0,
+                    fiber: product.nutriments?.fiber || 0,
+                    image: product.image_front_small_url || product.image_url || null,
+                    serving_size: product.serving_size || null,
+                    brand: product.brands || null
+                }));
+                
+                setResults(products);
             } else {
-                setError(response.data?.error || t('foodSearch.searchFailed'));
+                setResults([]);
+                setError(t('foodSearch.noResults'));
             }
         } catch (err) {
             console.error('Food search error:', err);
@@ -38,9 +57,8 @@ const FoodSearch = ({ onSelectFood }) => {
         if (e.key === 'Enter') handleSearch();
     };
 
-    // ✅ دالة مساعدة لتنسيق الأرقام
     const formatNumber = (value) => {
-        return value !== undefined && value !== null ? value : 0;
+        return value !== undefined && value !== null && value !== 0 ? value : '';
     };
 
     return (
@@ -68,6 +86,7 @@ const FoodSearch = ({ onSelectFood }) => {
             {results.length === 0 && query && !loading && !error && (
                 <div className="no-results">
                     <p>{t('foodSearch.noResults')}</p>
+                    <p className="no-results-hint">💡 جرب: تفاح، دجاج، أرز، خبز</p>
                 </div>
             )}
 
@@ -84,15 +103,24 @@ const FoodSearch = ({ onSelectFood }) => {
                             )}
                             <div className="food-info">
                                 <h4>{food.name}</h4>
+                                {food.brand && <p className="food-brand">🏭 {food.brand}</p>}
                                 <div className="food-nutrients">
-                                    <span>🔥 {formatNumber(food.calories)} {t('foodSearch.calories')}</span>
-                                    <span>💪 {formatNumber(food.protein)}g {t('foodSearch.protein')}</span>
-                                    <span>🌾 {formatNumber(food.carbs)}g {t('foodSearch.carbs')}</span>
-                                    <span>🫒 {formatNumber(food.fat)}g {t('foodSearch.fat')}</span>
+                                    {formatNumber(food.calories) > 0 && (
+                                        <span>🔥 {Math.round(food.calories)} {t('foodSearch.calories')}</span>
+                                    )}
+                                    {formatNumber(food.protein) > 0 && (
+                                        <span>💪 {food.protein}g {t('foodSearch.protein')}</span>
+                                    )}
+                                    {formatNumber(food.carbs) > 0 && (
+                                        <span>🌾 {food.carbs}g {t('foodSearch.carbs')}</span>
+                                    )}
+                                    {formatNumber(food.fat) > 0 && (
+                                        <span>🫒 {food.fat}g {t('foodSearch.fat')}</span>
+                                    )}
                                 </div>
                                 {food.fiber > 0 && (
                                     <div className="food-fiber">
-                                        🌿 {t('foodSearch.fiber')}: {formatNumber(food.fiber)}g
+                                        🌿 {t('foodSearch.fiber')}: {food.fiber}g
                                     </div>
                                 )}
                                 {food.serving_size && (
