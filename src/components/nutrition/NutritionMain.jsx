@@ -49,32 +49,46 @@ function NutritionMain({ isAuthReady }) {
     }, []);
 
     // ✅ جلب الوجبات - مع منع الطلبات المتزامنة
-    const fetchMeals = useCallback(async () => {
-        // ✅ منع الطلبات المتزامنة
-        if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
+// ✅ تعديل دالة fetchMeals
+const fetchMeals = useCallback(async () => {
+    // ✅ منع الطلبات المتزامنة
+    if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
+    
+    isFetchingRef.current = true;
+    setLoading(true);
+    setError(null);
+    
+    try {
+        const response = await axiosInstance.get('/meals/');
         
-        isFetchingRef.current = true;
-        setLoading(true);
-        setError(null);
+        if (!isMountedRef.current) return;
         
-        try {
-            const response = await axiosInstance.get('/meals/');
-            if (isMountedRef.current) {
-                setMeals(response.data);
-                setLastUpdate(new Date());
-            }
-        } catch (error) {
-            console.error('Error fetching meals:', error);
-            if (isMountedRef.current) {
-                setError(t('nutrition.errorLoadingMeals', 'حدث خطأ في تحميل الوجبات'));
-            }
-        } finally {
-            if (isMountedRef.current) {
-                setLoading(false);
-            }
-            isFetchingRef.current = false;
+        // ✅ معالجة البيانات - دعم results والمصفوفة
+        let mealsData = [];
+        if (response.data?.results) {
+            mealsData = response.data.results;
+        } else if (Array.isArray(response.data)) {
+            mealsData = response.data;
+        } else {
+            mealsData = [];
         }
-    }, [isAuthReady, t]);
+        
+        console.log('🍽️ NutritionMain - Meals loaded:', mealsData.length, 'records');
+        setMeals(mealsData);
+        setLastUpdate(new Date());
+        
+    } catch (error) {
+        console.error('Error fetching meals:', error);
+        if (isMountedRef.current) {
+            setError(t('nutrition.errorLoadingMeals', 'حدث خطأ في تحميل الوجبات'));
+        }
+    } finally {
+        if (isMountedRef.current) {
+            setLoading(false);
+        }
+        isFetchingRef.current = false;
+    }
+}, [isAuthReady, t]);
 
     // تحديث autoRefreshRef عند تغيير autoRefresh
     useEffect(() => {

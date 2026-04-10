@@ -70,32 +70,44 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         }
         return true;
     };
-
-    // ✅ fetchMeals مع useCallback لمنع إعادة الإنشاء
-    const fetchMeals = useCallback(async () => {
-        if (!isAuthReady || !isMountedRef.current) return;
-        if (!checkAuth()) return;
+// ✅ تعديل دالة fetchMeals
+const fetchMeals = useCallback(async () => {
+    if (!isAuthReady || !isMountedRef.current) return;
+    if (!checkAuth()) return;
+    
+    setLoadingMeals(true);
+    try {
+        const response = await axiosInstance.get('/meals/');
         
-        setLoadingMeals(true);
-        try {
-            const response = await axiosInstance.get('/meals/');
-            if (isMountedRef.current) {
-                setMeals(Array.isArray(response.data) ? response.data : []);
-                setMessage('');
-            }
-        } catch (error) {
-            console.error('Error fetching meals:', error);
-            if (isMountedRef.current) {
-                setMessage(t('nutrition.errorLoading'));
-                setMessageType('error');
-                setMeals([]);
-            }
-        } finally {
-            if (isMountedRef.current) {
-                setLoadingMeals(false);
-            }
+        if (!isMountedRef.current) return;
+        
+        // ✅ معالجة البيانات - دعم results والمصفوفة
+        let mealsData = [];
+        if (response.data?.results) {
+            mealsData = response.data.results;
+        } else if (Array.isArray(response.data)) {
+            mealsData = response.data;
+        } else {
+            mealsData = [];
         }
-    }, [isAuthReady, t]);
+        
+        console.log('🍽️ Meals loaded:', mealsData.length, 'records');
+        setMeals(mealsData);
+        setMessage('');
+        
+    } catch (error) {
+        console.error('Error fetching meals:', error);
+        if (isMountedRef.current) {
+            setMessage(t('nutrition.errorLoading'));
+            setMessageType('error');
+            setMeals([]);
+        }
+    } finally {
+        if (isMountedRef.current) {
+            setLoadingMeals(false);
+        }
+    }
+}, [isAuthReady, t]);
 
     // ✅ جلب الوجبات عند تحميل المكون
     useEffect(() => {
