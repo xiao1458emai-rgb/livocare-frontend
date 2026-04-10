@@ -317,9 +317,6 @@ useEffect(() => {
                                 />
                                 <span className="checkbox-text">{t('login.rememberMe')}</span>
                             </label>
-                            <button type="button" className="forgot-password">
-                                {t('login.forgotPassword')}
-                            </button>
                         </div>
                         
                         <div className="login-actions">
@@ -434,28 +431,7 @@ useEffect(() => {
                             </li>
                         </ul>
                         
-                        <div className="app-stats">
-                            <div className="stat-item">
-                                <span className="stat-value">10k+</span>
-                                <span className="stat-label">{t('login.users')}</span>
-                            </div>
-                            <div className="stat-divider"></div>
-                            <div className="stat-item">
-                                <span className="stat-value">4.8</span>
-                                <span className="stat-label">{t('login.rating')}</span>
-                            </div>
-                        </div>
                         
-                        <div className="app-version">
-                            <span className="version-info">
-                                <span className="version-icon">📦</span>
-                                {t('login.version')}: 2.0.0
-                            </span>
-                            <span className="app-status">
-                                <span className="status-dot"></span>
-                                {t('login.online')}
-                            </span>
-                        </div>
                     </div>
                 </div>
             </div>
