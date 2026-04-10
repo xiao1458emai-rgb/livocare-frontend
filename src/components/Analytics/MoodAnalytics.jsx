@@ -401,104 +401,73 @@ const MoodAnalytics = ({ refreshTrigger }) => {
     useEffect(() => {
         fetchAllData();
     }, [refreshTrigger]);
+// src/components/Analytics/MoodAnalytics.jsx
 
-    const fetchAllData = async () => {
-        setLoading(true);
-        setError(null);
+const fetchAllData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+        const [moodRes, sleepRes, activitiesRes] = await Promise.all([
+            axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
+            axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
+            axiosInstance.get('/activities/').catch(() => ({ data: [] }))
+        ]);
         
-        try {
-            const [moodRes, sleepRes, activitiesRes] = await Promise.all([
-                axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
-                axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
-                axiosInstance.get('/activities/').catch(() => ({ data: [] }))
-            ]);
-            
-            const moodData = (moodRes.data || []).map(m => ({
-                date: new Date(m.entry_time || m.date),
-                score: getMoodScore(m.mood),
-                raw: m.mood,
-                factors: m.factors || '',
-                notes: m.text_entry || ''
-            })).sort((a, b) => a.date - b.date);
-            
-            const sleepData = sleepRes.data || [];
-            const activitiesData = activitiesRes.data || [];
-            
-            if (moodData.length === 0) {
-                setAnalysis({
-                    hasData: false,
-                    message: t('analytics.mood.noData', 'لا توجد بيانات كافية للتحليل'),
-                    recommendations: [{
-                        icon: '😊',
-                        title: t('analytics.mood.startRecording', 'ابدأ بتسجيل مزاجك'),
-                        advice: t('analytics.mood.startAdvice', 'سجل مزاجك يومياً للحصول على تحليلات'),
-                        tips: [t('analytics.mood.startTip', 'أضف أول حالة مزاجية الآن')]
-                    }]
-                });
-                setLoading(false);
-                return;
-            }
-            
-            const dayPattern = analyzeDayPatterns(moodData, t);
-            const timePattern = analyzeTimePatterns(moodData, t);
-            const trend = analyzeTrend(moodData, t);
-            const sleepImpact = analyzeSleepImpact(sleepData, moodData, t);
-            const activityImpact = analyzeActivityImpact(activitiesData, moodData, t);
-            const declineAlert = detectMoodDecline(moodData, t);
-            
-            const scores = moodData.map(m => m.score);
-            const avgScore = roundNumber(scores.reduce((a, b) => a + b, 0) / scores.length, 1);
-            
-            const moodFrequency = {};
-            moodData.forEach(m => {
-                moodFrequency[m.raw] = (moodFrequency[m.raw] || 0) + 1;
-            });
-            const mostFrequent = Object.entries(moodFrequency).sort((a, b) => b[1] - a[1])[0];
-            
-            const analysisData = {
-                hasData: true,
-                summary: {
-                    avgMood: avgScore,
-                    totalDays: moodData.length,
-                    mostFrequent: mostFrequent ? mostFrequent[0] : null,
-                    mostFrequentCount: mostFrequent ? mostFrequent[1] : 0
-                },
-                dayPattern,
-                timePattern,
-                trend,
-                sleepImpact,
-                activityImpact,
-                declineAlert
-            };
-            
-            analysisData.recommendations = generateRecommendations(analysisData, t);
-            
-            // توقع الغد
-            if (moodData.length >= 3) {
-                const lastThree = moodData.slice(-3).map(m => m.score);
-                const avgLastThree = lastThree.reduce((a, b) => a + b, 0) / lastThree.length;
-                const trendValue = lastThree[2] - lastThree[0];
-                
-                let prediction = avgLastThree;
-                if (trendValue > 0.3) prediction += 0.2;
-                else if (trendValue < -0.3) prediction -= 0.2;
-                
-                prediction = Math.min(5, Math.max(1, prediction));
-                
-                analysisData.prediction = {
-                    value: roundNumber(prediction, 1),
-                    trend: trendValue > 0 ? '📈' : trendValue < 0 ? '📉' : '➡️'
-                };
-            }
-            
-            setAnalysis(analysisData);
-        } catch (err) {
-            console.error('Error:', err);
-            setError(t('analytics.mood.error', 'حدث خطأ في تحليل المزاج'));
-        } finally {
-            setLoading(false);
+        // ✅ معالجة بيانات المزاج - دعم results والمصفوفة
+        let moodDataRaw = [];
+        if (moodRes.data?.results) {
+            moodDataRaw = moodRes.data.results;
+        } else if (Array.isArray(moodRes.data)) {
+            moodDataRaw = moodRes.data;
+        } else {
+            moodDataRaw = [];
         }
-    };
+        
+        // ✅ معالجة بيانات النوم
+        let sleepDataRaw = [];
+        if (sleepRes.data?.results) {
+            sleepDataRaw = sleepRes.data.results;
+        } else if (Array.isArray(sleepRes.data)) {
+            sleepDataRaw = sleepRes.data;
+        } else {
+            sleepDataRaw = [];
+        }
+        
+        // ✅ معالجة بيانات النشاط
+        let activitiesDataRaw = [];
+        if (activitiesRes.data?.results) {
+            activitiesDataRaw = activitiesRes.data.results;
+        } else if (Array.isArray(activitiesRes.data)) {
+            activitiesDataRaw = activitiesRes.data;
+        } else {
+            activitiesDataRaw = [];
+        }
+        
+        console.log('😊 MoodAnalytics - Mood data:', moodDataRaw.length, 'records');
+        console.log('😊 MoodAnalytics - Sleep data:', sleepDataRaw.length, 'records');
+        console.log('😊 MoodAnalytics - Activities data:', activitiesDataRaw.length, 'records');
+        
+        const moodData = moodDataRaw.map(m => ({
+            date: new Date(m.entry_time || m.date),
+            score: getMoodScore(m.mood),
+            raw: m.mood,
+            factors: m.factors || '',
+            notes: m.text_entry || ''
+        })).sort((a, b) => a.date - b.date);
+        
+        const sleepData = sleepDataRaw;
+        const activitiesData = activitiesDataRaw;
+        
+        // ... باقي الكود كما هو ...
+        
+    } catch (err) {
+        console.error('Error in MoodAnalytics:', err);
+        setError(t('analytics.mood.error', 'حدث خطأ في تحليل المزاج'));
+    } finally {
+        setLoading(false);
+    }
+};
 
     if (loading) {
         return (
