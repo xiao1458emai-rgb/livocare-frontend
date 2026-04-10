@@ -26,28 +26,38 @@ const getBMICategory = (bmi, t) => {
     return { category: t('profile.bmi.obese'), color: '#ef4444', icon: '🔴' };
 };
 
-// دالة لحساب التقدم نحو الهدف
-const calculateGoalProgress = (goal, currentData) => {
-    if (!goal || !currentData) return { progress: 0, remaining: 0, status: 'unknown', daysLeft: 0 };
+// دالة لحساب التقدم نحو الهدف - مع تحديث تلقائي بناءً على آخر البيانات
+const calculateGoalProgress = (goal, currentHealthData) => {
+    if (!goal || !currentHealthData) return { progress: 0, remaining: 0, status: 'unknown', daysLeft: 0 };
     
     let currentValue = 0;
     let targetValue = parseFloat(goal.target_value);
-    let unit = goal.unit;
+    let startValue = parseFloat(goal.start_value) || 0;
     
-    // تحديد القيمة الحالية حسب نوع الهدف
-    if (goal.title.includes('وزن') || goal.title.includes('weight')) {
-        currentValue = currentData.weight || 0;
-    } else if (goal.title.includes('نوم') || goal.title.includes('sleep')) {
-        currentValue = currentData.sleep || 0;
-    } else if (goal.title.includes('نشاط') || goal.title.includes('activity')) {
-        currentValue = currentData.activity || 0;
-    } else if (goal.title.includes('سعرات') || goal.title.includes('calories')) {
-        currentValue = currentData.calories || 0;
+    // تحديد القيمة الحالية من أحدث البيانات حسب نوع الهدف
+    if (goal.type === 'weight_loss' || goal.type === 'weight_gain' || goal.title.includes('وزن')) {
+        currentValue = currentHealthData.currentWeight || 0;
+    } else if (goal.type === 'sleep' || goal.title.includes('نوم')) {
+        currentValue = currentHealthData.avgSleep || 0;
+    } else if (goal.type === 'activity' || goal.title.includes('نشاط')) {
+        currentValue = currentHealthData.weeklyActivity || 0;
+    } else if (goal.type === 'calories' || goal.title.includes('سعرات')) {
+        currentValue = currentHealthData.avgCalories || 0;
+    } else if (goal.type === 'mood' || goal.title.includes('مزاج')) {
+        currentValue = currentHealthData.avgMood || 0;
+    } else if (goal.type === 'water' || goal.title.includes('ماء')) {
+        currentValue = currentHealthData.dailyWater || 0;
+    } else if (goal.type === 'steps' || goal.title.includes('خطوات')) {
+        currentValue = currentHealthData.dailySteps || 0;
     } else {
         currentValue = goal.current_value || 0;
     }
     
-    if (currentValue === 0 || targetValue === 0) return { progress: 0, remaining: targetValue, status: 'no_data', daysLeft: 0 };
+    if (currentValue === 0 && targetValue > 0) {
+        return { progress: 0, remaining: targetValue, status: 'no_data', daysLeft: 0, currentValue: 0, targetValue };
+    }
+    
+    if (targetValue === 0) return { progress: 0, remaining: 0, status: 'unknown', daysLeft: 0 };
     
     // حساب التقدم
     let progress = 0;
@@ -58,18 +68,28 @@ const calculateGoalProgress = (goal, currentData) => {
         if (currentValue <= targetValue) {
             progress = 100;
             status = 'achieved';
+        } else if (startValue > 0) {
+            const totalToLose = startValue - targetValue;
+            const lost = startValue - currentValue;
+            progress = totalToLose > 0 ? Math.min(100, Math.max(0, Math.round((lost / totalToLose) * 100))) : 0;
+            status = progress > 0 ? (progress >= 100 ? 'achieved' : 'on_track') : 'off_track';
         } else {
-            progress = Math.min(100, Math.round(((goal.start_value - currentValue) / (goal.start_value - targetValue)) * 100));
-            status = progress > 0 ? 'on_track' : 'off_track';
+            progress = Math.min(100, Math.round((targetValue / currentValue) * 100));
+            status = currentValue <= targetValue ? 'achieved' : 'off_track';
         }
     } else if (goal.type === 'weight_gain') {
         // زيادة وزن
         if (currentValue >= targetValue) {
             progress = 100;
             status = 'achieved';
+        } else if (startValue > 0) {
+            const totalToGain = targetValue - startValue;
+            const gained = currentValue - startValue;
+            progress = totalToGain > 0 ? Math.min(100, Math.max(0, Math.round((gained / totalToGain) * 100))) : 0;
+            status = progress > 0 ? (progress >= 100 ? 'achieved' : 'on_track') : 'off_track';
         } else {
-            progress = Math.min(100, Math.round(((currentValue - goal.start_value) / (targetValue - goal.start_value)) * 100));
-            status = progress > 0 ? 'on_track' : 'off_track';
+            progress = Math.min(100, Math.round((currentValue / targetValue) * 100));
+            status = currentValue >= targetValue ? 'achieved' : 'off_track';
         }
     } else {
         // أهداف عادية (زيادة = أفضل)
@@ -77,7 +97,7 @@ const calculateGoalProgress = (goal, currentData) => {
             progress = 100;
             status = 'achieved';
         } else {
-            progress = Math.min(100, Math.round((currentValue / targetValue) * 100));
+            progress = Math.min(100, Math.max(0, Math.round((currentValue / targetValue) * 100)));
             status = progress > 0 ? 'on_track' : 'off_track';
         }
     }
@@ -89,10 +109,13 @@ const calculateGoalProgress = (goal, currentData) => {
     
     // حساب المعدل المطلوب يومياً
     let dailyRate = 0;
-    if (daysLeft > 0 && progress < 100) {
+    if (daysLeft > 0 && progress < 100 && progress > 0) {
         const remaining = Math.abs(targetValue - currentValue);
         dailyRate = roundNumber(remaining / daysLeft, 1);
     }
+    
+    // التحقق من تحقيق الهدف تلقائياً
+    const isAchieved = progress >= 100;
     
     return {
         progress: Math.min(100, Math.max(0, progress)),
@@ -101,8 +124,104 @@ const calculateGoalProgress = (goal, currentData) => {
         daysLeft,
         dailyRate,
         currentValue,
-        targetValue
+        targetValue,
+        isAchieved
     };
+};
+
+// دالة لتوليد توصيات مخصصة حسب حالة المستخدم (طالب/موظف)
+const generatePersonalizedRecommendations = (userOccupation, healthData, smartProfile, t) => {
+    const recommendations = [];
+    
+    // توصيات حسب الوظيفة
+    if (userOccupation === 'Student') {
+        recommendations.push({
+            icon: '📚',
+            text: t('profile.recommendations.student.studyBreak'),
+            priority: 'medium',
+            category: 'routine'
+        });
+        recommendations.push({
+            icon: '😴',
+            text: t('profile.recommendations.student.sleepRegularity'),
+            priority: 'high',
+            category: 'sleep'
+        });
+    } else if (userOccupation === 'Full-Time') {
+        recommendations.push({
+            icon: '💼',
+            text: t('profile.recommendations.worker.deskBreaks'),
+            priority: 'high',
+            category: 'activity'
+        });
+        recommendations.push({
+            icon: '🍱',
+            text: t('profile.recommendations.worker.mealPrep'),
+            priority: 'medium',
+            category: 'nutrition'
+        });
+    } else if (userOccupation === 'Freelancer') {
+        recommendations.push({
+            icon: '⏰',
+            text: t('profile.recommendations.freelancer.routine'),
+            priority: 'high',
+            category: 'routine'
+        });
+        recommendations.push({
+            icon: '🏃',
+            text: t('profile.recommendations.freelancer.activitySchedule'),
+            priority: 'medium',
+            category: 'activity'
+        });
+    }
+    
+    // توصيات صحية عامة
+    if (smartProfile?.bmi) {
+        if (smartProfile.bmi < 18.5) {
+            recommendations.push({
+                icon: '🥗',
+                text: t('profile.recommendations.health.weightGain'),
+                priority: 'high',
+                category: 'nutrition'
+            });
+        } else if (smartProfile.bmi > 25) {
+            recommendations.push({
+                icon: '🏃',
+                text: t('profile.recommendations.health.weightLoss'),
+                priority: 'high',
+                category: 'activity'
+            });
+        }
+    }
+    
+    if (healthData?.avgSleep && healthData.avgSleep < 7) {
+        recommendations.push({
+            icon: '🌙',
+            text: t('profile.recommendations.health.sleepMore', { hours: 8 - healthData.avgSleep }),
+            priority: 'high',
+            category: 'sleep'
+        });
+    }
+    
+    if (healthData?.weeklyActivity && healthData.weeklyActivity < 150) {
+        recommendations.push({
+            icon: '🏃',
+            text: t('profile.recommendations.health.activityMore', { minutes: 150 - healthData.weeklyActivity }),
+            priority: 'medium',
+            category: 'activity'
+        });
+    }
+    
+    if (healthData?.avgMood && healthData.avgMood < 3) {
+        recommendations.push({
+            icon: '😊',
+            text: t('profile.recommendations.health.moodImprove'),
+            priority: 'high',
+            category: 'mood'
+        });
+    }
+    
+    return recommendations;
 };
 
 function ProfileManager({ isAuthReady }) {
@@ -126,11 +245,13 @@ function ProfileManager({ isAuthReady }) {
     const [messageType, setMessageType] = useState('');
     const [activeTab, setActiveTab] = useState('profile');
     const [healthData, setHealthData] = useState({
-        weight: null,
-        sleep: null,
-        activity: null,
-        calories: null,
-        mood: null
+        currentWeight: null,
+        avgSleep: null,
+        weeklyActivity: null,
+        avgCalories: null,
+        avgMood: null,
+        dailyWater: null,
+        dailySteps: null
     });
     
     const [newGoal, setNewGoal] = useState({
@@ -147,7 +268,8 @@ function ProfileManager({ isAuthReady }) {
         notifications: true,
         darkMode: false,
         language: i18n.language,
-        updateInterval: 30
+        updateInterval: 30,
+        autoSyncGoals: true  // مزامنة تلقائية للأهداف
     });
 
     const [achievements, setAchievements] = useState([]);
@@ -183,88 +305,56 @@ function ProfileManager({ isAuthReady }) {
         }
     }, [isAuthReady]);
 
-    // حساب BMI والملف الذكي
-    const smartProfile = useMemo(() => {
-        const weight = parseFloat(userData.initial_weight) || healthData.weight;
-        const height = parseFloat(userData.height);
-        
-        if (!weight || !height) return null;
-        
-        const bmi = calculateBMI(weight, height);
-        const bmiCategory = bmi ? getBMICategory(bmi, t) : null;
-        
-        // حساب العمر
-        let age = null;
-        if (userData.date_of_birth) {
-            const birthDate = new Date(userData.date_of_birth);
-            const today = new Date();
-            age = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
+    // تحديث الأهداف تلقائياً عند تغير البيانات الصحية
+    useEffect(() => {
+        if (settings.autoSyncGoals && healthData.currentWeight !== null) {
+            updateAllGoalsProgress();
+        }
+    }, [healthData.currentWeight, healthData.avgSleep, healthData.weeklyActivity, healthData.avgCalories, healthData.avgMood]);
+
+    // تحديث جميع الأهداف تلقائياً
+    const updateAllGoalsProgress = async () => {
+        for (const goal of healthGoals) {
+            if (goal.is_achieved) continue;
+            
+            const progressData = calculateGoalProgress(goal, healthData);
+            
+            if (progressData.isAchieved && !goal.is_achieved) {
+                // الهدف تم تحقيقه تلقائياً
+                await updateGoalAchievement(goal.id, true, progressData.currentValue);
+                // إضافة إنجاز
+                addAchievement(goal.title);
+            } else if (Math.abs(progressData.currentValue - (goal.current_value || 0)) > 0.1) {
+                // تحديث القيمة الحالية
+                await updateGoalProgress(goal.id, progressData.currentValue);
             }
         }
-        
-        // تقييم مستوى الصحة
-        let healthScore = 65;
-        let recommendations = [];
-        
-        if (bmi) {
-            if (bmi >= 18.5 && bmi <= 24.9) healthScore += 15;
-            else if (bmi >= 25 && bmi <= 29.9) healthScore -= 5;
-            else if (bmi >= 30) healthScore -= 15;
-            else if (bmi < 18.5) healthScore -= 10;
-        }
-        
-        if (healthData.sleep) {
-            if (healthData.sleep >= 7 && healthData.sleep <= 8) healthScore += 15;
-            else if (healthData.sleep >= 6) healthScore += 5;
-            else healthScore -= 10;
-        }
-        
-        if (healthData.activity) {
-            if (healthData.activity >= 150) healthScore += 15;
-            else if (healthData.activity >= 75) healthScore += 5;
-            else healthScore -= 5;
-        }
-        
-        healthScore = Math.min(100, Math.max(0, healthScore));
-        
-        // توليد توصيات ذكية
-        if (bmi && (bmi < 18.5 || bmi > 25)) {
-            recommendations.push({
-                icon: '⚖️',
-                text: bmi < 18.5 ? t('profile.recommendations.weightGain') : t('profile.recommendations.weightLoss'),
-                priority: 'high'
+    };
+
+    const updateGoalAchievement = async (goalId, isAchieved, currentValue) => {
+        try {
+            await axiosInstance.patch(`/goals/${goalId}/`, { 
+                is_achieved: isAchieved,
+                current_value: currentValue,
+                achieved_date: new Date().toISOString()
             });
+            setMessage(t('profile.goals.autoAchieved'));
+            setMessageType('success');
+            fetchHealthGoals();
+        } catch (error) {
+            console.error('Error updating goal achievement:', error);
         }
-        
-        if (healthData.sleep && healthData.sleep < 7) {
-            recommendations.push({
-                icon: '😴',
-                text: t('profile.recommendations.sleepMore', { hours: 8 - healthData.sleep }),
-                priority: 'high'
-            });
-        }
-        
-        if (healthData.activity && healthData.activity < 150) {
-            recommendations.push({
-                icon: '🏃',
-                text: t('profile.recommendations.activityMore', { minutes: 150 - healthData.activity }),
-                priority: 'medium'
-            });
-        }
-        
-        return {
-            bmi,
-            bmiCategory,
-            age,
-            healthScore,
-            recommendations,
-            weight,
-            height
+    };
+
+    const addAchievement = (goalTitle) => {
+        const newAchievement = {
+            id: Date.now(),
+            title: goalTitle,
+            achievedAt: new Date().toISOString(),
+            icon: '🏆'
         };
-    }, [userData.initial_weight, userData.height, userData.date_of_birth, healthData, t]);
+        setAchievements(prev => [newAchievement, ...prev]);
+    };
 
     const loadSavedSettings = () => {
         try {
@@ -280,12 +370,20 @@ function ProfileManager({ isAuthReady }) {
 
     const fetchCurrentHealthData = async () => {
         try {
-            const [sleepRes, activitiesRes, mealsRes, moodRes] = await Promise.all([
-                axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
-                axiosInstance.get('/activities/').catch(() => ({ data: [] })),
-                axiosInstance.get('/meals/').catch(() => ({ data: [] })),
-                axiosInstance.get('/mood-logs/').catch(() => ({ data: [] }))
+            const [sleepRes, activitiesRes, mealsRes, moodRes, healthRes] = await Promise.all([
+                axiosInstance.get('/sleep/?limit=100').catch(() => ({ data: [] })),
+                axiosInstance.get('/activities/?limit=100').catch(() => ({ data: [] })),
+                axiosInstance.get('/meals/?limit=100').catch(() => ({ data: [] })),
+                axiosInstance.get('/mood-logs/?limit=100').catch(() => ({ data: [] })),
+                axiosInstance.get('/health_status/?limit=100').catch(() => ({ data: [] }))
             ]);
+            
+            // أحدث وزن
+            let currentWeight = null;
+            if (healthRes.data.length > 0) {
+                const sortedHealth = [...healthRes.data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                currentWeight = sortedHealth[0]?.weight_kg ? parseFloat(sortedHealth[0].weight_kg) : null;
+            }
             
             // حساب متوسط النوم
             let avgSleep = 0;
@@ -304,7 +402,7 @@ function ProfileManager({ isAuthReady }) {
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
             const weeklyActivity = activitiesRes.data.filter(a => {
-                const date = new Date(a.date || a.created_at);
+                const date = new Date(a.start_time || a.created_at);
                 return date >= weekAgo;
             }).reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
             
@@ -325,11 +423,13 @@ function ProfileManager({ isAuthReady }) {
             }
             
             setHealthData({
-                weight: null,
-                sleep: avgSleep,
-                activity: weeklyActivity,
-                calories: avgCalories,
-                mood: avgMood
+                currentWeight: currentWeight,
+                avgSleep: avgSleep,
+                weeklyActivity: weeklyActivity,
+                avgCalories: avgCalories,
+                avgMood: avgMood,
+                dailyWater: null,
+                dailySteps: null
             });
             
         } catch (error) {
@@ -435,16 +535,18 @@ function ProfileManager({ isAuthReady }) {
                 return;
             }
 
-            // تحديد القيمة الحالية حسب نوع الهدف
+            // تحديد القيمة الحالية حسب نوع الهدف من أحدث البيانات
             let startValue = 0;
             if (newGoal.type === 'weight_loss' || newGoal.type === 'weight_gain') {
-                startValue = parseFloat(userData.initial_weight) || healthData.weight || 0;
+                startValue = healthData.currentWeight || parseFloat(userData.initial_weight) || 0;
             } else if (newGoal.type === 'sleep') {
-                startValue = healthData.sleep || 0;
+                startValue = healthData.avgSleep || 0;
             } else if (newGoal.type === 'activity') {
-                startValue = healthData.activity || 0;
+                startValue = healthData.weeklyActivity || 0;
             } else if (newGoal.type === 'calories') {
-                startValue = healthData.calories || 0;
+                startValue = healthData.avgCalories || 0;
+            } else if (newGoal.type === 'mood') {
+                startValue = healthData.avgMood || 0;
             } else {
                 startValue = newGoal.start_value ? parseFloat(newGoal.start_value) : 0;
             }
@@ -486,13 +588,8 @@ function ProfileManager({ isAuthReady }) {
     const updateGoalProgress = async (goalId, currentValue) => {
         try {
             await axiosInstance.patch(`/goals/${goalId}/`, { current_value: currentValue });
-            setMessage(t('profile.goals.progressUpdated'));
-            setMessageType('success');
-            fetchHealthGoals();
         } catch (error) {
             console.error('Error updating goal:', error);
-            setMessage(t('profile.error.updateProgress'));
-            setMessageType('error');
         }
     };
 
@@ -515,6 +612,13 @@ function ProfileManager({ isAuthReady }) {
         setSaving(true);
         try {
             localStorage.setItem('appSettings', JSON.stringify(settings));
+            
+            // تطبيق اللغة
+            if (settings.language !== i18n.language) {
+                const { changeLanguage } = await import('../i18n');
+                changeLanguage(settings.language);
+            }
+            
             setMessage(t('profile.settings.saved'));
             setMessageType('success');
         } catch (error) {
@@ -530,7 +634,7 @@ function ProfileManager({ isAuthReady }) {
         if (!confirm(t('profile.danger.deleteAccountConfirm'))) return;
         
         const confirmation = prompt(t('profile.danger.typeDelete'));
-        if (confirmation !== 'حذف') {
+        if (confirmation !== 'حذف' && confirmation !== 'delete') {
             setMessage(t('profile.danger.cancelled'));
             setMessageType('info');
             return;
@@ -672,6 +776,71 @@ function ProfileManager({ isAuthReady }) {
         }
     };
 
+    // حساب BMI والملف الذكي مع توصيات مخصصة حسب حالة المستخدم
+    const smartProfile = useMemo(() => {
+        const weight = healthData.currentWeight || parseFloat(userData.initial_weight);
+        const height = parseFloat(userData.height);
+        
+        if (!weight || !height) return null;
+        
+        const bmi = calculateBMI(weight, height);
+        const bmiCategory = bmi ? getBMICategory(bmi, t) : null;
+        
+        // حساب العمر
+        let age = null;
+        if (userData.date_of_birth) {
+            const birthDate = new Date(userData.date_of_birth);
+            const today = new Date();
+            age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+        }
+        
+        // تقييم مستوى الصحة
+        let healthScore = 65;
+        
+        if (bmi) {
+            if (bmi >= 18.5 && bmi <= 24.9) healthScore += 15;
+            else if (bmi >= 25 && bmi <= 29.9) healthScore -= 5;
+            else if (bmi >= 30) healthScore -= 15;
+            else if (bmi < 18.5) healthScore -= 10;
+        }
+        
+        if (healthData.avgSleep) {
+            if (healthData.avgSleep >= 7 && healthData.avgSleep <= 8) healthScore += 15;
+            else if (healthData.avgSleep >= 6) healthScore += 5;
+            else healthScore -= 10;
+        }
+        
+        if (healthData.weeklyActivity) {
+            if (healthData.weeklyActivity >= 150) healthScore += 15;
+            else if (healthData.weeklyActivity >= 75) healthScore += 5;
+            else healthScore -= 5;
+        }
+        
+        healthScore = Math.min(100, Math.max(0, healthScore));
+        
+        // توليد توصيات مخصصة حسب حالة المستخدم
+        const recommendations = generatePersonalizedRecommendations(
+            userData.occupation_status,
+            healthData,
+            { bmi, bmiCategory, age, healthScore },
+            t
+        );
+        
+        return {
+            bmi,
+            bmiCategory,
+            age,
+            healthScore,
+            recommendations,
+            weight,
+            height
+        };
+    }, [userData.initial_weight, userData.height, userData.date_of_birth, userData.occupation_status, healthData, t]);
+
     if (loading && !userData.username) {
         return (
             <div className={`loading-container ${darkMode ? 'dark-mode' : ''}`}>
@@ -694,12 +863,20 @@ function ProfileManager({ isAuthReady }) {
                 </div>
             </div>
 
-            {/* Smart Profile - الملف الذكي */}
+            {/* Smart Profile - الملف الذكي مع توصيات مخصصة */}
             {smartProfile && (
                 <div className="smart-profile-card">
                     <div className="smart-profile-header">
                         <span className="smart-icon">🧠</span>
                         <span className="smart-title">{t('profile.smartProfile.title')}</span>
+                        {userData.occupation_status && (
+                            <span className="user-badge">
+                                {userData.occupation_status === 'Student' && '📚 طالب'}
+                                {userData.occupation_status === 'Full-Time' && '💼 موظف'}
+                                {userData.occupation_status === 'Freelancer' && '✨ مستقل'}
+                                {userData.occupation_status === 'Other' && '👤 آخر'}
+                            </span>
+                        )}
                     </div>
                     
                     <div className="smart-profile-content">
@@ -733,14 +910,33 @@ function ProfileManager({ isAuthReady }) {
                                 <strong>💡 {t('profile.smartProfile.recommendations')}:</strong>
                                 <ul>
                                     {smartProfile.recommendations.map((rec, i) => (
-                                        <li key={i}>
+                                        <li key={i} className={`priority-${rec.priority}`}>
                                             <span className="rec-icon">{rec.icon}</span>
                                             <span>{rec.text}</span>
+                                            {rec.priority === 'high' && <span className="priority-badge">عاجل</span>}
                                         </li>
                                     ))}
                                 </ul>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* إنجازات تلقائية */}
+            {achievements.length > 0 && (
+                <div className="achievements-banner">
+                    <div className="achievements-header">
+                        <span>🏆</span>
+                        <span>{t('profile.achievements.recent')}</span>
+                    </div>
+                    <div className="achievements-list">
+                        {achievements.slice(0, 3).map((ach, i) => (
+                            <div key={i} className="achievement-item">
+                                <span>{ach.icon}</span>
+                                <span>{t('profile.achievements.goalAchieved', { title: ach.title })}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
@@ -782,7 +978,7 @@ function ProfileManager({ isAuthReady }) {
             {/* محتوى التبويبات */}
             <div className="tab-content">
                 
-                {/* تبويب الملف الشخصي */}
+                {/* تبويب الملف الشخصي - بدون كلمة مرور */}
                 {activeTab === 'profile' && (
                     <form onSubmit={handleUserUpdate} className="profile-form">
                         <div className="form-section">
@@ -790,7 +986,8 @@ function ProfileManager({ isAuthReady }) {
                             <div className="form-grid">
                                 <div className="form-group">
                                     <label>{t('profile.profile.username')}</label>
-                                    <input type="text" value={userData.username} disabled />
+                                    <input type="text" value={userData.username} disabled className="disabled-input" />
+                                    <small className="field-hint">❌ {t('profile.profile.usernameReadOnly')}</small>
                                 </div>
                                 <div className="form-group">
                                     <label>{t('profile.profile.email')}</label>
@@ -841,6 +1038,7 @@ function ProfileManager({ isAuthReady }) {
                                         <option value="Freelancer">{t('profile.profile.freelancer')}</option>
                                         <option value="Other">{t('profile.profile.other')}</option>
                                     </select>
+                                    <small className="field-hint">💡 {t('profile.profile.occupationHint')}</small>
                                 </div>
                             </div>
                         </div>
@@ -872,6 +1070,7 @@ function ProfileManager({ isAuthReady }) {
                                             <option value="sleep">{t('profile.goals.types.sleep')}</option>
                                             <option value="activity">{t('profile.goals.types.activity')}</option>
                                             <option value="calories">{t('profile.goals.types.calories')}</option>
+                                            <option value="mood">{t('profile.goals.types.mood')}</option>
                                         </select>
                                     </div>
                                     <div className="form-group">
@@ -912,7 +1111,7 @@ function ProfileManager({ isAuthReady }) {
                             </div>
                             <div className="stat-card">
                                 <span className="stat-value">
-                                    {Math.round(healthGoals.reduce((sum, g) => sum + (g.current_value / g.target_value * 100), 0) / (healthGoals.length || 1))}%
+                                    {healthGoals.length > 0 ? Math.round(healthGoals.reduce((sum, g) => sum + (g.current_value / g.target_value * 100), 0) / healthGoals.length) : 0}%
                                 </span>
                                 <span className="stat-label">{t('profile.goals.avgProgress')}</span>
                             </div>
@@ -921,11 +1120,15 @@ function ProfileManager({ isAuthReady }) {
                         {/* قائمة الأهداف الذكية */}
                         <div className="goals-list">
                             <h3>📋 {t('profile.goals.myGoals')}</h3>
+                            <div className="auto-sync-info">
+                                <span>🔄 {t('profile.goals.autoSyncEnabled')}</span>
+                                <small>{t('profile.goals.autoSyncDesc')}</small>
+                            </div>
                             {healthGoals.length > 0 ? (
                                 <div className="goals-grid">
                                     {healthGoals.map((goal) => {
                                         const progressData = calculateGoalProgress(goal, healthData);
-                                        const isCompleted = goal.is_achieved || progressData.progress >= 100;
+                                        const isCompleted = goal.is_achieved || progressData.isAchieved;
                                         
                                         return (
                                             <div key={goal.id} className={`goal-card ${isCompleted ? 'completed' : ''}`}>
@@ -974,23 +1177,6 @@ function ProfileManager({ isAuthReady }) {
                                                 {isCompleted && (
                                                     <div className="goal-status achieved">🏆 {t('profile.goals.achieved')}</div>
                                                 )}
-                                                
-                                                {!isCompleted && (
-                                                    <div className="goal-update">
-                                                        <input
-                                                            type="number"
-                                                            step="0.1"
-                                                            placeholder={t('profile.goals.updateProgress')}
-                                                            onKeyPress={(e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    updateGoalProgress(goal.id, parseFloat(e.target.value));
-                                                                    e.target.value = '';
-                                                                }
-                                                            }}
-                                                        />
-                                                        <small>{t('profile.goals.pressEnter')}</small>
-                                                    </div>
-                                                )}
                                             </div>
                                         );
                                     })}
@@ -1030,6 +1216,17 @@ function ProfileManager({ isAuthReady }) {
                                 </div>
                                 <label className="toggle">
                                     <input type="checkbox" checked={settings.notifications} onChange={(e) => setSettings({...settings, notifications: e.target.checked})} />
+                                    <span className="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div className="setting-item">
+                                <div>
+                                    <label>{t('profile.settings.autoSyncGoals')}</label>
+                                    <p>{t('profile.settings.autoSyncGoalsDesc')}</p>
+                                </div>
+                                <label className="toggle">
+                                    <input type="checkbox" checked={settings.autoSyncGoals} onChange={(e) => setSettings({...settings, autoSyncGoals: e.target.checked})} />
                                     <span className="toggle-slider"></span>
                                 </label>
                             </div>
