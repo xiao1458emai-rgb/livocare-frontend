@@ -78,46 +78,78 @@ function HabitTracker({ isAuthReady }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // ✅ جلب تعريفات العادات
-    const fetchHabitDefinitions = useCallback(async () => {
-        if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
+// src/components/HabitTracker.jsx
+
+// ✅ تعديل دالة fetchHabitDefinitions
+const fetchHabitDefinitions = useCallback(async () => {
+    if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
+    
+    isFetchingRef.current = true;
+    setLoading(true);
+    
+    try {
+        const [defResponse, logsResponse, todayResponse] = await Promise.all([
+            axiosInstance.get('/habit-definitions/'),
+            axiosInstance.get('/habit-logs/'),
+            axiosInstance.get('/habit-logs/today/')
+        ]);
         
-        isFetchingRef.current = true;
-        setLoading(true);
+        if (!isMountedRef.current) return;
         
-        try {
-            const response = await axiosInstance.get('/habit-definitions/');
-            const definitionsData = Array.isArray(response.data) ? response.data : 
-                                   (response.data?.results ? response.data.results : []);
-            
-            const logResponse = await axiosInstance.get('/habit-logs/');
-            const logsData = Array.isArray(logResponse.data) ? logResponse.data : 
-                            (logResponse.data?.results ? logResponse.data.results : []);
-            
-            const todayResponse = await axiosInstance.get('/habit-logs/today/');
-            const todayData = Array.isArray(todayResponse.data) ? todayResponse.data : [];
-            
-            if (isMountedRef.current) {
-                setDefinitions(definitionsData);
-                setLogs(logsData);
-                setTodayLogs(todayData);
-            }
-        } catch (error) {
-            console.error('Failed to fetch habits:', error);
-            if (isMountedRef.current) {
-                setMessage(t('habits.fetchError'));
-                setIsError(true);
-                setDefinitions([]);
-                setLogs([]);
-                setTodayLogs([]);
-            }
-        } finally {
-            if (isMountedRef.current) {
-                setLoading(false);
-            }
-            isFetchingRef.current = false;
+        // ✅ معالجة تعريفات العادات
+        let definitionsData = [];
+        if (defResponse.data?.results) {
+            definitionsData = defResponse.data.results;
+        } else if (Array.isArray(defResponse.data)) {
+            definitionsData = defResponse.data;
+        } else {
+            definitionsData = [];
         }
-    }, [isAuthReady, t]);
+        
+        // ✅ معالجة سجلات العادات
+        let logsData = [];
+        if (logsResponse.data?.results) {
+            logsData = logsResponse.data.results;
+        } else if (Array.isArray(logsResponse.data)) {
+            logsData = logsResponse.data;
+        } else {
+            logsData = [];
+        }
+        
+        // ✅ معالجة سجلات اليوم
+        let todayData = [];
+        if (todayResponse.data?.results) {
+            todayData = todayResponse.data.results;
+        } else if (Array.isArray(todayResponse.data)) {
+            todayData = todayResponse.data;
+        } else {
+            todayData = [];
+        }
+        
+        console.log('💊 Habit definitions loaded:', definitionsData.length);
+        console.log('📝 Habit logs loaded:', logsData.length);
+        console.log('📅 Today logs loaded:', todayData.length);
+        
+        setDefinitions(definitionsData);
+        setLogs(logsData);
+        setTodayLogs(todayData);
+        
+    } catch (error) {
+        console.error('Failed to fetch habits:', error);
+        if (isMountedRef.current) {
+            setMessage(t('habits.fetchError'));
+            setIsError(true);
+            setDefinitions([]);
+            setLogs([]);
+            setTodayLogs([]);
+        }
+    } finally {
+        if (isMountedRef.current) {
+            setLoading(false);
+        }
+        isFetchingRef.current = false;
+    }
+}, [isAuthReady, t]);
 
     useEffect(() => {
         if (isAuthReady) {
