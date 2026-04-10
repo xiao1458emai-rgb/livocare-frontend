@@ -3,11 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api'; 
 import '../index.css';
+
 // المكونات الأساسية
 import HealthForm from './HealthForm';
 import HealthHistory from './HealthHistory';
 import HealthCharts from './HealthCharts';
-// مكونات التنقل والإضافات
 import Sidebar from './Sidebar';   
 import NutritionMain from './nutrition/NutritionMain';
 import SleepTracker from './SleepTracker';
@@ -23,6 +23,7 @@ function Dashboard() {
     // I. الحالات (STATE)
     // -----------------------------------------------------
     const [healthData, setHealthData] = useState(null);
+    const [healthRecords, setHealthRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [refreshKey, setRefreshKey] = useState(0); 
@@ -43,7 +44,6 @@ function Dashboard() {
     // II. التأثيرات (EFFECTS)
     // -----------------------------------------------------
     
-    // تطبيق الوضع المظلم
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const html = document.documentElement;
@@ -57,17 +57,14 @@ function Dashboard() {
         }
     }, [darkMode]);
 
-    // استماع لتغييرات الثيم
     useEffect(() => {
         const handleThemeChange = (e) => {
             setDarkMode(e.detail?.darkMode ?? false);
         };
-        
         window.addEventListener('themeChange', handleThemeChange);
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // تعيين اتجاه الصفحة حسب اللغة
     useEffect(() => {
         if (typeof window !== 'undefined') {
             document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
@@ -83,7 +80,6 @@ function Dashboard() {
         }
     }, [isRTL, i18n.language]);
 
-    // التحقق من حالة المصادقة
     useEffect(() => {
         const checkAuth = () => {
             if (typeof window !== 'undefined') {
@@ -94,79 +90,95 @@ function Dashboard() {
         checkAuth();
     }, []);
 
-    // جلب بيانات الملخص
+    // ✅ جلب بيانات الصحة - المسار الصحيح
     const fetchHealthData = async () => {
         try {
             setLoading(true);
             setError(null);
             
-            let healthResponse;
-            let latestReading = null;
+            // ✅ المسار الصحيح للـ API
+            const response = await axiosInstance.get('/health_status/');
+            console.log('📊 API Response:', response.data);
             
-            try {
-                const response = await axiosInstance.get('/health/readings/?latest=true');
-                if (response.data && response.data.length > 0) {
-                    latestReading = response.data[0];
-                }
-            } catch (err1) {
-                console.log('Endpoint 1 failed, trying alternative...');
-                
-                try {
-                    const response = await axiosInstance.get('/health/readings/');
-                    if (response.data && response.data.length > 0) {
-                        const sorted = [...response.data].sort((a, b) => 
-                            new Date(b.date || b.recorded_at) - new Date(a.date || a.recorded_at)
-                        );
-                        latestReading = sorted[0];
-                    }
-                } catch (err2) {
-                    console.log('Endpoint 2 failed...');
-                    
-                    const storedData = localStorage.getItem('lastHealthReading');
-                    if (storedData) {
-                        try {
-                            latestReading = JSON.parse(storedData);
-                            latestReading.source = 'localStorage';
-                        } catch (parseErr) {
-                            console.error('Error parsing stored data:', parseErr);
-                        }
-                    }
-                }
+            let records = [];
+            
+            // ✅ معالجة البيانات القادمة من API
+            if (response.data?.results) {
+                records = response.data.results;
+            } else if (Array.isArray(response.data)) {
+                records = response.data;
+            } else {
+                records = [];
             }
             
-            // ✅ تحقق من صحة البيانات
-            if (latestReading) {
-                // تحقق من الوزن (نطاق منطقي 30-200 كجم)
-                const weight = parseFloat(latestReading.weight || latestReading.weight_kg);
-                const validWeight = weight && weight >= 30 && weight <= 200 ? weight : null;
+            console.log('📊 Records found:', records.length);
+            setHealthRecords(records);
+            
+            // ✅ استخراج أحدث قراءة
+            if (records.length > 0) {
+                const sortedRecords = [...records].sort((a, b) => 
+                    new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at)
+                );
+                const latest = sortedRecords[0];
                 
-                // تحقق من الضغط (نطاق منطقي)
-                const systolic = parseInt(latestReading.systolic || latestReading.systolic_pressure);
-                const diastolic = parseInt(latestReading.diastolic || latestReading.diastolic_pressure);
-                const validSystolic = systolic && systolic >= 70 && systolic <= 200 ? systolic : null;
-                const validDiastolic = diastolic && diastolic >= 40 && diastolic <= 130 ? diastolic : null;
+                console.log('📊 Latest record:', latest);
                 
-                // تحقق من السكر (نطاق منطقي 40-400 mg/dL)
-                const glucose = parseFloat(latestReading.glucose || latestReading.blood_glucose);
-                const validGlucose = glucose && glucose >= 40 && glucose <= 400 ? glucose : null;
+                // ✅ التحقق من صحة البيانات
+                const weight = latest.weight_kg ? parseFloat(latest.weight_kg) : null;
+                const systolic = latest.systolic_pressure ? parseInt(latest.systolic_pressure) : null;
+                const diastolic = latest.diastolic_pressure ? parseInt(latest.diastolic_pressure) : null;
+                const glucose = latest.glucose_mgdl || latest.blood_glucose ? parseFloat(latest.glucose_mgdl || latest.blood_glucose) : null;
                 
-                const data = {
-                    weight: validWeight,
-                    systolic: validSystolic,
-                    diastolic: validDiastolic,
-                    glucose: validGlucose,
-                    recorded_at: latestReading.date || latestReading.recorded_at || new Date().toISOString(),
-                    source: latestReading.source || 'api'
-                };
-                setHealthData(data);
+                setHealthData({
+                    weight: weight,
+                    systolic: systolic,
+                    diastolic: diastolic,
+                    glucose: glucose,
+                    recorded_at: latest.recorded_at || latest.created_at,
+                    source: 'api'
+                });
+                
+                // حفظ في localStorage كنسخة احتياطية
+                localStorage.setItem('lastHealthReading', JSON.stringify({
+                    weight: weight,
+                    systolic: systolic,
+                    diastolic: diastolic,
+                    glucose: glucose,
+                    recorded_at: latest.recorded_at
+                }));
             } else {
-                setHealthData(null);
+                // ✅ محاولة جلب من localStorage كنسخة احتياطية
+                const storedData = localStorage.getItem('lastHealthReading');
+                if (storedData) {
+                    try {
+                        const parsed = JSON.parse(storedData);
+                        setHealthData({ ...parsed, source: 'localStorage' });
+                        console.log('📊 Using cached data from localStorage');
+                    } catch (err) {
+                        setHealthData(null);
+                    }
+                } else {
+                    setHealthData(null);
+                }
             }
             
         } catch (err) {
-            console.error('Error fetching health data:', err);
+            console.error('❌ Error fetching health data:', err);
             setError(t('dashboard.fetchError'));
-            setHealthData(null);
+            
+            // ✅ محاولة جلب من localStorage عند فشل API
+            const storedData = localStorage.getItem('lastHealthReading');
+            if (storedData) {
+                try {
+                    const parsed = JSON.parse(storedData);
+                    setHealthData({ ...parsed, source: 'localStorage' });
+                    console.log('📊 Using cached data from localStorage after API error');
+                } catch (err) {
+                    setHealthData(null);
+                }
+            } else {
+                setHealthData(null);
+            }
         } finally {
             setLoading(false);
         }
@@ -178,15 +190,12 @@ function Dashboard() {
         }
     }, [refreshKey, isAuthReady]);
 
-    // نظام التحديث التلقائي
     useEffect(() => {
         if (!autoRefresh || !isAuthReady) return;
-
         const interval = setInterval(() => {
             setRefreshKey(prev => prev + 1);
             console.log('🔄 Auto-refreshing dashboard...');
         }, 60000);
-
         return () => clearInterval(interval);
     }, [autoRefresh, isAuthReady]);
 
@@ -195,55 +204,42 @@ function Dashboard() {
     // -----------------------------------------------------
     
     const handleDataSubmitted = () => {
-        setRefreshKey(prevKey => prevKey + 1); 
-        
-        if (healthData) {
-            localStorage.setItem('lastHealthReading', JSON.stringify(healthData));
-        }
+        setRefreshKey(prevKey => prevKey + 1);
     };
 
     const displayValue = (value, unit = '') => {
-        if (value === null || value === undefined || value === '' || value === 'N/A') {
+        if (value === null || value === undefined || value === '') {
             return '—';
         }
         return `${value} ${unit}`.trim();
     };
 
     const displayBloodPressure = (systolic, diastolic) => {
-        if (!systolic || !diastolic || systolic === 'N/A' || diastolic === 'N/A') {
-            return '—';
-        }
+        if (!systolic && systolic !== 0) return '—';
+        if (!diastolic && diastolic !== 0) return '—';
         return `${systolic} / ${diastolic}`;
     };
 
     const getTodayDate = () => {
         const today = new Date();
-        const options = { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        };
-        
-        if (i18n.language === 'ar') {
-            return today.toLocaleDateString('ar-EG', options);
-        } else {
-            return today.toLocaleDateString('en-US', options);
-        }
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-US';
+        return today.toLocaleDateString(locale, options);
     };
 
     const toggleDarkMode = () => {
         const newDarkMode = !darkMode;
         setDarkMode(newDarkMode);
         localStorage.setItem('livocare_darkMode', newDarkMode.toString());
-        
-        window.dispatchEvent(new CustomEvent('themeChange', { 
-            detail: { darkMode: newDarkMode }
-        }));
+        window.dispatchEvent(new CustomEvent('themeChange', { detail: { darkMode: newDarkMode } }));
     };
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
+    };
+
+    const handleManualRefresh = () => {
+        setRefreshKey(prev => prev + 1);
     };
 
     const renderSectionContent = () => {
@@ -253,9 +249,7 @@ function Dashboard() {
                     <div className="health-section">
                         <div className="summary-section">
                             <div className="summary-header">
-                                <h3>
-                                    {t('dashboard.dailySummary')}
-                                </h3>
+                                <h3>📊 {t('dashboard.dailySummary')}</h3>
                                 <span className="summary-date">{getTodayDate()}</span>
                                 {healthData?.source === 'localStorage' && (
                                     <span className="data-source">📱 {t('dashboard.localData')}</span>
@@ -299,7 +293,7 @@ function Dashboard() {
                                     <div className="card-content">
                                         <h4>{t('dashboard.bloodGlucose')}</h4>
                                         <p className="card-value">
-                                            {displayValue(healthData?.glucose, t('dashboard.mgdl'))}
+                                            {displayValue(healthData?.glucose, 'mg/dL')}
                                         </p>
                                         <small>{t('dashboard.glucoseLevel')}</small>
                                     </div>
@@ -375,20 +369,16 @@ function Dashboard() {
         return titles[sectionKey] || t('dashboard.dashboard');
     };
 
-    const handleManualRefresh = () => {
-        setRefreshKey(prev => prev + 1);
-    };
-
     // -----------------------------------------------------
-    // IV. العرض المشروط والـ JSX
+    // IV. العرض المشروط
     // -----------------------------------------------------
     
     if (loading && !healthData) {
         return (
             <div className={`loading-dashboard ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="loading-spinner"></div>
-                <h2>{t('dashboard.loading')}</h2>
-                <p>{t('dashboard.pleaseWait')}</p>
+                <h2>{t('dashboard.loadingSummary', 'جاري التحميل...')}</h2>
+                <p>{t('dashboard.pleaseWait', 'يرجى الانتظار قليلاً')}</p>
             </div>
         );
     }
@@ -399,7 +389,7 @@ function Dashboard() {
                 <div className="error-icon">⚠️</div>
                 <h2>{error}</h2>
                 <button onClick={fetchHealthData} className="retry-btn">
-                    🔄 {t('dashboard.retry')}
+                    🔄 {t('dashboard.retry', 'إعادة المحاولة')}
                 </button>
             </div>
         );
@@ -410,11 +400,7 @@ function Dashboard() {
             {/* شريط التحكم العلوي */}
             <div className="control-bar">
                 <div className="control-left">
-                    <button 
-                        className="menu-toggle"
-                        onClick={toggleSidebar}
-                        aria-label="Toggle menu"
-                    >
+                    <button className="menu-toggle" onClick={toggleSidebar} aria-label="Toggle menu">
                         {sidebarOpen ? '✕' : '☰'}
                     </button>
                     <div className="app-name">LivoCare</div>
@@ -425,11 +411,7 @@ function Dashboard() {
                 </div>
                 
                 <div className="control-right">
-                    <button 
-                        className="theme-toggle"
-                        onClick={toggleDarkMode}
-                        title={darkMode ? t('dashboard.switchToLight') : t('dashboard.switchToDark')}
-                    >
+                    <button className="theme-toggle" onClick={toggleDarkMode} title={darkMode ? '☀️' : '🌙'}>
                         {darkMode ? '☀️' : '🌙'}
                     </button>
                 </div>
@@ -446,47 +428,31 @@ function Dashboard() {
                 />
             </div>
             
-            {/* Overlay للجوال */}
-            {sidebarOpen && (
-                <div className="sidebar-overlay" onClick={toggleSidebar}></div>
-            )}
+            {sidebarOpen && <div className="sidebar-overlay" onClick={toggleSidebar}></div>}
 
-            {/* منطقة المحتوى الرئيسية */}
+            {/* المحتوى الرئيسي */}
             <main className="dashboard-content">
-                {/* عنوان القسم مع عناصر التحكم */}
                 <div className="section-header">
                     <div className="header-main">
                         <h1>{getSectionTitle(activeSection)}</h1>
                         <div className="refresh-controls">
-                            <button 
-                                onClick={handleManualRefresh}
-                                disabled={loading}
-                                className={`refresh-btn ${loading ? 'loading' : ''}`}
-                            >
-                                {loading ? '⏳' : '🔄'} {t('dashboard.refresh')}
+                            <button onClick={handleManualRefresh} disabled={loading} className={`refresh-btn ${loading ? 'loading' : ''}`}>
+                                {loading ? '⏳' : '🔄'} {t('dashboard.refresh', 'تحديث')}
                             </button>
                             
                             <label className="auto-refresh-toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={autoRefresh}
-                                    onChange={(e) => setAutoRefresh(e.target.checked)}
-                                />
+                                <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
                                 <span className="toggle-slider"></span>
-                                <span className="toggle-label">{t('dashboard.autoRefresh')}</span>
+                                <span className="toggle-label">{t('dashboard.autoRefresh', 'تحديث تلقائي')}</span>
                             </label>
                         </div>
                     </div>
                     
                     <div className="header-info">
-                        {autoRefresh && (
-                            <span className="auto-refresh-status">
-                                🔄 {t('dashboard.autoRefreshActive')}
-                            </span>
-                        )}
+                        {autoRefresh && <span className="auto-refresh-status">🔄 {t('dashboard.autoRefreshActive', 'التحديث التلقائي نشط')}</span>}
                         {healthData?.recorded_at && (
                             <div className="last-updated">
-                                {t('dashboard.lastUpdated')}: {new Date(healthData.recorded_at).toLocaleDateString(
+                                {t('dashboard.lastUpdated', 'آخر تحديث')}: {new Date(healthData.recorded_at).toLocaleDateString(
                                     i18n.language === 'ar' ? 'ar-EG' : 'en-US'
                                 )}
                             </div>
@@ -494,13 +460,11 @@ function Dashboard() {
                     </div>
                 </div>
 
-                {/* محتوى القسم */}
                 <div className="section-content">
                     {renderSectionContent()}
                 </div>
             </main>
-
-
+  
             <style jsx>{`
  /* Dashboard.css - متوافق مع ThemeManager */
 
