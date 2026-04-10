@@ -47,35 +47,46 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
     }, []);
 
     // ✅ جلب البيانات - مع useCallback ومنع الطلبات المتزامنة
-    const fetchHistory = useCallback(async () => {
-        if (isFetchingRef.current || !isMountedRef.current) return;
+// ✅ تعديل دالة fetchHistory
+const fetchHistory = useCallback(async () => {
+    if (isFetchingRef.current || !isMountedRef.current) return;
+    
+    isFetchingRef.current = true;
+    setLoading(true);
+    setError(null);
+    
+    try {
+        const response = await axiosInstance.get('/health_status/');
         
-        isFetchingRef.current = true;
-        setLoading(true);
-        setError(null);
+        if (!isMountedRef.current) return;
         
-        try {
-            const response = await axiosInstance.get('/health_status/');
-            
-            if (!isMountedRef.current) return;
-            
-            const historyData = Array.isArray(response.data) ? response.data : [];
-            setHistory(historyData);
-            setSelectedRecords([]);
-            setCurrentPage(1);
-        } catch (err) {
-            console.error('Error fetching health history:', err);
-            if (isMountedRef.current) {
-                setError(t('history.fetchError'));
-                setHistory([]);
-            }
-        } finally {
-            if (isMountedRef.current) {
-                setLoading(false);
-            }
-            isFetchingRef.current = false;
+        // ✅ معالجة البيانات - دعم results والمصفوفة
+        let historyData = [];
+        if (response.data?.results) {
+            historyData = response.data.results;
+        } else if (Array.isArray(response.data)) {
+            historyData = response.data;
+        } else {
+            historyData = [];
         }
-    }, [t]);
+        
+        console.log('📜 Health history loaded:', historyData.length, 'records');
+        setHistory(historyData);
+        setSelectedRecords([]);
+        setCurrentPage(1);
+    } catch (err) {
+        console.error('Error fetching health history:', err);
+        if (isMountedRef.current) {
+            setError(t('history.fetchError'));
+            setHistory([]);
+        }
+    } finally {
+        if (isMountedRef.current) {
+            setLoading(false);
+        }
+        isFetchingRef.current = false;
+    }
+}, [t]);
 
     // ✅ جلب البيانات عند التغيير
     useEffect(() => {

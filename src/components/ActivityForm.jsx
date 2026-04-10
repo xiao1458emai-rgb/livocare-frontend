@@ -155,33 +155,46 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         };
     }, [t]);
 
-    // ✅ جلب الأنشطة - مع useCallback
-    const fetchActivities = useCallback(async () => {
-        if (isFetchingRef.current || !isMountedRef.current) return;
+// في ActivityForm.jsx - دالة fetchActivities
+const fetchActivities = useCallback(async () => {
+    if (isFetchingRef.current || !isMountedRef.current) return;
+    
+    isFetchingRef.current = true;
+    setFetching(true);
+    
+    try {
+        const response = await axiosInstance.get('/activities/');
         
-        isFetchingRef.current = true;
-        setFetching(true);
-        
-        try {
-            const response = await axiosInstance.get('/activities/');
-            if (isMountedRef.current) {
-                setActivities(Array.isArray(response.data) ? response.data : []);
-                if (onActivityChange) onActivityChange();
-                setError(null);
-            }
-        } catch (err) {
-            console.error(t('activities.fetchErrorLog'), err);
-            if (isMountedRef.current) {
-                setError(t('activities.fetchError'));
-                setActivities([]);
-            }
-        } finally {
-            if (isMountedRef.current) {
-                setFetching(false);
-            }
-            isFetchingRef.current = false;
+        // ✅ معالجة البيانات (نتائج أو مصفوفة)
+        let activitiesData = [];
+        if (response.data?.results) {
+            activitiesData = response.data.results;
+        } else if (Array.isArray(response.data)) {
+            activitiesData = response.data;
+        } else {
+            activitiesData = [];
         }
-    }, [t, onActivityChange]);
+        
+        console.log('🏃 Activities fetched:', activitiesData.length);
+        
+        if (isMountedRef.current) {
+            setActivities(activitiesData);
+            if (onActivityChange) onActivityChange();
+            setError(null);
+        }
+    } catch (err) {
+        console.error(t('activities.fetchErrorLog'), err);
+        if (isMountedRef.current) {
+            setError(t('activities.fetchError'));
+            setActivities([]);
+        }
+    } finally {
+        if (isMountedRef.current) {
+            setFetching(false);
+        }
+        isFetchingRef.current = false;
+    }
+}, [t, onActivityChange]);
 
     // ✅ جلب الأنشطة عند التحميل
     useEffect(() => {

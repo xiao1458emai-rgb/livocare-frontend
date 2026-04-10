@@ -177,45 +177,68 @@ function MoodTracker({ isAuthReady }) {
         return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
     }, []);
 
-    // ✅ جلب البيانات - مع useCallback ومنع الطلبات المتزامنة
-    const fetchMoodData = useCallback(async () => {
-        if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
+// ✅ تعديل دالة fetchMoodData
+const fetchMoodData = useCallback(async () => {
+    if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
+    
+    isFetchingRef.current = true;
+    setLoading(true);
+    setError(null);
+    
+    try {
+        const [moodResponse, sleepResponse] = await Promise.all([
+            axiosInstance.get('/mood-logs/'),
+            axiosInstance.get('/sleep/').catch(() => ({ data: [] }))
+        ]);
         
-        isFetchingRef.current = true;
-        setLoading(true);
-        setError(null);
+        if (!isMountedRef.current) return;
         
-        try {
-            const [moodResponse, sleepResponse] = await Promise.all([
-                axiosInstance.get('/mood-logs/'),
-                axiosInstance.get('/sleep/').catch(() => ({ data: [] }))
-            ]);
-            
-            if (!isMountedRef.current) return;
-            
-            setMoodData(moodResponse.data || []);
-            setSleepData(sleepResponse.data || []);
-            setLastUpdate(new Date());
-            
-            // تحديث مزاج اليوم
-            const today = new Date().toDateString();
-            const todayEntry = (moodResponse.data || []).find(entry => 
-                new Date(entry.entry_time).toDateString() === today
-            );
-            setTodayMood(todayEntry || null);
-            
-        } catch (error) {
-            console.error('Error fetching mood data:', error);
-            if (isMountedRef.current) {
-                setError(t('mood.fetchError'));
-            }
-        } finally {
-            if (isMountedRef.current) {
-                setLoading(false);
-            }
-            isFetchingRef.current = false;
+        // ✅ معالجة بيانات المزاج - دعم results والمصفوفة
+        let moodDataArray = [];
+        if (moodResponse.data?.results) {
+            moodDataArray = moodResponse.data.results;
+        } else if (Array.isArray(moodResponse.data)) {
+            moodDataArray = moodResponse.data;
+        } else {
+            moodDataArray = [];
         }
-    }, [isAuthReady, t]);
+        
+        // ✅ معالجة بيانات النوم
+        let sleepDataArray = [];
+        if (sleepResponse.data?.results) {
+            sleepDataArray = sleepResponse.data.results;
+        } else if (Array.isArray(sleepResponse.data)) {
+            sleepDataArray = sleepResponse.data;
+        } else {
+            sleepDataArray = [];
+        }
+        
+        console.log('😊 Mood data loaded:', moodDataArray.length, 'records');
+        console.log('🌙 Sleep data loaded:', sleepDataArray.length, 'records');
+        
+        setMoodData(moodDataArray);
+        setSleepData(sleepDataArray);
+        setLastUpdate(new Date());
+        
+        // تحديث مزاج اليوم
+        const today = new Date().toDateString();
+        const todayEntry = moodDataArray.find(entry => 
+            new Date(entry.entry_time).toDateString() === today
+        );
+        setTodayMood(todayEntry || null);
+        
+    } catch (error) {
+        console.error('Error fetching mood data:', error);
+        if (isMountedRef.current) {
+            setError(t('mood.fetchError'));
+        }
+    } finally {
+        if (isMountedRef.current) {
+            setLoading(false);
+        }
+        isFetchingRef.current = false;
+    }
+}, [isAuthReady, t]);
 
     // ✅ جلب البيانات عند تحميل المكون
     useEffect(() => {

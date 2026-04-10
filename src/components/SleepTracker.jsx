@@ -117,30 +117,43 @@ function SleepTracker({ onDataSubmitted }) {
     }, []);
 
     // ✅ جلب سجل النوم - مع useCallback ومنع الطلبات المتزامنة
-    const fetchSleepHistory = useCallback(async () => {
-        if (isFetchingHistoryRef.current || !isMountedRef.current) return;
+// ✅ تعديل دالة fetchSleepHistory
+const fetchSleepHistory = useCallback(async () => {
+    if (isFetchingHistoryRef.current || !isMountedRef.current) return;
+    
+    isFetchingHistoryRef.current = true;
+    setFetchingHistory(true);
+    
+    try {
+        const response = await axiosInstance.get('/sleep/?limit=100');
         
-        isFetchingHistoryRef.current = true;
-        setFetchingHistory(true);
+        if (!isMountedRef.current) return;
         
-        try {
-            const response = await axiosInstance.get('/sleep/?limit=20');
-            if (isMountedRef.current) {
-                const historyData = Array.isArray(response.data) ? response.data : [];
-                setSleepHistory(historyData);
-            }
-        } catch (err) {
-            console.error('Failed to fetch sleep history:', err);
-            if (isMountedRef.current) {
-                setSleepHistory([]);
-            }
-        } finally {
-            if (isMountedRef.current) {
-                setFetchingHistory(false);
-            }
-            isFetchingHistoryRef.current = false;
+        // ✅ معالجة البيانات - دعم results والمصفوفة
+        let historyData = [];
+        if (response.data?.results) {
+            historyData = response.data.results;
+        } else if (Array.isArray(response.data)) {
+            historyData = response.data;
+        } else {
+            historyData = [];
         }
-    }, []);
+        
+        console.log('🌙 Sleep history loaded:', historyData.length, 'records');
+        setSleepHistory(historyData);
+        
+    } catch (err) {
+        console.error('Failed to fetch sleep history:', err);
+        if (isMountedRef.current) {
+            setSleepHistory([]);
+        }
+    } finally {
+        if (isMountedRef.current) {
+            setFetchingHistory(false);
+        }
+        isFetchingHistoryRef.current = false;
+    }
+}, []);
 
     // ✅ جلب سجل النوم عند التحميل
     useEffect(() => {
