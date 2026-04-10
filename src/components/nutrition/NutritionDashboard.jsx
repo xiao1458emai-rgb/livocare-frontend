@@ -29,13 +29,27 @@ const mergeDuplicateItems = (items) => {
     return Object.values(merged);
 };
 
-function NutritionDashboard({ meals, loading, onRefresh }) {
+// ✅ دالة مساعدة لاستخراج البيانات من response
+const extractData = (response) => {
+    if (response?.results) {
+        return response.results;
+    }
+    if (Array.isArray(response)) {
+        return response;
+    }
+    return [];
+};
+
+function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh }) {
     const { t, i18n } = useTranslation();
+    const [meals, setMeals] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [lastUpdate, setLastUpdate] = useState(null);
     const [darkMode, setDarkMode] = useState(false);
     const [activeTab, setActiveTab] = useState('basic');
     const [refreshAnalytics, setRefreshAnalytics] = useState(0);
+    
     const [nutritionGoals] = useState({
         dailyCalories: 2000,
         dailyProtein: 50,
@@ -45,11 +59,15 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
     
     const autoRefreshRef = useRef(autoRefresh);
     const intervalRef = useRef(null);
+    const isMountedRef = useRef(true);
+    const isFetchingRef = useRef(false);
 
+    // ✅ تحديث autoRefreshRef
     useEffect(() => {
         autoRefreshRef.current = autoRefresh;
     }, [autoRefresh]);
 
+    // ✅ تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -62,25 +80,100 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
+    // ✅ دالة جلب جميع الوجبات مع دعم pagination
+    const fetchAllMeals = useCallback(async () => {
+        if (isFetchingRef.current || !isMountedRef.current) return;
+        
+        isFetchingRef.current = true;
+        setLoading(true);
+        
+        let allMeals = [];
+        let nextUrl = '/meals/?limit=50';
+        
+        try {
+            while (nextUrl) {
+                const response = await axiosInstance.get(nextUrl);
+                const data = response.data;
+                
+                const mealsData = extractData(data);
+                allMeals = [...allMeals, ...mealsData];
+                
+                nextUrl = data.next || null;
+            }
+            
+            if (isMountedRef.current) {
+                console.log('🍽️ Meals loaded:', allMeals.length, 'records');
+                setMeals(allMeals);
+                setLastUpdate(new Date());
+            }
+        } catch (error) {
+            console.error('Error fetching meals:', error);
+            if (isMountedRef.current) {
+                setMeals([]);
+            }
+        } finally {
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isFetchingRef.current = false;
+        }
+    }, []);
+
+    // ✅ جلب البيانات عند التحميل أو عند طلب التحديث
+    const handleRefresh = useCallback(async () => {
+        await fetchAllMeals();
+        setRefreshAnalytics(prev => prev + 1);
+        if (onRefresh) onRefresh();
+    }, [fetchAllMeals, onRefresh]);
+
+    // ✅ تحميل البيانات الأولية
+    useEffect(() => {
+        fetchAllMeals();
+    }, [fetchAllMeals]);
+
+    // ✅ التحديث التلقائي
     useEffect(() => {
         if (!autoRefresh) {
             if (intervalRef.current) clearInterval(intervalRef.current);
             return;
         }
+        
         intervalRef.current = setInterval(() => {
-            if (autoRefreshRef.current && onRefresh) {
-                onRefresh();
+            if (autoRefreshRef.current && isMountedRef.current) {
+                fetchAllMeals();
                 setRefreshAnalytics(prev => prev + 1);
                 setLastUpdate(new Date());
             }
         }, 60000);
-        return () => clearInterval(intervalRef.current);
-    }, [autoRefresh, onRefresh]);
+        
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+    }, [autoRefresh, fetchAllMeals]);
+
+    // ✅ تنظيف عند إلغاء تحميل المكون
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+    }, []);
 
     // الإحصائيات الأساسية
     const nutritionStats = useMemo(() => {
         if (!meals?.length) {
-            return { totalCalories: 0, avgProtein: 0, avgCarbs: 0, avgFat: 0, todayCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0, totalMeals: 0 };
+            return { 
+                totalCalories: 0, 
+                avgProtein: 0, 
+                avgCarbs: 0, 
+                avgFat: 0, 
+                todayCalories: 0, 
+                totalProtein: 0, 
+                totalCarbs: 0, 
+                totalFat: 0, 
+                totalMeals: 0 
+            };
         }
 
         const stats = meals.reduce((acc, meal) => {
@@ -134,9 +227,32 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
         };
     }, [meals, nutritionGoals]);
 
-    const getMealTypeIcon = (type) => ({ 'Breakfast': '🍳', 'Lunch': '🍲', 'Dinner': '🍽️', 'Snack': '🍎', 'Other': '📝' }[type] || '🍽️');
-    const getMealTypeLabel = (type) => ({ 'Breakfast': t('nutrition.breakfast'), 'Lunch': t('nutrition.lunch'), 'Dinner': t('nutrition.dinner'), 'Snack': t('nutrition.snack'), 'Other': t('nutrition.other') }[type] || type);
-    const formatDate = (dateString) => new Date(dateString).toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const getMealTypeIcon = (type) => ({ 
+        'Breakfast': '🍳', 
+        'Lunch': '🍲', 
+        'Dinner': '🍽️', 
+        'Snack': '🍎', 
+        'Other': '📝' 
+    }[type] || '🍽️');
+    
+    const getMealTypeLabel = (type) => ({ 
+        'Breakfast': t('nutrition.breakfast'), 
+        'Lunch': t('nutrition.lunch'), 
+        'Dinner': t('nutrition.dinner'), 
+        'Snack': t('nutrition.snack'), 
+        'Other': t('nutrition.other') 
+    }[type] || type);
+    
+    const formatDate = (dateString) => {
+        try {
+            return new Date(dateString).toLocaleDateString(
+                i18n.language === 'ar' ? 'ar-EG' : 'en-US', 
+                { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+            );
+        } catch {
+            return dateString;
+        }
+    };
 
     const getRecommendations = () => {
         const recs = [];
@@ -165,12 +281,13 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
     };
 
     const prediction = getPrediction();
+    const recommendations = getRecommendations();
 
-    if (loading) {
+    if (loading && meals.length === 0) {
         return (
             <div className="dashboard-loading-container">
                 <div className="dashboard-loading-spinner"></div>
-                <p>{t('nutrition.loading')}</p>
+                <p>{t('nutrition.loading') || 'جاري تحميل البيانات...'}</p>
             </div>
         );
     }
@@ -180,21 +297,52 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
             {/* شريط التحكم */}
             <div className="dashboard-control-bar">
                 <div className="dashboard-control-left">
-                    <button onClick={onRefresh} className="dashboard-refresh-button">🔄 {t('nutrition.refresh')}</button>
-                    {lastUpdate && <span className="dashboard-last-update">🕒 {lastUpdate.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}</span>}
+                    <button onClick={handleRefresh} className="dashboard-refresh-button">
+                        🔄 {t('nutrition.refresh') || 'تحديث'}
+                    </button>
+                    {lastUpdate && (
+                        <span className="dashboard-last-update">
+                            🕒 {lastUpdate.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}
+                        </span>
+                    )}
                 </div>
                 <div className="dashboard-control-right">
                     <label className="dashboard-auto-refresh">
                         <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
-                        <span>{t('nutrition.autoRefresh')}</span>
+                        <span>{t('nutrition.autoRefresh') || 'تحديث تلقائي'}</span>
                     </label>
                 </div>
             </div>
 
+            {/* التوصيات السريعة */}
+            {recommendations.length > 0 && (
+                <div className="recommendations-card">
+                    <div className="recommendations-header">
+                        <span>💡</span>
+                        <span>{t('nutrition.smartRecommendations') || 'توصيات ذكية'}</span>
+                    </div>
+                    <ul className="recommendations-list">
+                        {recommendations.map((rec, idx) => (
+                            <li key={idx}>{rec}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             {/* تبويبات مبسطة */}
             <div className="dashboard-tabs">
-                <button className={activeTab === 'basic' ? 'dashboard-tab-active' : 'dashboard-tab'} onClick={() => setActiveTab('basic')}>📊 ملخص</button>
-                <button className={activeTab === 'insights' ? 'dashboard-tab-active' : 'dashboard-tab'} onClick={() => setActiveTab('insights')}>📈 تحليلات</button>
+                <button 
+                    className={activeTab === 'basic' ? 'dashboard-tab-active' : 'dashboard-tab'} 
+                    onClick={() => setActiveTab('basic')}
+                >
+                    📊 {t('nutrition.dashboard') || 'ملخص'}
+                </button>
+                <button 
+                    className={activeTab === 'insights' ? 'dashboard-tab-active' : 'dashboard-tab'} 
+                    onClick={() => setActiveTab('insights')}
+                >
+                    📈 {t('nutrition.advanced.title') || 'تحليلات متقدمة'}
+                </button>
             </div>
 
             <div className="dashboard-tab-content">
@@ -202,10 +350,26 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                     <>
                         {/* بطاقات سريعة */}
                         <div className="stats-grid">
-                            <div className="stat-card"><div className="stat-icon">🍽️</div><div className="stat-value">{nutritionStats.totalMeals}</div><div className="stat-label">وجبة</div></div>
-                            <div className="stat-card"><div className="stat-icon">🔥</div><div className="stat-value">{nutritionStats.totalCalories}</div><div className="stat-label">سعرة</div></div>
-                            <div className="stat-card"><div className="stat-icon">💪</div><div className="stat-value">{nutritionStats.avgProtein}g</div><div className="stat-label">بروتين</div></div>
-                            <div className="stat-card"><div className="stat-icon">📅</div><div className="stat-value">{nutritionStats.todayCalories}</div><div className="stat-label">اليوم</div></div>
+                            <div className="stat-card">
+                                <div className="stat-icon">🍽️</div>
+                                <div className="stat-value">{nutritionStats.totalMeals}</div>
+                                <div className="stat-label">{t('nutrition.meals') || 'وجبة'}</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon">🔥</div>
+                                <div className="stat-value">{nutritionStats.totalCalories}</div>
+                                <div className="stat-label">{t('nutrition.calories') || 'سعرة'}</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon">💪</div>
+                                <div className="stat-value">{nutritionStats.avgProtein}g</div>
+                                <div className="stat-label">{t('nutrition.protein') || 'بروتين'}</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon">📅</div>
+                                <div className="stat-value">{nutritionStats.todayCalories}</div>
+                                <div className="stat-label">{t('nutrition.today') || 'اليوم'}</div>
+                            </div>
                         </div>
 
                         {/* التنبؤ السريع */}
@@ -218,22 +382,29 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
 
                         {/* تقدم الأهداف */}
                         <div className="goals-section">
-                            <h3>🎯 أهداف اليوم</h3>
+                            <h3>🎯 {t('nutrition.dailyGoalsProgress') || 'أهداف اليوم'}</h3>
                             {[
-                                { key: 'calories', label: 'سعرات', icon: '🔥', current: nutritionStats.todayCalories, goal: nutritionGoals.dailyCalories, unit: 'سعرة' },
-                                { key: 'protein', label: 'بروتين', icon: '💪', current: nutritionStats.totalProtein, goal: nutritionGoals.dailyProtein, unit: 'g' }
+                                { key: 'calories', label: t('nutrition.calories') || 'سعرات', icon: '🔥', current: nutritionStats.todayCalories, goal: nutritionGoals.dailyCalories, unit: t('nutrition.caloriesUnit') || 'سعرة' },
+                                { key: 'protein', label: t('nutrition.protein') || 'بروتين', icon: '💪', current: nutritionStats.totalProtein, goal: nutritionGoals.dailyProtein, unit: 'g' }
                             ].map(({ key, label, icon, current, goal, unit }) => (
                                 <div key={key} className="goal-item">
-                                    <div className="goal-header"><span>{icon} {label}</span><span>{goalProgress[key]}%</span></div>
-                                    <div className="progress-bar"><div className="progress-fill" style={{ width: `${goalProgress[key]}%` }}></div></div>
-                                    <div className="goal-values">{Math.round(current)}{unit} / {goal}{unit}</div>
+                                    <div className="goal-header">
+                                        <span>{icon} {label}</span>
+                                        <span>{goalProgress[key]}%</span>
+                                    </div>
+                                    <div className="progress-bar">
+                                        <div className="progress-fill" style={{ width: `${goalProgress[key]}%` }}></div>
+                                    </div>
+                                    <div className="goal-values">
+                                        {Math.round(current)}{unit} / {goal}{unit}
+                                    </div>
                                 </div>
                             ))}
                         </div>
 
                         {/* توزيع الوجبات */}
                         <div className="distribution-section">
-                            <h4>📊 توزيع الوجبات</h4>
+                            <h4>📊 {t('nutrition.mealDistribution') || 'توزيع الوجبات'}</h4>
                             <div className="distribution-list">
                                 {['Breakfast', 'Lunch', 'Dinner', 'Snack'].map(type => {
                                     const count = meals?.filter(m => m.meal_type === type).length || 0;
@@ -241,7 +412,9 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
                                     return (
                                         <div key={type} className="distribution-item">
                                             <span>{getMealTypeIcon(type)} {getMealTypeLabel(type)}</span>
-                                            <div className="progress-bar"><div className="progress-fill" style={{ width: `${percent}%`, background: '#667eea' }}></div></div>
+                                            <div className="progress-bar">
+                                                <div className="progress-fill" style={{ width: `${percent}%`, background: '#667eea' }}></div>
+                                            </div>
                                             <span>{percent}%</span>
                                         </div>
                                     );
@@ -251,18 +424,32 @@ function NutritionDashboard({ meals, loading, onRefresh }) {
 
                         {/* آخر الوجبات */}
                         <div className="recent-meals">
-                            <h3>📝 آخر الوجبات</h3>
+                            <h3>📝 {t('nutrition.loggedMeals') || 'آخر الوجبات'}</h3>
                             {meals?.length === 0 ? (
-                                <div className="empty-state"><p>لا توجد وجبات مسجلة</p><button onClick={onRefresh} className="refresh-btn">🔄 تحديث</button></div>
+                                <div className="empty-state">
+                                    <p>{t('nutrition.noMeals') || 'لا توجد وجبات مسجلة'}</p>
+                                    <button onClick={handleRefresh} className="refresh-btn">
+                                        🔄 {t('nutrition.refresh') || 'تحديث'}
+                                    </button>
+                                </div>
                             ) : (
                                 meals.slice(0, 5).map(meal => (
                                     <div key={meal.id} className="meal-item">
-                                        <div className="meal-header"><span>{getMealTypeIcon(meal.meal_type)} {getMealTypeLabel(meal.meal_type)}</span><span>🔥 {meal.total_calories}</span></div>
+                                        <div className="meal-header">
+                                            <span>{getMealTypeIcon(meal.meal_type)} {getMealTypeLabel(meal.meal_type)}</span>
+                                            <span>🔥 {meal.total_calories}</span>
+                                        </div>
                                         <div className="meal-time">{formatDate(meal.meal_time)}</div>
                                         {meal.ingredients?.length > 0 && (
                                             <div className="meal-ingredients">
-                                                {meal.ingredients.slice(0, 3).map((ing, i) => <span key={i} className="ingredient-badge">{ing.name} {Math.round(ing.quantity)}{ing.unit}</span>)}
-                                                {meal.ingredients.length > 3 && <span className="more-badge">+{meal.ingredients.length - 3}</span>}
+                                                {meal.ingredients.slice(0, 3).map((ing, i) => (
+                                                    <span key={i} className="ingredient-badge">
+                                                        {ing.name} {Math.round(ing.quantity)}{ing.unit}
+                                                    </span>
+                                                ))}
+                                                {meal.ingredients.length > 3 && (
+                                                    <span className="more-badge">+{meal.ingredients.length - 3}</span>
+                                                )}
                                             </div>
                                         )}
                                     </div>

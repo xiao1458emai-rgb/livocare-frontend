@@ -23,29 +23,50 @@ const HabitAnalytics = ({ refreshTrigger }) => {
         fetchData();
     }, [refreshTrigger]);
 
-    const fetchData = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            // جلب بيانات العادات وسجلاتها
-            const [habitsRes, logsRes] = await Promise.all([
-                axiosInstance.get('/habit-definitions/').catch(() => ({ data: [] })),
-                axiosInstance.get('/habit-logs/').catch(() => ({ data: [] }))
-            ]);
+// src/components/Analytics/HabitAnalytics.jsx
 
-            const habits = habitsRes.data || [];
-            const logs = logsRes.data || [];
+// ✅ أضف دالة مساعدة لاستخراج البيانات
+const extractData = (response) => {
+    if (response?.results) return response.results;
+    if (Array.isArray(response)) return response;
+    return [];
+};
 
-            // تحليل البيانات - استنتاج الأدوية من العادات تلقائياً
-            const analysis = analyzeHabitsAndMedications(habits, logs);
-            setData(analysis);
-        } catch (err) {
-            console.error('Error fetching data:', err);
-            setError(isArabic ? 'حدث خطأ في تحميل البيانات' : 'Error loading data');
-        } finally {
+// ✅ تعديل دالة fetchData
+const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+        // جلب بيانات العادات وسجلاتها
+        const [habitsRes, logsRes] = await Promise.all([
+            axiosInstance.get('/habit-definitions/').catch(() => ({ data: [] })),
+            axiosInstance.get('/habit-logs/').catch(() => ({ data: [] }))
+        ]);
+
+        // ✅ استخراج البيانات بشكل صحيح
+        const habits = extractData(habitsRes.data);
+        const logs = extractData(logsRes.data);
+
+        console.log('💊 HabitAnalytics - Habits:', habits.length);
+        console.log('📝 HabitAnalytics - Logs:', logs.length);
+
+        if (habits.length === 0) {
+            setData(null);
+            setError(isArabic ? 'لا توجد عادات مسجلة' : 'No habits recorded');
             setLoading(false);
+            return;
         }
-    };
+
+        // تحليل البيانات - استنتاج الأدوية من العادات تلقائياً
+        const analysis = analyzeHabitsAndMedications(habits, logs);
+        setData(analysis);
+    } catch (err) {
+        console.error('Error fetching data:', err);
+        setError(isArabic ? 'حدث خطأ في تحميل البيانات' : 'Error loading data');
+    } finally {
+        setLoading(false);
+    }
+};
 
     // دالة لاستنتاج نوع العادة (دواء، عادة صحية، ماء، إلخ)
     const detectHabitType = (habitName, habitDescription = '') => {
