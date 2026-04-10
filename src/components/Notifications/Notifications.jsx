@@ -82,8 +82,6 @@ function Notifications({ isAuthReady }) {
     const [loading, setLoading] = useState(true);
     const [darkMode, setDarkMode] = useState(false);
     const [filter, setFilter] = useState('all');
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [stats, setStats] = useState(null);
     const [showStats, setShowStats] = useState(false);
     const [preferences, setPreferences] = useState({
         sleep: true,
@@ -94,6 +92,37 @@ function Notifications({ isAuthReady }) {
         habits: true,
         alerts: true
     });
+
+    // ✅ حساب الإحصائيات من البيانات الفعلية (بدون API منفصل)
+    const stats = useMemo(() => {
+        const total = notifications.length;
+        const unread = notifications.filter(n => !n.is_read).length;
+        const read = total - unread;
+        
+        // إحصائيات حسب النوع
+        const byType = {};
+        notifications.forEach(n => {
+            const type = n.type || 'general';
+            byType[type] = (byType[type] || 0) + 1;
+        });
+        
+        // إحصائيات حسب الأولوية
+        const byPriority = {};
+        notifications.forEach(n => {
+            const priority = n.priority || 'medium';
+            byPriority[priority] = (byPriority[priority] || 0) + 1;
+        });
+        
+        // الإشعارات خلال آخر 7 أيام
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const last7Days = notifications.filter(n => {
+            const date = new Date(n.sent_at || n.created_at);
+            return date >= weekAgo;
+        }).length;
+        
+        return { total, unread, read, byType, byPriority, last7Days };
+    }, [notifications]);
 
     // تحميل إعدادات الوضع المظلم
     useEffect(() => {
@@ -114,17 +143,15 @@ function Notifications({ isAuthReady }) {
     useEffect(() => {
         if (isAuthReady) {
             fetchNotifications();
-            fetchUnreadCount();
-            fetchStats();
             
             // تحديث كل 60 ثانية
             const interval = setInterval(() => {
-                fetchUnreadCount();
+                fetchNotifications();
             }, 60000);
             
             return () => clearInterval(interval);
         }
-    }, [isAuthReady]);
+    }, [isAuthReady, preferences]);
 
     const loadPreferences = () => {
         try {
@@ -147,10 +174,21 @@ function Notifications({ isAuthReady }) {
         try {
             const response = await axiosInstance.get('/notifications/');
             let filtered = response.data || [];
+            
+            // تصفية حسب التفضيلات
             filtered = filtered.filter(n => {
-                if (!preferences[n.type]) return false;
-                return true;
+                const typeMap = {
+                    'sleep': preferences.sleep,
+                    'nutrition': preferences.nutrition,
+                    'activity': preferences.activity,
+                    'mood': preferences.mood,
+                    'health': preferences.health,
+                    'habit': preferences.habits,
+                    'alert': preferences.alerts
+                };
+                return typeMap[n.type] !== false;
             });
+            
             setNotifications(filtered);
         } catch (error) {
             console.error('Error fetching notifications:', error);
@@ -160,36 +198,12 @@ function Notifications({ isAuthReady }) {
         }
     };
 
-    const fetchUnreadCount = async () => {
-        try {
-            const response = await axiosInstance.get('/notifications/unread_count/');
-            setUnreadCount(response.data.count || 0);
-            
-            window.dispatchEvent(new CustomEvent('notificationCount', { 
-                detail: { count: response.data.count || 0 }
-            }));
-        } catch (error) {
-            console.error('Error fetching unread count:', error);
-        }
-    };
-
-    const fetchStats = async () => {
-        try {
-            const response = await axiosInstance.get('/notifications/stats/');
-            setStats(response.data);
-        } catch (error) {
-            console.error('Error fetching stats:', error);
-        }
-    };
-
     const markAsRead = async (id) => {
         try {
             await axiosInstance.post(`/notifications/${id}/mark_read/`);
             setNotifications(prev =>
                 prev.map(n => n.id === id ? { ...n, is_read: true } : n)
             );
-            fetchUnreadCount();
-            fetchStats();
         } catch (error) {
             console.error('Error marking notification as read:', error);
         }
@@ -201,8 +215,6 @@ function Notifications({ isAuthReady }) {
             setNotifications(prev =>
                 prev.map(n => ({ ...n, is_read: true }))
             );
-            setUnreadCount(0);
-            fetchStats();
         } catch (error) {
             console.error('Error marking all as read:', error);
         }
@@ -214,8 +226,6 @@ function Notifications({ isAuthReady }) {
         try {
             await axiosInstance.delete(`/notifications/${id}/`);
             setNotifications(prev => prev.filter(n => n.id !== id));
-            fetchUnreadCount();
-            fetchStats();
         } catch (error) {
             console.error('Error deleting notification:', error);
         }
@@ -227,7 +237,6 @@ function Notifications({ isAuthReady }) {
         try {
             await axiosInstance.delete('/notifications/delete_all_read/');
             setNotifications(prev => prev.filter(n => !n.is_read));
-            fetchStats();
         } catch (error) {
             console.error('Error deleting all read notifications:', error);
         }
@@ -238,8 +247,21 @@ function Notifications({ isAuthReady }) {
             setLoading(true);
             const response = await axiosInstance.get(`/notifications/by_type/?type=${type}`);
             let filtered = response.data.results || response.data || [];
-            filtered = filtered.filter(n => preferences[n.type] !== false);
+            
+            // تصفية حسب التفضيلات
+            const typeMap = {
+                'sleep': preferences.sleep,
+                'nutrition': preferences.nutrition,
+                'activity': preferences.activity,
+                'mood': preferences.mood,
+                'health': preferences.health,
+                'habit': preferences.habits,
+                'alert': preferences.alerts
+            };
+            filtered = filtered.filter(n => typeMap[n.type] !== false);
+            
             setNotifications(filtered);
+            setFilter('all');
         } catch (error) {
             console.error('Error filtering by type:', error);
         } finally {
@@ -252,11 +274,18 @@ function Notifications({ isAuthReady }) {
         fetchNotifications();
     };
 
-    const filteredNotifications = notifications.filter(n => {
-        if (filter === 'unread') return !n.is_read;
-        if (filter === 'read') return n.is_read;
-        return true;
-    });
+    // ✅ تصفية الإشعارات المعروضة
+    const filteredNotifications = useMemo(() => {
+        let filtered = notifications;
+        
+        if (filter === 'unread') {
+            filtered = filtered.filter(n => !n.is_read);
+        } else if (filter === 'read') {
+            filtered = filtered.filter(n => n.is_read);
+        }
+        
+        return filtered;
+    }, [notifications, filter]);
 
     const formatTime = (notification) => {
         if (notification.time_ago) {
@@ -302,8 +331,8 @@ function Notifications({ isAuthReady }) {
                         <span className="header-icon">🔔</span>
                         {t('notifications.title')}
                     </h2>
-                    {unreadCount > 0 && (
-                        <span className="unread-badge">{unreadCount}</span>
+                    {stats.unread > 0 && (
+                        <span className="unread-badge">{stats.unread}</span>
                     )}
                 </div>
                 
@@ -312,8 +341,6 @@ function Notifications({ isAuthReady }) {
                         className="refresh-btn"
                         onClick={() => {
                             fetchNotifications();
-                            fetchUnreadCount();
-                            fetchStats();
                         }}
                         title={t('common.refresh')}
                     >
@@ -328,7 +355,7 @@ function Notifications({ isAuthReady }) {
                         📊
                     </button>
                     
-                    {unreadCount > 0 && (
+                    {stats.unread > 0 && (
                         <button 
                             className="mark-all-btn"
                             onClick={markAllAsRead}
@@ -339,24 +366,24 @@ function Notifications({ isAuthReady }) {
                 </div>
             </div>
 
-            {/* إحصائيات سريعة */}
-            {showStats && stats && (
+            {/* إحصائيات سريعة - مع بيانات صحيحة */}
+            {showStats && (
                 <div className="notifications-stats">
                     <div className="stat-card">
                         <span className="stat-label">{t('notifications.stats.total')}</span>
-                        <span className="stat-value">{stats.total || 0}</span>
+                        <span className="stat-value">{stats.total}</span>
                     </div>
                     <div className="stat-card">
                         <span className="stat-label">{t('notifications.stats.unread')}</span>
-                        <span className="stat-value">{stats.unread || 0}</span>
+                        <span className="stat-value">{stats.unread}</span>
                     </div>
                     <div className="stat-card">
                         <span className="stat-label">{t('notifications.stats.read')}</span>
-                        <span className="stat-value">{stats.read || 0}</span>
+                        <span className="stat-value">{stats.read}</span>
                     </div>
                     <div className="stat-card">
                         <span className="stat-label">{t('notifications.stats.last7Days')}</span>
-                        <span className="stat-value">{stats.last_7_days || 0}</span>
+                        <span className="stat-value">{stats.last7Days}</span>
                     </div>
                 </div>
             )}
@@ -400,26 +427,26 @@ function Notifications({ isAuthReady }) {
                 </details>
             </div>
 
-            {/* فلاتر */}
+            {/* فلاتر - مع إحصائيات صحيحة */}
             <div className="notifications-filters">
                 <div className="filter-row">
                     <button 
                         className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
                         onClick={resetFilters}
                     >
-                        {t('notifications.all')} ({notifications.length})
+                        {t('notifications.all')} ({stats.total})
                     </button>
                     <button 
                         className={`filter-btn ${filter === 'unread' ? 'active' : ''}`}
                         onClick={() => setFilter('unread')}
                     >
-                        {t('notifications.unread')} ({unreadCount})
+                        {t('notifications.unread')} ({stats.unread})
                     </button>
                     <button 
                         className={`filter-btn ${filter === 'read' ? 'active' : ''}`}
                         onClick={() => setFilter('read')}
                     >
-                        {t('notifications.read')} ({notifications.length - unreadCount})
+                        {t('notifications.read')} ({stats.read})
                     </button>
                 </div>
                 
@@ -528,12 +555,13 @@ function Notifications({ isAuthReady }) {
                 <div className="notifications-footer">
                     <div className="footer-stats">
                         <small>
-                            {t('notifications.total')}: {notifications.length} | 
-                            {t('notifications.unread')}: {unreadCount}
+                            {t('notifications.total')}: {stats.total} | 
+                            {t('notifications.unread')}: {stats.unread} | 
+                            {t('notifications.read')}: {stats.read}
                         </small>
                     </div>
                     
-                    {unreadCount === 0 && notifications.length > 0 && (
+                    {stats.read > 0 && (
                         <button 
                             className="delete-read-btn"
                             onClick={deleteAllRead}
