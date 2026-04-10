@@ -169,34 +169,48 @@ function Notifications({ isAuthReady }) {
         localStorage.setItem('notificationPreferences', JSON.stringify(newPrefs));
     };
 
-    const fetchNotifications = async () => {
-        setLoading(true);
-        try {
-            const response = await axiosInstance.get('/notifications/');
-            let filtered = response.data || [];
-            
-            // تصفية حسب التفضيلات
-            filtered = filtered.filter(n => {
-                const typeMap = {
-                    'sleep': preferences.sleep,
-                    'nutrition': preferences.nutrition,
-                    'activity': preferences.activity,
-                    'mood': preferences.mood,
-                    'health': preferences.health,
-                    'habit': preferences.habits,
-                    'alert': preferences.alerts
-                };
-                return typeMap[n.type] !== false;
-            });
-            
-            setNotifications(filtered);
-        } catch (error) {
-            console.error('Error fetching notifications:', error);
-            setNotifications([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+ // src/components/Notifications/Notifications.jsx
+
+// ✅ أضف دالة مساعدة لاستخراج البيانات
+const extractData = (response) => {
+    if (response?.results) return response.results;
+    if (Array.isArray(response)) return response;
+    return [];
+};
+
+// ✅ تعديل دالة fetchNotifications
+const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+        const response = await axiosInstance.get('/notifications/');
+        
+        // ✅ استخراج البيانات بشكل صحيح
+        let notificationsData = extractData(response.data);
+        
+        console.log('🔔 Notifications loaded:', notificationsData.length);
+        
+        // تصفية حسب التفضيلات
+        const filtered = notificationsData.filter(n => {
+            const typeMap = {
+                'sleep': preferences.sleep,
+                'nutrition': preferences.nutrition,
+                'activity': preferences.activity,
+                'mood': preferences.mood,
+                'health': preferences.health,
+                'habit': preferences.habits,
+                'alert': preferences.alerts
+            };
+            return typeMap[n.type] !== false;
+        });
+        
+        setNotifications(filtered);
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        setNotifications([]);
+    } finally {
+        setLoading(false);
+    }
+};
 
     const markAsRead = async (id) => {
         try {
