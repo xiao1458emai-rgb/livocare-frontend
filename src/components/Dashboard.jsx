@@ -5,12 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/api'; 
 import '../index.css';
+
 // المكونات الأساسية
 import HealthForm from './HealthForm';
 import HealthHistory from './HealthHistory';
 import HealthCharts from './HealthCharts';
 import ActivityAnalytics from './Analytics/ActivityAnalytics';
-// المكونات المحسنة
 import Sidebar from './Sidebar';   
 import NutritionMain from './nutrition/NutritionMain';
 import SleepTracker from './SleepTracker';
@@ -20,8 +20,8 @@ import MoodTracker from './MoodTracker';
 import ProfileManager from './usermangment'; 
 import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
-import Notifications from './Notifications/Notifications'
-import Reports from './Reports'
+import Notifications from './Notifications/Notifications';
+import Reports from './Reports';
 import AdvancedHealthInsights from './Analytics/AdvancedHealthInsights';
 
 function Dashboard({ onLogout }) {
@@ -32,7 +32,7 @@ function Dashboard({ onLogout }) {
     // ✅ useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const refreshIntervalRef = useRef(null);
-    const isFetchingRef = useRef(false);  // ✅ منع الطلبات المتزامنة
+    const isFetchingRef = useRef(false);
     
     // الحالات
     const [healthRecords, setHealthRecords] = useState([]);
@@ -67,7 +67,7 @@ function Dashboard({ onLogout }) {
         }
     }, [darkMode]);
 
-    // ✅ التحقق من المصادقة - مرة واحدة فقط
+    // ✅ التحقق من المصادقة
     useEffect(() => {
         let isActive = true;
         
@@ -76,7 +76,6 @@ function Dashboard({ onLogout }) {
                 const token = localStorage.getItem('access_token');
                 if (isActive) {
                     setIsAuthReady(!!token);
-                    
                     if (!token) {
                         navigate('/');
                     }
@@ -89,53 +88,61 @@ function Dashboard({ onLogout }) {
         return () => { isActive = false; };
     }, [navigate]);
 
-    // ✅ جلب البيانات - مع useCallback لمنع إعادة الإنشاء
+    // ✅ جلب البيانات - مع معالجة صحيحة للبيانات
     const fetchHealthData = useCallback(async () => {
         console.log('🔄 fetchHealthData called, refreshKey:', refreshKey);
         
-        // ✅ منع الطلبات المتزامنة
         if (!isAuthReady || !isMountedRef.current || isFetchingRef.current) return;
         
         isFetchingRef.current = true;
+        setLoading(true);
         
         try {
             const response = await axiosInstance.get('/health_status/');
-            
-            console.log('📊 fetchHealthData response:', response.data);
+            console.log('📊 API Response:', response.data);
             
             if (!isMountedRef.current) return;
             
-            if (Array.isArray(response.data) && response.data.length > 0) {
-                setHealthRecords(response.data);
-                
-                const sortedData = [...response.data].sort((a, b) => 
-                    new Date(b.recorded_at) - new Date(a.recorded_at)
-                );
-                
-                const latest = sortedData[0];
-                const latestData = {
-                    weight: latest.weight_kg,
-                    systolic: latest.systolic_pressure,
-                    diastolic: latest.diastolic_pressure,
-                    glucose: latest.blood_glucose,
-                    recorded_at: latest.recorded_at,
-                    date: new Date(latest.recorded_at).toLocaleDateString('ar-EG')
-                };
-                
-                console.log('📊 latestHealthData set to:', latestData);
-                setLatestHealthData(latestData);
+            // ✅ معالجة البيانات من API (نتائج أو مصفوفة)
+            let records = [];
+            if (response.data?.results) {
+                records = response.data.results;
+            } else if (Array.isArray(response.data)) {
+                records = response.data;
             } else {
-                setHealthRecords([]);
+                records = [];
+            }
+            
+            console.log('📊 Processed records:', records.length);
+            setHealthRecords(records);
+            
+            // ✅ تحديث أحدث قراءة
+            if (records.length > 0) {
+                // ترتيب تنازلي حسب التاريخ
+                const sortedRecords = [...records].sort((a, b) => 
+                    new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at)
+                );
+                const latest = sortedRecords[0];
+                
+                console.log('📊 Latest record:', latest);
+                
+                setLatestHealthData({
+                    weight: latest.weight_kg || null,
+                    systolic: latest.systolic_pressure || null,
+                    diastolic: latest.diastolic_pressure || null,
+                    glucose: latest.glucose_mgdl || latest.blood_glucose || null,
+                    recorded_at: latest.recorded_at || latest.created_at,
+                    date: latest.recorded_at ? new Date(latest.recorded_at).toLocaleDateString('ar-EG') : null
+                });
+            } else {
                 setLatestHealthData(null);
             }
             
             setError(null);
         } catch (err) {
-            console.error('Error fetching health data:', err);
+            console.error('❌ Error fetching health data:', err);
             if (isMountedRef.current) {
-                setError(t('dashboard.fetchError'));
-                setHealthRecords([]);
-                setLatestHealthData(null);
+                setError(err.response?.data?.message || t('dashboard.fetchError'));
             }
         } finally {
             if (isMountedRef.current) {
@@ -143,11 +150,10 @@ function Dashboard({ onLogout }) {
             }
             isFetchingRef.current = false;
         }
-    }, [isAuthReady, t, refreshKey]); // ✅ أضف refreshKey إلى التبعيات
+    }, [isAuthReady, t, refreshKey]);
 
-    // ✅ جلب البيانات عند التغيير - مع منع الطلبات المتكررة
+    // ✅ جلب البيانات عند التغيير
     useEffect(() => {
-        console.log('📊 Dashboard useEffect: refreshKey=', refreshKey, 'isAuthReady=', isAuthReady);
         if (isAuthReady) {
             fetchHealthData();
         }
@@ -169,7 +175,7 @@ function Dashboard({ onLogout }) {
         }
     }, [isRTL, i18n.language]);
     
-    // ✅ تنظيف عند إلغاء تحميل المكون
+    // ✅ تنظيف
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -182,23 +188,21 @@ function Dashboard({ onLogout }) {
     
     const handleDataSubmitted = useCallback(() => {
         console.log('🔄 Data submitted, refreshing dashboard...');
-        setRefreshKey(prevKey => {
-            console.log('📊 refreshKey updated from', prevKey, 'to', prevKey + 1);
-            return prevKey + 1;
-        });
+        setRefreshKey(prev => prev + 1);
     }, []);
 
     const displayValue = (value, unit = '') => {
-        if (value === null || value === undefined || value === '' || value === 'N/A') {
+        if (value === null || value === undefined || value === '') {
             return '—';
         }
-        return `${value} ${unit}`.trim();
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return value;
+        return `${numValue} ${unit}`.trim();
     };
 
     const displayBloodPressure = (systolic, diastolic) => {
-        if (systolic === null || diastolic === null || systolic === undefined || diastolic === undefined) {
-            return '—';
-        }
+        if (!systolic && systolic !== 0) return '—';
+        if (!diastolic && diastolic !== 0) return '—';
         return `${systolic} / ${diastolic}`;
     };
 
@@ -206,17 +210,13 @@ function Dashboard({ onLogout }) {
         const newDarkMode = !darkMode;
         setDarkMode(newDarkMode);
         localStorage.setItem('livocare_darkMode', newDarkMode.toString());
-        
-        window.dispatchEvent(new CustomEvent('themeChange', { 
-            detail: { darkMode: newDarkMode }
-        }));
+        window.dispatchEvent(new CustomEvent('themeChange', { detail: { darkMode: newDarkMode } }));
     };
 
     const changeLanguage = (lng) => {
         i18n.changeLanguage(lng);
         localStorage.setItem('livocare_language', lng);
         localStorage.setItem('language', lng);
-        
         window.dispatchEvent(new CustomEvent('languageChanged', { 
             detail: { language: lng, direction: lng === 'ar' ? 'rtl' : 'ltr' }
         }));
@@ -224,18 +224,9 @@ function Dashboard({ onLogout }) {
 
     const getTodayDate = () => {
         const today = new Date();
-        const options = { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        };
-        
-        if (i18n.language === 'ar') {
-            return today.toLocaleDateString('ar-EG', options);
-        } else {
-            return today.toLocaleDateString('en-US', options);
-        }
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-US';
+        return today.toLocaleDateString(locale, options);
     };
 
     const toggleSidebar = () => {
@@ -243,8 +234,10 @@ function Dashboard({ onLogout }) {
     };
 
     const renderSectionContent = () => {
+        // ✅ عرض الصحة الرئيسي
         const healthSectionContent = (
             <div className="health-section">
+                {/* بطاقات الملخص */}
                 <div className="summary-section">
                     <div className="summary-header">
                         <h3>📊 {t('dashboard.dailySummary')}</h3>
@@ -252,12 +245,13 @@ function Dashboard({ onLogout }) {
                     </div>
                     
                     <div className="summary-cards">
+                        {/* الوزن */}
                         <div className="summary-card">
                             <div className="card-icon">⚖️</div>
                             <div className="card-content">
                                 <h4>{t('dashboard.lastWeight')}</h4>
                                 <p className="card-value">
-                                    {displayValue(latestHealthData?.weight, t('dashboard.kg'))}
+                                    {latestHealthData?.weight ? `${latestHealthData.weight} ${t('dashboard.kg')}` : '—'}
                                 </p>
                                 {latestHealthData?.recorded_at && (
                                     <div className="card-time">
@@ -271,6 +265,7 @@ function Dashboard({ onLogout }) {
                             <div className="card-glow"></div>
                         </div>
                         
+                        {/* ضغط الدم */}
                         <div className="summary-card">
                             <div className="card-icon">❤️</div>
                             <div className="card-content">
@@ -283,12 +278,13 @@ function Dashboard({ onLogout }) {
                             <div className="card-glow"></div>
                         </div>
                         
+                        {/* الجلوكوز */}
                         <div className="summary-card">
                             <div className="card-icon">🩸</div>
                             <div className="card-content">
                                 <h4>{t('dashboard.bloodGlucose')}</h4>
                                 <p className="card-value">
-                                    {displayValue(latestHealthData?.glucose, t('mg/dl'))}
+                                    {displayValue(latestHealthData?.glucose, 'mg/dL')}
                                 </p>
                                 <small>{t('dashboard.glucoseLevel')}</small>
                             </div>
@@ -296,6 +292,7 @@ function Dashboard({ onLogout }) {
                         </div>
                     </div>
                     
+                    {/* رسالة عدم وجود بيانات */}
                     {!latestHealthData && healthRecords.length === 0 && (
                         <div className="no-data-message">
                             <div className="no-data-icon">📊</div>
@@ -311,6 +308,7 @@ function Dashboard({ onLogout }) {
                     )}
                 </div>
                 
+                {/* المكونات */}
                 <div className="health-components">
                     <div className="health-form">
                         <HealthForm onDataSubmitted={handleDataSubmitted} />
@@ -329,6 +327,7 @@ function Dashboard({ onLogout }) {
             </div>
         );
 
+        // ✅ اختيار القسم حسب التبويب
         switch (activeSection) {
             case 'health':
                 return healthSectionContent;
@@ -343,7 +342,7 @@ function Dashboard({ onLogout }) {
             case 'chat':
                 return <ChatInterface isAuthReady={isAuthReady} />;
             case 'profile':
-                return <ProfileManager onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
+                return <ProfileManager isAuthReady={isAuthReady} />;
             case 'smart':
                 return <SmartDashboard />;
             case 'notifications':
@@ -351,7 +350,7 @@ function Dashboard({ onLogout }) {
             case 'reports':
                 return <Reports isAuthReady={isAuthReady} />;
             default:
-                return null;
+                return healthSectionContent;
         }
     };
 
@@ -364,12 +363,15 @@ function Dashboard({ onLogout }) {
             'mood': `😊 ${t('dashboard.moodTitle')}`,
             'chat': `💬 ${t('dashboard.chatTitle')}`,
             'smart': `🧠 الميزات الذكية`,
-            'profile': `👤 ${t('dashboard.profileTitle')}`
+            'profile': `👤 ${t('dashboard.profileTitle')}`,
+            'notifications': `🔔 ${t('notifications.title')}`,
+            'reports': `📊 ${t('reports.title')}`
         };
         return titles[sectionKey] || t('dashboard.dashboard');
     };
     
-    if (loading) {
+    // ✅ حالة التحميل
+    if (loading && healthRecords.length === 0) {
         return (
             <div className={`loading-dashboard ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="loading-spinner"></div>
@@ -379,6 +381,7 @@ function Dashboard({ onLogout }) {
         );
     }
 
+    // ✅ حالة الخطأ
     if (error && healthRecords.length === 0) {
         return (
             <div className={`error-dashboard ${darkMode ? 'dark-mode' : ''}`}>
@@ -391,16 +394,13 @@ function Dashboard({ onLogout }) {
         );
     }
 
+    // ✅ العرض الرئيسي
     return (
         <div className={`dashboard-layout ${darkMode ? 'dark-mode' : ''}`}>
-            {/* شريط التحكم */}
+            {/* شريط التحكم العلوي */}
             <div className="control-bar">
                 <div className="control-left">
-                    <button 
-                        className="menu-toggle"
-                        onClick={toggleSidebar}
-                        aria-label="Toggle menu"
-                    >
+                    <button className="menu-toggle" onClick={toggleSidebar} aria-label="Toggle menu">
                         {sidebarOpen ? '✕' : '☰'}
                     </button>
                     <div className="app-name">LivoCare</div>
@@ -410,25 +410,16 @@ function Dashboard({ onLogout }) {
                     <div className="date-display">{getTodayDate()}</div>
                 </div>
                 
-<div className="control-right">
-    <button 
-        className="theme-toggle"
-        onClick={toggleDarkMode}
-        title={darkMode ? t('dashboard.switchToLight') : t('dashboard.switchToDark')}
-    >
-        {darkMode ? '☀️' : '🌙'}
-    </button>
-    
-    {/* ✅ زر تسجيل الخروج */}
-    <button 
-        className="logout-btn"
-        onClick={onLogout}
-        title={t('dashboard.logout')}
-    >
-        <span className="logout-icon">🚪</span>
-        <span className="logout-text">{t('dashboard.logout')}</span>
-    </button>
-</div></div>
+                <div className="control-right">
+                    <button className="theme-toggle" onClick={toggleDarkMode} title={darkMode ? '☀️' : '🌙'}>
+                        {darkMode ? '☀️' : '🌙'}
+                    </button>
+                    <button className="logout-btn" onClick={onLogout} title={t('dashboard.logout')}>
+                        <span className="logout-icon">🚪</span>
+                        <span className="logout-text">{t('dashboard.logout')}</span>
+                    </button>
+                </div>
+            </div>
 
             {/* السايدبار */}
             <div className={`sidebar-wrapper ${sidebarOpen ? 'open' : ''}`}>
@@ -442,9 +433,7 @@ function Dashboard({ onLogout }) {
             </div>
             
             {/* Overlay للجوال */}
-            {sidebarOpen && (
-                <div className="sidebar-overlay" onClick={toggleSidebar}></div>
-            )}
+            {sidebarOpen && <div className="sidebar-overlay" onClick={toggleSidebar}></div>}
 
             {/* المحتوى الرئيسي */}
             <main className="dashboard-content">
