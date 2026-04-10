@@ -19,7 +19,6 @@ const analyzeSleepData = (sleepData) => {
     let validCount = 0;
     
     sleepData.forEach(sleep => {
-        // محاولة استخراج وقت البدء والنهاية من عدة صيغ ممكنة
         const start = sleep.sleep_start || sleep.start_time || sleep.start;
         const end = sleep.sleep_end || sleep.end_time || sleep.end;
         
@@ -50,20 +49,31 @@ const analyzeNutritionData = (mealsData) => {
     console.log('📊 analyzeNutritionData input:', mealsData?.length || 0, 'records');
     
     if (!mealsData || mealsData.length === 0) { 
-        return { avgCaloriesPerDay: 0, avgProtein: 0, totalMeals: 0, hasData: false }; 
+        return { 
+            avgCaloriesPerDay: 0, 
+            avgProtein: 0, 
+            avgCarbs: 0, 
+            avgFat: 0,
+            totalMeals: 0, 
+            hasData: false 
+        }; 
     }
     
     let totalCalories = 0;
     let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFat = 0;
     const uniqueDays = new Set();
     
     mealsData.forEach(meal => {
         totalCalories += meal.total_calories || 0;
         
-        // حساب البروتين من المكونات
+        // حساب القيم الغذائية من المكونات
         const ingredients = meal.ingredients || [];
         ingredients.forEach(ing => {
             totalProtein += ing.protein || 0;
+            totalCarbs += ing.carbs || 0;
+            totalFat += ing.fat || 0;
         });
         
         // تتبع الأيام الفريدة
@@ -74,11 +84,15 @@ const analyzeNutritionData = (mealsData) => {
     });
     
     const daysCount = uniqueDays.size || mealsData.length;
+    const mealCount = mealsData.length;
+    
     const result = {
         avgCaloriesPerDay: daysCount > 0 ? Math.round(totalCalories / daysCount) : 0,
-        avgProtein: mealsData.length > 0 ? roundNumber(totalProtein / mealsData.length, 1) : 0,
-        totalMeals: mealsData.length,
-        hasData: mealsData.length > 0
+        avgProtein: mealCount > 0 ? roundNumber(totalProtein / mealCount, 1) : 0,
+        avgCarbs: mealCount > 0 ? roundNumber(totalCarbs / mealCount, 1) : 0,
+        avgFat: mealCount > 0 ? roundNumber(totalFat / mealCount, 1) : 0,
+        totalMeals: mealCount,
+        hasData: mealCount > 0
     };
     
     console.log('📊 analyzeNutritionData result:', result);
@@ -114,6 +128,57 @@ const analyzeActivityData = (activityData) => {
     };
     
     console.log('📊 analyzeActivityData result:', result);
+    return result;
+};
+
+const analyzeHealthMetricsData = (healthData) => {
+    console.log('📊 analyzeHealthMetricsData input:', healthData?.length || 0, 'records');
+    
+    if (!healthData || healthData.length === 0) { 
+        return { 
+            avgWeight: 0, 
+            avgSystolic: 0, 
+            avgDiastolic: 0, 
+            avgGlucose: 0,
+            records: 0,
+            hasData: false 
+        }; 
+    }
+    
+    let totalWeight = 0;
+    let totalSystolic = 0;
+    let totalDiastolic = 0;
+    let totalGlucose = 0;
+    let weightCount = 0;
+    let bpCount = 0;
+    let glucoseCount = 0;
+    
+    healthData.forEach(record => {
+        if (record.weight_kg && record.weight_kg > 0) {
+            totalWeight += parseFloat(record.weight_kg);
+            weightCount++;
+        }
+        if (record.systolic_pressure && record.systolic_pressure > 0) {
+            totalSystolic += record.systolic_pressure;
+            totalDiastolic += record.diastolic_pressure || 0;
+            bpCount++;
+        }
+        if (record.glucose_mgdl && record.glucose_mgdl > 0) {
+            totalGlucose += record.glucose_mgdl;
+            glucoseCount++;
+        }
+    });
+    
+    const result = {
+        avgWeight: weightCount > 0 ? roundNumber(totalWeight / weightCount, 1) : 0,
+        avgSystolic: bpCount > 0 ? Math.round(totalSystolic / bpCount) : 0,
+        avgDiastolic: bpCount > 0 ? Math.round(totalDiastolic / bpCount) : 0,
+        avgGlucose: glucoseCount > 0 ? Math.round(totalGlucose / glucoseCount) : 0,
+        records: healthData.length,
+        hasData: healthData.length > 0
+    };
+    
+    console.log('📊 analyzeHealthMetricsData result:', result);
     return result;
 };
 
@@ -177,17 +242,17 @@ const analyzeHabitsData = (habitLogs, habitDefinitions) => {
     return result;
 };
 
-const calculateHealthScore = (sleep, nutrition, activity, mood, habits) => {
+const calculateHealthScore = (sleep, nutrition, activity, healthMetrics, mood, habits) => {
     let score = 0;
     
-    // Sleep (30 points) - فقط إذا كان هناك بيانات فعلية
+    // Sleep (30 points)
     if (sleep.hasData && sleep.avgHours > 0) {
         if (sleep.avgHours >= 7 && sleep.avgHours <= 8) score += 30;
         else if (sleep.avgHours >= 6) score += 20;
         else if (sleep.avgHours >= 5) score += 15;
         else score += 10;
     } else {
-        score += 15; // درجة افتراضية عند عدم وجود بيانات
+        score += 15;
     }
     
     // Nutrition (25 points)
@@ -200,14 +265,25 @@ const calculateHealthScore = (sleep, nutrition, activity, mood, habits) => {
         score += 12;
     }
     
-    // Activity (20 points)
+    // Activity (10 points)
     if (activity.hasData && activity.avgMinutesPerDay > 0) {
-        if (activity.avgMinutesPerDay >= 30) score += 20;
-        else if (activity.avgMinutesPerDay >= 20) score += 15;
-        else if (activity.avgMinutesPerDay >= 10) score += 10;
-        else score += 5;
+        if (activity.avgMinutesPerDay >= 30) score += 10;
+        else if (activity.avgMinutesPerDay >= 20) score += 7;
+        else if (activity.avgMinutesPerDay >= 10) score += 5;
+        else score += 3;
     } else {
-        score += 10;
+        score += 5;
+    }
+    
+    // Health Metrics (10 points)
+    if (healthMetrics.hasData) {
+        let metricsScore = 0;
+        if (healthMetrics.avgWeight >= 50 && healthMetrics.avgWeight <= 100) metricsScore += 3;
+        if (healthMetrics.avgSystolic >= 90 && healthMetrics.avgSystolic <= 140) metricsScore += 4;
+        if (healthMetrics.avgGlucose >= 70 && healthMetrics.avgGlucose <= 140) metricsScore += 3;
+        score += metricsScore;
+    } else {
+        score += 5;
     }
     
     // Mood (15 points)
@@ -242,9 +318,8 @@ const calculateHealthScore = (sleep, nutrition, activity, mood, habits) => {
     return { score: finalScore, grade };
 };
 
-const generateTopRecommendation = (sleep, nutrition, activity, mood, habits, t) => {
-    // التحقق من وجود بيانات فعلية
-    const hasAnyData = sleep.hasData || nutrition.hasData || activity.hasData || mood.hasData || habits.hasData;
+const generateTopRecommendation = (sleep, nutrition, activity, healthMetrics, mood, habits, t) => {
+    const hasAnyData = sleep.hasData || nutrition.hasData || activity.hasData || healthMetrics.hasData || mood.hasData || habits.hasData;
     
     if (!hasAnyData) {
         return {
@@ -270,6 +345,15 @@ const generateTopRecommendation = (sleep, nutrition, activity, mood, habits, t) 
             title: t('reports.recommendations.increaseCalories.title'),
             advice: t('reports.recommendations.increaseCalories.advice', { calories: nutrition.avgCaloriesPerDay }),
             action: t('reports.recommendations.increaseCalories.action')
+        };
+    }
+    
+    if (healthMetrics.hasData && healthMetrics.avgSystolic > 140) {
+        return {
+            icon: '❤️',
+            title: t('reports.recommendations.lowerBloodPressure.title'),
+            advice: t('reports.recommendations.lowerBloodPressure.advice', { systolic: healthMetrics.avgSystolic }),
+            action: t('reports.recommendations.lowerBloodPressure.action')
         };
     }
     
@@ -299,7 +383,7 @@ const generateTopRecommendation = (sleep, nutrition, activity, mood, habits, t) 
     };
 };
 
-const generateSmartStory = (sleep, nutrition, activity, mood, habits, t) => {
+const generateSmartStory = (sleep, nutrition, activity, healthMetrics, mood, habits, t) => {
     const events = [];
     
     if (sleep.hasData && sleep.avgHours > 0) {
@@ -317,6 +401,14 @@ const generateSmartStory = (sleep, nutrition, activity, mood, habits, t) => {
             events.push({ type: 'improvement', text: t('reports.story.nutritionIdeal', { calories: nutrition.avgCaloriesPerDay }) });
         } else {
             events.push({ type: 'warning', text: t('reports.story.nutritionWarning', { calories: nutrition.avgCaloriesPerDay }) });
+        }
+    }
+    
+    if (healthMetrics.hasData && healthMetrics.avgSystolic > 0) {
+        if (healthMetrics.avgSystolic >= 90 && healthMetrics.avgSystolic <= 140) {
+            events.push({ type: 'improvement', text: `❤️ ضغط دمك طبيعي (${healthMetrics.avgSystolic}/${healthMetrics.avgDiastolic})` });
+        } else {
+            events.push({ type: 'warning', text: `⚠️ ضغط دمك مرتفع (${healthMetrics.avgSystolic}/${healthMetrics.avgDiastolic})` });
         }
     }
     
@@ -350,6 +442,7 @@ const generateSmartReports = (currentData, previousData, range, t) => {
         sleep: currentData.sleep?.length,
         meals: currentData.meals?.length,
         activities: currentData.activities?.length,
+        health: currentData.health?.length,
         mood: currentData.mood?.length,
         habits: currentData.habits?.length
     });
@@ -357,12 +450,13 @@ const generateSmartReports = (currentData, previousData, range, t) => {
     const sleep = analyzeSleepData(currentData.sleep);
     const nutrition = analyzeNutritionData(currentData.meals);
     const activity = analyzeActivityData(currentData.activities);
+    const healthMetrics = analyzeHealthMetricsData(currentData.health);
     const mood = analyzeMoodData(currentData.mood);
     const habits = analyzeHabitsData(currentData.habits, currentData.habitDefinitions);
     
-    const healthScore = calculateHealthScore(sleep, nutrition, activity, mood, habits);
-    const story = generateSmartStory(sleep, nutrition, activity, mood, habits, t);
-    const topRecommendation = generateTopRecommendation(sleep, nutrition, activity, mood, habits, t);
+    const healthScore = calculateHealthScore(sleep, nutrition, activity, healthMetrics, mood, habits);
+    const story = generateSmartStory(sleep, nutrition, activity, healthMetrics, mood, habits, t);
+    const topRecommendation = generateTopRecommendation(sleep, nutrition, activity, healthMetrics, mood, habits, t);
     
     return {
         summary: {
@@ -379,6 +473,7 @@ const generateSmartReports = (currentData, previousData, range, t) => {
         sleep: { ...sleep, comparison: null },
         nutrition: { ...nutrition, comparison: null },
         activity: { ...activity, comparison: null },
+        healthMetrics: { ...healthMetrics, comparison: null },
         mood: { ...mood, comparison: null },
         habits: { ...habits, comparison: null }
     };
@@ -404,14 +499,6 @@ const getDateRange = (type, customStart, customEnd) => {
     }
     
     return { start, end };
-};
-
-const getPreviousRange = (start, end) => {
-    const duration = end - start;
-    return {
-        start: new Date(start - duration),
-        end: start
-    };
 };
 
 const Reports = ({ isAuthReady }) => {
@@ -448,6 +535,7 @@ const Reports = ({ isAuthReady }) => {
             { url: `/sleep/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'sleep' },
             { url: `/meals/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'meals' },
             { url: `/activities/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'activities' },
+            { url: `/health_status/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'health' },
             { url: `/mood-logs/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'mood' },
             { url: `/habit-logs/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'habits' },
             { url: '/habit-definitions/', key: 'habitDefinitions' }
@@ -478,6 +566,7 @@ const Reports = ({ isAuthReady }) => {
             sleep: results.sleep || [],
             meals: results.meals || [],
             activities: results.activities || [],
+            health: results.health || [],
             mood: results.mood || [],
             habits: results.habits || [],
             habitDefinitions: results.habitDefinitions || []
@@ -505,6 +594,7 @@ const Reports = ({ isAuthReady }) => {
                 sleep: reportData.sleep,
                 nutrition: reportData.nutrition,
                 activity: reportData.activity,
+                healthMetrics: reportData.healthMetrics,
                 mood: reportData.mood
             });
             setReports(reportData);
@@ -638,7 +728,7 @@ const Reports = ({ isAuthReady }) => {
                         <button className={`tab-btn ${activeTab === 'summary' ? 'active' : ''}`} onClick={() => setActiveTab('summary')}>📊 {t('reports.tabs.summary')}</button>
                         <button className={`tab-btn ${activeTab === 'sleep' ? 'active' : ''}`} onClick={() => setActiveTab('sleep')}>🌙 {t('reports.tabs.sleep')}</button>
                         <button className={`tab-btn ${activeTab === 'nutrition' ? 'active' : ''}`} onClick={() => setActiveTab('nutrition')}>🥗 {t('reports.tabs.nutrition')}</button>
-                        <button className={`tab-btn ${activeTab === 'activity' ? 'active' : ''}`} onClick={() => setActiveTab('activity')}>🏃 {t('reports.tabs.activity')}</button>
+                        <button className={`tab-btn ${activeTab === 'metrics' ? 'active' : ''}`} onClick={() => setActiveTab('metrics')}>📊 {t('reports.tabs.metrics') || 'القياسات الحيوية'}</button>
                         <button className={`tab-btn ${activeTab === 'mood' ? 'active' : ''}`} onClick={() => setActiveTab('mood')}>😊 {t('reports.tabs.mood')}</button>
                         <button className={`tab-btn ${activeTab === 'habits' ? 'active' : ''}`} onClick={() => setActiveTab('habits')}>💊 {t('reports.tabs.habits')}</button>
                     </div>
@@ -658,6 +748,10 @@ const Reports = ({ isAuthReady }) => {
                                 <div className="stat-card">
                                     <div className="stat-header"><span>🏃</span><span>{t('reports.activity.title')}</span></div>
                                     <div className="stat-value">{reports.activity.hasData ? reports.activity.avgMinutesPerDay : 0} {t('reports.minutes')}</div>
+                                </div>
+                                <div className="stat-card">
+                                    <div className="stat-header"><span>❤️</span><span>{t('reports.healthMetrics.title') || 'القياسات الحيوية'}</span></div>
+                                    <div className="stat-value">{reports.healthMetrics.hasData ? `${reports.healthMetrics.avgSystolic}/${reports.healthMetrics.avgDiastolic}` : '—'}</div>
                                 </div>
                                 <div className="stat-card">
                                     <div className="stat-header"><span>😊</span><span>{t('reports.mood.title')}</span></div>
@@ -681,7 +775,7 @@ const Reports = ({ isAuthReady }) => {
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="no-data-message">😴 {t('reports.sleep.noData') || 'لا توجد بيانات نوم مسجلة'}</p>
+                                    <p className="no-data-message">😴 لا توجد بيانات نوم مسجلة</p>
                                 )}
                             </div>
                         )}
@@ -693,44 +787,84 @@ const Reports = ({ isAuthReady }) => {
                                     <div className="detail-grid">
                                         <div className="detail-item">
                                             <span className="detail-label">{t('reports.nutrition.avgCalories')}</span>
-                                            <span className="detail-value">{reports.nutrition.avgCaloriesPerDay}</span>
+                                            <span className="detail-value">{reports.nutrition.avgCaloriesPerDay} سعرة</span>
                                         </div>
                                         <div className="detail-item">
                                             <span className="detail-label">{t('reports.nutrition.avgProtein')}</span>
-                                            <span className="detail-value">{reports.nutrition.avgProtein}g</span>
+                                            <span className="detail-value">{reports.nutrition.avgProtein} جرام</span>
+                                        </div>
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.nutrition.avgCarbs')}</span>
+                                            <span className="detail-value">{reports.nutrition.avgCarbs} جرام</span>
+                                        </div>
+                                        <div className="detail-item">
+                                            <span className="detail-label">{t('reports.nutrition.avgFat')}</span>
+                                            <span className="detail-value">{reports.nutrition.avgFat} جرام</span>
                                         </div>
                                         <div className="detail-item">
                                             <span className="detail-label">{t('reports.nutrition.totalMeals')}</span>
-                                            <span className="detail-value">{reports.nutrition.totalMeals}</span>
+                                            <span className="detail-value">{reports.nutrition.totalMeals} وجبة</span>
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="no-data-message">🥗 {t('reports.nutrition.noData') || 'لا توجد بيانات تغذية مسجلة'}</p>
+                                    <p className="no-data-message">🥗 لا توجد بيانات تغذية مسجلة</p>
                                 )}
                             </div>
                         )}
                         
-                        {activeTab === 'activity' && (
+                        {activeTab === 'metrics' && (
                             <div className="detail-card">
-                                <h3>🏃 {t('reports.activity.details')}</h3>
-                                {reports.activity.hasData ? (
-                                    <div className="detail-grid">
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.activity.totalMinutes')}</span>
-                                            <span className="detail-value">{reports.activity.totalMinutes}</span>
+                                <h3>📊 {t('reports.healthMetrics.title') || 'القياسات الحيوية'}</h3>
+                                
+                                {/* قسم النشاط البدني */}
+                                <div className="sub-section">
+                                    <h4>🏃 {t('reports.activity.title')}</h4>
+                                    {reports.activity.hasData ? (
+                                        <div className="detail-grid">
+                                            <div className="detail-item">
+                                                <span className="detail-label">{t('reports.activity.totalMinutes')}</span>
+                                                <span className="detail-value">{reports.activity.totalMinutes} دقيقة</span>
+                                            </div>
+                                            <div className="detail-item">
+                                                <span className="detail-label">{t('reports.activity.avgMinutes')}</span>
+                                                <span className="detail-value">{reports.activity.avgMinutesPerDay} دقيقة/يوم</span>
+                                            </div>
+                                            <div className="detail-item">
+                                                <span className="detail-label">{t('reports.activity.records')}</span>
+                                                <span className="detail-value">{reports.activity.records} نشاط</span>
+                                            </div>
                                         </div>
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.activity.avgMinutes')}</span>
-                                            <span className="detail-value">{reports.activity.avgMinutesPerDay} {t('reports.activity.perDay')}</span>
+                                    ) : (
+                                        <p className="no-data-message">🏃 لا توجد بيانات نشاط بدني مسجلة</p>
+                                    )}
+                                </div>
+                                
+                                {/* قسم القياسات الحيوية */}
+                                <div className="sub-section">
+                                    <h4>❤️ القياسات الحيوية</h4>
+                                    {reports.healthMetrics.hasData ? (
+                                        <div className="detail-grid">
+                                            <div className="detail-item">
+                                                <span className="detail-label">الوزن</span>
+                                                <span className="detail-value">{reports.healthMetrics.avgWeight} كجم</span>
+                                            </div>
+                                            <div className="detail-item">
+                                                <span className="detail-label">ضغط الدم</span>
+                                                <span className="detail-value">{reports.healthMetrics.avgSystolic}/{reports.healthMetrics.avgDiastolic} mmHg</span>
+                                            </div>
+                                            <div className="detail-item">
+                                                <span className="detail-label">السكر</span>
+                                                <span className="detail-value">{reports.healthMetrics.avgGlucose} mg/dL</span>
+                                            </div>
+                                            <div className="detail-item">
+                                                <span className="detail-label">عدد القراءات</span>
+                                                <span className="detail-value">{reports.healthMetrics.records} قراءة</span>
+                                            </div>
                                         </div>
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.activity.records')}</span>
-                                            <span className="detail-value">{reports.activity.records}</span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <p className="no-data-message">🏃 {t('reports.activity.noData') || 'لا توجد بيانات نشاط بدني مسجلة'}</p>
-                                )}
+                                    ) : (
+                                        <p className="no-data-message">❤️ لا توجد بيانات قياسات حيوية مسجلة</p>
+                                    )}
+                                </div>
                             </div>
                         )}
                         
@@ -745,11 +879,11 @@ const Reports = ({ isAuthReady }) => {
                                         </div>
                                         <div className="detail-item">
                                             <span className="detail-label">{t('reports.mood.totalDays')}</span>
-                                            <span className="detail-value">{reports.mood.totalDays}</span>
+                                            <span className="detail-value">{reports.mood.totalDays} يوم</span>
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="no-data-message">😊 {t('reports.mood.noData') || 'لا توجد بيانات مزاج مسجلة'}</p>
+                                    <p className="no-data-message">😊 لا توجد بيانات مزاج مسجلة</p>
                                 )}
                             </div>
                         )}
@@ -769,7 +903,7 @@ const Reports = ({ isAuthReady }) => {
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="no-data-message">💊 {t('reports.habits.noData') || 'لا توجد بيانات عادات مسجلة'}</p>
+                                    <p className="no-data-message">💊 لا توجد بيانات عادات مسجلة</p>
                                 )}
                             </div>
                         )}
