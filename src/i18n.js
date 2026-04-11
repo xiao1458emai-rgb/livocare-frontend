@@ -2097,7 +2097,10 @@ const resources = {
     "startConversation": "ابدأ محادثتك مع المساعد الذكي",
     "suggestions": "اقتراحات",
     "healthTip": "نصيحة صحية",
-    "askMe": "اسألني عن صحتك، التغذية، النوم، أو التمارين"
+    "askMe": "اسألني عن صحتك، التغذية، النوم، أو التمارين",
+    
+    "welcome": "مرحباً بك في الدردشة الذكية",
+    "welcomeMessage": "أنا مساعدك الصحي الذكي. يمكنني مساعدتك في:\n• تتبع صحتك وتحليل بياناتك\n• تقديم نصائح غذائية مخصصة\n• الإجابة عن أسئلتك حول النوم والمزاج\n• اقتراح تمارين مناسبة لحالتك\n\nكيف يمكنني مساعدتك اليوم؟"
   }
 
     }
@@ -4193,7 +4196,10 @@ const resources = {
     "startConversation": "Start your conversation with the smart assistant",
     "suggestions": "Suggestions",
     "healthTip": "Health Tip",
-    "askMe": "Ask me about your health, nutrition, sleep, or exercise"
+    "askMe": "Ask me about your health, nutrition, sleep, or exercise",
+    
+    "welcome": "Welcome to Smart Chat",
+    "welcomeMessage": "I'm your smart health assistant. I can help you with:\n• Track your health and analyze your data\n• Provide personalized nutrition advice\n• Answer your questions about sleep and mood\n• Suggest exercises suitable for your condition\n\nHow can I help you today?"
   }
 
   }
