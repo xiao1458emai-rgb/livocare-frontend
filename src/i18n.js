@@ -2083,7 +2083,23 @@ const resources = {
         "lowStatus": "⚠️ منخفض",
         "normalStatus": "✅ طبيعي",
         "waitingData": "⏳ انتظار البيانات"
-      }
+      },
+  "chat": {
+    "title": "الدردشة الذكية",
+    "online": "متصل",
+    "placeholder": "اكتب رسالتك هنا...",
+    "send": "إرسال",
+    "typing": "يكتب...",
+    "error": "حدث خطأ في الاتصال",
+    "retry": "إعادة المحاولة",
+    "clear": "مسح المحادثة",
+    "noMessages": "لا توجد رسائل بعد",
+    "startConversation": "ابدأ محادثتك مع المساعد الذكي",
+    "suggestions": "اقتراحات",
+    "healthTip": "نصيحة صحية",
+    "askMe": "اسألني عن صحتك، التغذية، النوم، أو التمارين"
+  }
+
     }
   },
 
@@ -4163,7 +4179,23 @@ const resources = {
       "lowStatus": "⚠️ Low",
       "normalStatus": "✅ Normal",
       "waitingData": "⏳ Waiting for data"
-    }
+    },
+  "chat": {
+    "title": "Smart Chat",
+    "online": "Online",
+    "placeholder": "Type your message here...",
+    "send": "Send",
+    "typing": "typing...",
+    "error": "Connection error",
+    "retry": "Retry",
+    "clear": "Clear chat",
+    "noMessages": "No messages yet",
+    "startConversation": "Start your conversation with the smart assistant",
+    "suggestions": "Suggestions",
+    "healthTip": "Health Tip",
+    "askMe": "Ask me about your health, nutrition, sleep, or exercise"
+  }
+
   }
 }}
 
