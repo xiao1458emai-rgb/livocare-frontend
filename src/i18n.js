@@ -7,7 +7,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 // 📦 الموارد - جميع ترجمات التطبيق
 // =============================================================================
 
-const resources ={
+const resources = {
   "ar": {
     "translation": {
       "common": {
@@ -148,137 +148,63 @@ const resources ={
         "emptyFields": "❌ يجب ملء اسم العادة والوصف.",
         "logAdded": "✅ تم تسجيل العادة بنجاح!",
         "logRemoved": "✅ تم إلغاء تسجيل العادة.",
-        "updateError": "❌ فشل تحديث سجل العادة."
+        "updateError": "❌ فشل تحديث سجل العادة.",
+        "addFirstHabit": "أضف عادتك الأولى"
       },
 
-  "sleep": {
-    "title": "تتبع النوم",
-    "startTime": "وقت بداية النوم",
-    "endTime": "وقت الاستيقاظ",
-    "quality": "جودة النوم",
-    "notes": "ملاحظات",
-    "optional": "اختياري",
-    "startTimeHelp": "استخدم صيغة 24 ساعة",
-    "notesPlaceholder": "مثال: أحلام، استيقاظ متكرر، ظروف النوم...",
-    "submitButton": "تسجيل جلسة النوم",
-    "resetButton": "إعادة تعيين",
-    "dismiss": "إغلاق",
-    "autoRefresh": "التحديث التلقائي",
-    "lastUpdate": "آخر تحديث",
-    "calculatedDuration": "مدة النوم المحسوبة",
-    "hours": "ساعات",
-    "excellent": "ممتاز",
-    "veryGood": "جيد جداً",
-    "average": "متوسط",
-    "poor": "ضعيف",
-    "bad": "سيئ",
-    "successMessage": "✅ تم تسجيل جلسة النوم بنجاح!",
-    "submissionError": "❌ فشل تسجيل جلسة النوم. تأكد من إدخال البيانات بشكل صحيح.",
-    "error": "خطأ",
-    "failed": "فشل",
-    "invalidData": "❌ بيانات غير صالحة. يرجى التحقق من التواريخ والأوقات.",
-    "sessionExpired": "❌ انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.",
-    "serverError": "❌ خطأ في الخادم. يرجى المحاولة لاحقاً.",
-    "requiredFields": "يرجى ملء وقت البداية والنهاية.",
-    "invalidEndTime": "وقت الاستيقاظ يجب أن يكون بعد وقت النوم.",
-    "futureTimeError": "لا يمكن تسجيل نوم في المستقبل.",
-    "longDurationError": "مدة النوم طويلة جداً. يرجى التحقق من التواريخ.",
-    "switchToLight": "التبديل إلى الوضع الفاتح",
-    "switchToDark": "التبديل إلى الوضع المظلم",
-    "submit": "تسجيل",
-    "reset": "إعادة تعيين",
-    "history": "📋 سجل النوم",
-    "duration": "المدة",
-    "score": "درجة النوم",
-    "fair": "مقبول",
-    "needsImprovement": "يحتاج تحسين",
-    "youDontSleepEnough": "لا تنام كفاية",
-    "youSleepHoursOnly": "تنام {{hours}} ساعات فقط (تحتاج 7-8)",
-    "submitting": "جاري التسجيل...",
-    "unknown": "غير معروف",
-    "noRecords": "لا توجد سجلات نوم",
-    "startRecording": "ابدأ بتسجيل نومك الأول",
-    "deleteConfirm": "هل أنت متأكد من حذف هذا السجل؟",
-    "deleteSuccess": "✅ تم حذف السجل بنجاح",
-    "deleteError": "❌ فشل في حذف السجل",
-    "lightMode": "التبديل إلى الوضع الفاتح",
-    "darkMode": "التبديل إلى الوضع المظلم",
-    
-    "qualityLabels": {
-      "excellent": "ممتاز",
-      "good": "جيد",
-      "average": "متوسط",
-      "poor": "سيئ",
-      "veryPoor": "سيء جداً"
-    },
-    
-    "stats": {
-      "avgHours": "متوسط ساعات النوم",
-      "avgQuality": "متوسط جودة النوم",
-      "totalHours": "إجمالي ساعات النوم",
-      "nights": "ليالي مسجلة",
-      "recorded": "تم التسجيل"
-    },
-    
-    "validation": {
-      "requiredFields": "يرجى ملء وقت البداية والنهاية",
-      "invalidDates": "التواريخ المدخلة غير صالحة",
-      "endBeforeStart": "وقت الاستيقاظ يجب أن يكون بعد وقت النوم",
-      "futureTime": "لا يمكن تسجيل نوم في المستقبل",
-      "tooLong": "مدة النوم طويلة جداً (أكثر من 24 ساعة)",
-      "tooShort": "مدة النوم قصيرة جداً (أقل من ساعة)"
-    },
-    
-    "success": {
-      "message": "✅ تم تسجيل جلسة النوم بنجاح!"
-    },
-    
-    "error": {
-      "general": "❌ فشل تسجيل جلسة النوم. يرجى المحاولة مرة أخرى",
-      "unauthorized": "❌ انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى",
-      "server": "❌ خطأ في الخادم. يرجى المحاولة لاحقاً"
-    },
-    
-    "recommendations": {
-      "sleepMore": {
-        "title": "نم أكثر",
-        "advice": "تحتاج {{hours}} ساعات نوم إضافية",
-        "why": "لماذا؟",
-        "how": "كيف؟",
-        "reason": "تنام {{hours}} ساعات فقط (تحتاج 7-8)",
-        "tips": {
-          "bedtime": "⏱️ نم قبل 11 مساءً",
-          "noScreens": "📱 ابتعد عن الشاشات قبل النوم بساعة",
-          "darkRoom": "🌡️ حافظ على غرفة مظلمة وباردة",
-          "meditate": "🧘 مارس التأمل 10 دقائق"
-        }
-      },
-      "moveMore": {
-        "title": "تحرك أكثر لتنام أفضل",
-        "advice": "النشاط البدني يحسن النوم",
-        "why": "لماذا؟",
-        "how": "كيف؟",
-        "reasons": {
-          "exercise": "الرياضة تزيد إفراز هرمونات النوم",
-          "stress": "تقلل التوتر والقلق",
-          "deepSleep": "تحسن جودة النوم العميق"
+      "sleep": {
+        "title": "تتبع النوم",
+        "startTime": "وقت بداية النوم",
+        "endTime": "وقت الاستيقاظ",
+        "quality": "جودة النوم",
+        "notes": "ملاحظات",
+        "optional": "اختياري",
+        "startTimeHelp": "استخدم صيغة 24 ساعة",
+        "notesPlaceholder": "مثال: أحلام، استيقاظ متكرر، ظروف النوم...",
+        "submit": "تسجيل",
+        "reset": "إعادة تعيين",
+        "autoRefresh": "التحديث التلقائي",
+        "lastUpdate": "آخر تحديث",
+        "calculatedDuration": "مدة النوم المحسوبة",
+        "hours": "ساعات",
+        "history": "📋 سجل النوم",
+        "duration": "المدة",
+        "submitting": "جاري التسجيل...",
+        "unknown": "غير معروف",
+        "noRecords": "لا توجد سجلات نوم",
+        "startRecording": "ابدأ بتسجيل نومك الأول",
+        "deleteConfirm": "هل أنت متأكد من حذف هذا السجل؟",
+        "deleteSuccess": "✅ تم حذف السجل بنجاح",
+        "deleteError": "❌ فشل في حذف السجل",
+        "lightMode": "التبديل إلى الوضع الفاتح",
+        "darkMode": "التبديل إلى الوضع المظلم",
+        "successMessage": "✅ تم تسجيل جلسة النوم بنجاح!",
+        "submissionError": "❌ فشل تسجيل جلسة النوم. تأكد من إدخال البيانات بشكل صحيح.",
+        "error": "خطأ",
+        "failed": "فشل",
+        "invalidData": "❌ بيانات غير صالحة. يرجى التحقق من التواريخ والأوقات.",
+        "sessionExpired": "❌ انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.",
+        "serverError": "❌ خطأ في الخادم. يرجى المحاولة لاحقاً.",
+        "requiredFields": "يرجى ملء وقت البداية والنهاية.",
+        "invalidEndTime": "وقت الاستيقاظ يجب أن يكون بعد وقت النوم.",
+        "futureTimeError": "لا يمكن تسجيل نوم في المستقبل.",
+        "longDurationError": "مدة النوم طويلة جداً. يرجى التحقق من التواريخ.",
+        "switchToLight": "التبديل إلى الوضع الفاتح",
+        "switchToDark": "التبديل إلى الوضع المظلم",
+        "score": "درجة النوم",
+        "fair": "مقبول",
+        "needsImprovement": "يحتاج تحسين",
+        "youDontSleepEnough": "لا تنام كفاية",
+        "youSleepHoursOnly": "تنام {{hours}} ساعات فقط (تحتاج 7-8)",
+        
+        "qualityLabels": {
+          "excellent": "ممتاز",
+          "good": "جيد",
+          "average": "متوسط",
+          "poor": "سيئ",
+          "veryPoor": "سيء جداً"
         },
-        "tips": {
-          "walk": "🚶‍♂️ امشِ 30 دقيقة يومياً",
-          "yoga": "🧘 جرب اليوجا قبل النوم",
-          "morning": "🌅 تمرن صباحاً لنتائج أفضل"
-        }
-      }
-    }
-  ,
-  
-  "common": {
-    "edit": "تعديل",
-    "delete": "حذف",
-    "loading": "جاري التحميل..."
-  }
-
-,
+        
         "stats": {
           "avgHours": "متوسط ساعات النوم",
           "avgQuality": "متوسط جودة النوم",
@@ -286,22 +212,26 @@ const resources ={
           "nights": "ليالي مسجلة",
           "recorded": "تم التسجيل"
         },
-        "history": "📋 سجل النوم",
-        "duration": "المدة",
-        "submit": "تسجيل",
-        "reset": "إعادة تعيين",
-        "quality": {
-          "average": "متوسط",
-          "excellent": "ممتاز",
-          "good": "جيد",
-          "poor": "سيئ",
-          "veryPoor": "سيء جداً"
+        
+        "validation": {
+          "requiredFields": "يرجى ملء وقت البداية والنهاية",
+          "invalidDates": "التواريخ المدخلة غير صالحة",
+          "endBeforeStart": "وقت الاستيقاظ يجب أن يكون بعد وقت النوم",
+          "futureTime": "لا يمكن تسجيل نوم في المستقبل",
+          "tooLong": "مدة النوم طويلة جداً (أكثر من 24 ساعة)",
+          "tooShort": "مدة النوم قصيرة جداً (أقل من ساعة)"
         },
-        "score": "درجة النوم",
-        "fair": "مقبول",
-        "needsImprovement": "يحتاج تحسين",
-        "youDontSleepEnough": "لا تنام كفاية",
-        "youSleepHoursOnly": "تنام {{hours}} ساعات فقط (تحتاج 7-8)",
+        
+        "success": {
+          "message": "✅ تم تسجيل جلسة النوم بنجاح!"
+        },
+        
+        "errorMessages": {
+          "general": "❌ فشل تسجيل جلسة النوم. يرجى المحاولة مرة أخرى",
+          "unauthorized": "❌ انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى",
+          "server": "❌ خطأ في الخادم. يرجى المحاولة لاحقاً"
+        },
+        
         "recommendations": {
           "sleepMore": {
             "title": "نم أكثر",
@@ -334,7 +264,12 @@ const resources ={
           }
         }
       },
-
+  
+  "common": {
+    "edit": "تعديل",
+    "delete": "حذف",
+    "loading": "جاري التحميل..."
+  },
       "nutrition": {
         "title": "إدارة التغذية",
         "subtitle": "سجل وجباتك واتبع نظامك الغذائي",
@@ -2363,133 +2298,59 @@ const resources ={
         "addFirstHabit": "Add your first habit"
       },
 
-  "sleep": {
-    "title": "Sleep Tracker",
-    "startTime": "Sleep Start Time",
-    "endTime": "Wake Up Time",
-    "quality": "Sleep Quality",
-    "notes": "Notes",
-    "startTimeHelp": "use 24",
-    "optional": "optional",
-    "notesPlaceholder": "Example: Dreams, frequent waking, sleep conditions...",
-    "submitButton": "Log Sleep Session",
-    "resetButton": "Reset",
-    "dismiss": "Dismiss",
-    "autoRefresh": "Auto Refresh",
-    "lastUpdate": "Last Update",
-    "calculatedDuration": "Calculated Sleep Duration",
-    "hours": "hours",
-    "excellent": "Excellent",
-    "veryGood": "Very Good",
-    "average": "Average",
-    "poor": "Poor",
-    "bad": "Bad",
-    "successMessage": "✅ Sleep session logged successfully!",
-    "submissionError": "❌ Failed to log sleep session. Please check your input.",
-    "error": "Error",
-    "failed": "Failed",
-    "invalidData": "❌ Invalid data. Please check dates and times.",
-    "sessionExpired": "❌ Session expired. Please log in again.",
-    "serverError": "❌ Server error. Please try again later.",
-    "requiredFields": "Please fill in start and end times.",
-    "invalidEndTime": "Wake up time must be after sleep start time.",
-    "futureTimeError": "Cannot log sleep in the future.",
-    "longDurationError": "Sleep duration is too long. Please check dates.",
-    "switchToLight": "Switch to Light Mode",
-    "switchToDark": "Switch to Dark Mode",
-    "submit": "Submit",
-    "reset": "Reset",
-    "history": "📋 Sleep History",
-    "duration": "Duration",
-    "score": "Sleep Score",
-    "fair": "Fair",
-    "needsImprovement": "Needs Improvement",
-    "youDontSleepEnough": "You don't sleep enough",
-    "youSleepHoursOnly": "You sleep {{hours}} hours only (need 7-8)",
-    "submitting": "Submitting...",
-    "unknown": "Unknown",
-    "noRecords": "No sleep records",
-    "startRecording": "Start recording your first sleep",
-    "deleteConfirm": "Are you sure you want to delete this record?",
-    "deleteSuccess": "✅ Record deleted successfully",
-    "deleteError": "❌ Failed to delete record",
-    "lightMode": "Switch to Light Mode",
-    "darkMode": "Switch to Dark Mode",
-    
-    "qualityLabels": {
-      "excellent": "Excellent",
-      "good": "Good",
-      "average": "Average",
-      "poor": "Poor",
-      "veryPoor": "Very Poor"
-    },
-    
-    "stats": {
-      "avgHours": "Average Sleep Hours",
-      "avgQuality": "Average Sleep Quality",
-      "totalHours": "Total Sleep Hours",
-      "nights": "Nights Recorded",
-      "recorded": "recorded"
-    },
-    
-    "validation": {
-      "requiredFields": "Please fill in start and end times",
-      "invalidDates": "Invalid dates",
-      "endBeforeStart": "Wake time must be after sleep time",
-      "futureTime": "Cannot log sleep in the future",
-      "tooLong": "Sleep duration is too long (over 24 hours)",
-      "tooShort": "Sleep duration is too short (under 1 hour)"
-    },
-    
-    "success": {
-      "message": "✅ Sleep session logged successfully!"
-    },
-    
-    "error": {
-      "general": "❌ Failed to log sleep session. Please try again",
-      "unauthorized": "❌ Session expired. Please log in again",
-      "server": "❌ Server error. Please try again later"
-    },
-    
-    "recommendations": {
-      "sleepMore": {
-        "title": "Sleep More",
-        "advice": "You need {{hours}} more hours of sleep",
-        "why": "Why?",
-        "how": "How?",
-        "reason": "You sleep {{hours}} hours only (need 7-8)",
-        "tips": {
-          "bedtime": "⏱️ Sleep before 11 PM",
-          "noScreens": "📱 Avoid screens 1 hour before bed",
-          "darkRoom": "🌡️ Keep your room dark and cool",
-          "meditate": "🧘 Meditate for 10 minutes"
-        }
-      },
-      "moveMore": {
-        "title": "Move More to Sleep Better",
-        "advice": "Physical activity improves sleep",
-        "why": "Why?",
-        "how": "How?",
-        "reasons": {
-          "exercise": "Exercise increases sleep hormones",
-          "stress": "Reduces stress and anxiety",
-          "deepSleep": "Improves deep sleep quality"
+      "sleep": {
+        "title": "Sleep Tracker",
+        "startTime": "Sleep Start Time",
+        "endTime": "Wake Up Time",
+        "quality": "Sleep Quality",
+        "notes": "Notes",
+        "optional": "optional",
+        "startTimeHelp": "use 24",
+        "notesPlaceholder": "Example: Dreams, frequent waking, sleep conditions...",
+        "submit": "Submit",
+        "reset": "Reset",
+        "autoRefresh": "Auto Refresh",
+        "lastUpdate": "Last Update",
+        "calculatedDuration": "Calculated Sleep Duration",
+        "hours": "hours",
+        "history": "📋 Sleep History",
+        "duration": "Duration",
+        "submitting": "Submitting...",
+        "unknown": "Unknown",
+        "noRecords": "No sleep records",
+        "startRecording": "Start recording your first sleep",
+        "deleteConfirm": "Are you sure you want to delete this record?",
+        "deleteSuccess": "✅ Record deleted successfully",
+        "deleteError": "❌ Failed to delete record",
+        "lightMode": "Switch to Light Mode",
+        "darkMode": "Switch to Dark Mode",
+        "successMessage": "✅ Sleep session logged successfully!",
+        "submissionError": "❌ Failed to log sleep session. Please check your input.",
+        "error": "Error",
+        "failed": "Failed",
+        "invalidData": "❌ Invalid data. Please check dates and times.",
+        "sessionExpired": "❌ Session expired. Please log in again.",
+        "serverError": "❌ Server error. Please try again later.",
+        "requiredFields": "Please fill in start and end times.",
+        "invalidEndTime": "Wake up time must be after sleep start time.",
+        "futureTimeError": "Cannot log sleep in the future.",
+        "longDurationError": "Sleep duration is too long. Please check dates.",
+        "switchToLight": "Switch to Light Mode",
+        "switchToDark": "Switch to Dark Mode",
+        "score": "Sleep Score",
+        "fair": "Fair",
+        "needsImprovement": "Needs Improvement",
+        "youDontSleepEnough": "You don't sleep enough",
+        "youSleepHoursOnly": "You sleep {{hours}} hours only (need 7-8)",
+        
+        "qualityLabels": {
+          "excellent": "Excellent",
+          "good": "Good",
+          "average": "Average",
+          "poor": "Poor",
+          "veryPoor": "Very Poor"
         },
-        "tips": {
-          "walk": "🚶‍♂️ Walk 30 minutes daily",
-          "yoga": "🧘 Try yoga before bed",
-          "morning": "🌅 Exercise in the morning for best results"
-        }
-      }
-    
-  },
-  
-  "common": {
-    "edit": "Edit",
-    "delete": "Delete",
-    "loading": "Loading..."
-  },
-
+        
         "stats": {
           "avgHours": "Average Sleep Hours",
           "avgQuality": "Average Sleep Quality",
@@ -2497,22 +2358,26 @@ const resources ={
           "nights": "Nights Recorded",
           "recorded": "recorded"
         },
-        "history": "📋 Sleep History",
-        "duration": "Duration",
-        "submit": "Submit",
-        "reset": "Reset",
-        "quality": {
-          "average": "Average",
-          "excellent": "Excellent",
-          "good": "Good",
-          "poor": "Poor",
-          "veryPoor": "Very Poor"
+        
+        "validation": {
+          "requiredFields": "Please fill in start and end times",
+          "invalidDates": "Invalid dates",
+          "endBeforeStart": "Wake time must be after sleep time",
+          "futureTime": "Cannot log sleep in the future",
+          "tooLong": "Sleep duration is too long (over 24 hours)",
+          "tooShort": "Sleep duration is too short (under 1 hour)"
         },
-        "score": "Sleep Score",
-        "fair": "Fair",
-        "needsImprovement": "Needs Improvement",
-        "youDontSleepEnough": "You don't sleep enough",
-        "youSleepHoursOnly": "You sleep {{hours}} hours only (need 7-8)",
+        
+        "success": {
+          "message": "✅ Sleep session logged successfully!"
+        },
+        
+        "errorMessages": {
+          "general": "❌ Failed to log sleep session. Please try again",
+          "unauthorized": "❌ Session expired. Please log in again",
+          "server": "❌ Server error. Please try again later"
+        },
+        
         "recommendations": {
           "sleepMore": {
             "title": "Sleep More",
