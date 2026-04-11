@@ -2294,8 +2294,7 @@ const resources = {
     "noFactors": "No influencing factors",
     "recordCount": "{{count}} records",
     "remainingDays": "Record {{remaining}} more days for accurate analysis",
-    "analysisTip": "ℹ️ Record {{remaining}} more days for accurate analysis"
-  },
+    "analysisTip": "ℹ️ Record {{remaining}} more days for accurate analysis",
   
   "common": {
     "optional": "optional",
