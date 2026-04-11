@@ -119,7 +119,24 @@ const resources = {
         "neutral": "محايد",
         "stressed": "مجهدة",
         "anxious": "قلقة",
-        "sad": "حزين"
+        "sad": "حزين",
+            "entries": "مدخلات مزاجية",
+    "addMood": "إضافة مزاج",
+    "selectMood": "اختر مزاجك:",
+    "factorsLabel": "العوامل المؤثرة",
+    "notesLabel": "ملاحظات",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "historyTitle": "السجل التاريخي",
+    "noFactors": "لا توجد عوامل مؤثرة",
+    "recordCount": "{{count}} سجل",
+    "remainingDays": "سجل {{remaining}} يوم إضافي للحصول على تحليلات دقيقة",
+    "analysisTip": "ℹ️ سجل {{remaining}} يوم إضافي للحصول على تحليلات دقيقة",
+      "common": {
+    "optional": "اختياري",
+    "cancel": "إلغاء",
+    "save": "حفظ"
+  }
       },
 
       "habits": {
@@ -2265,7 +2282,26 @@ const resources = {
         "neutral": "Neutral",
         "stressed": "Stressed",
         "anxious": "Anxious",
-        "sad": "Sad"
+        "sad": "Sad",
+            "entries": "mood entries",
+    "addMood": "Add Mood",
+    "selectMood": "Select your mood:",
+    "factorsLabel": "Influencing Factors",
+    "notesLabel": "Notes",
+    "save": "Save",
+    "cancel": "Cancel",
+    "historyTitle": "History",
+    "noFactors": "No influencing factors",
+    "recordCount": "{{count}} records",
+    "remainingDays": "Record {{remaining}} more days for accurate analysis",
+    "analysisTip": "ℹ️ Record {{remaining}} more days for accurate analysis"
+  },
+  
+  "common": {
+    "optional": "optional",
+    "cancel": "Cancel",
+    "save": "Save"
+  }
       },
 
       "habits": {
