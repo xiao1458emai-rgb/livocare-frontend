@@ -481,7 +481,7 @@ const GOOGLE_AUTH_URL = import.meta.env.VITE_GOOGLE_AUTH_URL || 'https://google-
                                     </>
                                 ) : (
                                     <>
-                                        <span className="btn-icon">✨</span>
+                                        <span className="btn-icon"></span>
                                         {t('register.registerButton')}
                                     </>
                                 )}
