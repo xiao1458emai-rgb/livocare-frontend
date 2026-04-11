@@ -638,14 +638,6 @@ const searchDrugInFDA = async (query, searchType = 'name') => {
                         <span className="card-icon">➕</span>
                         {t('habits.newHabit')}
                     </h3>
-                    <button 
-                        type="button"
-                        onClick={() => setShowScanner(true)}
-                        className="scan-btn"
-                        title={t('habits.scanBarcode')}
-                    >
-                        📷 {t('habits.scanBarcode')}
-                    </button>
                 </div>
                 
                 <form onSubmit={handleAddDefinition} className="habit-form">
@@ -701,24 +693,6 @@ const searchDrugInFDA = async (query, searchType = 'name') => {
                 </form>
             </div>
 
-            {/* ماسح الباركود */}
-            {showScanner && (
-                <div className="scanner-modal">
-                    <div className="scanner-modal-content">
-                        <div className="scanner-header">
-                            <h3>📷 {t('habits.scanBarcode')}</h3>
-                            <button onClick={() => setShowScanner(false)} className="close-btn">✕</button>
-                        </div>
-                        <BarcodeScanner onScan={handleProductFound} />
-                        <div className="scanner-footer">
-                            <p>{t('habits.scanInstructions')}</p>
-                            <button onClick={() => setShowScanner(false)} className="cancel-btn">
-                                {t('common.cancel')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* قائمة العادات */}
             <div className="habits-list-card">
@@ -747,9 +721,6 @@ const searchDrugInFDA = async (query, searchType = 'name') => {
                         <div className="empty-icon">📋</div>
                         <h4>{t('habits.noHabits')}</h4>
                         <p>{t('habits.addFirstHabit')}</p>
-                        <button onClick={() => setShowScanner(true)} className="empty-scan-btn">
-                            📷 {t('habits.scanBarcode')}
-                        </button>
                     </div>
                 ) : (
                     <ul className="habit-list">
