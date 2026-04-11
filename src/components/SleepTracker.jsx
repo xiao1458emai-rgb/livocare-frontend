@@ -99,13 +99,11 @@ function SleepTracker({ onDataSubmitted }) {
     });
     const [reducedMotion, setReducedMotion] = useState(false);
     
-    // ✅ useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
     const intervalRef = useRef(null);
     const isFetchingHistoryRef = useRef(false);
 
-    // التحقق من تفضيلات الحركة المخفضة
     useEffect(() => {
         const motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
         setReducedMotion(motionMediaQuery.matches);
@@ -116,7 +114,6 @@ function SleepTracker({ onDataSubmitted }) {
         return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
     }, []);
 
-    // ✅ جلب سجل النوم - مع useCallback ومنع الطلبات المتزامنة
     const fetchSleepHistory = useCallback(async () => {
         if (isFetchingHistoryRef.current || !isMountedRef.current) return;
         
@@ -128,7 +125,6 @@ function SleepTracker({ onDataSubmitted }) {
             
             if (!isMountedRef.current) return;
             
-            // ✅ معالجة البيانات - دعم results والمصفوفة
             let historyData = [];
             if (response.data?.results) {
                 historyData = response.data.results;
@@ -154,19 +150,16 @@ function SleepTracker({ onDataSubmitted }) {
         }
     }, []);
 
-    // ✅ جلب سجل النوم عند التحميل
     useEffect(() => {
         fetchSleepHistory();
     }, [fetchSleepHistory]);
 
-    // تحديث التحليلات
     useEffect(() => {
         if (sleepHistory.length > 0 && isMountedRef.current) {
             setRefreshAnalytics(prev => prev + 1);
         }
     }, [sleepHistory]);
 
-    // تطبيق الوضع المظلم
     useEffect(() => {
         const html = document.documentElement;
         if (darkMode) {
@@ -176,7 +169,6 @@ function SleepTracker({ onDataSubmitted }) {
         }
     }, [darkMode]);
 
-    // ✅ التحديث التلقائي - مع تنظيف صحيح
     useEffect(() => {
         if (!autoRefresh) {
             if (intervalRef.current) {
@@ -201,12 +193,10 @@ function SleepTracker({ onDataSubmitted }) {
         };
     }, [autoRefresh, fetchSleepHistory]);
 
-    // حساب مدة النوم الحالية
     const currentDuration = useMemo(() => {
         return calculateSleepDuration(sleepData.start_time, sleepData.end_time);
     }, [sleepData.start_time, sleepData.end_time]);
 
-    // التحقق من صحة البيانات
     const validateSleepData = useCallback(() => {
         if (!sleepData.start_time || !sleepData.end_time) {
             return t('sleep.validation.requiredFields');
@@ -241,7 +231,6 @@ function SleepTracker({ onDataSubmitted }) {
         return null;
     }, [sleepData.start_time, sleepData.end_time, t]);
 
-    // ✅ إرسال البيانات - مع منع الطلبات المتزامنة
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
@@ -319,7 +308,6 @@ function SleepTracker({ onDataSubmitted }) {
         }
     }, [sleepData, validateSleepData, fetchSleepHistory, onDataSubmitted, t]);
 
-    // ✅ حذف سجل
     const handleDeleteSleep = useCallback(async (sleepId) => {
         if (!window.confirm(t('sleep.deleteConfirm'))) return;
         
@@ -350,7 +338,6 @@ function SleepTracker({ onDataSubmitted }) {
         }
     }, [fetchSleepHistory, t]);
 
-    // إعادة تعيين النموذج
     const resetForm = useCallback(() => {
         setSleepData({
             start_time: '',
@@ -362,14 +349,12 @@ function SleepTracker({ onDataSubmitted }) {
         setIsError(false);
     }, []);
 
-    // تبديل الوضع المظلم
     const toggleDarkMode = useCallback(() => {
         const newDarkMode = !darkMode;
         setDarkMode(newDarkMode);
         localStorage.setItem('livocare_darkMode', newDarkMode.toString());
     }, [darkMode]);
 
-    // الإحصائيات المحسوبة
     const stats = useMemo(() => {
         if (sleepHistory.length === 0) {
             return {
@@ -405,7 +390,6 @@ function SleepTracker({ onDataSubmitted }) {
         };
     }, [sleepHistory]);
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -418,7 +402,6 @@ function SleepTracker({ onDataSubmitted }) {
 
     return (
         <div className={`sleep-tracker-container ${darkMode ? 'dark-mode' : ''} ${reducedMotion ? 'reduce-motion' : ''}`}>
-            {/* شريط التحكم */}
             <div className="control-bar">
                 <div className="control-bar-left">
                     <span className="tracker-icon" aria-hidden="true">🌙</span>
@@ -436,7 +419,6 @@ function SleepTracker({ onDataSubmitted }) {
                 </div>
             </div>
 
-            {/* خيارات التحديث */}
             <div className="sleep-controls">
                 <label className="auto-refresh-toggle">
                     <input
@@ -455,7 +437,6 @@ function SleepTracker({ onDataSubmitted }) {
                 )}
             </div>
 
-            {/* نموذج الإضافة */}
             <form onSubmit={handleSubmit} className="sleep-form">
                 <div className="form-row">
                     <div className="form-group">
@@ -553,7 +534,6 @@ function SleepTracker({ onDataSubmitted }) {
                 )}
             </form>
 
-            {/* بطاقات الإحصائيات */}
             <div className="stats-cards">
                 <div className="stat-card" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
                     <div className="stat-icon">🌙</div>
@@ -584,7 +564,6 @@ function SleepTracker({ onDataSubmitted }) {
                 </div>
             </div>
 
-            {/* سجل النوم */}
             <div className="sleep-history-section">
                 <div className="history-header">
                     <h3>
@@ -673,7 +652,6 @@ function SleepTracker({ onDataSubmitted }) {
                 )}
             </div>
 
-            {/* التحليلات */}
             <div className="analytics-wrapper">
                 <SleepAnalytics refreshTrigger={refreshAnalytics} />
             </div>
