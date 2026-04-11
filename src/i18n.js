@@ -185,6 +185,43 @@ const resources ={
         "longDurationError": "مدة النوم طويلة جداً. يرجى التحقق من التواريخ.",
         "switchToLight": "التبديل إلى الوضع الفاتح",
         "switchToDark": "التبديل إلى الوضع المظلم",
+        
+  "sleep": {
+    "validation": {
+      "requiredFields": "يرجى ملء وقت البداية والنهاية ",
+      "invalidDates": "التواريخ المدخلة غير صالحة ",
+      "endBeforeStart": "وقت الاستيقاظ يجب أن يكون بعد وقت النوم ",
+      "futureTime": "لا يمكن تسجيل نوم في المستقبل ",
+      "tooLong": "مدة النوم طويلة جداً (أكثر من 24 ساعة) ",
+      "tooShort": "مدة النوم قصيرة جداً (أقل من ساعة) "
+    },
+    "success": {
+      "message": "✅ تم تسجيل جلسة النوم بنجاح! "
+    },
+    "error": {
+      "general": "❌ فشل تسجيل جلسة النوم. يرجى المحاولة مرة أخرى ",
+      "unauthorized": "❌ انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى ",
+      "server": "❌ خطأ في الخادم. يرجى المحاولة لاحقاً / "
+    },
+    "deleteConfirm": "هل أنت متأكد من حذف هذا السجل؟ ",
+    "deleteSuccess": "✅ تم حذف السجل بنجاح ",
+    "deleteError": "❌ فشل في حذف السجل ",
+    "lightMode": "التبديل إلى الوضع الفاتح ",
+    "darkMode": "التبديل إلى الوضع المظلم ",
+    "submitting": "جاري التسجيل...",
+    "unknown": "غير معروف ",
+    "noRecords": "لا توجد سجلات نوم ",
+    "startRecording": "ابدأ بتسجيل نومك الأول ",
+    "stats": {
+      "recorded": "مسجل "
+    }
+  },
+  "common": {
+    "edit": "تعديل ",
+    "delete": "حذف ",
+    "loading": "جاري التحميل... "
+  }
+,
         "stats": {
           "avgHours": "متوسط ساعات النوم",
           "avgQuality": "متوسط جودة النوم",
@@ -2303,6 +2340,42 @@ const resources ={
         "longDurationError": "Sleep duration is too long. Please check dates.",
         "switchToLight": "Switch to Light Mode",
         "switchToDark": "Switch to Dark Mode",
+  "sleep": {
+    "validation": {
+      "requiredFields": " Please fill in start and end times",
+      "invalidDates": "  Invalid dates",
+      "endBeforeStart": " Wake time must be after sleep time",
+      "futureTime": "  Cannot log sleep in the future",
+      "tooLong": "  Sleep duration is too long (over 24 hours)",
+      "tooShort": " Sleep duration is too short (under 1 hour)"
+    },
+    "success": {
+      "message": "✅ Sleep session logged successfully!"
+    },
+    "error": {
+      "general": " ❌ Failed to log sleep session. Please try again",
+      "unauthorized": " ❌ Session expired. Please log in again",
+      "server": " ❌ Server error. Please try again later"
+    },
+    "deleteConfirm": " Are you sure you want to delete this record?",
+    "deleteSuccess": "  ✅ Record deleted successfully",
+    "deleteError": " ❌ Failed to delete record",
+    "lightMode": " Switch to Light Mode",
+    "darkMode": " Switch to Dark Mode",
+    "submitting": " Submitting...",
+    "unknown": "Unknown",
+    "noRecords": "  No sleep records",
+    "startRecording": " Start recording your first sleep",
+    "stats": {
+      "recorded": "recorded"
+    }
+  },
+  "common": {
+    "edit": " Edit",
+    "delete": " Delete",
+    "loading": "Loading..."
+  },
+
         "stats": {
           "avgHours": "Average Sleep Hours",
           "avgQuality": "Average Sleep Quality",
