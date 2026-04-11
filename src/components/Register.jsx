@@ -268,9 +268,6 @@ const GOOGLE_AUTH_URL = import.meta.env.VITE_GOOGLE_AUTH_URL || 'https://google-
             <div className="register-control-bar">
                 <div className="control-bar-content">
                     <div className="app-title">
-                        <div className="logo-wrapper">
-                            <span className="logo-icon">✨</span>
-                        </div>
                         <div className="title-text">
                             <h1>LivoCare</h1>
                             <span className="app-subtitle">{t('register.subtitle')}</span>
