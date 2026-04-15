@@ -8,6 +8,11 @@ import '../index.css';
 // دوال التحليل - المعدلة بالكامل
 // ===========================================
 
+const roundNumber = (num, decimals = 1) => {
+    if (isNaN(num)) return 0;
+    return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
+};
+
 const analyzeSleepData = (sleepData) => {
     console.log('📊 analyzeSleepData input:', sleepData?.length || 0, 'records');
     
@@ -30,19 +35,15 @@ const analyzeSleepData = (sleepData) => {
             if (duration > 0 && duration <= 24) {
                 totalHours += duration;
                 validCount++;
-                console.log(`✅ Sleep record ${validCount}: ${duration.toFixed(1)} hours`);
             }
         }
     });
     
-    const result = {
+    return {
         avgHours: validCount > 0 ? roundNumber(totalHours / validCount, 1) : 0,
         totalNights: validCount,
         hasData: validCount > 0
     };
-    
-    console.log('📊 analyzeSleepData result:', result);
-    return result;
 };
 
 const analyzeNutritionData = (mealsData) => {
@@ -68,7 +69,6 @@ const analyzeNutritionData = (mealsData) => {
     mealsData.forEach(meal => {
         totalCalories += meal.total_calories || 0;
         
-        // حساب القيم الغذائية من المكونات
         const ingredients = meal.ingredients || [];
         ingredients.forEach(ing => {
             totalProtein += ing.protein || 0;
@@ -76,7 +76,6 @@ const analyzeNutritionData = (mealsData) => {
             totalFat += ing.fat || 0;
         });
         
-        // تتبع الأيام الفريدة
         if (meal.meal_time) {
             const date = new Date(meal.meal_time).toDateString();
             uniqueDays.add(date);
@@ -86,7 +85,7 @@ const analyzeNutritionData = (mealsData) => {
     const daysCount = uniqueDays.size || mealsData.length;
     const mealCount = mealsData.length;
     
-    const result = {
+    return {
         avgCaloriesPerDay: daysCount > 0 ? Math.round(totalCalories / daysCount) : 0,
         avgProtein: mealCount > 0 ? roundNumber(totalProtein / mealCount, 1) : 0,
         avgCarbs: mealCount > 0 ? roundNumber(totalCarbs / mealCount, 1) : 0,
@@ -94,9 +93,6 @@ const analyzeNutritionData = (mealsData) => {
         totalMeals: mealCount,
         hasData: mealCount > 0
     };
-    
-    console.log('📊 analyzeNutritionData result:', result);
-    return result;
 };
 
 const analyzeActivityData = (activityData) => {
@@ -120,15 +116,12 @@ const analyzeActivityData = (activityData) => {
     });
     
     const daysCount = uniqueDays.size || activityData.length;
-    const result = {
+    return {
         totalMinutes: totalMinutes,
         avgMinutesPerDay: daysCount > 0 ? Math.round(totalMinutes / daysCount) : 0,
         records: activityData.length,
         hasData: activityData.length > 0
     };
-    
-    console.log('📊 analyzeActivityData result:', result);
-    return result;
 };
 
 const analyzeHealthMetricsData = (healthData) => {
@@ -169,7 +162,7 @@ const analyzeHealthMetricsData = (healthData) => {
         }
     });
     
-    const result = {
+    return {
         avgWeight: weightCount > 0 ? roundNumber(totalWeight / weightCount, 1) : 0,
         avgSystolic: bpCount > 0 ? Math.round(totalSystolic / bpCount) : 0,
         avgDiastolic: bpCount > 0 ? Math.round(totalDiastolic / bpCount) : 0,
@@ -177,9 +170,6 @@ const analyzeHealthMetricsData = (healthData) => {
         records: healthData.length,
         hasData: healthData.length > 0
     };
-    
-    console.log('📊 analyzeHealthMetricsData result:', result);
-    return result;
 };
 
 const analyzeMoodData = (moodData) => {
@@ -211,14 +201,11 @@ const analyzeMoodData = (moodData) => {
         }
     });
     
-    const result = {
+    return {
         avgMood: moodData.length > 0 ? roundNumber(totalMood / moodData.length, 1) : 0,
         totalDays: uniqueDays.size,
         hasData: moodData.length > 0
     };
-    
-    console.log('📊 analyzeMoodData result:', result);
-    return result;
 };
 
 const analyzeHabitsData = (habitLogs, habitDefinitions) => {
@@ -231,21 +218,17 @@ const analyzeHabitsData = (habitLogs, habitDefinitions) => {
     const completed = habitLogs.filter(h => h.is_completed === true).length;
     const total = habitLogs.length;
     
-    const result = {
+    return {
         completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
         completed: completed,
         total: total,
         hasData: habitLogs.length > 0
     };
-    
-    console.log('📊 analyzeHabitsData result:', result);
-    return result;
 };
 
 const calculateHealthScore = (sleep, nutrition, activity, healthMetrics, mood, habits) => {
     let score = 0;
     
-    // Sleep (30 points)
     if (sleep.hasData && sleep.avgHours > 0) {
         if (sleep.avgHours >= 7 && sleep.avgHours <= 8) score += 30;
         else if (sleep.avgHours >= 6) score += 20;
@@ -255,7 +238,6 @@ const calculateHealthScore = (sleep, nutrition, activity, healthMetrics, mood, h
         score += 15;
     }
     
-    // Nutrition (25 points)
     if (nutrition.hasData && nutrition.avgCaloriesPerDay > 0) {
         if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) score += 25;
         else if (nutrition.avgCaloriesPerDay >= 1500) score += 18;
@@ -265,7 +247,6 @@ const calculateHealthScore = (sleep, nutrition, activity, healthMetrics, mood, h
         score += 12;
     }
     
-    // Activity (10 points)
     if (activity.hasData && activity.avgMinutesPerDay > 0) {
         if (activity.avgMinutesPerDay >= 30) score += 10;
         else if (activity.avgMinutesPerDay >= 20) score += 7;
@@ -275,7 +256,6 @@ const calculateHealthScore = (sleep, nutrition, activity, healthMetrics, mood, h
         score += 5;
     }
     
-    // Health Metrics (10 points)
     if (healthMetrics.hasData) {
         let metricsScore = 0;
         if (healthMetrics.avgWeight >= 50 && healthMetrics.avgWeight <= 100) metricsScore += 3;
@@ -286,7 +266,6 @@ const calculateHealthScore = (sleep, nutrition, activity, healthMetrics, mood, h
         score += 5;
     }
     
-    // Mood (15 points)
     if (mood.hasData && mood.avgMood > 0) {
         if (mood.avgMood >= 4) score += 15;
         else if (mood.avgMood >= 3) score += 10;
@@ -296,7 +275,6 @@ const calculateHealthScore = (sleep, nutrition, activity, healthMetrics, mood, h
         score += 7;
     }
     
-    // Habits (10 points)
     if (habits.hasData && habits.completionRate > 0) {
         if (habits.completionRate >= 80) score += 10;
         else if (habits.completionRate >= 60) score += 7;
@@ -324,62 +302,62 @@ const generateTopRecommendation = (sleep, nutrition, activity, healthMetrics, mo
     if (!hasAnyData) {
         return {
             icon: '📝',
-            title: t('reports.recommendations.start.title'),
-            advice: t('reports.recommendations.start.advice'),
-            action: t('reports.recommendations.start.action')
+            title: t('reports.recommendations.start.title') || 'ابدأ بتسجيل بياناتك',
+            advice: t('reports.recommendations.start.advice') || 'كلما سجلت المزيد من البيانات، حصلت على توصيات أكثر دقة',
+            action: t('reports.recommendations.start.action') || 'سجل أول قراءة صحية اليوم'
         };
     }
     
     if (sleep.hasData && sleep.avgHours > 0 && sleep.avgHours < 7) {
         return {
             icon: '🌙',
-            title: t('reports.recommendations.sleepMore.title'),
-            advice: t('reports.recommendations.sleepMore.advice', { hours: sleep.avgHours }),
-            action: t('reports.recommendations.sleepMore.action')
+            title: t('reports.recommendations.sleepMore.title') || 'حسّن نومك',
+            advice: t('reports.recommendations.sleepMore.advice', { hours: sleep.avgHours }) || `تنام في المتوسط ${sleep.avgHours} ساعة فقط`,
+            action: t('reports.recommendations.sleepMore.action') || 'حاول النوم 7-8 ساعات يومياً'
         };
     }
     
     if (nutrition.hasData && nutrition.avgCaloriesPerDay > 0 && nutrition.avgCaloriesPerDay < 1500) {
         return {
             icon: '🥗',
-            title: t('reports.recommendations.increaseCalories.title'),
-            advice: t('reports.recommendations.increaseCalories.advice', { calories: nutrition.avgCaloriesPerDay }),
-            action: t('reports.recommendations.increaseCalories.action')
+            title: t('reports.recommendations.increaseCalories.title') || 'زد سعراتك',
+            advice: t('reports.recommendations.increaseCalories.advice', { calories: nutrition.avgCaloriesPerDay }) || `تتناول ${nutrition.avgCaloriesPerDay} سعرة فقط في اليوم`,
+            action: t('reports.recommendations.increaseCalories.action') || 'أضف وجبات صحية غنية بالبروتين'
         };
     }
     
     if (healthMetrics.hasData && healthMetrics.avgSystolic > 140) {
         return {
             icon: '❤️',
-            title: t('reports.recommendations.lowerBloodPressure.title'),
-            advice: t('reports.recommendations.lowerBloodPressure.advice', { systolic: healthMetrics.avgSystolic }),
-            action: t('reports.recommendations.lowerBloodPressure.action')
+            title: t('reports.recommendations.lowerBloodPressure.title') || 'حسّن ضغط دمك',
+            advice: t('reports.recommendations.lowerBloodPressure.advice', { systolic: healthMetrics.avgSystolic }) || `ضغطك ${healthMetrics.avgSystolic} مرتفع`,
+            action: t('reports.recommendations.lowerBloodPressure.action') || 'قلل الملح ومارس المشي'
         };
     }
     
     if (activity.hasData && activity.avgMinutesPerDay > 0 && activity.avgMinutesPerDay < 30) {
         return {
             icon: '🏃',
-            title: t('reports.recommendations.increaseActivity.title'),
-            advice: t('reports.recommendations.increaseActivity.advice', { minutes: activity.avgMinutesPerDay }),
-            action: t('reports.recommendations.increaseActivity.action')
+            title: t('reports.recommendations.increaseActivity.title') || 'زد نشاطك',
+            advice: t('reports.recommendations.increaseActivity.advice', { minutes: activity.avgMinutesPerDay }) || `تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة فقط يومياً`,
+            action: t('reports.recommendations.increaseActivity.action') || 'المشي 30 دقيقة يومياً يحسن صحتك'
         };
     }
     
     if (mood.hasData && mood.avgMood > 0 && mood.avgMood < 3) {
         return {
             icon: '😊',
-            title: t('reports.recommendations.improveMood.title'),
-            advice: t('reports.recommendations.improveMood.advice', { mood: mood.avgMood }),
-            action: t('reports.recommendations.improveMood.action')
+            title: t('reports.recommendations.improveMood.title') || 'حسّن مزاجك',
+            advice: t('reports.recommendations.improveMood.advice', { mood: mood.avgMood }) || `مزاجك في المتوسط ${mood.avgMood}/5`,
+            action: t('reports.recommendations.improveMood.action') || 'جرب التأمل أو تمارين التنفس العميق'
         };
     }
     
     return {
         icon: '🌟',
-        title: t('reports.recommendations.excellent.title'),
-        advice: t('reports.recommendations.excellent.advice'),
-        action: t('reports.recommendations.excellent.action')
+        title: t('reports.recommendations.excellent.title') || 'أحسنت!',
+        advice: t('reports.recommendations.excellent.advice') || 'جميع مؤشراتك الصحية جيدة',
+        action: t('reports.recommendations.excellent.action') || 'استمر في هذا النمط الصحي الرائع'
     };
 };
 
@@ -388,19 +366,19 @@ const generateSmartStory = (sleep, nutrition, activity, healthMetrics, mood, hab
     
     if (sleep.hasData && sleep.avgHours > 0) {
         if (sleep.avgHours >= 7 && sleep.avgHours <= 8) {
-            events.push({ type: 'improvement', text: t('reports.story.sleepIdeal', { hours: sleep.avgHours }) });
+            events.push({ type: 'improvement', text: t('reports.story.sleepIdeal', { hours: sleep.avgHours }) || `🌙 تنام ${sleep.avgHours} ساعات في المتوسط - مثالي!` });
         } else if (sleep.avgHours >= 6) {
-            events.push({ type: 'warning', text: t('reports.story.sleepLow', { hours: sleep.avgHours }) });
+            events.push({ type: 'warning', text: t('reports.story.sleepLow', { hours: sleep.avgHours }) || `🌙 تنام ${sleep.avgHours} ساعات - حاول زيادة نومك قليلاً` });
         } else {
-            events.push({ type: 'danger', text: t('reports.story.sleepVeryLow', { hours: sleep.avgHours }) });
+            events.push({ type: 'danger', text: t('reports.story.sleepVeryLow', { hours: sleep.avgHours }) || `🌙 تنام فقط ${sleep.avgHours} ساعات - هذا قليل جداً` });
         }
     }
     
     if (nutrition.hasData && nutrition.avgCaloriesPerDay > 0) {
         if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) {
-            events.push({ type: 'improvement', text: t('reports.story.nutritionIdeal', { calories: nutrition.avgCaloriesPerDay }) });
+            events.push({ type: 'improvement', text: t('reports.story.nutritionIdeal', { calories: nutrition.avgCaloriesPerDay }) || `🥗 تتناول ${nutrition.avgCaloriesPerDay} سعرة يومياً - نظام غذائي متوازن` });
         } else {
-            events.push({ type: 'warning', text: t('reports.story.nutritionWarning', { calories: nutrition.avgCaloriesPerDay }) });
+            events.push({ type: 'warning', text: t('reports.story.nutritionWarning', { calories: nutrition.avgCaloriesPerDay }) || `🥗 تتناول ${nutrition.avgCaloriesPerDay} سعرة - حاول تحسين نظامك الغذائي` });
         }
     }
     
@@ -414,24 +392,24 @@ const generateSmartStory = (sleep, nutrition, activity, healthMetrics, mood, hab
     
     if (activity.hasData && activity.avgMinutesPerDay > 0) {
         if (activity.avgMinutesPerDay >= 30) {
-            events.push({ type: 'improvement', text: t('reports.story.activityIdeal', { minutes: activity.avgMinutesPerDay }) });
+            events.push({ type: 'improvement', text: t('reports.story.activityIdeal', { minutes: activity.avgMinutesPerDay }) || `🏃 تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة يومياً - ممتاز!` });
         } else {
-            events.push({ type: 'warning', text: t('reports.story.activityLow', { minutes: activity.avgMinutesPerDay }) });
+            events.push({ type: 'warning', text: t('reports.story.activityLow', { minutes: activity.avgMinutesPerDay }) || `🏃 تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة فقط - زد نشاطك` });
         }
     }
     
     if (mood.hasData && mood.avgMood > 0) {
         if (mood.avgMood >= 4) {
-            events.push({ type: 'improvement', text: t('reports.story.moodExcellent', { mood: mood.avgMood }) });
+            events.push({ type: 'improvement', text: t('reports.story.moodExcellent', { mood: mood.avgMood }) || `😊 مزاجك ممتاز (${mood.avgMood}/5)` });
         } else if (mood.avgMood >= 3) {
-            events.push({ type: 'warning', text: t('reports.story.moodGood', { mood: mood.avgMood }) });
+            events.push({ type: 'warning', text: t('reports.story.moodGood', { mood: mood.avgMood }) || `😊 مزاجك جيد (${mood.avgMood}/5) - يمكن تحسينه` });
         } else {
-            events.push({ type: 'danger', text: t('reports.story.moodLow', { mood: mood.avgMood }) });
+            events.push({ type: 'danger', text: t('reports.story.moodLow', { mood: mood.avgMood }) || `😊 مزاجك منخفض (${mood.avgMood}/5) - اهتم بصحتك النفسية` });
         }
     }
     
     if (events.length === 0) {
-        events.push({ type: 'info', text: t('reports.story.noData') });
+        events.push({ type: 'info', text: t('reports.story.noData') || 'سجل المزيد من البيانات للحصول على تحليل أفضل' });
     }
     
     return events;
@@ -479,11 +457,6 @@ const generateSmartReports = (currentData, previousData, range, t) => {
     };
 };
 
-const roundNumber = (num, decimals = 1) => {
-    if (isNaN(num)) return 0;
-    return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
-};
-
 const getDateRange = (type, customStart, customEnd) => {
     const end = new Date();
     let start = new Date();
@@ -499,6 +472,44 @@ const getDateRange = (type, customStart, customEnd) => {
     }
     
     return { start, end };
+};
+
+// ✅ Fixed extractData function - handles all response types safely
+const extractData = (response) => {
+    // If response is null or undefined
+    if (!response) return [];
+    
+    // If response has results property (Django REST framework paginated response)
+    if (response.results && Array.isArray(response.results)) {
+        return response.results;
+    }
+    
+    // If response is an array
+    if (Array.isArray(response)) {
+        return response;
+    }
+    
+    // If response has data property
+    if (response.data && Array.isArray(response.data)) {
+        return response.data;
+    }
+    
+    // If response has items property
+    if (response.items && Array.isArray(response.items)) {
+        return response.items;
+    }
+    
+    // If it's a single object, wrap it in an array
+    if (typeof response === 'object' && response !== null) {
+        // Check if it might be a single record
+        if (response.id !== undefined) {
+            return [response];
+        }
+    }
+    
+    // Log warning for unexpected format
+    console.warn('Unexpected response format in extractData:', response);
+    return [];
 };
 
 const Reports = ({ isAuthReady }) => {
@@ -527,51 +538,84 @@ const Reports = ({ isAuthReady }) => {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    const fetchDataInRange = useCallback(async (start, end) => {
-        abortControllersRef.current.forEach(controller => controller.abort());
-        abortControllersRef.current = [];
+    // ✅ Fixed fetchAllData function with better error handling
+    const fetchAllData = useCallback(async (url, key) => {
+        let allData = [];
+        let nextUrl = url;
         
-        const endpoints = [
-            { url: `/sleep/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'sleep' },
-            { url: `/meals/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'meals' },
-            { url: `/activities/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'activities' },
-            { url: `/health_status/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'health' },
-            { url: `/mood-logs/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'mood' },
-            { url: `/habit-logs/?start=${start.toISOString()}&end=${end.toISOString()}`, key: 'habits' },
-            { url: '/habit-definitions/', key: 'habitDefinitions' }
-        ];
-        
-        const results = {};
-        
-        for (const endpoint of endpoints) {
-            const controller = new AbortController();
-            abortControllersRef.current.push(controller);
-            
-            try {
-                console.log(`📡 Fetching ${endpoint.key} from ${endpoint.url}`);
-                const response = await axiosInstance.get(endpoint.url, { signal: controller.signal });
-                results[endpoint.key] = response.data;
-                console.log(`✅ ${endpoint.key}: ${response.data?.length || 0} records`);
-            } catch (err) {
-                if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
-                    results[endpoint.key] = [];
+        try {
+            while (nextUrl) {
+                const controller = new AbortController();
+                abortControllersRef.current.push(controller);
+                
+                const response = await axiosInstance.get(nextUrl, { signal: controller.signal });
+                const data = response.data;
+                
+                // ✅ Safely extract data using the improved extractData function
+                const items = extractData(data);
+                
+                // ✅ Ensure items is an array before spreading
+                if (Array.isArray(items)) {
+                    allData = [...allData, ...items];
                 } else {
-                    console.error(`Error fetching ${endpoint.key}:`, err);
-                    results[endpoint.key] = [];
+                    console.warn(`Expected array for ${key}, got:`, typeof items);
                 }
+                
+                nextUrl = data.next || null;
+            }
+        } catch (err) {
+            if (err.name !== 'AbortError' && err.code !== 'ERR_CANCELED') {
+                console.error(`Error fetching ${key}:`, err);
             }
         }
         
-        return {
-            sleep: results.sleep || [],
-            meals: results.meals || [],
-            activities: results.activities || [],
-            health: results.health || [],
-            mood: results.mood || [],
-            habits: results.habits || [],
-            habitDefinitions: results.habitDefinitions || []
-        };
+        console.log(`✅ ${key}: ${allData.length} records`);
+        return allData;
     }, []);
+
+    const fetchDataInRange = useCallback(async (start, end) => {
+        // Abort previous requests
+        abortControllersRef.current.forEach(controller => controller.abort());
+        abortControllersRef.current = [];
+        
+        const startStr = start.toISOString();
+        const endStr = end.toISOString();
+        
+        console.log('📡 Fetching data from:', startStr, 'to:', endStr);
+        
+        try {
+            const [
+                sleepData,
+                mealsData,
+                activitiesData,
+                healthData,
+                moodData,
+                habitsData,
+                habitDefsData
+            ] = await Promise.all([
+                fetchAllData(`/sleep/?start=${startStr}&end=${endStr}`, 'sleep'),
+                fetchAllData(`/meals/?start=${startStr}&end=${endStr}`, 'meals'),
+                fetchAllData(`/activities/?start=${startStr}&end=${endStr}`, 'activities'),
+                fetchAllData(`/health_status/?start=${startStr}&end=${endStr}`, 'health'),
+                fetchAllData(`/mood-logs/?start=${startStr}&end=${endStr}`, 'mood'),
+                fetchAllData(`/habit-logs/?start=${startStr}&end=${endStr}`, 'habits'),
+                fetchAllData('/habit-definitions/', 'habitDefinitions')
+            ]);
+            
+            return {
+                sleep: sleepData,
+                meals: mealsData,
+                activities: activitiesData,
+                health: healthData,
+                mood: moodData,
+                habits: habitsData,
+                habitDefinitions: habitDefsData
+            };
+        } catch (err) {
+            console.error('Error in fetchDataInRange:', err);
+            throw err;
+        }
+    }, [fetchAllData]);
 
     const fetchReports = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
@@ -590,19 +634,13 @@ const Reports = ({ isAuthReady }) => {
             if (!isMountedRef.current) return;
             
             const reportData = generateSmartReports(currentData, {}, { start, end }, t);
-            console.log('📊 Final report:', {
-                sleep: reportData.sleep,
-                nutrition: reportData.nutrition,
-                activity: reportData.activity,
-                healthMetrics: reportData.healthMetrics,
-                mood: reportData.mood
-            });
+            console.log('📊 Final report generated successfully');
             setReports(reportData);
         } catch (err) {
             if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
             console.error('Error fetching reports:', err);
             if (isMountedRef.current) {
-                setError(t('reports.error'));
+                setError(t('reports.error') || 'حدث خطأ في جلب التقارير');
             }
         } finally {
             if (isMountedRef.current) {
@@ -630,14 +668,14 @@ const Reports = ({ isAuthReady }) => {
         };
     }, []);
 
-    const exportToPDF = () => alert(t('reports.export.pdfComingSoon'));
-    const exportToCSV = () => alert(t('reports.export.csvComingSoon'));
+    const exportToPDF = () => alert(t('reports.export.pdfComingSoon') || 'سيتم إضافة ميزة تصدير PDF قريباً');
+    const exportToCSV = () => alert(t('reports.export.csvComingSoon') || 'سيتم إضافة ميزة تصدير CSV قريباً');
 
     if (loading) {
         return (
             <div className={`reports-loading ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="spinner"></div>
-                <p>{t('reports.loading')}</p>
+                <p>{t('reports.loading') || 'جاري تحميل التقارير...'}</p>
             </div>
         );
     }
@@ -647,7 +685,7 @@ const Reports = ({ isAuthReady }) => {
             <div className={`reports-error ${darkMode ? 'dark-mode' : ''}`}>
                 <p>❌ {error}</p>
                 <button onClick={fetchReports} className="retry-btn">
-                    {t('reports.retry')}
+                    🔄 {t('reports.retry') || 'إعادة المحاولة'}
                 </button>
             </div>
         );
@@ -656,18 +694,18 @@ const Reports = ({ isAuthReady }) => {
     return (
         <div className={`reports-container ${darkMode ? 'dark-mode' : ''}`}>
             <div className="reports-header">
-                <h2>📊 {t('reports.title')}</h2>
+                <h2>📊 {t('reports.title') || 'التقارير الصحية الشاملة'}</h2>
                 <div className="reports-controls">
                     <select value={reportType} onChange={(e) => setReportType(e.target.value)} className="report-type-select">
-                        <option value="weekly">{t('reports.types.weekly')}</option>
-                        <option value="monthly">{t('reports.types.monthly')}</option>
-                        <option value="quarterly">{t('reports.types.quarterly')}</option>
-                        <option value="custom">{t('reports.types.custom')}</option>
+                        <option value="weekly">{t('reports.types.weekly') || 'تقرير أسبوعي'}</option>
+                        <option value="monthly">{t('reports.types.monthly') || 'تقرير شهري'}</option>
+                        <option value="quarterly">{t('reports.types.quarterly') || 'تقرير ربع سنوي'}</option>
+                        <option value="custom">{t('reports.types.custom') || 'تقرير مخصص'}</option>
                     </select>
                     {reportType === 'custom' && (
                         <div className="date-range">
                             <input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} className="date-input" />
-                            <span>{t('reports.to')}</span>
+                            <span>{t('reports.to') || 'إلى'}</span>
                             <input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} className="date-input" />
                         </div>
                     )}
@@ -682,7 +720,7 @@ const Reports = ({ isAuthReady }) => {
                     <div className="health-score-card">
                         <div className="score-header">
                             <span className="score-icon">🎯</span>
-                            <span className="score-title">{t('reports.healthScore')}</span>
+                            <span className="score-title">{t('reports.healthScore') || 'درجة الصحة'}</span>
                             <span className={`score-value score-${reports.summary.healthScore.grade}`}>
                                 {reports.summary.healthScore.score}/100
                             </span>
@@ -698,7 +736,7 @@ const Reports = ({ isAuthReady }) => {
                     {/* Story Card */}
                     {reports.summary.story.length > 0 && (
                         <div className="story-card">
-                            <h3>📖 {t('reports.story.title')}</h3>
+                            <h3>📖 {t('reports.story.title') || 'القصة الذكية لصحبتك'}</h3>
                             <div className="story-events">
                                 {reports.summary.story.map((event, i) => (
                                     <div key={i} className={`story-event ${event.type}`}>
@@ -716,7 +754,7 @@ const Reports = ({ isAuthReady }) => {
                     <div className="top-recommendation-card">
                         <div className="rec-header">
                             <span className="rec-icon">{reports.summary.topRecommendation.icon}</span>
-                            <span className="rec-title">{t('reports.topRecommendation')}</span>
+                            <span className="rec-title">{t('reports.topRecommendation') || 'التوصية الأولى'}</span>
                         </div>
                         <h4>{reports.summary.topRecommendation.title}</h4>
                         <p className="rec-advice">{reports.summary.topRecommendation.advice}</p>
@@ -725,12 +763,12 @@ const Reports = ({ isAuthReady }) => {
 
                     {/* Tabs */}
                     <div className="reports-tabs">
-                        <button className={`tab-btn ${activeTab === 'summary' ? 'active' : ''}`} onClick={() => setActiveTab('summary')}>📊 {t('reports.tabs.summary')}</button>
-                        <button className={`tab-btn ${activeTab === 'sleep' ? 'active' : ''}`} onClick={() => setActiveTab('sleep')}>🌙 {t('reports.tabs.sleep')}</button>
-                        <button className={`tab-btn ${activeTab === 'nutrition' ? 'active' : ''}`} onClick={() => setActiveTab('nutrition')}>🥗 {t('reports.tabs.nutrition')}</button>
+                        <button className={`tab-btn ${activeTab === 'summary' ? 'active' : ''}`} onClick={() => setActiveTab('summary')}>📊 {t('reports.tabs.summary') || 'الملخص'}</button>
+                        <button className={`tab-btn ${activeTab === 'sleep' ? 'active' : ''}`} onClick={() => setActiveTab('sleep')}>🌙 {t('reports.tabs.sleep') || 'النوم'}</button>
+                        <button className={`tab-btn ${activeTab === 'nutrition' ? 'active' : ''}`} onClick={() => setActiveTab('nutrition')}>🥗 {t('reports.tabs.nutrition') || 'التغذية'}</button>
                         <button className={`tab-btn ${activeTab === 'metrics' ? 'active' : ''}`} onClick={() => setActiveTab('metrics')}>📊 {t('reports.tabs.metrics') || 'القياسات الحيوية'}</button>
-                        <button className={`tab-btn ${activeTab === 'mood' ? 'active' : ''}`} onClick={() => setActiveTab('mood')}>😊 {t('reports.tabs.mood')}</button>
-                        <button className={`tab-btn ${activeTab === 'habits' ? 'active' : ''}`} onClick={() => setActiveTab('habits')}>💊 {t('reports.tabs.habits')}</button>
+                        <button className={`tab-btn ${activeTab === 'mood' ? 'active' : ''}`} onClick={() => setActiveTab('mood')}>😊 {t('reports.tabs.mood') || 'المزاج'}</button>
+                        <button className={`tab-btn ${activeTab === 'habits' ? 'active' : ''}`} onClick={() => setActiveTab('habits')}>💊 {t('reports.tabs.habits') || 'العادات'}</button>
                     </div>
 
                     {/* Tab Content */}
@@ -738,23 +776,23 @@ const Reports = ({ isAuthReady }) => {
                         {activeTab === 'summary' && (
                             <div className="summary-grid">
                                 <div className="stat-card">
-                                    <div className="stat-header"><span>🌙</span><span>{t('reports.sleep.title')}</span></div>
-                                    <div className="stat-value">{reports.sleep.hasData ? reports.sleep.avgHours : 0} {t('reports.sleep.hours')}</div>
+                                    <div className="stat-header"><span>🌙</span><span>{t('reports.sleep.title') || 'النوم'}</span></div>
+                                    <div className="stat-value">{reports.sleep.hasData ? reports.sleep.avgHours : 0} {t('reports.sleep.hours') || 'ساعات'}</div>
                                 </div>
                                 <div className="stat-card">
-                                    <div className="stat-header"><span>🥗</span><span>{t('reports.nutrition.title')}</span></div>
+                                    <div className="stat-header"><span>🥗</span><span>{t('reports.nutrition.title') || 'التغذية'}</span></div>
                                     <div className="stat-value">{reports.nutrition.hasData ? reports.nutrition.avgCaloriesPerDay : 0}</div>
                                 </div>
                                 <div className="stat-card">
-                                    <div className="stat-header"><span>🏃</span><span>{t('reports.activity.title')}</span></div>
-                                    <div className="stat-value">{reports.activity.hasData ? reports.activity.avgMinutesPerDay : 0} {t('reports.minutes')}</div>
+                                    <div className="stat-header"><span>🏃</span><span>{t('reports.activity.title') || 'النشاط'}</span></div>
+                                    <div className="stat-value">{reports.activity.hasData ? reports.activity.avgMinutesPerDay : 0} {t('reports.minutes') || 'دقيقة'}</div>
                                 </div>
                                 <div className="stat-card">
                                     <div className="stat-header"><span>❤️</span><span>{t('reports.healthMetrics.title') || 'القياسات الحيوية'}</span></div>
                                     <div className="stat-value">{reports.healthMetrics.hasData ? `${reports.healthMetrics.avgSystolic}/${reports.healthMetrics.avgDiastolic}` : '—'}</div>
                                 </div>
                                 <div className="stat-card">
-                                    <div className="stat-header"><span>😊</span><span>{t('reports.mood.title')}</span></div>
+                                    <div className="stat-header"><span>😊</span><span>{t('reports.mood.title') || 'المزاج'}</span></div>
                                     <div className="stat-value">{reports.mood.hasData ? reports.mood.avgMood : 0}/5</div>
                                 </div>
                             </div>
@@ -762,15 +800,15 @@ const Reports = ({ isAuthReady }) => {
                         
                         {activeTab === 'sleep' && (
                             <div className="detail-card">
-                                <h3>🌙 {t('reports.sleep.details')}</h3>
+                                <h3>🌙 {t('reports.sleep.details') || 'تفاصيل النوم'}</h3>
                                 {reports.sleep.hasData ? (
                                     <div className="detail-grid">
                                         <div className="detail-item">
-                                            <span className="detail-label">{t('reports.sleep.avgHours')}</span>
-                                            <span className="detail-value">{reports.sleep.avgHours} {t('reports.sleep.hours')}</span>
+                                            <span className="detail-label">{t('reports.sleep.avgHours') || 'متوسط ساعات النوم'}</span>
+                                            <span className="detail-value">{reports.sleep.avgHours} {t('reports.sleep.hours') || 'ساعات'}</span>
                                         </div>
                                         <div className="detail-item">
-                                            <span className="detail-label">{t('reports.sleep.totalNights')}</span>
+                                            <span className="detail-label">{t('reports.sleep.totalNights') || 'عدد الليالي'}</span>
                                             <span className="detail-value">{reports.sleep.totalNights}</span>
                                         </div>
                                     </div>
@@ -782,27 +820,27 @@ const Reports = ({ isAuthReady }) => {
                         
                         {activeTab === 'nutrition' && (
                             <div className="detail-card">
-                                <h3>🥗 {t('reports.nutrition.details')}</h3>
+                                <h3>🥗 {t('reports.nutrition.details') || 'تفاصيل التغذية'}</h3>
                                 {reports.nutrition.hasData ? (
                                     <div className="detail-grid">
                                         <div className="detail-item">
-                                            <span className="detail-label">{t('reports.nutrition.avgCalories')}</span>
-                                            <span className="detail-value">{reports.nutrition.avgCaloriesPerDay} سعرة</span>
+                                            <span className="detail-label">{t('reports.nutrition.avgCalories') || 'متوسط السعرات'}</span>
+                                            <span className="detail-value">{reports.nutrition.avgCaloriesPerDay} {t('reports.caloriesUnit') || 'سعرة'}</span>
                                         </div>
                                         <div className="detail-item">
-                                            <span className="detail-label">{t('reports.nutrition.avgProtein')}</span>
+                                            <span className="detail-label">{t('reports.nutrition.avgProtein') || 'متوسط البروتين'}</span>
                                             <span className="detail-value">{reports.nutrition.avgProtein} جرام</span>
                                         </div>
                                         <div className="detail-item">
-                                            <span className="detail-label">{t('reports.nutrition.avgCarbs')}</span>
+                                            <span className="detail-label">{t('reports.nutrition.avgCarbs') || 'متوسط الكربوهيدرات'}</span>
                                             <span className="detail-value">{reports.nutrition.avgCarbs} جرام</span>
                                         </div>
                                         <div className="detail-item">
-                                            <span className="detail-label">{t('reports.nutrition.avgFat')}</span>
+                                            <span className="detail-label">{t('reports.nutrition.avgFat') || 'متوسط الدهون'}</span>
                                             <span className="detail-value">{reports.nutrition.avgFat} جرام</span>
                                         </div>
                                         <div className="detail-item">
-                                            <span className="detail-label">{t('reports.nutrition.totalMeals')}</span>
+                                            <span className="detail-label">{t('reports.nutrition.totalMeals') || 'إجمالي الوجبات'}</span>
                                             <span className="detail-value">{reports.nutrition.totalMeals} وجبة</span>
                                         </div>
                                     </div>
@@ -816,21 +854,20 @@ const Reports = ({ isAuthReady }) => {
                             <div className="detail-card">
                                 <h3>📊 {t('reports.healthMetrics.title') || 'القياسات الحيوية'}</h3>
                                 
-                                {/* قسم النشاط البدني */}
                                 <div className="sub-section">
-                                    <h4>🏃 {t('reports.activity.title')}</h4>
+                                    <h4>🏃 {t('reports.activity.title') || 'النشاط البدني'}</h4>
                                     {reports.activity.hasData ? (
                                         <div className="detail-grid">
                                             <div className="detail-item">
-                                                <span className="detail-label">{t('reports.activity.totalMinutes')}</span>
+                                                <span className="detail-label">{t('reports.activity.totalMinutes') || 'إجمالي الدقائق'}</span>
                                                 <span className="detail-value">{reports.activity.totalMinutes} دقيقة</span>
                                             </div>
                                             <div className="detail-item">
-                                                <span className="detail-label">{t('reports.activity.avgMinutes')}</span>
+                                                <span className="detail-label">{t('reports.activity.avgMinutes') || 'متوسط النشاط اليومي'}</span>
                                                 <span className="detail-value">{reports.activity.avgMinutesPerDay} دقيقة/يوم</span>
                                             </div>
                                             <div className="detail-item">
-                                                <span className="detail-label">{t('reports.activity.records')}</span>
+                                                <span className="detail-label">{t('reports.activity.records') || 'عدد الأنشطة'}</span>
                                                 <span className="detail-value">{reports.activity.records} نشاط</span>
                                             </div>
                                         </div>
@@ -839,7 +876,6 @@ const Reports = ({ isAuthReady }) => {
                                     )}
                                 </div>
                                 
-                                {/* قسم القياسات الحيوية */}
                                 <div className="sub-section">
                                     <h4>❤️ القياسات الحيوية</h4>
                                     {reports.healthMetrics.hasData ? (
@@ -870,15 +906,15 @@ const Reports = ({ isAuthReady }) => {
                         
                         {activeTab === 'mood' && (
                             <div className="detail-card">
-                                <h3>😊 {t('reports.mood.details')}</h3>
+                                <h3>😊 {t('reports.mood.details') || 'تفاصيل المزاج'}</h3>
                                 {reports.mood.hasData ? (
                                     <div className="detail-grid">
                                         <div className="detail-item">
-                                            <span className="detail-label">{t('reports.mood.avgScore')}</span>
+                                            <span className="detail-label">{t('reports.mood.avgScore') || 'متوسط درجة المزاج'}</span>
                                             <span className="detail-value">{reports.mood.avgMood}/5</span>
                                         </div>
                                         <div className="detail-item">
-                                            <span className="detail-label">{t('reports.mood.totalDays')}</span>
+                                            <span className="detail-label">{t('reports.mood.totalDays') || 'عدد الأيام المسجلة'}</span>
                                             <span className="detail-value">{reports.mood.totalDays} يوم</span>
                                         </div>
                                     </div>
@@ -890,15 +926,15 @@ const Reports = ({ isAuthReady }) => {
                         
                         {activeTab === 'habits' && (
                             <div className="detail-card">
-                                <h3>💊 {t('reports.habits.details')}</h3>
+                                <h3>💊 {t('reports.habits.details') || 'تفاصيل العادات'}</h3>
                                 {reports.habits.hasData ? (
                                     <div className="detail-grid">
                                         <div className="detail-item">
-                                            <span className="detail-label">{t('reports.habits.completionRate')}</span>
+                                            <span className="detail-label">{t('reports.habits.completionRate') || 'نسبة الالتزام'}</span>
                                             <span className="detail-value">{reports.habits.completionRate}%</span>
                                         </div>
                                         <div className="detail-item">
-                                            <span className="detail-label">{t('reports.habits.completed')}</span>
+                                            <span className="detail-label">{t('reports.habits.completed') || 'العادات المنجزة'}</span>
                                             <span className="detail-value">{reports.habits.completed}/{reports.habits.total}</span>
                                         </div>
                                     </div>
