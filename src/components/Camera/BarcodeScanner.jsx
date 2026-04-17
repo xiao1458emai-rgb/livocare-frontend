@@ -1,58 +1,106 @@
-// src/components/Camera/Html5BarcodeScanner.jsx
+// src/components/Camera/BarcodeScanner.jsx (النسخة المعدلة بالكامل)
 import React, { useEffect, useRef, useState } from 'react';
 
-const Html5BarcodeScanner = ({ onScan, onClose, darkMode }) => {
+const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     const [error, setError] = useState(null);
     const [isScanning, setIsScanning] = useState(true);
     const scannerRef = useRef(null);
+    const isClosingRef = useRef(false);
     
     useEffect(() => {
         let html5QrCode = null;
+        let script = null;
         
-        const initScanner = async () => {
+        const initScanner = () => {
             try {
-                // استيراد المكتبة
-                const { Html5Qrcode } = await import('html5-qrcode');
-                
-                html5QrCode = new Html5Qrcode("html5-barcode-scanner");
+                // استخدام المكتبة من window إذا كانت موجودة
+                if (!window.Html5Qrcode) {
+                    // تحميل المكتبة من CDN
+                    script = document.createElement('script');
+                    script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+                    script.onload = () => startScanner();
+                    script.onerror = () => setError('فشل في تحميل مكتبة المسح');
+                    document.body.appendChild(script);
+                } else {
+                    startScanner();
+                }
+            } catch (err) {
+                console.error('Init error:', err);
+                setError('خطأ في تهيئة الماسح');
+            }
+        };
+        
+        const startScanner = () => {
+            // تأكد من وجود العنصر
+            const element = document.getElementById("barcode-reader-container");
+            if (!element) {
+                setError('عنصر الماسح غير موجود');
+                return;
+            }
+            
+            try {
+                html5QrCode = new window.Html5Qrcode("barcode-reader-container");
                 scannerRef.current = html5QrCode;
                 
                 const config = {
                     fps: 10,
                     qrbox: { width: 300, height: 200 },
-                    aspectRatio: 1.333,
-                    showTorchButtonIfSupported: true
+                    aspectRatio: 1.333
                 };
                 
-                await html5QrCode.start(
+                html5QrCode.start(
                     { facingMode: "environment" },
                     config,
-                    (decodedText) => {
+                    async (decodedText) => {
                         console.log('✅ Barcode detected:', decodedText);
+                        
+                        if (isClosingRef.current) return;
+                        isClosingRef.current = true;
+                        
                         setIsScanning(false);
-                        html5QrCode.stop();
-                        if (onScan) onScan(decodedText);
-                        if (onClose) setTimeout(onClose, 500);
+                        
+                        // إيقاف الماسح بأمان
+                        try {
+                            if (html5QrCode && typeof html5QrCode.stop === 'function') {
+                                await html5QrCode.stop();
+                            }
+                        } catch (stopErr) {
+                            console.log('Scanner stop error (ignored):', stopErr.message);
+                        }
+                        
+                        // إغلاق الماسح وإرسال النتيجة
+                        setTimeout(() => {
+                            if (onScan) onScan(decodedText);
+                            if (onClose) onClose();
+                        }, 50);
                     },
                     (errorMessage) => {
                         // تجاهل أخطاء المسح المؤقتة
-                        // console.log('Scanning...', errorMessage);
                     }
-                );
-                
-                console.log('✅ Scanner ready');
+                ).catch(err => {
+                    console.error('Start error:', err);
+                    setError('فشل في تشغيل الكاميرا. تأكد من منح الإذن.');
+                });
                 
             } catch (err) {
-                console.error('Scanner error:', err);
-                setError('فشل في تشغيل الكاميرا. تأكد من منح الإذن.');
+                console.error('Start scanner error:', err);
+                setError('خطأ في تشغيل الماسح');
             }
         };
         
         initScanner();
         
         return () => {
+            isClosingRef.current = true;
             if (scannerRef.current) {
-                scannerRef.current.stop().catch(console.error);
+                try {
+                    scannerRef.current.stop().catch(console.error);
+                } catch (e) {
+                    console.log('Cleanup error (ignored)');
+                }
+            }
+            if (script && script.parentNode) {
+                script.parentNode.removeChild(script);
             }
         };
     }, [onScan, onClose]);
@@ -60,18 +108,21 @@ const Html5BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     return (
         <div className={`fixed inset-0 z-50 ${darkMode ? 'bg-black' : 'bg-black/95'}`}>
             <div className="relative w-full h-full">
-                {/* حاوية الماسح */}
-                <div id="html5-barcode-scanner" className="w-full h-full"></div>
+                <div id="barcode-reader-container" className="w-full h-full"></div>
                 
-                {/* زر الإغلاق */}
                 <button
-                    onClick={onClose}
+                    onClick={() => {
+                        isClosingRef.current = true;
+                        if (scannerRef.current) {
+                            scannerRef.current.stop().catch(console.error);
+                        }
+                        onClose();
+                    }}
                     className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg z-10 transition"
                 >
                     ✕
                 </button>
                 
-                {/* إطار التوجيه */}
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                     <div className="relative">
                         <div className="w-80 h-40 border-2 border-yellow-400 rounded-lg">
@@ -86,7 +137,6 @@ const Html5BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     </div>
                 </div>
                 
-                {/* النص التوجيهي */}
                 <div className="absolute bottom-10 left-0 right-0 text-center">
                     <div className="inline-block bg-black/70 backdrop-blur-sm px-4 py-2 rounded-full">
                         <p className="text-white text-sm">
@@ -95,9 +145,8 @@ const Html5BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     </div>
                 </div>
                 
-                {/* رسالة الخطأ */}
                 {error && (
-                    <div className="absolute bottom-24 left-4 right-4 bg-red-500 text-white p-3 rounded-lg text-center">
+                    <div className="absolute bottom-24 left-4 right-4 bg-red-500 text-white p-3 rounded-lg text-center z-10">
                         ⚠️ {error}
                     </div>
                 )}
@@ -108,9 +157,7 @@ const Html5BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     0% { transform: translateY(-60px); }
                     100% { transform: translateY(60px); }
                 }
-                .animate-scan {
-                    animation: scan 2s ease-in-out infinite;
-                }
+                .animate-scan { animation: scan 2s ease-in-out infinite; }
                 .border-t-3 { border-top-width: 3px; }
                 .border-r-3 { border-right-width: 3px; }
                 .border-b-3 { border-bottom-width: 3px; }
@@ -120,4 +167,4 @@ const Html5BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     );
 };
 
-export default Html5BarcodeScanner;
+export default BarcodeScanner;
