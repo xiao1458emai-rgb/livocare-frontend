@@ -323,6 +323,8 @@ const fetchMeals = useCallback(async () => {
 
 // في NutritionForm.jsx، استبدل دالة handleBarcodeScanned بهذه النسخة:
 
+// في NutritionForm.jsx، قم بتعديل handleBarcodeScanned:
+
 const handleBarcodeScanned = async (result) => {
     console.log('📦 Barcode result received:', result);
     
@@ -334,7 +336,6 @@ const handleBarcodeScanned = async (result) => {
         setMessage('');
         
         try {
-            // ✅ زيادة المهلة إلى 15 ثانية
             const offResponse = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
                 timeout: 15000
             });
@@ -397,7 +398,6 @@ const handleBarcodeScanned = async (result) => {
         } catch (error) {
             console.error('❌ Error in barcode search:', error);
             
-            // ✅ في حالة timeout أو خطأ، نضيف المنتج كعنصر جديد
             setFoodItems(prev => [...prev, {
                 name: `منتج جديد (${barcode.slice(-8)})`,
                 quantity: '100',
@@ -418,12 +418,12 @@ const handleBarcodeScanned = async (result) => {
         } finally {
             setIsLoading(false);
             setTimeout(() => setMessage(''), 5000);
-            setShowScanner(false);
+            
+            // ✅ لا تغلق الماسح هنا - الماسح سيغلق نفسه
+            // setShowScanner(false);  // ❌ أزل هذا السطر تماماً
         }
         return;
     }
-    
-    // ... باقي الكود
 };
     const handleUpdateMeal = async (e) => {
         e.preventDefault();

@@ -5,16 +5,15 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     const [error, setError] = useState(null);
     const [isScanning, setIsScanning] = useState(true);
     const scannerRef = useRef(null);
+    const isProcessingRef = useRef(false);
     
     useEffect(() => {
         let html5QrCode = null;
         let script = null;
         
         const startScanner = () => {
-            // ✅ تأكد من وجود العنصر بالمعرف الصحيح
             const element = document.getElementById("barcode-reader-container");
             if (!element) {
-                console.error("Element not found!");
                 setError('حدث خطأ في تهيئة الماسح');
                 return;
             }
@@ -31,18 +30,33 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                 html5QrCode.start(
                     { facingMode: "environment" },
                     config,
-                    (decodedText) => {
+                    async (decodedText) => {
                         console.log('✅ Barcode detected:', decodedText);
+                        
+                        // ✅ منع التكرار
+                        if (isProcessingRef.current) return;
+                        isProcessingRef.current = true;
+                        
                         setIsScanning(false);
                         
-                        // إيقاف الماسح
-                        if (html5QrCode) {
-                            html5QrCode.stop().catch(() => {});
+                        // ✅ إيقاف الماسح بأمان
+                        try {
+                            if (html5QrCode && html5QrCode.isRunning) {
+                                await html5QrCode.stop();
+                            }
+                        } catch (stopErr) {
+                            console.log('Scanner already stopped');
                         }
                         
-                        // إرسال النتيجة
-                        if (onScan) onScan(decodedText);
-                        if (onClose) onClose();
+                        // ✅ إرسال النتيجة إلى الدالة الأم
+                        if (onScan) {
+                            onScan(decodedText);
+                        }
+                        
+                        // ✅ إغلاق الماسح بعد تأخير كافٍ
+                        setTimeout(() => {
+                            if (onClose) onClose();
+                        }, 100);
                     },
                     (errorMessage) => {
                         // تجاهل أخطاء المسح
@@ -58,7 +72,6 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
             }
         };
         
-        // تحميل المكتبة إذا لم تكن موجودة
         if (!window.Html5Qrcode) {
             script = document.createElement('script');
             script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
@@ -82,7 +95,6 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     return (
         <div className={`fixed inset-0 z-50 ${darkMode ? 'bg-black' : 'bg-black/95'}`}>
             <div className="relative w-full h-full">
-                {/* ✅ تأكد من أن id مطابق لما في الكود أعلاه */}
                 <div id="barcode-reader-container" className="w-full h-full"></div>
                 
                 <button
