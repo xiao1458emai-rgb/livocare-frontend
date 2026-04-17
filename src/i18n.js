@@ -1526,32 +1526,53 @@ const resources = {
           }
         }
       },
-
-      "notifications": {
-        "title": "🔔 الإشعارات",
-        "loading": "جاري تحميل الإشعارات...",
-        "all": "الكل",
-        "unread": "غير مقروء",
-        "read": "مقروء",
-        "markAllRead": "تحديد الكل كمقروء",
-        "markRead": "تحديد كمقروء",
-        "noNotifications": "لا توجد إشعارات",
-        "noNotificationsDesc": "ستظهر هنا الإشعارات والتذكيرات المهمة",
-        "justNow": "الآن",
-        "minutesAgo": "منذ {{count}} دقيقة",
-        "hoursAgo": "منذ {{count}} ساعة",
-        "daysAgo": "منذ {{count}} يوم",
-        "view": "عرض التفاصيل",
-        "suggestions": "اقتراحات",
-        "total": "إجمالي الإشعارات",
-         "preferences": "تفضيلات الإشعارات",
-        "deleteConfirm": "هل أنت متأكد من حذف هذا الإشعار؟",
-        "deleteAllReadConfirm": "هل أنت متأكد من حذف جميع الإشعارات المقروءة؟",
-        "deleteAllRead": "حذف المقروء",
-        "stats": "إحصائيات",
-        "priority": { "urgent": "عاجل", "high": "مهم", "medium": "متوسط", "low": "عادي" },
-        "types": { "health": "صحي", "nutrition": "تغذوي", "sleep": "نوم", "mood": "مزاج", "habit": "عادة", "alert": "تنبيه", "reminder": "تذكير", "achievement": "إنجاز", "tip": "نصيحة" }
-      },
+  "notifications": {
+    "title": "🔔 الإشعارات",
+    "loading": "جاري تحميل الإشعارات...",
+    "all": "الكل",
+    "unread": "غير مقروء",
+    "read": "مقروء",
+    "markAllRead": "تحديد الكل كمقروء",
+    "markRead": "تحديد كمقروء",
+    "noNotifications": "لا توجد إشعارات",
+    "noNotificationsDesc": "ستظهر هنا الإشعارات والتذكيرات المهمة",
+    "justNow": "الآن",
+    "minutesAgo": "منذ {{count}} دقيقة",
+    "hoursAgo": "منذ {{count}} ساعة",
+    "daysAgo": "منذ {{count}} يوم",
+    "view": "عرض التفاصيل",
+    "suggestions": "اقتراحات",
+    "total": "إجمالي الإشعارات",
+    "preferences": "تفضيلات الإشعارات",
+    "deleteConfirm": "هل أنت متأكد من حذف هذا الإشعار؟",
+    "deleteAllReadConfirm": "هل أنت متأكد من حذف جميع الإشعارات المقروءة؟",
+    "deleteAllRead": "حذف المقروء",
+    "stats": "إحصائيات",
+    "priority": { 
+      "urgent": "عاجل", 
+      "high": "مهم", 
+      "medium": "متوسط", 
+      "low": "عادي" 
+    },
+    "types": { 
+      "health": "صحي", 
+      "nutrition": "تغذوي", 
+      "sleep": "نوم", 
+      "mood": "مزاج", 
+      "habit": "عادة", 
+      "alert": "تنبيه", 
+      "reminder": "تذكير", 
+      "achievement": "إنجاز", 
+      "tip": "نصيحة",
+      "activity": "النشاط البدني"
+    },
+    "stats": {
+      "total": "الإجمالي",
+      "unread": "غير مقروء",
+      "read": "مقروء",
+      "last7Days": "آخر 7 أيام"
+    }
+  },
 
       "smartDashboard": {
         "title": "تحليلات وتوصيات ذكية",
@@ -3736,31 +3757,53 @@ const resources = {
       }
     },
 
-    "notifications": {
-      "title": "🔔 Notifications",
-      "loading": "Loading notifications...",
-      "all": "All",
+  "notifications": {
+    "title": "🔔 Notifications",
+    "loading": "Loading notifications...",
+    "all": "All",
+    "unread": "Unread",
+    "read": "Read",
+    "markAllRead": "Mark all as read",
+    "markRead": "Mark as read",
+    "noNotifications": "No notifications",
+    "noNotificationsDesc": "Important notifications and reminders will appear here",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}} minutes ago",
+    "hoursAgo": "{{count}} hours ago",
+    "daysAgo": "{{count}} days ago",
+    "view": "View details",
+    "suggestions": "Suggestions",
+    "total": "Total notifications",
+    "deleteConfirm": "Are you sure you want to delete this notification?",
+    "deleteAllReadConfirm": "Are you sure you want to delete all read notifications?",
+    "preferences": "Notification Preferences",
+    "deleteAllRead": "Delete read",
+    "stats": "Statistics",
+    "priority": { 
+      "urgent": "Urgent", 
+      "high": "High", 
+      "medium": "Medium", 
+      "low": "Low" 
+    },
+    "types": { 
+      "health": "Health", 
+      "nutrition": "Nutrition", 
+      "sleep": "Sleep", 
+      "mood": "Mood", 
+      "habit": "Habit", 
+      "alert": "Alert", 
+      "reminder": "Reminder", 
+      "achievement": "Achievement", 
+      "tip": "Tip",
+      "activity": "Physical Activity"
+    },
+    "stats": {
+      "total": "Total",
       "unread": "Unread",
       "read": "Read",
-      "markAllRead": "Mark all as read",
-      "markRead": "Mark as read",
-      "noNotifications": "No notifications",
-      "noNotificationsDesc": "Important notifications and reminders will appear here",
-      "justNow": "Just now",
-      "minutesAgo": "{{count}} minutes ago",
-      "hoursAgo": "{{count}} hours ago",
-      "daysAgo": "{{count}} days ago",
-      "view": "View details",
-      "suggestions": "Suggestions",
-      "total": "Total notifications",
-      "deleteConfirm": "Are you sure you want to delete this notification?",
-      "deleteAllReadConfirm": "Are you sure you want to delete all read notifications?",
-      "preferences": "Notification Preferences",
-      "deleteAllRead": "Delete read",
-      "stats": "Statistics",
-      "priority": { "urgent": "Urgent", "high": "High", "medium": "Medium", "low": "Low" },
-      "types": { "health": "Health", "nutrition": "Nutrition", "sleep": "Sleep", "mood": "Mood", "habit": "Habit", "alert": "Alert", "reminder": "Reminder", "achievement": "Achievement", "tip": "Tip" }
-    },
+      "last7Days": "Last 7 Days"
+    }
+  },
 
     "smartDashboard": {
       "title": "Smart Analytics & Recommendations",

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
-import watchService from '../services/watchService';
+import esp32Service from '../services/esp32Service';
 import '../index.css';
 
 const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
@@ -18,20 +18,20 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
     
-    // ✅ حالة الساعة الذكية
-    const [watchConnected, setWatchConnected] = useState(false);
-    const [watchConnecting, setWatchConnecting] = useState(false);
-    const [watchHeartRate, setWatchHeartRate] = useState(null);
-    const [watchBloodPressure, setWatchBloodPressure] = useState(null);
-    const [watchData, setWatchData] = useState({
+    // ✅ حالة المستشعر (ESP32)
+    const [sensorConnected, setSensorConnected] = useState(false);
+    const [sensorConnecting, setSensorConnecting] = useState(false);
+    const [sensorHeartRate, setSensorHeartRate] = useState(null);
+    const [sensorSpO2, setSensorSpO2] = useState(null);
+    const [sensorData, setSensorData] = useState({
         heartRate: null,
-        bloodPressure: null,
+        spo2: null,
         lastUpdate: null
     });
-    const [watchAlerts, setWatchAlerts] = useState([]);
-    const [watchSupported, setWatchSupported] = useState(true);
-    const [adbModeActive, setAdbModeActive] = useState(false);
-    const [adbServerStatus, setAdbServerStatus] = useState('disconnected');
+    const [sensorAlerts, setSensorAlerts] = useState([]);
+    const [sensorSupported, setSensorSupported] = useState(true);
+    const [sensorActive, setSensorActive] = useState(false);
+    const [sensorStatus, setSensorStatus] = useState('disconnected');
     
     const [formData, setFormData] = useState({
         activity_type: '',
@@ -51,7 +51,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
         setDarkMode(savedDarkMode);
-        setWatchSupported(watchService.isSupported());
+        setSensorSupported(esp32Service.isSupported());
     }, []);
 
     useEffect(() => {
@@ -60,68 +60,68 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // ✅ تفعيل ADB Mode
+    // ✅ تفعيل ESP32 Service
     useEffect(() => {
-        const enableADB = () => {
-            const isTouchDevice = 'ontouchstart' in window;
-            const isMobileScreen = window.innerWidth <= 768;
-            const isMobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-            
-            if (isTouchDevice || isMobileScreen || isMobileUA) {
-                console.log(t('watch.mobileDetected'));
-                watchService.setMobileMode(true, '192.168.8.187');
-                watchService.connectADBMonitor();
-            }
+        const enableESP32 = () => {
+            console.log('ESP32 Service: Starting');
+            // بدء جلب البيانات من الخادم
+            esp32Service.startPolling();
+            setSensorActive(true);
         };
         
-        enableADB();
-    }, [t]);
+        enableESP32();
+        
+        return () => {
+            esp32Service.stopPolling();
+        };
+    }, []);
 
-    // ✅ استماع لبيانات الساعة عبر watchService
+    // ✅ استماع لبيانات ESP32
     useEffect(() => {
-        const handleWatchData = (type, data) => {
+        const handleESP32Data = (type, data) => {
             if (!isMountedRef.current) return;
             
-            console.log(t('watch.dataReceived'), type, data);
+            console.log('ESP32 Data received:', type, data);
             
             if (type === 'heartRate') {
-                setWatchHeartRate(data);
-                setWatchData(prev => ({ ...prev, heartRate: data, lastUpdate: new Date() }));
+                setSensorHeartRate(data);
+                setSensorData(prev => ({ ...prev, heartRate: data, lastUpdate: new Date() }));
+                setSensorConnected(true);
+                setSensorActive(true);
+                setSensorStatus('connected');
                 
                 if (data > 100) {
-                    setWatchAlerts(prev => [t('watch.highHeartRate', { value: data }), ...prev].slice(0, 3));
+                    setSensorAlerts(prev => [t('watch.highHeartRate', { value: data }), ...prev].slice(0, 3));
                     setTimeout(() => {
-                        if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
+                        if (isMountedRef.current) setSensorAlerts(prev => prev.slice(1));
                     }, 5000);
                 } else if (data < 60) {
-                    setWatchAlerts(prev => [t('watch.lowHeartRate', { value: data }), ...prev].slice(0, 3));
+                    setSensorAlerts(prev => [t('watch.lowHeartRate', { value: data }), ...prev].slice(0, 3));
                     setTimeout(() => {
-                        if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
+                        if (isMountedRef.current) setSensorAlerts(prev => prev.slice(1));
                     }, 5000);
                 }
             }
             
-            if (type === 'bloodPressure') {
-                setWatchBloodPressure(data);
-                setWatchData(prev => ({ ...prev, bloodPressure: data, lastUpdate: new Date() }));
-                
-                if (data.systolic > 140 || data.diastolic > 90) {
-                    setWatchAlerts(prev => [t('watch.highBloodPressure', { systolic: data.systolic, diastolic: data.diastolic }), ...prev].slice(0, 3));
-                    setTimeout(() => {
-                        if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
-                    }, 5000);
-                } else if (data.systolic < 90 || data.diastolic < 60) {
-                    setWatchAlerts(prev => [t('watch.lowBloodPressure', { systolic: data.systolic, diastolic: data.diastolic }), ...prev].slice(0, 3));
-                    setTimeout(() => {
-                        if (isMountedRef.current) setWatchAlerts(prev => prev.slice(1));
-                    }, 5000);
-                }
+            if (type === 'spo2') {
+                setSensorSpO2(data);
+                setSensorData(prev => ({ ...prev, spo2: data, lastUpdate: new Date() }));
+            }
+            
+            if (type === 'data') {
+                // تحديث كلا القيمتين معاً
+                if (data.heartRate) setSensorHeartRate(data.heartRate);
+                if (data.spo2) setSensorSpO2(data.spo2);
+                setSensorData(prev => ({ ...prev, heartRate: data.heartRate, spo2: data.spo2, lastUpdate: new Date() }));
+                setSensorConnected(true);
+                setSensorActive(true);
+                setSensorStatus('connected');
             }
             
             if (type === 'connected') {
-                setWatchConnected(true);
-                setAdbModeActive(true);
-                setAdbServerStatus('connected');
+                setSensorConnected(true);
+                setSensorActive(true);
+                setSensorStatus('connected');
                 setMessage(t('watch.adbConnected'));
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
@@ -129,9 +129,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             }
             
             if (type === 'disconnected') {
-                setWatchConnected(false);
-                setAdbModeActive(false);
-                setAdbServerStatus('disconnected');
+                setSensorConnected(false);
+                setSensorActive(false);
+                setSensorStatus('disconnected');
                 setMessage(t('watch.adbDisconnected'));
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
@@ -139,7 +139,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             }
             
             if (type === 'error') {
-                setAdbServerStatus('error');
+                setSensorStatus('error');
                 setError(t('watch.adbConnectionError'));
                 setTimeout(() => {
                     if (isMountedRef.current) setError(null);
@@ -147,56 +147,55 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             }
         };
         
-        watchService.onData(handleWatchData);
+        esp32Service.onData(handleESP32Data);
         
         return () => {
-            const index = watchService.onDataCallbacks.indexOf(handleWatchData);
-            if (index > -1) watchService.onDataCallbacks.splice(index, 1);
+            const index = esp32Service.listeners.indexOf(handleESP32Data);
+            if (index > -1) esp32Service.listeners.splice(index, 1);
         };
     }, [t]);
 
-// في ActivityForm.jsx - دالة fetchActivities
-const fetchActivities = useCallback(async () => {
-    if (isFetchingRef.current || !isMountedRef.current) return;
-    
-    isFetchingRef.current = true;
-    setFetching(true);
-    
-    try {
-        const response = await axiosInstance.get('/activities/');
+    // دالة fetchActivities
+    const fetchActivities = useCallback(async () => {
+        if (isFetchingRef.current || !isMountedRef.current) return;
         
-        // ✅ معالجة البيانات (نتائج أو مصفوفة)
-        let activitiesData = [];
-        if (response.data?.results) {
-            activitiesData = response.data.results;
-        } else if (Array.isArray(response.data)) {
-            activitiesData = response.data;
-        } else {
-            activitiesData = [];
-        }
+        isFetchingRef.current = true;
+        setFetching(true);
         
-        console.log('🏃 Activities fetched:', activitiesData.length);
-        
-        if (isMountedRef.current) {
-            setActivities(activitiesData);
-            if (onActivityChange) onActivityChange();
-            setError(null);
+        try {
+            const response = await axiosInstance.get('/activities/');
+            
+            let activitiesData = [];
+            if (response.data?.results) {
+                activitiesData = response.data.results;
+            } else if (Array.isArray(response.data)) {
+                activitiesData = response.data;
+            } else {
+                activitiesData = [];
+            }
+            
+            console.log('🏃 Activities fetched:', activitiesData.length);
+            
+            if (isMountedRef.current) {
+                setActivities(activitiesData);
+                if (onActivityChange) onActivityChange();
+                setError(null);
+            }
+        } catch (err) {
+            console.error(t('activities.fetchErrorLog'), err);
+            if (isMountedRef.current) {
+                setError(t('activities.fetchError'));
+                setActivities([]);
+            }
+        } finally {
+            if (isMountedRef.current) {
+                setFetching(false);
+            }
+            isFetchingRef.current = false;
         }
-    } catch (err) {
-        console.error(t('activities.fetchErrorLog'), err);
-        if (isMountedRef.current) {
-            setError(t('activities.fetchError'));
-            setActivities([]);
-        }
-    } finally {
-        if (isMountedRef.current) {
-            setFetching(false);
-        }
-        isFetchingRef.current = false;
-    }
-}, [t, onActivityChange]);
+    }, [t, onActivityChange]);
 
-    // ✅ جلب الأنشطة عند التحميل
+    // جلب الأنشطة عند التحميل
     useEffect(() => {
         fetchActivities();
     }, [fetchActivities]);
@@ -237,7 +236,7 @@ const fetchActivities = useCallback(async () => {
         } catch { return dateString; }
     };
 
-    // ✅ حذف نشاط
+    // حذف نشاط
     const deleteActivity = useCallback(async (id) => {
         if (!window.confirm(t('activities.deleteConfirm'))) return;
         
@@ -291,7 +290,7 @@ const fetchActivities = useCallback(async () => {
         return null;
     };
 
-    // ✅ إرسال النشاط - مع منع الطلبات المتزامنة
+    // إرسال النشاط
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
@@ -375,58 +374,52 @@ const fetchActivities = useCallback(async () => {
     const getActivityColor = (type) => getActivityOptions().find(o => o.value === type)?.color || '#7f8c8d';
     const safeValue = (v, d = '—') => v !== null && v !== undefined ? v : d;
 
-    // ✅ دالة الاتصال عبر ADB
-    const connectADB = async () => {
-        setWatchConnecting(true);
-        setAdbServerStatus('connecting');
+    // دالة الاتصال بـ ESP32
+    const connectSensor = async () => {
+        setSensorConnecting(true);
+        setSensorStatus('connecting');
         
         try {
-            watchService.enableADBMode();
-            const success = await watchService.connectToWatch();
-            
-            if (success && isMountedRef.current) {
-                setWatchConnected(true);
-                setAdbModeActive(true);
-                setAdbServerStatus('connected');
-                setMessage(t('watch.adbConnectSuccess'));
-                setTimeout(() => {
-                    if (isMountedRef.current) setMessage('');
-                }, 3000);
-            } else {
-                throw new Error(t('watch.adbConnectFailed'));
-            }
+            esp32Service.startPolling();
+            setSensorConnected(true);
+            setSensorActive(true);
+            setSensorStatus('connected');
+            setMessage(t('watch.adbConnectSuccess'));
+            setTimeout(() => {
+                if (isMountedRef.current) setMessage('');
+            }, 3000);
         } catch (error) {
-            console.error(t('watch.adbConnectionFailedLog'), error);
+            console.error('ESP32 connection error:', error);
             if (isMountedRef.current) {
-                setAdbServerStatus('error');
+                setSensorStatus('error');
                 setError(t('watch.adbConnectionInstructions'));
                 setTimeout(() => {
                     if (isMountedRef.current) setError(null);
                 }, 8000);
             }
         } finally {
-            if (isMountedRef.current) setWatchConnecting(false);
+            if (isMountedRef.current) setSensorConnecting(false);
         }
     };
 
-    // ✅ دالة فصل الاتصال
-    const disconnectADB = () => {
-        watchService.disableADBMode();
-        setWatchConnected(false);
-        setAdbModeActive(false);
-        setAdbServerStatus('disconnected');
-        setWatchHeartRate(null);
-        setWatchBloodPressure(null);
-        setWatchData({ heartRate: null, bloodPressure: null, lastUpdate: null });
+    // دالة فصل الاتصال
+    const disconnectSensor = () => {
+        esp32Service.stopPolling();
+        setSensorConnected(false);
+        setSensorActive(false);
+        setSensorStatus('disconnected');
+        setSensorHeartRate(null);
+        setSensorSpO2(null);
+        setSensorData({ heartRate: null, spo2: null, lastUpdate: null });
         setMessage(t('watch.adbDisconnectedManual'));
         setTimeout(() => {
             if (isMountedRef.current) setMessage('');
         }, 3000);
     };
 
-    // ✅ إضافة بيانات الساعة كنشاط
-    const addWatchDataAsActivity = async () => {
-        if (!watchHeartRate && !watchBloodPressure) {
+    // إضافة بيانات المستشعر كنشاط
+    const addSensorDataAsActivity = async () => {
+        if (!sensorHeartRate && !sensorSpO2) {
             setError(t('watch.noWatchData'));
             setTimeout(() => {
                 if (isMountedRef.current) setError(null);
@@ -437,13 +430,13 @@ const fetchActivities = useCallback(async () => {
         setLoading(true);
         
         const notes = [];
-        if (watchHeartRate) notes.push(t('watch.heartRateNote', { value: watchHeartRate }));
-        if (watchBloodPressure) notes.push(t('watch.bloodPressureNote', { systolic: watchBloodPressure.systolic, diastolic: watchBloodPressure.diastolic }));
+        if (sensorHeartRate) notes.push(t('watch.heartRateNote', { value: sensorHeartRate }));
+        if (sensorSpO2) notes.push(t('watch.spo2Note', { value: sensorSpO2 }));
         
-        const watchActivity = {
+        const sensorActivity = {
             activity_type: 'walking',
             duration_minutes: 30,
-            start_time: watchData.lastUpdate ? new Date(watchData.lastUpdate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+            start_time: sensorData.lastUpdate ? new Date(sensorData.lastUpdate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
             notes: t('watch.activityNote', { notes: notes.join(' - ') })
         };
         
@@ -451,9 +444,9 @@ const fetchActivities = useCallback(async () => {
         const dataToSend = {
             activity_type: 'walking',
             duration_minutes: 30,
-            start_time: watchActivity.start_time,
+            start_time: sensorActivity.start_time,
             calories_burned: calculatedCalories,
-            notes: watchActivity.notes
+            notes: sensorActivity.notes
         };
 
         try {
@@ -477,11 +470,11 @@ const fetchActivities = useCallback(async () => {
         }
     };
 
-    // ✅ طلب قياس جديد
+    // طلب قياس جديد
     const requestMeasurement = async () => {
         setLoading(true);
         try {
-            await watchService.requestMeasurement();
+            await esp32Service.requestMeasurement();
             if (isMountedRef.current) {
                 setMessage(t('watch.measurementRequested'));
                 setTimeout(() => {
@@ -489,7 +482,7 @@ const fetchActivities = useCallback(async () => {
                 }, 5000);
             }
         } catch (error) {
-            console.error(t('watch.measurementRequestFailedLog'), error);
+            console.error('Measurement request failed:', error);
             if (isMountedRef.current) {
                 setError(t('watch.measurementRequestFailed'));
             }
@@ -498,132 +491,130 @@ const fetchActivities = useCallback(async () => {
         }
     };
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
+    // تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
+            esp32Service.stopPolling();
         };
     }, []);
 
     return (
         <div className={`activity-form-container ${darkMode ? 'dark-mode' : ''}`}>
-            {/* ✅ قسم ADB Monitor */}
-            <div className={`watch-section adb-section ${adbServerStatus === 'connected' ? 'connected' : ''}`}>
+            {/* ✅ قسم ESP32 Monitor */}
+            <div className={`watch-section adb-section ${sensorStatus === 'connected' ? 'connected' : ''}`}>
                 <div className="watch-header">
                     <div className="watch-title">
                         <div className="watch-icon-pulse">
-                            <span className="watch-icon">📱</span>
-                            {adbModeActive && <span className="pulse-dot"></span>}
+                            <span className="watch-icon">🫀</span>
+                            {sensorActive && <span className="pulse-dot"></span>}
                         </div>
                         <div>
-                            <h3>{t('watch.adbTitle')}</h3>
-                            <p className="watch-subtitle">{t('watch.adbSubtitle')}</p>
+                            <h3>{t('watch.adbTitle') || 'ESP32 Health Monitor'}</h3>
+                            <p className="watch-subtitle">{t('watch.adbSubtitle') || 'Real-time BPM & SpO2 readings'}</p>
                         </div>
                     </div>
                     
-                    {!adbModeActive ? (
+                    {!sensorActive ? (
                         <button 
-                            onClick={connectADB} 
-                            disabled={watchConnecting} 
+                            onClick={connectSensor} 
+                            disabled={sensorConnecting} 
                             className="watch-connect-btn adb-connect"
                         >
-                            {watchConnecting ? (
+                            {sensorConnecting ? (
                                 <>
                                     <span className="spinner-small"></span>
-                                    <span>{t('watch.connecting')}</span>
+                                    <span>{t('watch.connecting') || 'Connecting...'}</span>
                                 </>
                             ) : (
                                 <>
-                                    <span>📱</span>
-                                    <span>{t('watch.connectAdb')}</span>
+                                    <span>🫀</span>
+                                    <span>{t('watch.connectAdb') || 'Connect ESP32'}</span>
                                 </>
                             )}
                         </button>
                     ) : (
-                        <button onClick={disconnectADB} className="watch-disconnect-btn">
-                            🔌 {t('watch.disconnect')}
+                        <button onClick={disconnectSensor} className="watch-disconnect-btn">
+                            🔌 {t('watch.disconnect') || 'Disconnect'}
                         </button>
                     )}
                 </div>
 
-                {adbServerStatus === 'connecting' && (
+                {sensorStatus === 'connecting' && (
                     <div className="adb-status connecting">
                         <span className="status-spinner"></span>
-                        <span>{t('watch.connectingToAdb')}</span>
+                        <span>{t('watch.connectingToAdb') || 'Connecting to ESP32 API...'}</span>
                     </div>
                 )}
 
-                {adbServerStatus === 'error' && (
+                {sensorStatus === 'error' && (
                     <div className="adb-status error">
                         <span>⚠️</span>
-                        <span>{t('watch.adbErrorTitle')}</span>
+                        <span>{t('watch.adbErrorTitle') || 'Connection Error'}</span>
                         <ul>
-                            <li>{t('watch.adbErrorTip1')}</li>
-                            <li>{t('watch.adbErrorTip2')}</li>
-                            <li>{t('watch.adbErrorTip3')}</li>
+                            <li>{t('watch.adbErrorTip1') || 'Check if sensors-api service is running'}</li>
+                            <li>{t('watch.adbErrorTip2') || 'Verify API URL is correct'}</li>
+                            <li>{t('watch.adbErrorTip3') || 'Check internet connection'}</li>
                         </ul>
                     </div>
                 )}
 
-                {adbModeActive && (
+                {sensorActive && (
                     <div className="watch-data-container">
                         <div className="health-stats-grid">
                             <div className="health-card heart-rate">
                                 <div className="health-icon">❤️</div>
                                 <div className="health-value">
-                                    <span className="value-number">{watchHeartRate || '---'}</span>
+                                    <span className="value-number">{sensorHeartRate || '---'}</span>
                                     <span className="value-unit">BPM</span>
                                 </div>
-                                <div className={`health-status ${watchHeartRate > 100 ? 'high' : watchHeartRate < 60 ? 'low' : watchHeartRate ? 'normal' : ''}`}>
-                                    {watchHeartRate > 100 && t('watch.highStatus')}
-                                    {watchHeartRate < 60 && t('watch.lowStatus')}
-                                    {watchHeartRate >= 60 && watchHeartRate <= 100 && watchHeartRate && t('watch.normalStatus')}
-                                    {!watchHeartRate && t('watch.waitingData')}
+                                <div className={`health-status ${sensorHeartRate > 100 ? 'high' : sensorHeartRate < 60 ? 'low' : sensorHeartRate ? 'normal' : ''}`}>
+                                    {sensorHeartRate > 100 && (t('watch.highStatus') || 'High')}
+                                    {sensorHeartRate < 60 && (t('watch.lowStatus') || 'Low')}
+                                    {sensorHeartRate >= 60 && sensorHeartRate <= 100 && sensorHeartRate && (t('watch.normalStatus') || 'Normal')}
+                                    {!sensorHeartRate && (t('watch.waitingData') || 'Waiting...')}
                                 </div>
                             </div>
 
                             <div className="health-card blood-pressure">
-                                <div className="health-icon">🩸</div>
+                                <div className="health-icon">💨</div>
                                 <div className="health-value">
-                                    <span className="value-number">
-                                        {watchBloodPressure ? `${watchBloodPressure.systolic}/${watchBloodPressure.diastolic}` : '---'}
-                                    </span>
-                                    <span className="value-unit">mmHg</span>
+                                    <span className="value-number">{sensorSpO2 || '---'}</span>
+                                    <span className="value-unit">SpO₂%</span>
                                 </div>
-                                <div className={`health-status ${watchBloodPressure?.systolic > 140 ? 'high' : watchBloodPressure?.systolic < 90 ? 'low' : watchBloodPressure ? 'normal' : ''}`}>
-                                    {watchBloodPressure?.systolic > 140 && t('watch.highStatus')}
-                                    {watchBloodPressure?.systolic < 90 && t('watch.lowStatus')}
-                                    {watchBloodPressure?.systolic >= 90 && watchBloodPressure?.systolic <= 140 && watchBloodPressure && t('watch.normalStatus')}
-                                    {!watchBloodPressure && t('watch.waitingData')}
+                                <div className={`health-status ${sensorSpO2 ? (sensorSpO2 < 90 ? 'high' : 'normal') : ''}`}>
+                                    {sensorSpO2 && sensorSpO2 < 90 && (t('watch.lowStatus') || 'Low')}
+                                    {sensorSpO2 && sensorSpO2 >= 90 && (t('watch.normalStatus') || 'Normal')}
+                                    {!sensorSpO2 && (t('watch.waitingData') || 'Waiting...')}
                                 </div>
                             </div>
                         </div>
 
-                        {watchData.lastUpdate && (
+                        {sensorData.lastUpdate && (
                             <div className="watch-last-update">
-                                {t('watch.lastUpdate')}: {new Date(watchData.lastUpdate).toLocaleTimeString()}
+                                {t('watch.lastUpdate') || 'Last update'}: {new Date(sensorData.lastUpdate).toLocaleTimeString()}
                             </div>
                         )}
 
                         <div className="watch-actions">
                             <button onClick={requestMeasurement} disabled={loading} className="measure-btn">
-                                📊 {t('watch.requestMeasurement')}
+                                📊 {t('watch.requestMeasurement') || 'Request Measurement'}
                             </button>
                             <button 
-                                onClick={addWatchDataAsActivity} 
-                                disabled={loading || (!watchHeartRate && !watchBloodPressure)} 
+                                onClick={addSensorDataAsActivity} 
+                                disabled={loading || (!sensorHeartRate && !sensorSpO2)} 
                                 className="add-activity-btn"
                             >
-                                ➕ {t('watch.addAsActivity')}
+                                ➕ {t('watch.addAsActivity') || 'Add as Activity'}
                             </button>
                         </div>
                     </div>
                 )}
 
-                {watchAlerts.length > 0 && (
+                {sensorAlerts.length > 0 && (
                     <div className="watch-alerts">
-                        {watchAlerts.map((alert, i) => (
+                        {sensorAlerts.map((alert, i) => (
                             <div key={i} className="alert-item">⚠️ {alert}</div>
                         ))}
                     </div>
@@ -734,861 +725,664 @@ const fetchActivities = useCallback(async () => {
             </div>
 
             <style jsx>{`
-/* ActivityForm.css - متوافق مع ThemeManager */
-
-.activity-form-container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: var(--spacing-lg);
-    background: var(--primary-bg);
-    min-height: 100vh;
-    transition: background var(--transition-medium);
-}
-
-/* ===== قسم الساعة الذكية / ADB Monitor ===== */
-.watch-section {
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    border-radius: var(--radius-2xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    color: white;
-    transition: all var(--transition-medium);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.watch-section.connected {
-    background: linear-gradient(135deg, #1e3a5f 0%, #0f2b3a 100%);
-    border: 1px solid var(--success);
-    box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
-}
-
-.watch-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-}
-
-.watch-title {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.watch-icon-pulse {
-    position: relative;
-}
-
-.watch-icon {
-    font-size: 2rem;
-}
-
-.pulse-dot {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 12px;
-    height: 12px;
-    background: var(--success);
-    border-radius: 50%;
-    animation: pulse 1.5s infinite;
-    border: 2px solid white;
-}
-
-@keyframes pulse {
-    0% { transform: scale(0.95); opacity: 1; }
-    100% { transform: scale(1.5); opacity: 0; }
-}
-
-.watch-subtitle {
-    font-size: 0.75rem;
-    opacity: 0.8;
-    margin: 0;
-}
-
-.watch-connect-btn,
-.watch-disconnect-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm) var(--spacing-lg);
-    border: none;
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all var(--transition-medium);
-}
-
-.watch-connect-btn.adb-connect {
-    background: var(--success);
-    color: white;
-}
-
-.watch-connect-btn.adb-connect:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
-}
-
-.watch-disconnect-btn {
-    background: rgba(239, 68, 68, 0.9);
-    color: white;
-}
-
-.watch-disconnect-btn:hover {
-    background: var(--error);
-    transform: translateY(-2px);
-}
-
-.spinner-small {
-    width: 16px;
-    height: 16px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    display: inline-block;
-}
-
-/* ===== حالة ADB ===== */
-.adb-status {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-sm);
-    margin-bottom: var(--spacing-md);
-    font-size: 0.85rem;
-}
-
-.adb-status.connecting {
-    background: rgba(16, 185, 129, 0.2);
-    border: 1px solid var(--success);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.adb-status.error {
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid var(--error);
-}
-
-.adb-status.error ul {
-    margin: var(--spacing-sm) 0 0 var(--spacing-lg);
-    font-size: 0.75rem;
-    color: #fca5a5;
-}
-
-.status-spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-/* ===== إحصائيات الصحة ===== */
-.health-stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
-}
-
-.health-card {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    text-align: center;
-    transition: all var(--transition-medium);
-}
-
-.health-card:hover {
-    transform: translateY(-3px);
-    background: rgba(255, 255, 255, 0.15);
-}
-
-.health-icon {
-    font-size: 2rem;
-    margin-bottom: var(--spacing-sm);
-}
-
-.health-value {
-    font-size: 1.8rem;
-    font-weight: 800;
-    margin: var(--spacing-sm) 0;
-}
-
-.value-number {
-    font-size: 2rem;
-}
-
-.value-unit {
-    font-size: 0.9rem;
-    opacity: 0.8;
-}
-
-.health-status {
-    font-size: 0.8rem;
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
-    display: inline-block;
-}
-
-.health-status.normal {
-    background: rgba(16, 185, 129, 0.2);
-    color: #10b981;
-}
-
-.health-status.high {
-    background: rgba(239, 68, 68, 0.2);
-    color: #f87171;
-}
-
-.health-status.low {
-    background: rgba(245, 158, 11, 0.2);
-    color: #fbbf24;
-}
-
-.watch-last-update {
-    font-size: 0.7rem;
-    opacity: 0.7;
-    text-align: center;
-    margin-bottom: var(--spacing-md);
-}
-
-/* ===== أزرار الساعة ===== */
-.watch-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-.measure-btn,
-.add-activity-btn {
-    flex: 1;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: var(--radius-full);
-    background: rgba(255, 255, 255, 0.15);
-    color: white;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all var(--transition-medium);
-}
-
-.measure-btn:hover,
-.add-activity-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px);
-}
-
-.add-activity-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* ===== تنبيهات الساعة ===== */
-.watch-alerts {
-    margin-top: var(--spacing-md);
-}
-
-.alert-item {
-    background: rgba(239, 68, 68, 0.2);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-sm) var(--spacing-md);
-    margin-top: var(--spacing-sm);
-    font-size: 0.8rem;
-    border-right: 3px solid var(--error);
-}
-
-[dir="rtl"] .alert-item {
-    border-right: none;
-    border-left: 3px solid var(--error);
-}
-
-/* ===== البطاقة الرئيسية ===== */
-.card {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-    box-shadow: var(--shadow-md);
-    transition: all var(--transition-medium);
-}
-
-.card:hover {
-    box-shadow: var(--shadow-lg);
-}
-
-.form-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-sm);
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-}
-
-.form-header h3 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.3rem;
-}
-
-.cancel-edit-btn {
-    padding: var(--spacing-sm) var(--spacing-md);
-    background: var(--secondary-bg);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.cancel-edit-btn:hover {
-    background: var(--error-bg);
-    color: var(--error);
-    border-color: var(--error);
-}
-
-.description {
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-    margin-bottom: var(--spacing-lg);
-    padding-bottom: var(--spacing-sm);
-    border-bottom: 1px solid var(--border-light);
-}
-
-/* ===== حقول النموذج ===== */
-.form-group {
-    margin-bottom: var(--spacing-lg);
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: var(--spacing-sm);
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-md);
-}
-
-.activity-select,
-.duration-input,
-.datetime-input,
-.notes-textarea {
-    width: 100%;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    font-size: 1rem;
-    transition: all var(--transition-fast);
-}
-
-.activity-select:focus,
-.duration-input:focus,
-.datetime-input:focus,
-.notes-textarea:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
-}
-
-.field-hint {
-    display: block;
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-    margin-top: var(--spacing-xs);
-}
-
-/* ===== السعرات المحسوبة ===== */
-.calculated-calories {
-    background: var(--warning-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-sm) var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
-    text-align: center;
-    border: 1px solid var(--warning-border);
-}
-
-.dark-mode .calculated-calories {
-    background: rgba(245, 158, 11, 0.15);
-}
-
-.calories-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: var(--warning);
-}
-
-.calories-icon {
-    font-size: 1.5rem;
-}
-
-.calories-value {
-    font-size: 1.8rem;
-    font-weight: 800;
-}
-
-/* ===== الرسائل ===== */
-.error-message,
-.success-message {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius-lg);
-    margin-bottom: var(--spacing-md);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.error-message {
-    background: var(--error-bg);
-    color: var(--error);
-    border: 1px solid var(--error-border);
-}
-
-.success-message {
-    background: var(--success-bg);
-    color: var(--success);
-    border: 1px solid var(--success-border);
-}
-
-/* ===== أزرار الإجراء ===== */
-.form-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-lg);
-}
-
-.submit-btn,
-.cancel-btn {
-    flex: 1;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: none;
-    border-radius: var(--radius-full);
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-medium);
-}
-
-.submit-btn {
-    background: var(--primary-gradient);
-    color: white;
-}
-
-.submit-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.submit-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.cancel-btn {
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    border: 1px solid var(--border-light);
-}
-
-.cancel-btn:hover {
-    background: var(--error-bg);
-    color: var(--error);
-    border-color: var(--error);
-}
-
-/* ===== قائمة الأنشطة ===== */
-.activities-list-section {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.activities-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-}
-
-.activities-header h3 {
-    margin: 0;
-    color: var(--text-primary);
-}
-
-.activities-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.activities-count {
-    background: var(--secondary-bg);
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-}
-
-.refresh-btn {
-    width: 36px;
-    height: 36px;
-    border: none;
-    border-radius: 50%;
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all var(--transition-medium);
-}
-
-.refresh-btn:hover:not(:disabled) {
-    background: var(--primary);
-    color: white;
-    transform: rotate(180deg);
-}
-
-.refresh-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* ===== شبكة الأنشطة ===== */
-.activities-grid {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    max-height: 500px;
-    overflow-y: auto;
-    padding-right: var(--spacing-sm);
-}
-
-.activities-grid::-webkit-scrollbar {
-    width: 6px;
-}
-
-.activities-grid::-webkit-scrollbar-track {
-    background: var(--tertiary-bg);
-    border-radius: var(--radius-full);
-}
-
-.activities-grid::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: var(--radius-full);
-}
-
-.activity-card {
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-medium);
-}
-
-.activity-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--primary-light);
-}
-
-.activity-card.editing {
-    border: 2px solid var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
-}
-
-.activity-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
-}
-
-.activity-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    transition: all var(--transition-fast);
-}
-
-.activity-card:hover .activity-icon {
-    transform: scale(1.05);
-}
-
-.activity-info {
-    flex: 1;
-}
-
-.activity-info h4 {
-    margin: 0 0 4px 0;
-    color: var(--text-primary);
-}
-
-.activity-date {
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.activity-buttons {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-.edit-btn,
-.delete-btn {
-    width: 34px;
-    height: 34px;
-    border: none;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.edit-btn {
-    background: rgba(59, 130, 246, 0.15);
-    color: #3b82f6;
-}
-
-.edit-btn:hover {
-    background: #3b82f6;
-    color: white;
-    transform: scale(1.05);
-}
-
-.delete-btn {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
-}
-
-.delete-btn:hover {
-    background: #ef4444;
-    color: white;
-    transform: scale(1.05);
-}
-
-.activity-details {
-    display: flex;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-sm);
-    flex-wrap: wrap;
-}
-
-.detail-item {
-    display: flex;
-    gap: var(--spacing-sm);
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-}
-
-.detail-item span:first-child {
-    font-weight: 500;
-}
-
-.detail-item span:last-child {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.activity-notes {
-    background: var(--card-bg);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-sm);
-    margin-top: var(--spacing-sm);
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    border-right: 3px solid var(--primary);
-}
-
-[dir="rtl"] .activity-notes {
-    border-right: none;
-    border-left: 3px solid var(--primary);
-}
-
-/* ===== حالات فارغة ===== */
-.no-activities {
-    text-align: center;
-    padding: var(--spacing-2xl);
-}
-
-.empty-icon {
-    font-size: 4rem;
-    margin-bottom: var(--spacing-md);
-    opacity: 0.6;
-}
-
-.no-activities h4 {
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.no-activities p {
-    color: var(--text-tertiary);
-}
-
-.loading-activities {
-    text-align: center;
-    padding: var(--spacing-2xl);
-}
-
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--border-light);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto var(--spacing-md);
-}
-
-.error-state {
-    text-align: center;
-    padding: var(--spacing-xl);
-}
-
-.retry-btn {
-    margin-top: var(--spacing-md);
-    padding: var(--spacing-sm) var(--spacing-lg);
-    background: var(--primary-gradient);
-    color: white;
-    border: none;
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    transition: all var(--transition-medium);
-}
-
-.retry-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* ===== استجابة ===== */
-@media (max-width: 768px) {
-    .activity-form-container {
-        padding: var(--spacing-md);
-    }
-
-    .form-row,
-    .watch-actions,
-    .health-stats-grid {
-        grid-template-columns: 1fr;
-        flex-direction: column;
-    }
-
-    .watch-header {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .watch-title {
-        justify-content: center;
-    }
-
-    .activity-details {
-        flex-direction: column;
-        gap: var(--spacing-xs);
-    }
-
-    .activities-grid {
-        max-height: 400px;
-    }
-}
-
-@media (max-width: 480px) {
-    .form-header {
-        flex-direction: column;
-    }
-
-    .activity-header {
-        flex-wrap: wrap;
-    }
-
-    .activity-info {
-        order: 2;
-    }
-
-    .activity-buttons {
-        order: 3;
-    }
-
-    .activity-icon {
-        order: 1;
-    }
-
-    .calories-value {
-        font-size: 1.3rem;
-    }
-}
-
-/* ===== دعم RTL ===== */
-[dir="rtl"] .activities-grid {
-    padding-right: 0;
-    padding-left: var(--spacing-sm);
-}
-
-[dir="rtl"] .activity-notes {
-    border-right: none;
-    border-left: 3px solid var(--primary);
-}
-
-[dir="rtl"] .detail-item {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .alert-item {
-    border-right: none;
-    border-left: 3px solid var(--error);
-}
-
-/* ===== دعم الحركة المخفضة ===== */
-@media (prefers-reduced-motion: reduce) {
-    .watch-section,
-    .card,
-    .activity-card,
-    .submit-btn,
-    .edit-btn,
-    .delete-btn {
-        transition: none !important;
-    }
-
-    .activity-card:hover {
-        transform: none !important;
-    }
-
-    .pulse-dot {
-        animation: none !important;
-    }
-
-    .spinner,
-    .spinner-small {
-        animation: none !important;
-    }
-}
+                /* جميع الأنماط (styles) كما هي دون تغيير */
+                .activity-form-container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: var(--spacing-lg, 1.5rem);
+                    background: var(--primary-bg, #f5f5f5);
+                    min-height: 100vh;
+                    transition: background var(--transition-medium, 0.3s);
+                }
+                .watch-section {
+                    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                    border-radius: var(--radius-2xl, 1rem);
+                    padding: var(--spacing-lg, 1.5rem);
+                    margin-bottom: var(--spacing-lg, 1.5rem);
+                    color: white;
+                    transition: all var(--transition-medium, 0.3s);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                }
+                .watch-section.connected {
+                    background: linear-gradient(135deg, #1e3a5f 0%, #0f2b3a 100%);
+                    border: 1px solid var(--success, #10b981);
+                    box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+                }
+                .watch-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: var(--spacing-lg, 1.5rem);
+                    flex-wrap: wrap;
+                    gap: var(--spacing-sm, 0.5rem);
+                }
+                .watch-title {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm, 0.5rem);
+                }
+                .watch-icon-pulse {
+                    position: relative;
+                }
+                .watch-icon {
+                    font-size: 2rem;
+                }
+                .pulse-dot {
+                    position: absolute;
+                    bottom: 0;
+                    right: 0;
+                    width: 12px;
+                    height: 12px;
+                    background: var(--success, #10b981);
+                    border-radius: 50%;
+                    animation: pulse 1.5s infinite;
+                    border: 2px solid white;
+                }
+                @keyframes pulse {
+                    0% { transform: scale(0.95); opacity: 1; }
+                    100% { transform: scale(1.5); opacity: 0; }
+                }
+                .watch-subtitle {
+                    font-size: 0.75rem;
+                    opacity: 0.8;
+                    margin: 0;
+                }
+                .watch-connect-btn, .watch-disconnect-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm, 0.5rem);
+                    padding: var(--spacing-sm, 0.5rem) var(--spacing-lg, 1.5rem);
+                    border: none;
+                    border-radius: var(--radius-full, 9999px);
+                    cursor: pointer;
+                    font-weight: 600;
+                    transition: all var(--transition-medium, 0.3s);
+                }
+                .watch-connect-btn.adb-connect {
+                    background: var(--success, #10b981);
+                    color: white;
+                }
+                .watch-connect-btn.adb-connect:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+                }
+                .watch-disconnect-btn {
+                    background: rgba(239, 68, 68, 0.9);
+                    color: white;
+                }
+                .watch-disconnect-btn:hover {
+                    background: var(--error, #ef4444);
+                    transform: translateY(-2px);
+                }
+                .spinner-small {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    display: inline-block;
+                }
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+                .adb-status {
+                    background: rgba(0, 0, 0, 0.3);
+                    border-radius: var(--radius-lg, 0.5rem);
+                    padding: var(--spacing-sm, 0.5rem);
+                    margin-bottom: var(--spacing-md, 1rem);
+                    font-size: 0.85rem;
+                }
+                .adb-status.connecting {
+                    background: rgba(16, 185, 129, 0.2);
+                    border: 1px solid var(--success, #10b981);
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm, 0.5rem);
+                }
+                .adb-status.error {
+                    background: rgba(239, 68, 68, 0.2);
+                    border: 1px solid var(--error, #ef4444);
+                }
+                .adb-status.error ul {
+                    margin: var(--spacing-sm, 0.5rem) 0 0 var(--spacing-lg, 1.5rem);
+                    font-size: 0.75rem;
+                    color: #fca5a5;
+                }
+                .status-spinner {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                }
+                .health-stats-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: var(--spacing-md, 1rem);
+                    margin-bottom: var(--spacing-lg, 1.5rem);
+                }
+                .health-card {
+                    background: rgba(255, 255, 255, 0.1);
+                    backdrop-filter: blur(10px);
+                    border-radius: var(--radius-xl, 0.75rem);
+                    padding: var(--spacing-lg, 1.5rem);
+                    text-align: center;
+                    transition: all var(--transition-medium, 0.3s);
+                }
+                .health-card:hover {
+                    transform: translateY(-3px);
+                    background: rgba(255, 255, 255, 0.15);
+                }
+                .health-icon {
+                    font-size: 2rem;
+                    margin-bottom: var(--spacing-sm, 0.5rem);
+                }
+                .health-value {
+                    font-size: 1.8rem;
+                    font-weight: 800;
+                    margin: var(--spacing-sm, 0.5rem) 0;
+                }
+                .value-number {
+                    font-size: 2rem;
+                }
+                .value-unit {
+                    font-size: 0.9rem;
+                    opacity: 0.8;
+                }
+                .health-status {
+                    font-size: 0.8rem;
+                    padding: 4px 12px;
+                    border-radius: var(--radius-full, 9999px);
+                    display: inline-block;
+                }
+                .health-status.normal {
+                    background: rgba(16, 185, 129, 0.2);
+                    color: #10b981;
+                }
+                .health-status.high {
+                    background: rgba(239, 68, 68, 0.2);
+                    color: #f87171;
+                }
+                .health-status.low {
+                    background: rgba(245, 158, 11, 0.2);
+                    color: #fbbf24;
+                }
+                .watch-last-update {
+                    font-size: 0.7rem;
+                    opacity: 0.7;
+                    text-align: center;
+                    margin-bottom: var(--spacing-md, 1rem);
+                }
+                .watch-actions {
+                    display: flex;
+                    gap: var(--spacing-sm, 0.5rem);
+                }
+                .measure-btn, .add-activity-btn {
+                    flex: 1;
+                    padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    border-radius: var(--radius-full, 9999px);
+                    background: rgba(255, 255, 255, 0.15);
+                    color: white;
+                    cursor: pointer;
+                    font-weight: 600;
+                    transition: all var(--transition-medium, 0.3s);
+                }
+                .measure-btn:hover, .add-activity-btn:hover:not(:disabled) {
+                    background: rgba(255, 255, 255, 0.3);
+                    transform: translateY(-2px);
+                }
+                .add-activity-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                .watch-alerts {
+                    margin-top: var(--spacing-md, 1rem);
+                }
+                .alert-item {
+                    background: rgba(239, 68, 68, 0.2);
+                    border-radius: var(--radius-md, 0.375rem);
+                    padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
+                    margin-top: var(--spacing-sm, 0.5rem);
+                    font-size: 0.8rem;
+                    border-right: 3px solid var(--error, #ef4444);
+                }
+                [dir="rtl"] .alert-item {
+                    border-right: none;
+                    border-left: 3px solid var(--error, #ef4444);
+                }
+                .card {
+                    background: var(--card-bg, white);
+                    border-radius: var(--radius-xl, 0.75rem);
+                    padding: var(--spacing-lg, 1.5rem);
+                    margin-bottom: var(--spacing-lg, 1.5rem);
+                    border: 1px solid var(--border-light, #e2e8f0);
+                    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+                    transition: all var(--transition-medium, 0.3s);
+                }
+                .card:hover {
+                    box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+                }
+                .form-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: var(--spacing-sm, 0.5rem);
+                    flex-wrap: wrap;
+                    gap: var(--spacing-sm, 0.5rem);
+                }
+                .form-header h3 {
+                    margin: 0;
+                    color: var(--text-primary, #1e293b);
+                    font-size: 1.3rem;
+                }
+                .cancel-edit-btn {
+                    padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
+                    background: var(--secondary-bg, #f1f5f9);
+                    border: 1px solid var(--border-light, #e2e8f0);
+                    border-radius: var(--radius-lg, 0.5rem);
+                    color: var(--text-primary, #1e293b);
+                    cursor: pointer;
+                    transition: all var(--transition-fast, 0.15s);
+                }
+                .cancel-edit-btn:hover {
+                    background: var(--error-bg, #fee2e2);
+                    color: var(--error, #ef4444);
+                    border-color: var(--error, #ef4444);
+                }
+                .description {
+                    color: var(--text-secondary, #64748b);
+                    font-size: 0.85rem;
+                    margin-bottom: var(--spacing-lg, 1.5rem);
+                    padding-bottom: var(--spacing-sm, 0.5rem);
+                    border-bottom: 1px solid var(--border-light, #e2e8f0);
+                }
+                .form-group {
+                    margin-bottom: var(--spacing-lg, 1.5rem);
+                }
+                .form-group label {
+                    display: block;
+                    margin-bottom: var(--spacing-sm, 0.5rem);
+                    font-weight: 500;
+                    color: var(--text-primary, #1e293b);
+                }
+                .form-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: var(--spacing-md, 1rem);
+                }
+                .activity-select, .duration-input, .datetime-input, .notes-textarea {
+                    width: 100%;
+                    padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
+                    border: 2px solid var(--border-light, #e2e8f0);
+                    border-radius: var(--radius-lg, 0.5rem);
+                    background: var(--secondary-bg, #f1f5f9);
+                    color: var(--text-primary, #1e293b);
+                    font-size: 1rem;
+                    transition: all var(--transition-fast, 0.15s);
+                }
+                .activity-select:focus, .duration-input:focus, .datetime-input:focus, .notes-textarea:focus {
+                    outline: none;
+                    border-color: var(--primary, #3b82f6);
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+                }
+                .field-hint {
+                    display: block;
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary, #94a3b8);
+                    margin-top: var(--spacing-xs, 0.25rem);
+                }
+                .calculated-calories {
+                    background: var(--warning-bg, #fef3c7);
+                    border-radius: var(--radius-lg, 0.5rem);
+                    padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
+                    margin-bottom: var(--spacing-lg, 1.5rem);
+                    text-align: center;
+                    border: 1px solid var(--warning-border, #fde68a);
+                }
+                .dark-mode .calculated-calories {
+                    background: rgba(245, 158, 11, 0.15);
+                }
+                .calories-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: var(--spacing-sm, 0.5rem);
+                    font-size: 1.3rem;
+                    font-weight: 700;
+                    color: var(--warning, #f59e0b);
+                }
+                .calories-icon {
+                    font-size: 1.5rem;
+                }
+                .calories-value {
+                    font-size: 1.8rem;
+                    font-weight: 800;
+                }
+                .error-message, .success-message {
+                    padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
+                    border-radius: var(--radius-lg, 0.5rem);
+                    margin-bottom: var(--spacing-md, 1rem);
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm, 0.5rem);
+                }
+                .error-message {
+                    background: var(--error-bg, #fee2e2);
+                    color: var(--error, #ef4444);
+                    border: 1px solid var(--error-border, #fecaca);
+                }
+                .success-message {
+                    background: var(--success-bg, #dcfce7);
+                    color: var(--success, #10b981);
+                    border: 1px solid var(--success-border, #bbf7d0);
+                }
+                .form-actions {
+                    display: flex;
+                    gap: var(--spacing-sm, 0.5rem);
+                    margin-top: var(--spacing-lg, 1.5rem);
+                }
+                .submit-btn, .cancel-btn {
+                    flex: 1;
+                    padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
+                    border: none;
+                    border-radius: var(--radius-full, 9999px);
+                    font-size: 1rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all var(--transition-medium, 0.3s);
+                }
+                .submit-btn {
+                    background: var(--primary-gradient, linear-gradient(135deg, #3b82f6, #2563eb));
+                    color: white;
+                }
+                .submit-btn:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+                }
+                .submit-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+                .cancel-btn {
+                    background: var(--secondary-bg, #f1f5f9);
+                    color: var(--text-primary, #1e293b);
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                .cancel-btn:hover {
+                    background: var(--error-bg, #fee2e2);
+                    color: var(--error, #ef4444);
+                    border-color: var(--error, #ef4444);
+                }
+                .activities-list-section {
+                    background: var(--card-bg, white);
+                    border-radius: var(--radius-xl, 0.75rem);
+                    padding: var(--spacing-lg, 1.5rem);
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                .activities-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: var(--spacing-lg, 1.5rem);
+                    flex-wrap: wrap;
+                    gap: var(--spacing-sm, 0.5rem);
+                }
+                .activities-header h3 {
+                    margin: 0;
+                    color: var(--text-primary, #1e293b);
+                }
+                .activities-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm, 0.5rem);
+                }
+                .activities-count {
+                    background: var(--secondary-bg, #f1f5f9);
+                    padding: 4px 12px;
+                    border-radius: var(--radius-full, 9999px);
+                    font-size: 0.85rem;
+                    color: var(--text-secondary, #64748b);
+                }
+                .refresh-btn {
+                    width: 36px;
+                    height: 36px;
+                    border: none;
+                    border-radius: 50%;
+                    background: var(--secondary-bg, #f1f5f9);
+                    color: var(--text-primary, #1e293b);
+                    cursor: pointer;
+                    transition: all var(--transition-medium, 0.3s);
+                }
+                .refresh-btn:hover:not(:disabled) {
+                    background: var(--primary, #3b82f6);
+                    color: white;
+                    transform: rotate(180deg);
+                }
+                .refresh-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                .activities-grid {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-sm, 0.5rem);
+                    max-height: 500px;
+                    overflow-y: auto;
+                    padding-right: var(--spacing-sm, 0.5rem);
+                }
+                .activities-grid::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .activities-grid::-webkit-scrollbar-track {
+                    background: var(--tertiary-bg, #e2e8f0);
+                    border-radius: var(--radius-full, 9999px);
+                }
+                .activities-grid::-webkit-scrollbar-thumb {
+                    background: var(--primary, #3b82f6);
+                    border-radius: var(--radius-full, 9999px);
+                }
+                .activity-card {
+                    background: var(--secondary-bg, #f1f5f9);
+                    border-radius: var(--radius-lg, 0.5rem);
+                    padding: var(--spacing-md, 1rem);
+                    border: 1px solid var(--border-light, #e2e8f0);
+                    transition: all var(--transition-medium, 0.3s);
+                }
+                .activity-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+                    border-color: var(--primary-light, #60a5fa);
+                }
+                .activity-card.editing {
+                    border: 2px solid var(--primary, #3b82f6);
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+                }
+                .activity-header {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm, 0.5rem);
+                    margin-bottom: var(--spacing-sm, 0.5rem);
+                }
+                .activity-icon {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1.5rem;
+                    transition: all var(--transition-fast, 0.15s);
+                }
+                .activity-card:hover .activity-icon {
+                    transform: scale(1.05);
+                }
+                .activity-info {
+                    flex: 1;
+                }
+                .activity-info h4 {
+                    margin: 0 0 4px 0;
+                    color: var(--text-primary, #1e293b);
+                }
+                .activity-date {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary, #94a3b8);
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                .activity-buttons {
+                    display: flex;
+                    gap: var(--spacing-sm, 0.5rem);
+                }
+                .edit-btn, .delete-btn {
+                    width: 34px;
+                    height: 34px;
+                    border: none;
+                    border-radius: var(--radius-md, 0.375rem);
+                    cursor: pointer;
+                    transition: all var(--transition-fast, 0.15s);
+                }
+                .edit-btn {
+                    background: rgba(59, 130, 246, 0.15);
+                    color: #3b82f6;
+                }
+                .edit-btn:hover {
+                    background: #3b82f6;
+                    color: white;
+                    transform: scale(1.05);
+                }
+                .delete-btn {
+                    background: rgba(239, 68, 68, 0.15);
+                    color: #ef4444;
+                }
+                .delete-btn:hover {
+                    background: #ef4444;
+                    color: white;
+                    transform: scale(1.05);
+                }
+                .activity-details {
+                    display: flex;
+                    gap: var(--spacing-md, 1rem);
+                    margin-bottom: var(--spacing-sm, 0.5rem);
+                    flex-wrap: wrap;
+                }
+                .detail-item {
+                    display: flex;
+                    gap: var(--spacing-sm, 0.5rem);
+                    font-size: 0.85rem;
+                    color: var(--text-secondary, #64748b);
+                }
+                .detail-item span:first-child {
+                    font-weight: 500;
+                }
+                .detail-item span:last-child {
+                    font-weight: 600;
+                    color: var(--text-primary, #1e293b);
+                }
+                .activity-notes {
+                    background: var(--card-bg, white);
+                    border-radius: var(--radius-md, 0.375rem);
+                    padding: var(--spacing-sm, 0.5rem);
+                    margin-top: var(--spacing-sm, 0.5rem);
+                    font-size: 0.8rem;
+                    color: var(--text-secondary, #64748b);
+                    border-right: 3px solid var(--primary, #3b82f6);
+                }
+                [dir="rtl"] .activity-notes {
+                    border-right: none;
+                    border-left: 3px solid var(--primary, #3b82f6);
+                }
+                .no-activities {
+                    text-align: center;
+                    padding: var(--spacing-2xl, 2rem);
+                }
+                .empty-icon {
+                    font-size: 4rem;
+                    margin-bottom: var(--spacing-md, 1rem);
+                    opacity: 0.6;
+                }
+                .no-activities h4 {
+                    color: var(--text-primary, #1e293b);
+                    margin-bottom: var(--spacing-sm, 0.5rem);
+                }
+                .no-activities p {
+                    color: var(--text-tertiary, #94a3b8);
+                }
+                .loading-activities {
+                    text-align: center;
+                    padding: var(--spacing-2xl, 2rem);
+                }
+                .spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid var(--border-light, #e2e8f0);
+                    border-top-color: var(--primary, #3b82f6);
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto var(--spacing-md, 1rem);
+                }
+                .error-state {
+                    text-align: center;
+                    padding: var(--spacing-xl, 1.5rem);
+                }
+                .retry-btn {
+                    margin-top: var(--spacing-md, 1rem);
+                    padding: var(--spacing-sm, 0.5rem) var(--spacing-lg, 1.5rem);
+                    background: var(--primary-gradient, linear-gradient(135deg, #3b82f6, #2563eb));
+                    color: white;
+                    border: none;
+                    border-radius: var(--radius-lg, 0.5rem);
+                    cursor: pointer;
+                    transition: all var(--transition-medium, 0.3s);
+                }
+                .retry-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+                }
+                @media (max-width: 768px) {
+                    .activity-form-container { padding: var(--spacing-md, 1rem); }
+                    .form-row, .watch-actions, .health-stats-grid {
+                        grid-template-columns: 1fr;
+                        flex-direction: column;
+                    }
+                    .watch-header { flex-direction: column; text-align: center; }
+                    .watch-title { justify-content: center; }
+                    .activity-details { flex-direction: column; gap: var(--spacing-xs, 0.25rem); }
+                    .activities-grid { max-height: 400px; }
+                }
+                @media (max-width: 480px) {
+                    .form-header { flex-direction: column; }
+                    .activity-header { flex-wrap: wrap; }
+                    .activity-info { order: 2; }
+                    .activity-buttons { order: 3; }
+                    .activity-icon { order: 1; }
+                    .calories-value { font-size: 1.3rem; }
+                }
+                [dir="rtl"] .activities-grid {
+                    padding-right: 0;
+                    padding-left: var(--spacing-sm, 0.5rem);
+                }
+                [dir="rtl"] .activity-notes {
+                    border-right: none;
+                    border-left: 3px solid var(--primary, #3b82f6);
+                }
+                [dir="rtl"] .detail-item {
+                    flex-direction: row-reverse;
+                }
+                [dir="rtl"] .alert-item {
+                    border-right: none;
+                    border-left: 3px solid var(--error, #ef4444);
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .watch-section, .card, .activity-card, .submit-btn, .edit-btn, .delete-btn {
+                        transition: none !important;
+                    }
+                    .activity-card:hover { transform: none !important; }
+                    .pulse-dot { animation: none !important; }
+                    .spinner, .spinner-small { animation: none !important; }
+                }
             `}</style>
         </div>
     );
