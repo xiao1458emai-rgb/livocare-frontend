@@ -1,20 +1,21 @@
-// src/components/Camera/BarcodeScanner.jsx
-import React, { useState, useRef, useEffect } from 'react';
+// BarcodeScanner.jsx - النسخة المعدلة
+import React, { useState, useRef } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
 
 const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     const webcamRef = useRef(null);
-    const [scanning, setScanning] = useState(true);
-    const [error, setError] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [error, setError] = useState(null);
     
     const CAMERA_SERVICE_URL = 'https://camera-service-fag3.onrender.com';
 
-    const captureAndAnalyze = async () => {
-        if (!webcamRef.current || isAnalyzing || !scanning) return;
+    // ✅ مسح يدوي - فقط عند الضغط على الزر
+    const handleScan = async () => {
+        if (!webcamRef.current || isAnalyzing) return;
         
         setIsAnalyzing(true);
+        setError(null);
         
         try {
             const imageSrc = webcamRef.current.getScreenshot();
@@ -26,52 +27,37 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     `${CAMERA_SERVICE_URL}/scan-barcode`,
                     { image: imageSrc },
                     {
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            // ✅ إضافة CORS headers
+                            'Access-Control-Allow-Origin': '*'
+                        },
                         timeout: 15000
                     }
                 );
                 
-                console.log('📡 Camera service response:', response.data);
-                
-                // ✅ التحقق من وجود نتائج
-                if (response.data && response.data.success && response.data.results && response.data.results.length > 0) {
-                    const barcodeResult = response.data.results[0];
-                    const barcodeValue = barcodeResult.data;
-                    
+                if (response.data && response.data.success && response.data.results?.length > 0) {
+                    const barcodeValue = response.data.results[0].data;
                     console.log('✅ Barcode detected:', barcodeValue);
                     
-                    // ✅ إيقاف المسح
-                    setScanning(false);
-                    
-                    // ✅ إرسال البيانات إلى onScan
                     if (onScan && typeof onScan === 'function') {
-                        // ✅ إرسال الباركود كنص، وليس كائن
                         onScan(barcodeValue);
                     }
                     
-                    // ✅ إغلاق الماسح
                     if (onClose) {
                         setTimeout(() => onClose(), 500);
                     }
+                } else {
+                    setError('لم يتم العثور على باركود، حاول مرة أخرى');
                 }
             }
         } catch (err) {
             console.error('❌ Error scanning:', err.message);
             setError('فشل في الاتصال بخدمة الكاميرا');
-            setTimeout(() => setError(null), 3000);
         } finally {
             setIsAnalyzing(false);
         }
     };
-
-    // ✅ الفاصل الزمني: 3 ثوانٍ
-    useEffect(() => {
-        if (!scanning) return;
-        const interval = setInterval(() => {
-            captureAndAnalyze();
-        }, 3000);
-        return () => clearInterval(interval);
-    }, [scanning]);
 
     return (
         <div className={`fixed inset-0 z-50 flex items-center justify-center ${darkMode ? 'bg-black/90' : 'bg-black/70'}`}>
@@ -94,20 +80,9 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                     
+                    {/* إطار المسح */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="w-64 h-32 border-2 border-yellow-400 rounded-lg">
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="w-full h-1 bg-yellow-400 animate-scan"></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="absolute bottom-4 left-0 right-0 text-center">
-                        <div className="inline-block bg-black/70 px-4 py-2 rounded-full">
-                            <p className="text-white text-sm">
-                                {isAnalyzing ? '🔍 جاري التحليل...' : scanning ? '📷 ضع الباركود داخل الإطار' : '✅ تم المسح بنجاح'}
-                            </p>
-                        </div>
+                        <div className="w-64 h-32 border-2 border-yellow-400 rounded-lg"></div>
                     </div>
                 </div>
                 
@@ -119,25 +94,20 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                 
                 <div className="p-4 flex gap-3">
                     <button
-                        onClick={() => { setScanning(true); setError(null); }}
-                        className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition"
-                        disabled={scanning}
+                        onClick={handleScan}
+                        disabled={isAnalyzing}
+                        className="flex-1 bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
                     >
-                        🔄 إعادة التشغيل
+                        {isAnalyzing ? '🔍 جاري المسح...' : '📸 مسح الآن'}
                     </button>
-                    <button onClick={onClose} className="flex-1 bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition">
+                    <button 
+                        onClick={onClose} 
+                        className="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 transition"
+                    >
                         ✕ إغلاق
                     </button>
                 </div>
             </div>
-            
-            <style jsx>{`
-                @keyframes scan {
-                    0% { transform: translateY(-60px); }
-                    100% { transform: translateY(60px); }
-                }
-                .animate-scan { animation: scan 2s ease-in-out infinite; }
-            `}</style>
         </div>
     );
 };
