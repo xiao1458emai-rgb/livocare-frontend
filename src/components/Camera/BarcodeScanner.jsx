@@ -9,45 +9,43 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
     const [error, setError] = useState(null);
     const [cameraReady, setCameraReady] = useState(false);
     
-    // ✅ استخدم خدمة الكاميرا الخاصة بك
     const CAMERA_SERVICE_URL = 'https://camera-service-ti1c.onrender.com';
     
-    // ✅ فحص اتصال الخدمة عند التحميل
-    useEffect(() => {
-        const checkService = async () => {
-            try {
-                console.log('🔍 Checking camera service...');
-                const response = await fetch(`${CAMERA_SERVICE_URL}/`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
+    // ✅ تحسين الصورة قبل إرسالها
+    const enhanceImage = (imageSrc) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('✅ Camera service is online:', data);
-                } else {
-                    console.warn('⚠️ Camera service responded with status:', response.status);
-                    setError('خدمة الكاميرا تعمل ولكن قد يكون هناك مشكلة في الإعدادات');
+                // زيادة التباين والسطوع
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                
+                // تطبيق تحسينات على الصورة
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                // تحسين التباين
+                for (let i = 0; i < data.length; i += 4) {
+                    // زيادة التباين
+                    data[i] = Math.min(255, data[i] * 1.2);     // Red
+                    data[i+1] = Math.min(255, data[i+1] * 1.2); // Green
+                    data[i+2] = Math.min(255, data[i+2] * 1.2); // Blue
                 }
-            } catch (err) {
-                console.error('❌ Cannot reach camera service:', err.message);
-                setError('⚠️ خدمة الكاميرا غير متاحة حالياً. يرجى المحاولة لاحقاً.');
-            }
-        };
-        
-        checkService();
-    }, []);
+                
+                ctx.putImageData(imageData, 0, 0);
+                resolve(canvas.toDataURL('image/jpeg', 0.9));
+            };
+            img.src = imageSrc;
+        });
+    };
     
-    // ✅ دالة المسح اليدوي
     const handleScan = async () => {
-        // التحقق من جاهزية الكاميرا
-        if (!webcamRef.current) {
-            setError('❌ الكاميرا غير جاهزة، يرجى المحاولة مرة أخرى');
-            return;
-        }
-        
-        if (isAnalyzing) {
-            console.log('⏸️ Already scanning, please wait...');
+        if (!webcamRef.current || isAnalyzing) {
+            setError('❌ الكاميرا غير جاهزة');
             return;
         }
         
@@ -56,125 +54,79 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
         
         try {
             // التقاط الصورة
-            const imageSrc = webcamRef.current.getScreenshot();
+            let imageSrc = webcamRef.current.getScreenshot();
             
             if (!imageSrc) {
-                setError('❌ فشل في التقاط الصورة، تأكد من تشغيل الكاميرا');
+                setError('❌ فشل في التقاط الصورة');
                 setIsAnalyzing(false);
                 return;
             }
             
-            console.log('📸 Image captured, sending to service...');
+            console.log('📸 Original image captured');
             
-            // ✅ إرسال الصورة إلى خدمة الكاميرا
-            const response = await axios.post(
-                `${CAMERA_SERVICE_URL}/scan-barcode`,
-                { 
-                    image: imageSrc,
-                    timestamp: new Date().toISOString()
-                },
-                {
-                    headers: { 
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 20000 // 20 ثانية مهلة
-                }
-            );
+            // تحسين الصورة
+            imageSrc = await enhanceImage(imageSrc);
+            console.log('✨ Image enhanced');
             
-            console.log('📡 Service response:', response.data);
+            // محاولات متعددة بجودة مختلفة
+            const attempts = [
+                { quality: 0.9, size: 'original' },
+                { quality: 0.7, size: 'medium' }
+            ];
             
-            // ✅ استخراج الباركود من الاستجابة
-            let barcode = null;
+            let barcodeFound = null;
             
-            if (response.data) {
-                // محاولة استخراج الباركود من صيغ مختلفة
-                if (response.data.barcode) {
-                    barcode = response.data.barcode;
-                } else if (response.data.code) {
-                    barcode = response.data.code;
-                } else if (response.data.data) {
-                    barcode = response.data.data;
-                } else if (response.data.result) {
-                    barcode = response.data.result;
-                } else if (response.data.value) {
-                    barcode = response.data.value;
-                } else if (typeof response.data === 'string') {
-                    barcode = response.data;
-                }
+            for (const attempt of attempts) {
+                if (barcodeFound) break;
                 
-                // إذا وجدنا باركود
-                if (barcode && barcode.length > 0) {
-                    console.log('✅ Barcode detected:', barcode);
-                    
-                    // إرسال الباركود إلى الدالة المستدعية
-                    if (onScan && typeof onScan === 'function') {
-                        onScan(barcode);
+                console.log(`📡 Attempting scan with ${attempt.size} quality...`);
+                
+                const response = await axios.post(
+                    `${CAMERA_SERVICE_URL}/scan-barcode`,
+                    { image: imageSrc },
+                    {
+                        headers: { 'Content-Type': 'application/json' },
+                        timeout: 15000
                     }
-                    
-                    // إغلاق الماسح بعد نجاح المسح
-                    if (onClose) {
-                        setTimeout(() => onClose(), 500);
-                    }
-                    return;
+                );
+                
+                console.log('📡 Response:', response.data);
+                
+                if (response.data.success && response.data.results?.length > 0) {
+                    barcodeFound = response.data.results[0].data;
+                    break;
                 }
             }
             
-            // إذا لم نجد باركود
-            setError('❌ لم يتم العثور على باركود في الصورة. حاول مرة أخرى مع إضاءة أفضل وتثبيت الكاميرا');
+            if (barcodeFound) {
+                console.log('✅ Barcode detected:', barcodeFound);
+                if (onScan) onScan(barcodeFound);
+                if (onClose) setTimeout(() => onClose(), 500);
+            } else {
+                setError('❌ لم يتم العثور على باركود. تأكد من:\n- إضاءة كافية\n- ثبات الكاميرا\n- وضع الباركود داخل الإطار');
+            }
             
         } catch (err) {
             console.error('❌ Scan error:', err);
-            
-            // رسائل خطأ محددة
-            if (err.code === 'ECONNABORTED') {
-                setError('⏰ انتهى الوقت، الخدمة بطيئة. حاول مرة أخرى.');
-            } else if (err.response) {
-                if (err.response.status === 404) {
-                    setError('🔌 مسار الخدمة غير صحيح (404)');
-                } else if (err.response.status === 500) {
-                    setError('⚠️ خطأ في الخادم الداخلي (500)');
-                } else {
-                    setError(`❌ خطأ ${err.response.status}: ${err.response.data?.error || 'فشل في المسح'}`);
-                }
-            } else if (err.request) {
-                setError('📡 لا يمكن الوصول إلى خدمة الكاميرا. تأكد من اتصال الإنترنت.');
-            } else {
-                setError('❌ حدث خطأ غير متوقع. حاول مرة أخرى.');
-            }
+            setError('❌ فشل في المسح. حاول مرة أخرى مع إضاءة أفضل');
         } finally {
             setIsAnalyzing(false);
         }
     };
     
-    // ✅ عند جاهزية الكاميرا
     const handleUserMedia = () => {
         console.log('✅ Camera is ready');
         setCameraReady(true);
     };
     
-    // ✅ عند خطأ الكاميرا
-    const handleUserMediaError = (err) => {
-        console.error('❌ Camera error:', err);
-        setError('❌ لا يمكن الوصول إلى الكاميرا. تأكد من منح الإذن.');
-    };
-
     return (
         <div className={`fixed inset-0 z-50 flex items-center justify-center ${darkMode ? 'bg-black/90' : 'bg-black/70'}`}>
             <div className={`w-full max-w-lg rounded-2xl overflow-hidden ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
-                {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
-                    <h3 className="font-bold text-lg dark:text-white">
-                        📷 مسح الباركود
-                    </h3>
-                    <button 
-                        onClick={onClose} 
-                        className="text-2xl hover:opacity-70 dark:text-white transition"
-                    >
-                        ✕
-                    </button>
+                    <h3 className="font-bold text-lg dark:text-white">📷 مسح الباركود</h3>
+                    <button onClick={onClose} className="text-2xl hover:opacity-70 dark:text-white">✕</button>
                 </div>
                 
-                {/* Camera View */}
                 <div className="relative bg-black" style={{ height: '400px' }}>
                     <Webcam
                         ref={webcamRef}
@@ -182,61 +134,46 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                         screenshotQuality={0.9}
                         videoConstraints={{
                             facingMode: "environment",
-                            width: { ideal: 720 },
+                            width: { ideal: 1280 },
                             height: { ideal: 720 }
                         }}
                         onUserMedia={handleUserMedia}
-                        onUserMediaError={handleUserMediaError}
-                        style={{ 
-                            width: '100%', 
-                            height: '100%', 
-                            objectFit: 'cover' 
-                        }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                     
-                    {/* Scanning Frame */}
+                    {/* إطار المسح المحسن */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div className="relative">
-                            {/* Outer frame */}
-                            <div className="w-72 h-40 border-2 border-yellow-400 rounded-lg bg-transparent">
-                                {/* Corner indicators */}
-                                <div className="absolute -top-1 -left-1 w-6 h-6 border-t-3 border-l-3 border-yellow-400 rounded-tl"></div>
-                                <div className="absolute -top-1 -right-1 w-6 h-6 border-t-3 border-r-3 border-yellow-400 rounded-tr"></div>
-                                <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-3 border-l-3 border-yellow-400 rounded-bl"></div>
-                                <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-3 border-r-3 border-yellow-400 rounded-br"></div>
+                            <div className="w-80 h-40 border-2 border-yellow-400 rounded-lg bg-transparent">
+                                <div className="absolute -top-1 -left-1 w-8 h-8 border-t-3 border-l-3 border-yellow-400 rounded-tl"></div>
+                                <div className="absolute -top-1 -right-1 w-8 h-8 border-t-3 border-r-3 border-yellow-400 rounded-tr"></div>
+                                <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-3 border-l-3 border-yellow-400 rounded-bl"></div>
+                                <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-3 border-r-3 border-yellow-400 rounded-br"></div>
                             </div>
-                            
-                            {/* Scan line animation */}
                             <div className="absolute inset-0 overflow-hidden rounded-lg">
                                 <div className="w-full h-0.5 bg-yellow-400 animate-scan"></div>
                             </div>
                         </div>
                     </div>
                     
-                    {/* Instruction text */}
+                    {/* نصائح المسح */}
                     <div className="absolute bottom-4 left-0 right-0 text-center">
-                        <div className="inline-block bg-black/70 px-4 py-2 rounded-full backdrop-blur-sm">
+                        <div className="inline-block bg-black/80 px-4 py-2 rounded-full backdrop-blur-sm">
                             <p className="text-white text-sm">
-                                {!cameraReady ? (
-                                    '⏳ جاري تشغيل الكاميرا...'
-                                ) : isAnalyzing ? (
-                                    '🔍 جاري تحليل الصورة...'
-                                ) : (
-                                    '📷 ضع الباركود داخل الإطار الأصفر'
-                                )}
+                                {!cameraReady ? '⏳ جاري تشغيل الكاميرا...' : 
+                                 isAnalyzing ? '🔍 جاري تحليل الصورة...' : 
+                                 '📷 ضع الباركود داخل الإطار الأصفر'}
                             </p>
                         </div>
                     </div>
                 </div>
                 
-                {/* Error Message */}
                 {error && (
-                    <div className="m-4 p-3 bg-red-500 text-white rounded-lg text-center animate-pulse">
+                    <div className="m-4 p-3 bg-red-500 text-white rounded-lg text-center whitespace-pre-line">
                         ⚠️ {error}
                     </div>
                 )}
                 
-                {/* Buttons */}
                 <div className="p-4 flex gap-3">
                     <button
                         onClick={handleScan}
@@ -252,11 +189,7 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                                 <span className="animate-spin">⏳</span>
                                 جاري المسح...
                             </span>
-                        ) : !cameraReady ? (
-                            '⏳ انتظار الكاميرا...'
-                        ) : (
-                            '📸 مسح الآن'
-                        )}
+                        ) : '📸 مسح الآن'}
                     </button>
                     
                     <button 
@@ -267,23 +200,24 @@ const BarcodeScanner = ({ onScan, onClose, darkMode }) => {
                     </button>
                 </div>
                 
-                {/* Help text */}
                 <div className="px-4 pb-4 text-center">
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                        💡 نصائح: إضاءة جيدة | تثبيت الكاميرا | وضع الباركود داخل الإطار
+                        💡 نصائح: إضاءة جيدة | تثبيت الكاميرا | وضع الباركود داخل الإطار | مسافة 10-20 سم
                     </p>
                 </div>
             </div>
             
-            {/* Animation styles */}
             <style jsx>{`
                 @keyframes scan {
-                    0% { transform: translateY(-80px); }
-                    100% { transform: translateY(80px); }
+                    0% { transform: translateY(-60px); }
+                    100% { transform: translateY(60px); }
                 }
-                .animate-scan {
-                    animation: scan 2s ease-in-out infinite;
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
                 }
+                .animate-scan { animation: scan 2s ease-in-out infinite; }
+                .animate-spin { animation: spin 1s linear infinite; display: inline-block; }
                 .border-t-3 { border-top-width: 3px; }
                 .border-r-3 { border-right-width: 3px; }
                 .border-b-3 { border-bottom-width: 3px; }
