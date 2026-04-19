@@ -11,21 +11,17 @@ class ESP32Service {
         this.lastReading = null;
     }
 
-    // بدء الاستماع للبيانات (Polling كل 5 ثوانٍ)
     startPolling() {
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
         }
-
         this.isPolling = true;
         this.pollingInterval = setInterval(async () => {
             await this.fetchLatestReading();
-        }, 5000); // كل 5 ثوانٍ
-
+        }, 5000);
         console.log('📡 ESP32 Service: Polling started');
     }
 
-    // إيقاف الاستماع
     stopPolling() {
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
@@ -35,20 +31,25 @@ class ESP32Service {
         console.log('📡 ESP32 Service: Polling stopped');
     }
 
-    // جلب آخر قراءة من الخادم
     async fetchLatestReading() {
         try {
+            console.log('🔄 Fetching from:', `${ESP32_API_URL}/api/readings/latest`);
             const response = await axios.get(`${ESP32_API_URL}/api/readings/latest`);
+            console.log('📊 Full response:', response.data);
             
-            if (response.data && response.data.bpm && response.data.spo2) {
+            // ✅ التعديل هنا: البيانات موجودة في response.data.data
+            const data = response.data?.data;
+            
+            if (data && data.bpm && data.spo2) {
                 const newReading = {
-                    heartRate: response.data.bpm,
-                    spo2: response.data.spo2,
-                    timestamp: response.data.timestamp || new Date().toISOString(),
-                    raw: response.data
+                    heartRate: data.bpm,
+                    spo2: data.spo2,
+                    timestamp: data.timestamp || new Date().toISOString(),
+                    raw: data
                 };
-
-                // التحقق من تغيير البيانات
+                
+                console.log('❤️ New reading - BPM:', newReading.heartRate, 'SpO2:', newReading.spo2);
+                
                 if (this.lastReading?.heartRate !== newReading.heartRate ||
                     this.lastReading?.spo2 !== newReading.spo2) {
                     
@@ -59,33 +60,31 @@ class ESP32Service {
                 }
                 
                 return newReading;
+            } else {
+                console.log('⚠️ No data available yet');
             }
         } catch (error) {
-            console.error('ESP32 Service: Error fetching reading', error);
+            console.error('❌ ESP32 Service Error:', error.message);
             this.notifyListeners('error', error.message);
         }
         return null;
     }
 
-    // جلب جميع القراءات
     async fetchAllReadings(limit = 50) {
         try {
             const response = await axios.get(`${ESP32_API_URL}/api/readings/all?limit=${limit}`);
-            return response.data.data || [];
+            return response.data?.data || [];
         } catch (error) {
             console.error('ESP32 Service: Error fetching all readings', error);
             return [];
         }
     }
 
-    // طلب قياس جديد (إرسال إشارة إلى ESP32 - اختياري)
     async requestMeasurement() {
-        // في حالة ESP32، القياس مستمر تلقائياً
         console.log('📡 ESP32 Service: Measurement requested (continuous)');
         return true;
     }
 
-    // تسجيل مستمع للأحداث
     onData(callback) {
         this.listeners.push(callback);
         return () => {
@@ -94,7 +93,6 @@ class ESP32Service {
         };
     }
 
-    // إخطار المستمعين
     notifyListeners(type, data) {
         this.listeners.forEach(listener => {
             try {
@@ -105,17 +103,14 @@ class ESP32Service {
         });
     }
 
-    // التحقق من دعم الخدمة
     isSupported() {
-        return true; // ESP32 API مدعوم دائماً
+        return true;
     }
 
-    // وضع الهاتف المحمول (للتوافق مع الكود القديم)
     setMobileMode(isMobile, ipAddress) {
         console.log(`📡 ESP32 Service: Mobile mode ${isMobile ? 'enabled' : 'disabled'}`);
     }
 
-    // فصل الاتصال
     disconnectFromWatch() {
         this.stopPolling();
         return Promise.resolve(true);
