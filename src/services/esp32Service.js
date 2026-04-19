@@ -18,7 +18,7 @@ class ESP32Service {
         this.isPolling = true;
         this.pollingInterval = setInterval(async () => {
             await this.fetchLatestReading();
-        }, 500000);
+        }, 50000);
         console.log('📡 ESP32 Service: Polling started');
     }
 
