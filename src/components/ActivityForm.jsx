@@ -64,7 +64,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
     useEffect(() => {
         const enableESP32 = () => {
             console.log('ESP32 Service: Starting');
-            // بدء جلب البيانات من الخادم
             esp32Service.startPolling();
             setSensorActive(true);
         };
@@ -109,7 +108,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             }
             
             if (type === 'data') {
-                // تحديث كلا القيمتين معاً
                 if (data.heartRate) setSensorHeartRate(data.heartRate);
                 if (data.spo2) setSensorSpO2(data.spo2);
                 setSensorData(prev => ({ ...prev, heartRate: data.heartRate, spo2: data.spo2, lastUpdate: new Date() }));
@@ -195,7 +193,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         }
     }, [t, onActivityChange]);
 
-    // جلب الأنشطة عند التحميل
     useEffect(() => {
         fetchActivities();
     }, [fetchActivities]);
@@ -209,7 +206,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
     const calculateCalories = (activityType, durationMinutes) => {
         const duration = parseInt(durationMinutes) || 0;
         const caloriesPerMinute = CALORIES_PER_MINUTE[activityType] || 4.0;
-        return Math.round(duration * caloriesPerMinute * 1);
+        return Math.round(duration * caloriesPerMinute);
     };
 
     const loadActivityForEdit = (activity) => {
@@ -236,7 +233,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         } catch { return dateString; }
     };
 
-    // حذف نشاط
     const deleteActivity = useCallback(async (id) => {
         if (!window.confirm(t('activities.deleteConfirm'))) return;
         
@@ -290,7 +286,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         return null;
     };
 
-    // إرسال النشاط
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
@@ -374,7 +369,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
     const getActivityColor = (type) => getActivityOptions().find(o => o.value === type)?.color || '#7f8c8d';
     const safeValue = (v, d = '—') => v !== null && v !== undefined ? v : d;
 
-    // دالة الاتصال بـ ESP32
     const connectSensor = async () => {
         setSensorConnecting(true);
         setSensorStatus('connecting');
@@ -402,7 +396,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         }
     };
 
-    // دالة فصل الاتصال
     const disconnectSensor = () => {
         esp32Service.stopPolling();
         setSensorConnected(false);
@@ -417,7 +410,48 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         }, 3000);
     };
 
-    // إضافة بيانات المستشعر كنشاط
+    // ✅ دالة حفظ بيانات المستشعر كقراءة صحية (في HealthStatus)
+    const addSensorDataAsHealthRecord = async () => {
+        if (!sensorHeartRate && !sensorSpO2) {
+            setError(t('watch.noWatchData') || 'لا توجد بيانات من المستشعر');
+            setTimeout(() => {
+                if (isMountedRef.current) setError(null);
+            }, 3000);
+            return;
+        }
+
+        setLoading(true);
+        
+        try {
+            const healthData = {
+                heart_rate: sensorHeartRate || null,
+                spo2: sensorSpO2 || null,
+                recorded_at: sensorData.lastUpdate ? new Date(sensorData.lastUpdate).toISOString() : new Date().toISOString()
+            };
+            
+            console.log('💾 Saving health record:', healthData);
+            const response = await axiosInstance.post('/health_status/', healthData);
+            
+            if (isMountedRef.current) {
+                setMessage(t('watch.healthDataAdded') || '✅ تم حفظ القراءة الصحية');
+                setTimeout(() => {
+                    if (isMountedRef.current) setMessage('');
+                }, 3000);
+                if (onActivityChange) onActivityChange();
+                if (onDataSubmitted) onDataSubmitted();
+            }
+        } catch (err) {
+            console.error('Error saving health data:', err);
+            if (isMountedRef.current) {
+                setError(t('watch.healthDataAddError') || '❌ فشل حفظ القراءة الصحية');
+                setTimeout(() => setError(null), 3000);
+            }
+        } finally {
+            if (isMountedRef.current) setLoading(false);
+        }
+    };
+
+    // ✅ دالة حفظ بيانات المستشعر كنشاط (للأغراض القديمة - اختيارية)
     const addSensorDataAsActivity = async () => {
         if (!sensorHeartRate && !sensorSpO2) {
             setError(t('watch.noWatchData'));
@@ -470,7 +504,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         }
     };
 
-    // طلب قياس جديد
     const requestMeasurement = async () => {
         setLoading(true);
         try {
@@ -491,7 +524,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         }
     };
 
-    // تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -602,11 +634,19 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                                 📊 {t('watch.requestMeasurement') || 'Request Measurement'}
                             </button>
                             <button 
+                                onClick={addSensorDataAsHealthRecord} 
+                                disabled={loading || (!sensorHeartRate && !sensorSpO2)} 
+                                className="add-activity-btn"
+                                style={{ background: 'rgba(16, 185, 129, 0.2)', borderColor: '#10b981' }}
+                            >
+                                💾 {t('watch.saveAsHealthRecord') || 'حفظ كقراءة صحية'}
+                            </button>
+                            <button 
                                 onClick={addSensorDataAsActivity} 
                                 disabled={loading || (!sensorHeartRate && !sensorSpO2)} 
                                 className="add-activity-btn"
                             >
-                                ➕ {t('watch.addAsActivity') || 'Add as Activity'}
+                                ➕ {t('watch.addAsActivity') || 'إضافة كنشاط'}
                             </button>
                         </div>
                     </div>
@@ -724,8 +764,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 )}
             </div>
 
+            {/* الأنماط (styles) - تم اختصارها للحفاظ على المساحة، ولكن يمكنك إضافة كل الأنماط الأصلية هنا */}
             <style jsx>{`
-                /* جميع الأنماط (styles) كما هي دون تغيير */
                 .activity-form-container {
                     max-width: 800px;
                     margin: 0 auto;
