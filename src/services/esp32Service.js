@@ -115,30 +115,10 @@ class ESP32Service {
         console.log(`📡 ESP32 Service: Mobile mode ${isMobile ? 'enabled' : 'disabled'}`);
     }
 
-    // تفعيل ADB (غير مطلوب لـ ESP32)
-    enableADBMode() {
-        console.log('📡 ESP32 Service: ADB mode not required for ESP32');
-    }
-
-    // تعطيل ADB
-    disableADBMode() {
-        console.log('📡 ESP32 Service: ADB mode disabled');
-    }
-
-    // الاتصال بالساعة (غير مطلوب)
-    connectToWatch() {
-        return Promise.resolve(true);
-    }
-
     // فصل الاتصال
     disconnectFromWatch() {
         this.stopPolling();
         return Promise.resolve(true);
-    }
-
-    // مراقبة ADB (غير مطلوب)
-    connectADBMonitor() {
-        console.log('📡 ESP32 Service: ADB monitor not required');
     }
 }
 
