@@ -1,7 +1,7 @@
 // src/utils/pushNotifications.js
 import axiosInstance from '../services/api';
 
-const NOTIFICATION_SERVICE_URL = 'https://notification-service-2xej.onrender.com';
+const NOTIFICATION_SERVICE_URL = 'https://notification-service-6nzm.onrender.com';
 
 // تحويل المفتاح العام من Base64 إلى Uint8Array
 function urlBase64ToUint8Array(base64String) {
