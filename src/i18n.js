@@ -611,7 +611,27 @@ const resources = {
             "invalidSystolic": "❌ قيمة الضغط الانقباضي غير صالحة",
             "invalidDiastolic": "❌ قيمة الضغط الانبساطي غير صالحة",
             "invalidGlucose": "❌ قيمة الجلوكوز غير صالحة",
-            "mmHg": "مم زئبق"
+            "mmHg": "مم زئبق",
+            "heartRate": "نبضات القلب",
+"heartRatePlaceholder": "60-100 BPM",
+"heartRateHint": "المعدل الطبيعي: 60-100 نبضة في الدقيقة",
+"spo2": "نسبة الأكسجين",
+"spo2Placeholder": "95-100%",
+"spo2Hint": "المعدل الطبيعي: 95% - 100%",
+"indicators": {
+  "heartRateHigh": "⚠️ نبضات قلب مرتفعة",
+  "heartRateLow": "⚠️ نبضات قلب منخفضة",
+  "heartRateNormal": "✅ نبضات قلب طبيعية",
+  "spo2Low": "⚠️ نسبة أكسجين منخفضة",
+  "spo2Normal": "✅ نسبة أكسجين طبيعية"
+},
+"advice": {
+  "heartRateHigh": "استشر طبيبك إذا كان النبض مرتفعاً باستمرار",
+  "heartRateLow": "استشر طبيبك إذا كان النبض منخفضاً باستمرار",
+  "heartRateNormal": "حافظ على نشاطك البدني المنتظم",
+  "spo2Low": "استشر طبيبك فوراً إذا كانت النسبة أقل من 90%",
+  "spo2Normal": "حافظ على تهوية جيدة ومارس تمارين التنفس"
+}
           }
         }
       },
@@ -652,7 +672,21 @@ const resources = {
         "daysCount": "يوم",
         "weightEvolution": "تطور الوزن",
         "bloodPressure": "ضغط الدم",
-        "bloodGlucose": "جلوكوز الدم"
+        "bloodGlucose": "جلوكوز الدم",
+        "heartRateTitle": "معدل ضربات القلب",
+"heartRateLabel": "نبضات القلب (BPM)",
+"avgHeartRate": "متوسط النبض",
+"avgSpO2": "متوسط الأكسجين",
+"spo2Title": "نسبة الأكسجين في الدم",
+"spo2Label": "نسبة الأكسجين (SpO₂%)",
+"heartRateHint": "المعدل الطبيعي: 60-100 نبضة في الدقيقة",
+"spo2Hint": "المعدل الطبيعي: 95% - 100%",
+"normalRange": "المعدل الطبيعي",
+"normalLower": "الحد الأدنى الطبيعي (60)",
+"normalUpper": "الحد الأعلى الطبيعي (100)",
+"normalThreshold": "الحد الطبيعي (95%)",
+"averageHeartRate": "المتوسط",
+"averageSpO2": "المتوسط"
       },
 
       "history": {
@@ -686,7 +720,16 @@ const resources = {
         "lowBP": "ضغط منخفض",
         "lowGlucose": "سكر منخفض",
         "highWeight": "وزن مرتفع",
-        "lowWeight": "وزن منخفض"
+        "lowWeight": "وزن منخفض",
+        "heartRate": "النبض",
+"spo2": "الأكسجين",
+"highHeartRate": "⚠️ نبض مرتفع",
+"lowHeartRate": "⚠️ نبض منخفض",
+"normalHeartRate": "✅ نبض طبيعي",
+"heartRateNotMeasured": "❓ لم يتم قياس النبض",
+"lowSpO2": "⚠️ أكسجين منخفض",
+"normalSpO2": "✅ أكسجين طبيعي",
+"spo2NotMeasured": "❓ لم يتم قياس الأكسجين"
       },
 
   "profile": {
@@ -1275,7 +1318,50 @@ const resources = {
             "nutrition": "🥗 كل وجبة خفيفة قبل التمرين",
             "mood": "🧘 جرب تمارين التنفس قبل البدء",
             "focus": "💪 ركز على جودة التمرين لا كميته"
-          }
+          },
+          "bestActivity": "نشاطك المفضل",
+"insights": {
+  "shortDuration": "⏱️ أنشطتك قصيرة المدة",
+  "shortDurationDetails": "متوسط مدة نشاطك {{avg}} دقيقة فقط",
+  "favoriteActivity": "🎯 نشاطك المفضل",
+  "favoriteActivityDetails": "أكثر نشاط تمارسه هو {{activity}}",
+  "achievement": "🏆 إنجاز رائع",
+  "achievementDetails": "لقد حققت الهدف الأسبوعي للنشاط!"
+},
+"recommendations": {
+  "startActivity": {
+    "title": "ابدأ نشاطك اليوم",
+    "advice": "سجل أول نشاط رياضي لك اليوم",
+    "basedOn": "لا توجد أنشطة مسجلة بعد",
+    "tip1": "جرب المشي لمدة 10 دقائق",
+    "tip2": "اختر نشاطاً تحبه",
+    "tip3": "حدد وقتاً ثابتاً يومياً"
+  },
+  "increaseActivity": {
+    "title": "زد نشاطك الأسبوعي",
+    "advice": "تحتاج {{minutes}} دقيقة إضافية هذا الأسبوع",
+    "basedOn": "لديك {{total}} دقيقة نشاط من أصل 150 دقيقة موصى بها",
+    "tip1": "امشِ 15 دقيقة إضافية يومياً",
+    "tip2": "استخدم الدرج بدلاً من المصعد",
+    "tip3": "جرب تطبيقات تتبع النشاط"
+  },
+  "maintainActivity": {
+    "title": "أداء ممتاز",
+    "advice": "أنت تحقق المستوى الموصى به من النشاط",
+    "basedOn": "{{total}} دقيقة نشاط هذا الأسبوع",
+    "tip1": "نوّع في أنواع التمارين",
+    "tip2": "أضف تمارين القوة مرتين أسبوعياً",
+    "tip3": "شارك أصدقاءك في النشاط"
+  }
+},
+"weekProgress": "{{progress}}% من هدف الأسبوع",
+"totalMinutes": "إجمالي الدقائق",
+"totalCalories": "إجمالي السعرات",
+"activitiesCount": "عدد الأنشطة",
+"currentActivity": "نشاطك الحالي",
+"factors": {
+  "title": "رؤى وتحليلات"
+}
         },
         "habit": {
           "title": "💊 تحليلات العادات الذكية",
@@ -2214,7 +2300,10 @@ const resources = {
         "highStatus": "⚠️ مرتفع",
         "lowStatus": "⚠️ منخفض",
         "normalStatus": "✅ طبيعي",
-        "waitingData": "⏳ انتظار البيانات"
+        "waitingData": "⏳ انتظار البيانات",
+        "saveAsHealthRecord": "حفظ كقراءة صحية",
+"healthDataAdded": "✅ تم حفظ القراءة الصحية",
+"healthDataAddError": "❌ فشل حفظ القراءة الصحية"
       },
   "chat": {
     "title": "الدردشة الذكية",
@@ -2824,7 +2913,12 @@ const resources = {
           "bpHigh": "Blood pressure is high, recommended to consult a doctor",
           "glucoseLow": "Low blood sugar, recommended to eat a light snack",
           "glucoseNormal": "Blood sugar is normal, maintain your routine",
-          "glucoseHigh": "Blood sugar is high, recommended to consult a doctor"
+          "glucoseHigh": "Blood sugar is high, recommended to consult a doctor",
+                "heartRateHigh": "Consult your doctor if heart rate remains high",
+      "heartRateLow": "Consult your doctor if heart rate remains low",
+      "heartRateNormal": "Maintain your regular physical activity",
+      "spo2Low": "Consult your doctor immediately if below 90%",
+      "spo2Normal": "Maintain good ventilation and practice breathing exercises"
         },
         "autoRestored": "💾 Auto-saved data restored",
         "formCleared": "🗑️ Form cleared",
@@ -2844,8 +2938,20 @@ const resources = {
           "invalidDiastolic": "❌ Invalid diastolic value",
           "invalidGlucose": "❌ Invalid glucose value",
           "mmHg": "mmHg"
-        }
-      }
+        },
+            "heartRate": "Heart Rate",
+    "heartRatePlaceholder": "60-100 BPM",
+    "heartRateHint": "Normal range: 60-100 beats per minute",
+    "spo2": "Blood Oxygen",
+    "spo2Placeholder": "95-100%",
+    "spo2Hint": "Normal range: 95% - 100%",
+    "indicators": {
+      "heartRateHigh": "⚠️ High heart rate",
+      "heartRateLow": "⚠️ Low heart rate",
+      "heartRateNormal": "✅ Normal heart rate",
+      "spo2Low": "⚠️ Low blood oxygen",
+      "spo2Normal": "✅ Normal blood oxygen"
+    }}
     },
 
     "charts": {
@@ -2884,7 +2990,21 @@ const resources = {
       "daysCount": "day",
       "weightEvolution": "Weight Evolution",
       "bloodPressure": "Blood Pressure",
-      "bloodGlucose": "Blood Glucose"
+      "bloodGlucose": "Blood Glucose",
+        "heartRateTitle": "Heart Rate",
+  "heartRateLabel": "Heart Rate (BPM)",
+  "avgHeartRate": "Avg Heart Rate",
+  "avgSpO2": "Avg SpO2",
+  "spo2Title": "Blood Oxygen Level",
+  "spo2Label": "Oxygen Saturation (SpO₂%)",
+  "heartRateHint": "Normal range: 60-100 BPM",
+  "spo2Hint": "Normal range: 95% - 100%",
+  "normalRange": "Normal Range",
+  "normalLower": "Lower Normal Limit (60)",
+  "normalUpper": "Upper Normal Limit (100)",
+  "normalThreshold": "Normal Threshold (95%)",
+  "averageHeartRate": "Average",
+  "averageSpO2": "Average"
     },
 
     "history": {
@@ -2918,7 +3038,16 @@ const resources = {
       "lowBP": "Low BP",
       "lowGlucose": "Low Glucose",
       "highWeight": "High Weight",
-      "lowWeight": "Low Weight"
+      "lowWeight": "Low Weight",
+        "heartRate": "Heart Rate",
+  "spo2": "SpO2",
+  "highHeartRate": "⚠️ High Heart Rate",
+  "lowHeartRate": "⚠️ Low Heart Rate",
+  "normalHeartRate": "✅ Normal Heart Rate",
+  "heartRateNotMeasured": "❓ Heart rate not measured",
+  "lowSpO2": "⚠️ Low SpO2",
+  "normalSpO2": "✅ Normal SpO2",
+  "spo2NotMeasured": "❓ SpO2 not measured"
     },
 
   "profile": {
@@ -3505,7 +3634,20 @@ const resources = {
           "nutrition": "🥗 Eat a light meal before exercise",
           "mood": "🧘 Try breathing exercises before starting",
           "focus": "💪 Focus on quality over quantity"
-        }
+        },
+            "bestActivity": "Your Favorite Activity",
+    "weekProgress": "{{progress}}% of weekly goal",
+    "totalMinutes": "Total Minutes",
+    "totalCalories": "Total Calories",
+    "activitiesCount": "Activities",
+    "currentActivity": "Your Current Activity",
+    "insights": {
+      "shortDuration": "⏱️ Your activities are short",
+      "shortDurationDetails": "Your average activity duration is {{avg}} minutes only",
+      "favoriteActivity": "🎯 Your Favorite Activity",
+      "favoriteActivityDetails": "Your most frequent activity is {{activity}}",
+      "achievement": "🏆 Great Achievement",
+      "achievementDetails": "You've reached your weekly activity goal!"}
       },
       "habit": {
         "title": "💊 Smart Habit Analytics",
@@ -3667,7 +3809,15 @@ const resources = {
             "title": "Need More Protein",
             "advice": "Add {{protein}}g protein daily",
             "reasons": ["Protein is essential for muscle building", "Helps you feel full longer", "Improves metabolism"],
-            "tips": ["🥚 1 egg = 6g protein", "🍗 Chicken breast (100g) = 31g protein", "🥛 1 cup milk = 8g protein", "🫘 1 cup lentils = 18g protein"]
+            "tips": ["🥚 1 egg = 6g protein", "🍗 Chicken breast (100g) = 31g protein", "🥛 1 cup milk = 8g protein", "🫘 1 cup lentils = 18g protein"],
+                 "startActivity": {
+        "title": "Start Your Daily Activity",
+        "advice": "Log your first physical activity today",
+        "basedOn": "No activities recorded yet",
+        "tip1": "Try walking for 10 minutes",
+        "tip2": "Choose an activity you enjoy",
+        "tip3": "Set a fixed daily time"
+      }
           },
           "avoidLateMeals": {
             "title": "Avoid Late Eating",
@@ -3728,7 +3878,25 @@ const resources = {
           },
           "moreActivity": { "title": "Move More to Sleep Better", "advice": "Physical activity improves sleep", "reasons": ["Exercise increases sleep hormones", "Reduces stress and anxiety", "Improves deep sleep quality"], "tips": ["🚶‍♂️ Walk 30 minutes daily", "🧘 Try yoga before bed", "🌅 Exercise in the morning for best results"] },
           "sleepForMood": { "title": "Sleep Better for Better Mood", "advice": "Good sleep improves mood", "reasons": ["Good sleep improves mental health", "Reduces stress and anxiety", "Increases positive energy"], "tips": ["📝 Write down your thoughts before bed", "🎵 Listen to calm music", "💬 Talk to someone close"] },
-          "startRecording": { "title": "Start Recording Your Sleep", "advice": "Record your sleep for a few days to get accurate analysis", "reason": "Smart analysis needs data", "tips": ["😴 Record your sleep and wake times", "⭐ Rate your sleep quality", "📝 Add notes about your dreams"] }
+          "startRecording": { "title": "Start Recording Your Sleep", "advice": "Record your sleep for a few days to get accurate analysis", "reason": "Smart analysis needs data", "tips": ["😴 Record your sleep and wake times", "⭐ Rate your sleep quality", "📝 Add notes about your dreams"] },
+                "increaseActivity": {
+        "title": "Increase Your Weekly Activity",
+        "advice": "You need {{minutes}} more minutes this week",
+        "basedOn": "You have {{total}} minutes of activity out of the recommended 150 minutes",
+        "tip1": "Walk an extra 15 minutes daily",
+        "tip2": "Use stairs instead of elevator",
+        "tip3": "Try activity tracking apps"
+      },
+      "maintainActivity": {
+        "title": "Excellent Performance",
+        "advice": "You're achieving the recommended activity level",
+        "basedOn": "{{total}} minutes of activity this week",
+        "tip1": "Vary your exercise types",
+        "tip2": "Add strength training twice a week",
+        "tip3": "Share activities with friends"
+      }   , "factors": {
+      "title": "Insights & Analytics"
+    }
         },
         "debug": {
           "title": "🔍 ========== Sleep Data Structure Diagnosis ==========",
@@ -4445,7 +4613,10 @@ const resources = {
       "highStatus": "⚠️ High",
       "lowStatus": "⚠️ Low",
       "normalStatus": "✅ Normal",
-      "waitingData": "⏳ Waiting for data"
+      "waitingData": "⏳ Waiting for data",
+        "saveAsHealthRecord": "Save as Health Record",
+  "healthDataAdded": "✅ Health record saved",
+  "healthDataAddError": "❌ Failed to save health record"
     },
   "chat": {
     "title": "Smart Chat",
