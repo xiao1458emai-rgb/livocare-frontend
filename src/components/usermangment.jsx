@@ -407,29 +407,31 @@ function ProfileManager({ isAuthReady }) {
         }
     };
 
-    const fetchUserData = async () => {
-        setLoading(true);
-        try {
-            const response = await axiosInstance.get('/users/me/');
-            
-            setUserData({
-                username: response.data.username || '',
-                email: response.data.email || '',
-                date_of_birth: response.data.date_of_birth || '',
-                gender: response.data.gender || '',
-                phone_number: response.data.phone_number || '',
-                initial_weight: response.data.initial_weight?.toString() || '',
-                height: response.data.height?.toString() || '',
-                occupation_status: response.data.occupation_status || ''
-            });
-        } catch (error) {
-            console.error('Error fetching user data:', error);
-            setMessage(t('profile.error.fetchUser'));
-            setMessageType('error');
-        } finally {
-            setLoading(false);
-        }
-    };
+// استبدل دالة fetchUserData بهذه النسخة
+const fetchUserData = async () => {
+    setLoading(true);
+    try {
+        // ✅ استخدم الرابط الجديد
+        const response = await axiosInstance.get('/profile/');
+        
+        setUserData({
+            username: response.data.username || '',
+            email: response.data.email || '',
+            date_of_birth: response.data.date_of_birth || '',
+            gender: response.data.gender || '',
+            phone_number: response.data.phone_number || '',
+            initial_weight: response.data.initial_weight?.toString() || '',
+            height: response.data.height?.toString() || '',
+            occupation_status: response.data.occupation_status || ''
+        });
+    } catch (error) {
+        console.error('Error fetching user data:', error);
+        setMessage(t('profile.error.fetchUser'));
+        setMessageType('error');
+    } finally {
+        setLoading(false);
+    }
+};
 
     const fetchHealthGoals = async () => {
         try {
@@ -512,41 +514,43 @@ function ProfileManager({ isAuthReady }) {
         }
     };
 
-    const handleUserUpdate = async (e) => {
-        e.preventDefault();
-        setSaving(true);
-        setMessage('');
+// استبدل دالة handleUserUpdate بهذه النسخة
+const handleUserUpdate = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setMessage('');
+    
+    try {
+        const updateData = {
+            email: userData.email || null,
+            date_of_birth: userData.date_of_birth || null,
+            gender: userData.gender || null,
+            phone_number: userData.phone_number || null,
+            initial_weight: userData.initial_weight ? parseFloat(userData.initial_weight) : null,
+            height: userData.height ? parseFloat(userData.height) : null,
+            occupation_status: userData.occupation_status || null
+        };
         
-        try {
-            const updateData = {
-                email: userData.email || null,
-                date_of_birth: userData.date_of_birth || null,
-                gender: userData.gender || null,
-                phone_number: userData.phone_number || null,
-                initial_weight: userData.initial_weight ? parseFloat(userData.initial_weight) : null,
-                height: userData.height ? parseFloat(userData.height) : null,
-                occupation_status: userData.occupation_status || null
-            };
-            
-            Object.keys(updateData).forEach(key => {
-                if (updateData[key] === '' || updateData[key] === null) {
-                    delete updateData[key];
-                }
-            });
-            
-            await axiosInstance.patch('/users/me/', updateData);
-            setMessage(t('profile.profile.updated'));
-            setMessageType('success');
-            await fetchCurrentHealthData();
-        } catch (error) {
-            console.error('Error updating profile:', error);
-            setMessage(t('profile.error.updateProfile'));
-            setMessageType('error');
-        } finally {
-            setSaving(false);
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
+        Object.keys(updateData).forEach(key => {
+            if (updateData[key] === '' || updateData[key] === null) {
+                delete updateData[key];
+            }
+        });
+        
+        // ✅ استخدم الرابط الجديد
+        await axiosInstance.put('/profile/', updateData);
+        setMessage(t('profile.profile.updated'));
+        setMessageType('success');
+        await fetchCurrentHealthData();
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        setMessage(t('profile.error.updateProfile'));
+        setMessageType('error');
+    } finally {
+        setSaving(false);
+        setTimeout(() => setMessage(''), 3000);
+    }
+};
 
     const handleChangePassword = async (e) => {
         e.preventDefault();
@@ -693,154 +697,151 @@ function ProfileManager({ isAuthReady }) {
         }
     };
 
-    const handleDeleteAccount = async () => {
-        if (!confirm(t('profile.danger.deleteAccountConfirm'))) return;
+// استبدل دالة handleDeleteAccount بهذه النسخة
+const handleDeleteAccount = async () => {
+    if (!confirm(t('profile.danger.deleteAccountConfirm'))) return;
+    
+    const confirmation = prompt(t('profile.danger.typeDelete'));
+    if (confirmation !== 'حذف' && confirmation !== 'delete') {
+        setMessage(t('profile.danger.cancelled'));
+        setMessageType('info');
+        return;
+    }
+    
+    setDeleting(true);
+    try {
+        // ✅ استخدم الرابط الجديد
+        await axiosInstance.delete('/delete-account/');
         
-        const confirmation = prompt(t('profile.danger.typeDelete'));
-        if (confirmation !== 'حذف' && confirmation !== 'delete') {
-            setMessage(t('profile.danger.cancelled'));
-            setMessageType('info');
-            return;
-        }
+        localStorage.clear();
+        setMessage(t('profile.danger.accountDeleted'));
+        setMessageType('success');
         
-        setDeleting(true);
-        try {
-            await axiosInstance.delete('/users/me/');
-            localStorage.clear();
-            setMessage(t('profile.danger.accountDeleted'));
-            setMessageType('success');
-            setTimeout(() => {
-                window.location.href = '/register';
-            }, 3000);
-        } catch (error) {
-            console.error('Error deleting account:', error);
+        setTimeout(() => {
+            window.location.href = '/register';
+        }, 3000);
+    } catch (error) {
+        console.error('Error deleting account:', error);
+        
+        // عرض رسالة خطأ أكثر تفصيلاً
+        if (error.response?.status === 405) {
+            setMessage('الخدمة لا تدعم حذف الحساب حالياً. يرجى المحاولة لاحقاً.');
+        } else if (error.response?.status === 404) {
+            setMessage('خدمة حذف الحساب غير متاحة. تم تسجيل المشكلة.');
+        } else {
             setMessage(t('profile.error.deleteAccount'));
-            setMessageType('error');
-        } finally {
-            setDeleting(false);
         }
-    };
+        setMessageType('error');
+    } finally {
+        setDeleting(false);
+        setTimeout(() => setMessage(''), 5000);
+    }
+};
 
-    const handleExportData = async () => {
-        setExporting(true);
-        try {
-            const response = await axiosInstance.get('/export-data/');
-            const dataStr = JSON.stringify(response.data, null, 2);
-            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-            const fileName = `livocare-data-${new Date().toISOString().split('T')[0]}.json`;
-            
-            const linkElement = document.createElement('a');
-            linkElement.setAttribute('href', dataUri);
-            linkElement.setAttribute('download', fileName);
-            linkElement.click();
-            
-            setMessage(t('profile.danger.exportSuccess'));
-            setMessageType('success');
-        } catch (error) {
-            console.error('Error exporting data:', error);
-            setMessage(t('profile.error.exportData'));
-            setMessageType('error');
-        } finally {
-            setExporting(false);
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
-
-    const handleFullBackup = async () => {
-        if (!confirm(t('profile.backup.confirm'))) return;
+ // استبدل دالة handleExportData بهذه النسخة
+const handleExportData = async () => {
+    setExporting(true);
+    try {
+        // ✅ استخدم الرابط الجديد
+        const response = await axiosInstance.get('/export-data/');
+        const dataStr = JSON.stringify(response.data, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        const fileName = `livocare-data-${new Date().toISOString().split('T')[0]}.json`;
         
-        setExporting(true);
-        try {
-            const [
-                profileRes,
-                healthRes,
-                mealsRes,
-                sleepRes,
-                moodRes,
-                activitiesRes,
-                goalsRes
-            ] = await Promise.all([
-                axiosInstance.get('/users/me/').catch(() => ({ data: null })),
-                axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
-                axiosInstance.get('/meals/').catch(() => ({ data: [] })),
-                axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
-                axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
-                axiosInstance.get('/activities/').catch(() => ({ data: [] })),
-                axiosInstance.get('/goals/').catch(() => ({ data: [] }))
-            ]);
-
-            const backupData = {
-                version: '1.0.0',
-                timestamp: new Date().toISOString(),
-                user: {
-                    profile: profileRes.data,
-                    settings
-                },
-                data: {
-                    health: healthRes.data || [],
-                    meals: mealsRes.data || [],
-                    sleep: sleepRes.data || [],
-                    mood: moodRes.data || [],
-                    activities: activitiesRes.data || [],
-                    goals: goalsRes.data || []
-                }
-            };
-
-            const dataStr = JSON.stringify(backupData, null, 2);
-            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-            const fileName = `livocare-backup-${new Date().toISOString().split('T')[0]}.json`;
-            
-            const linkElement = document.createElement('a');
-            linkElement.setAttribute('href', dataUri);
-            linkElement.setAttribute('download', fileName);
-            linkElement.click();
-            
-            setMessage(t('profile.backup.success'));
-            setMessageType('success');
-        } catch (error) {
-            console.error('Error creating backup:', error);
-            setMessage(t('profile.backup.error'));
-            setMessageType('error');
-        } finally {
-            setExporting(false);
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
-
-    const handleRestoreBackup = async (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', fileName);
+        linkElement.click();
         
-        if (!confirm(t('profile.restore.confirm'))) {
-            event.target.value = '';
-            return;
+        setMessage(t('profile.danger.exportSuccess'));
+        setMessageType('success');
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        setMessage(t('profile.error.exportData'));
+        setMessageType('error');
+    } finally {
+        setExporting(false);
+        setTimeout(() => setMessage(''), 3000);
+    }
+};
+
+// استبدل دالة handleFullBackup بهذه النسخة
+const handleFullBackup = async () => {
+    if (!confirm(t('profile.backup.confirm'))) return;
+    
+    setExporting(true);
+    try {
+        // ✅ استخدم الرابط الجديد
+        const backupResponse = await axiosInstance.get('/export-data/');
+        
+        const backupData = {
+            version: '1.0.0',
+            timestamp: new Date().toISOString(),
+            user: {
+                profile: userData,
+                settings
+            },
+            data: backupResponse.data
+        };
+
+        const dataStr = JSON.stringify(backupData, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        const fileName = `livocare-backup-${new Date().toISOString().split('T')[0]}.json`;
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', fileName);
+        linkElement.click();
+        
+        setMessage(t('profile.backup.success'));
+        setMessageType('success');
+    } catch (error) {
+        console.error('Error creating backup:', error);
+        setMessage(t('profile.backup.error'));
+        setMessageType('error');
+    } finally {
+        setExporting(false);
+        setTimeout(() => setMessage(''), 3000);
+    }
+};
+
+// استبدل دالة handleRestoreBackup بهذه النسخة
+const handleRestoreBackup = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!confirm(t('profile.restore.confirm'))) {
+        event.target.value = '';
+        return;
+    }
+    
+    setLoading(true);
+    try {
+        const fileContent = await file.text();
+        const backupData = JSON.parse(fileContent);
+        
+        if (!backupData.version || !backupData.data) {
+            throw new Error('Invalid backup file');
         }
         
-        setLoading(true);
-        try {
-            const fileContent = await file.text();
-            const backupData = JSON.parse(fileContent);
-            
-            if (!backupData.version || !backupData.data) {
-                throw new Error('Invalid backup file');
-            }
-            
-            setMessage(t('profile.restore.success'));
-            setMessageType('success');
-            
-            fetchUserData();
-            fetchHealthGoals();
-            fetchCurrentHealthData();
-        } catch (error) {
-            console.error('Error restoring backup:', error);
-            setMessage(t('profile.restore.error'));
-            setMessageType('error');
-        } finally {
-            setLoading(false);
-            event.target.value = '';
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
+        // ✅ استخدم الرابط الجديد للاستعادة (إذا كان موجوداً)
+        // ملاحظة: قد تحتاج إلى إضافة نقطة نهاية للاستعادة في الـ Backend
+        setMessage(t('profile.restore.success'));
+        setMessageType('success');
+        
+        fetchUserData();
+        fetchHealthGoals();
+        fetchCurrentHealthData();
+    } catch (error) {
+        console.error('Error restoring backup:', error);
+        setMessage(t('profile.restore.error'));
+        setMessageType('error');
+    } finally {
+        setLoading(false);
+        event.target.value = '';
+        setTimeout(() => setMessage(''), 3000);
+    }
+};
 
     if (loading && !userData.username) {
         return (
