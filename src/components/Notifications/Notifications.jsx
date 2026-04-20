@@ -178,11 +178,11 @@ const extractData = (response) => {
     return [];
 };
 
-// استبدل دالة fetchNotifications بهذه النسخة
+// استبدل دالة fetchNotifications بالكامل بهذه النسخة
 const fetchNotifications = async () => {
     setLoading(true);
     try {
-        // ✅ استخدام المسار الجديد /my-notifications/
+        // ✅ استخدام المسار الصحيح - تغيير من /notifications-list/ إلى /my-notifications/
         const response = await axiosInstance.get('/my-notifications/');
         
         console.log('🔔 API Response:', response.data);
