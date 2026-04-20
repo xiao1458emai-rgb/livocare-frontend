@@ -178,12 +178,12 @@ const extractData = (response) => {
     return [];
 };
 
-// تعديل دالة fetchNotifications
+// استبدل دالة fetchNotifications بهذه النسخة
 const fetchNotifications = async () => {
     setLoading(true);
     try {
-        // ✅ استخدام المسار الجديد الذي يعمل مباشرة
-        const response = await axiosInstance.get('/notifications-list/');
+        // ✅ استخدام المسار الجديد /my-notifications/
+        const response = await axiosInstance.get('/my-notifications/');
         
         console.log('🔔 API Response:', response.data);
         
@@ -192,8 +192,6 @@ const fetchNotifications = async () => {
             notificationsData = response.data.results;
         } else if (Array.isArray(response.data)) {
             notificationsData = response.data;
-        } else if (response.data?.data?.results) {
-            notificationsData = response.data.data.results;
         }
         
         console.log('🔔 Notifications loaded:', notificationsData.length);
