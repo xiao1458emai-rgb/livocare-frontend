@@ -178,14 +178,23 @@ const extractData = (response) => {
     return [];
 };
 
-// ✅ تعديل دالة fetchNotifications
+// تعديل دالة fetchNotifications
 const fetchNotifications = async () => {
     setLoading(true);
     try {
-        const response = await axiosInstance.get('/notifications/');
+        // ✅ استخدام المسار الجديد الذي يعمل مباشرة
+        const response = await axiosInstance.get('/notifications-list/');
         
-        // ✅ استخراج البيانات بشكل صحيح
-        let notificationsData = extractData(response.data);
+        console.log('🔔 API Response:', response.data);
+        
+        let notificationsData = [];
+        if (response.data?.results) {
+            notificationsData = response.data.results;
+        } else if (Array.isArray(response.data)) {
+            notificationsData = response.data;
+        } else if (response.data?.data?.results) {
+            notificationsData = response.data.data.results;
+        }
         
         console.log('🔔 Notifications loaded:', notificationsData.length);
         
