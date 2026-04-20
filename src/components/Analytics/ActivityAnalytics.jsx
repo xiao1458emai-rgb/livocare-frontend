@@ -1,5 +1,5 @@
 // src/components/Analytics/ActivityAnalytics.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as stats from 'simple-statistics';
 import * as math from 'mathjs';
@@ -12,6 +12,10 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
     const [activityInsights, setActivityInsights] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    
+    // ✅ useRef لمنع التحديثات المتكررة
+    const isMountedRef = useRef(true);
+    const isFetchingRef = useRef(false);
 
     // معرفة إذا كانت اللغة العربية
     const isArabic = i18n.language.startsWith('ar');
@@ -45,330 +49,20 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         }
     };
 
-    const fetchAllData = async () => {
-        setLoading(true);
-        setError(null);
+    // ✅ دالة لحساب التقدم الأسبوعي
+    const calculateWeekProgress = (activities) => {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
         
-        try {
-            const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
-            
-            const [
-                activitiesRes,
-                sleepRes,
-                moodRes,
-                habitsRes,
-                nutritionRes,
-                healthRes
-            ] = await Promise.all([
-                axiosInstance.get('/activities/').catch(() => ({ data: [] })),
-                axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
-                axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
-                axiosInstance.get('/habit-logs/').catch(() => ({ data: [] })),
-                axiosInstance.get('/meals/').catch(() => ({ data: [] })),
-                axiosInstance.get('/health_status/').catch(() => ({ data: [] }))
-            ]);
-
-            // ✅ التأكد من أن البيانات مصفوفات
-            const allData = {
-                activities: Array.isArray(activitiesRes.data) ? activitiesRes.data : [],
-                sleep: Array.isArray(sleepRes.data) ? sleepRes.data : [],
-                mood: Array.isArray(moodRes.data) ? moodRes.data : [],
-                habits: Array.isArray(habitsRes.data) ? habitsRes.data : [],
-                nutrition: Array.isArray(nutritionRes.data) ? nutritionRes.data : [],
-                health: Array.isArray(healthRes.data) ? healthRes.data : []
-            };
-            
-            const analysis = analyzeActivityRecommendations(allData);
-            setActivityInsights(analysis);
-
-        } catch (err) {
-            console.error('❌ Error:', err);
-            setError(t('analytics.common.error'));
-            setActivityInsights(null);
-        } finally {
-            setLoading(false);
-        }
+        const recentActivities = activities.filter(a => 
+            a.start_time && new Date(a.start_time) >= oneWeekAgo
+        );
+        
+        const recentMinutes = recentActivities.reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
+        return Math.min(100, Math.round((recentMinutes / 150) * 100));
     };
 
-    // ✅ دالة مساعدة لحساب متوسط المزاج
-    const getMoodScore = (mood) => {
-        const map = { 
-            'Excellent': 5, 'ممتاز': 5,
-            'Good': 4, 'جيد': 4,
-            'Neutral': 3, 'محايد': 3,
-            'Stressed': 2, 'مرهق': 2,
-            'Anxious': 2, 'قلق': 2,
-            'Sad': 1, 'حزين': 1
-        };
-        return map[mood] || 3;
-    };
-
-    const analyzeActivityRecommendations = (allData) => {
-        const { activities, sleep, mood, habits, nutrition, health } = allData;
-
-        // ✅ حساب إحصائيات النشاط
-        const activityMinutes = activities
-            .map(a => a.duration_minutes || 0)
-            .filter(m => m > 0 && m <= 180); // تصفية القيم غير المنطقية
-        
-        const totalActivity = activityMinutes.reduce((a, b) => a + b, 0);
-        const avgActivity = safeMean(activityMinutes);
-        const activitiesCount = activities.length;
-
-        // ✅ حساب عوامل التأثير بأمان
-        const sleepHours = sleep
-            .map(s => parseFloat(s.duration_hours) || 0)
-            .filter(h => h > 0 && h < 24);
-        
-        const sleepQualities = sleep
-            .map(s => s.quality_rating || 3)
-            .filter(q => q >= 1 && q <= 5);
-        
-        const moodScores = mood.map(m => getMoodScore(m.mood));
-        
-        const habitCompletion = habits.map(h => h.is_completed ? 1 : 0);
-        
-        const calories = nutrition
-            .map(n => n.total_calories || 0)
-            .filter(c => c > 0 && c < 5000);
-        
-        // ✅ الحصول على آخر قراءات صحية صالحة
-        const lastHealth = health.find(h => h.weight_kg && parseFloat(h.weight_kg) > 0);
-        const previousHealth = health.filter(h => h.weight_kg && parseFloat(h.weight_kg) > 0)[1];
-
-        const factors = {
-            sleep: {
-                avgHours: safeMean(sleepHours),
-                avgQuality: safeMean(sleepQualities),
-                lastSleep: sleep.length > 0 ? sleep[0] : null
-            },
-            mood: {
-                avgScore: safeMean(moodScores),
-                lastMood: mood.length > 0 ? mood[0] : null
-            },
-            habits: {
-                completionRate: safeMean(habitCompletion),
-                totalHabits: habits.length
-            },
-            nutrition: {
-                avgCalories: safeMean(calories),
-                mealsCount: nutrition.length
-            },
-            health: {
-                currentWeight: lastHealth ? parseFloat(lastHealth.weight_kg) : 0,
-                lastWeight: previousHealth ? parseFloat(previousHealth.weight_kg) : null,
-                systolic: lastHealth ? lastHealth.systolic_pressure || 0 : 0,
-                diastolic: lastHealth ? lastHealth.diastolic_pressure || 0 : 0,
-                glucose: lastHealth ? parseFloat(lastHealth.blood_glucose) || 0 : 0
-            }
-        };
-
-        const insights = [];
-
-        // ✅ تحليل تأثير النوم
-        if (factors.sleep.avgHours > 0 && factors.sleep.avgHours < 6 && totalActivity < 100) {
-            insights.push({
-                type: 'sleep_impact',
-                severity: 'high',
-                message: t('analytics.activity.insights.sleepImpact'),
-                details: t('analytics.activity.insights.sleepImpactDetails', { hours: factors.sleep.avgHours.toFixed(1) })
-            });
-        }
-
-        // ✅ تحليل تأثير المزاج
-        if (factors.mood.avgScore > 0 && factors.mood.avgScore < 3 && totalActivity < 100) {
-            insights.push({
-                type: 'mood_impact',
-                severity: 'medium',
-                message: t('analytics.activity.insights.moodImpact'),
-                details: t('analytics.activity.insights.moodImpactDetails')
-            });
-        }
-
-        // ✅ تحليل تأثير التغذية
-        if (factors.nutrition.avgCalories > 0 && factors.nutrition.avgCalories < 1500 && totalActivity < 100) {
-            insights.push({
-                type: 'nutrition_impact',
-                severity: 'high',
-                message: t('analytics.activity.insights.nutritionImpact'),
-                details: t('analytics.activity.insights.nutritionImpactDetails', { calories: Math.round(factors.nutrition.avgCalories) })
-            });
-        }
-
-        // ✅ تحليل تأثير الوزن (مع نطاقات منطقية)
-        if (factors.health.currentWeight > 0) {
-            if (factors.health.currentWeight > 100 && totalActivity < 100) {
-                insights.push({
-                    type: 'weight_impact',
-                    severity: 'medium',
-                    message: t('analytics.activity.insights.weightImpact'),
-                    details: t('analytics.activity.insights.weightImpactDetails')
-                });
-            } else if (factors.health.currentWeight < 50 && totalActivity < 100) {
-                insights.push({
-                    type: 'weight_impact',
-                    severity: 'medium',
-                    message: t('analytics.activity.insights.weightLowImpact'),
-                    details: t('analytics.activity.insights.weightLowImpactDetails')
-                });
-            }
-        }
-
-        // ✅ تحليل تأثير ضغط الدم
-        if (factors.health.systolic > 140 && totalActivity < 100) {
-            insights.push({
-                type: 'bp_impact',
-                severity: 'high',
-                message: t('analytics.activity.insights.bpImpact'),
-                details: t('analytics.activity.insights.bpImpactDetails')
-            });
-        }
-
-        // ✅ تحليل تأثير السكر
-        if (factors.health.glucose > 140 && totalActivity < 100) {
-            insights.push({
-                type: 'glucose_impact',
-                severity: 'high',
-                message: t('analytics.activity.insights.glucoseImpact'),
-                details: t('analytics.activity.insights.glucoseImpactDetails')
-            });
-        }
-
-        const recommendations = [];
-
-        // ✅ توصية زيادة النشاط
-        if (totalActivity < 150) {
-            const needed = 150 - totalActivity;
-            const weeklyNeeded = Math.ceil(needed / 5);
-            
-            recommendations.push({
-                icon: '🏃',
-                title: t('analytics.activity.recommendations.increaseActivity.title'),
-                mainAdvice: t('analytics.activity.recommendations.increaseActivity.advice', { minutes: needed }),
-                basedOn: analyzeWhyNeeded(factors, insights, t),
-                tips: generateActivityTips(factors, weeklyNeeded, t),
-                priority: 'high'
-            });
-        } else if (totalActivity >= 150) {
-            recommendations.push({
-                icon: '🏆',
-                title: t('analytics.activity.recommendations.maintainActivity.title'),
-                mainAdvice: t('analytics.activity.recommendations.maintainActivity.advice'),
-                basedOn: t('analytics.activity.recommendations.maintainActivity.basedOn'),
-                tips: [
-                    t('analytics.activity.recommendations.maintainActivity.tip1'),
-                    t('analytics.activity.recommendations.maintainActivity.tip2'),
-                    t('analytics.activity.recommendations.maintainActivity.tip3')
-                ],
-                priority: 'low'
-            });
-        }
-
-        // ✅ توصية تحسين الجودة
-        const needsQualityImprovement = 
-            (factors.sleep.avgHours > 0 && factors.sleep.avgHours < 6) ||
-            (factors.mood.avgScore > 0 && factors.mood.avgScore < 3) ||
-            (factors.nutrition.avgCalories > 0 && factors.nutrition.avgCalories < 1500);
-        
-        if (needsQualityImprovement) {
-            recommendations.push({
-                icon: '⚡',
-                title: t('analytics.activity.recommendations.improveQuality.title'),
-                mainAdvice: t('analytics.activity.recommendations.improveQuality.advice'),
-                basedOn: extractMainFactor(factors, t),
-                tips: getQualityTips(factors, t),
-                priority: 'medium'
-            });
-        }
-
-        // ✅ توصية وقت النوم
-        const now = new Date();
-        const hour = now.getHours();
-        if (hour >= 20 || hour <= 5) {
-            recommendations.push({
-                icon: '🌙',
-                title: t('analytics.activity.recommendations.sleepTime.title'),
-                mainAdvice: t('analytics.activity.recommendations.sleepTime.advice'),
-                basedOn: t('analytics.activity.recommendations.sleepTime.basedOn'),
-                tips: [
-                    t('analytics.activity.recommendations.sleepTime.tip1'),
-                    t('analytics.activity.recommendations.sleepTime.tip2'),
-                    t('analytics.activity.recommendations.sleepTime.tip3')
-                ],
-                priority: 'low'
-            });
-        }
-
-        // ✅ الملخص
-        const summary = {
-            totalMinutes: totalActivity,
-            totalCalories: activities.reduce((a, b) => a + (b.calories_burned || 0), 0),
-            activitiesCount,
-            avgPerDay: activitiesCount > 0 ? Math.round(totalActivity / activitiesCount) : 0,
-            bestActivity: findBestActivity(activities),
-            weekProgress: Math.min(100, Math.round((totalActivity / 150) * 100))
-        };
-
-        return {
-            summary,
-            insights,
-            recommendations,
-            lastUpdated: new Date().toISOString()
-        };
-    };
-
-    const analyzeWhyNeeded = (factors, insights, t) => {
-        if (insights.length === 0) return t('analytics.activity.reasons.general');
-        
-        const mainInsight = insights[0];
-        if (mainInsight.type === 'sleep_impact') return t('analytics.activity.reasons.sleep');
-        if (mainInsight.type === 'nutrition_impact') return t('analytics.activity.reasons.nutrition');
-        if (mainInsight.type === 'weight_impact') return t('analytics.activity.reasons.weight');
-        if (mainInsight.type === 'bp_impact') return t('analytics.activity.reasons.bp');
-        if (mainInsight.type === 'glucose_impact') return t('analytics.activity.reasons.glucose');
-        
-        return t('analytics.activity.reasons.general');
-    };
-
-    const generateActivityTips = (factors, dailyNeeded, t) => {
-        const tips = [];
-        
-        // ✅ نطاق معقول للنشاط
-        const walkingMinutes = Math.min(dailyNeeded, 30);
-        tips.push(t('analytics.activity.tips.walkDaily', { minutes: walkingMinutes }));
-
-        if (factors.sleep.avgHours > 0 && factors.sleep.avgHours < 6) {
-            tips.push(t('analytics.activity.tips.nap'));
-        }
-        if (factors.mood.avgScore > 0 && factors.mood.avgScore < 3) {
-            tips.push(t('analytics.activity.tips.music'));
-        }
-        if (factors.nutrition.avgCalories > 0 && factors.nutrition.avgCalories < 1500) {
-            tips.push(t('analytics.activity.tips.banana'));
-        }
-        if (factors.health.systolic > 140) {
-            tips.push(t('analytics.activity.tips.gentleStart'));
-        }
-
-        return tips.slice(0, 4);
-    };
-
-    const extractMainFactor = (factors, t) => {
-        if (factors.sleep.avgHours > 0 && factors.sleep.avgHours < 6) return t('analytics.activity.factors.sleep');
-        if (factors.mood.avgScore > 0 && factors.mood.avgScore < 3) return t('analytics.activity.factors.mood');
-        if (factors.nutrition.avgCalories > 0 && factors.nutrition.avgCalories < 1500) return t('analytics.activity.factors.nutrition');
-        return t('analytics.activity.factors.multiple');
-    };
-
-    const getQualityTips = (factors, t) => {
-        const tips = [];
-        if (factors.sleep.avgHours > 0 && factors.sleep.avgHours < 6) tips.push(t('analytics.activity.qualityTips.sleep'));
-        if (factors.nutrition.avgCalories > 0 && factors.nutrition.avgCalories < 1500) tips.push(t('analytics.activity.qualityTips.nutrition'));
-        if (factors.mood.avgScore > 0 && factors.mood.avgScore < 3) tips.push(t('analytics.activity.qualityTips.mood'));
-        tips.push(t('analytics.activity.qualityTips.focus'));
-        return tips.slice(0, 3);
-    };
-
+    // ✅ دالة لإيجاد أفضل نشاط
     const findBestActivity = (activities) => {
         if (activities.length === 0) return null;
         
@@ -380,14 +74,171 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         });
         
         const best = Object.entries(activityCounts).sort((a, b) => b[1] - a[1])[0];
-        return best ? best[0] : null;
+        if (best) {
+            const activityNames = {
+                walking: '🚶 المشي', running: '🏃 الجري', yoga: '🧘 يوجا', 
+                cardio: '❤️ تمارين قلب', weightlifting: '🏋️ رفع أثقال',
+                cycling: '🚴 ركوب دراجة', swimming: '🏊 سباحة'
+            };
+            return activityNames[best[0]] || best[0];
+        }
+        return null;
+    };
+
+    const fetchAllData = async () => {
+        if (isFetchingRef.current || !isMountedRef.current) return;
+        
+        isFetchingRef.current = true;
+        setLoading(true);
+        setError(null);
+        
+        try {
+            // ✅ جلب الأنشطة فقط للتحليلات
+            const activitiesRes = await axiosInstance.get('/activities/').catch(() => ({ data: [] }));
+            
+            let activitiesData = [];
+            if (activitiesRes.data?.results) {
+                activitiesData = activitiesRes.data.results;
+            } else if (Array.isArray(activitiesRes.data)) {
+                activitiesData = activitiesRes.data;
+            }
+            
+            console.log('🏃 Activities for analytics:', activitiesData.length);
+            
+            if (!isMountedRef.current) return;
+            
+            // ✅ حساب إحصائيات النشاط
+            const activityMinutes = activitiesData
+                .map(a => a.duration_minutes || 0)
+                .filter(m => m > 0 && m <= 180);
+            
+            const totalActivity = activityMinutes.reduce((a, b) => a + b, 0);
+            const activitiesCount = activitiesData.length;
+            const totalCalories = activitiesData.reduce((sum, a) => sum + (a.calories_burned || 0), 0);
+            const avgPerDay = activitiesCount > 0 ? Math.round(totalActivity / activitiesCount) : 0;
+            const weekProgress = calculateWeekProgress(activitiesData);
+            const bestActivity = findBestActivity(activitiesData);
+            
+            // ✅ حساب التوصيات بناءً على البيانات المتاحة
+            const recommendations = [];
+            const insights = [];
+            
+            if (activitiesCount === 0) {
+                recommendations.push({
+                    icon: '🏃',
+                    title: t('analytics.activity.recommendations.startActivity.title') || 'ابدأ نشاطك اليوم',
+                    mainAdvice: t('analytics.activity.recommendations.startActivity.advice') || 'سجل أول نشاط رياضي لك اليوم',
+                    basedOn: t('analytics.activity.recommendations.startActivity.basedOn') || 'لا توجد أنشطة مسجلة بعد',
+                    tips: [
+                        t('analytics.activity.recommendations.startActivity.tip1') || 'جرب المشي لمدة 10 دقائق',
+                        t('analytics.activity.recommendations.startActivity.tip2') || 'اختر نشاطاً تحبه',
+                        t('analytics.activity.recommendations.startActivity.tip3') || 'حدد وقتاً ثابتاً يومياً'
+                    ],
+                    priority: 'high'
+                });
+            } else if (totalActivity < 150) {
+                const needed = 150 - totalActivity;
+                recommendations.push({
+                    icon: '🏃',
+                    title: t('analytics.activity.recommendations.increaseActivity.title') || 'زد نشاطك',
+                    mainAdvice: t('analytics.activity.recommendations.increaseActivity.advice', { minutes: needed }) || `أنت بحاجة إلى ${needed} دقيقة إضافية هذا الأسبوع`,
+                    basedOn: t('analytics.activity.recommendations.increaseActivity.basedOn') || `لديك ${totalActivity} دقيقة نشاط من أصل 150 دقيقة موصى بها`,
+                    tips: [
+                        t('analytics.activity.recommendations.increaseActivity.tip1') || 'امشِ 15 دقيقة إضافية يومياً',
+                        t('analytics.activity.recommendations.increaseActivity.tip2') || 'استخدم الدرج بدلاً من المصعد',
+                        t('analytics.activity.recommendations.increaseActivity.tip3') || 'جرب تطبيقات تتبع النشاط'
+                    ],
+                    priority: 'high'
+                });
+            } else {
+                recommendations.push({
+                    icon: '🏆',
+                    title: t('analytics.activity.recommendations.maintainActivity.title') || 'أداء ممتاز',
+                    mainAdvice: t('analytics.activity.recommendations.maintainActivity.advice') || 'أنت تحقق المستوى الموصى به من النشاط',
+                    basedOn: t('analytics.activity.recommendations.maintainActivity.basedOn') || `${totalActivity} دقيقة نشاط هذا الأسبوع`,
+                    tips: [
+                        t('analytics.activity.recommendations.maintainActivity.tip1') || 'نوّع في أنواع التمارين',
+                        t('analytics.activity.recommendations.maintainActivity.tip2') || 'أضف تمارين القوة مرتين أسبوعياً',
+                        t('analytics.activity.recommendations.maintainActivity.tip3') || 'شارك أصدقاءك في النشاط'
+                    ],
+                    priority: 'low'
+                });
+            }
+            
+            // ✅ إضافة توصيات إضافية بناءً على البيانات
+            if (activitiesCount > 0 && avgPerDay < 20) {
+                insights.push({
+                    type: 'duration_impact',
+                    severity: 'medium',
+                    message: t('analytics.activity.insights.shortDuration') || '⏱️ أنشطتك قصيرة المدة',
+                    details: t('analytics.activity.insights.shortDurationDetails') || `متوسط مدة نشاطك ${avgPerDay} دقيقة فقط`
+                });
+            }
+            
+            if (bestActivity && activitiesCount > 0) {
+                insights.push({
+                    type: 'favorite_activity',
+                    severity: 'low',
+                    message: t('analytics.activity.insights.favoriteActivity') || '🎯 نشاطك المفضل',
+                    details: t('analytics.activity.insights.favoriteActivityDetails') || `أكثر نشاط تمارسه هو ${bestActivity}`
+                });
+            }
+            
+            if (weekProgress === 100) {
+                insights.push({
+                    type: 'achievement',
+                    severity: 'success',
+                    message: t('analytics.activity.insights.achievement') || '🏆 إنجاز رائع',
+                    details: t('analytics.activity.insights.achievementDetails') || 'لقد حققت الهدف الأسبوعي للنشاط!'
+                });
+            }
+            
+            const summary = {
+                totalMinutes: totalActivity,
+                totalCalories: totalCalories,
+                activitiesCount: activitiesCount,
+                avgPerDay: avgPerDay,
+                bestActivity: bestActivity,
+                weekProgress: weekProgress
+            };
+            
+            setActivityInsights({
+                summary,
+                insights,
+                recommendations,
+                lastUpdated: new Date().toISOString()
+            });
+            
+        } catch (err) {
+            console.error('❌ Error fetching analytics:', err);
+            if (isMountedRef.current) {
+                setError(t('analytics.common.error'));
+                setActivityInsights(null);
+            }
+        } finally {
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isFetchingRef.current = false;
+        }
+    };
+
+    // ✅ دالة مساعدة للحصول على أيقونة النشاط المفضل
+    const getBestActivityIcon = (activity) => {
+        if (!activity) return '🏃';
+        if (activity.includes('المشي')) return '🚶';
+        if (activity.includes('الجري')) return '🏃';
+        if (activity.includes('يوجا')) return '🧘';
+        if (activity.includes('قلب')) return '❤️';
+        if (activity.includes('أثقال')) return '🏋️';
+        return '🏅';
     };
 
     if (loading) {
         return (
             <div className={`analytics-loading ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="spinner"></div>
-                <p>{t('analytics.activity.loading')}</p>
+                <p>{t('analytics.activity.loading') || 'جاري تحليل نشاطك...'}</p>
             </div>
         );
     }
@@ -397,24 +248,24 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             <div className={`analytics-error ${darkMode ? 'dark-mode' : ''}`}>
                 <p>⚠️ {error}</p>
                 <button onClick={fetchAllData} className="retry-btn">
-                    🔄 {t('analytics.common.retry')}
+                    🔄 {t('analytics.common.retry') || 'إعادة المحاولة'}
                 </button>
             </div>
         );
     }
 
-    if (!activityInsights || activityInsights.summary.totalMinutes === 0) {
+    if (!activityInsights) {
         return (
             <div className={`analytics-container activity-analytics ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="analytics-header">
-                    <h2>{t('analytics.activity.title')}</h2>
-                    <button onClick={fetchAllData} className="refresh-btn" title={t('analytics.common.refresh')}>
+                    <h2>🧠 {t('analytics.activity.title') || 'تحليلات النشاط الذكية'}</h2>
+                    <button onClick={fetchAllData} className="refresh-btn" title={t('analytics.common.refresh') || 'تحديث'}>
                         🔄
                     </button>
                 </div>
                 <div className="no-data">
-                    <p>📊 {t('analytics.common.noData')}</p>
-                    <p className="hint">{t('analytics.activity.startTracking')}</p>
+                    <p>📊 {t('analytics.common.noData') || 'لا توجد بيانات كافية'}</p>
+                    <p className="hint">{t('analytics.activity.startTracking') || 'قم بتسجيل أنشطتك الرياضية للحصول على تحليلات مخصصة'}</p>
                 </div>
             </div>
         );
@@ -423,8 +274,8 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
     return (
         <div className={`analytics-container activity-analytics ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
-                <h2>{t('analytics.activity.title')}</h2>
-                <button onClick={fetchAllData} className="refresh-btn" title={t('analytics.common.refresh')}>
+                <h2>🧠 {t('analytics.activity.title') || 'تحليلات النشاط الذكية'}</h2>
+                <button onClick={fetchAllData} className="refresh-btn" title={t('analytics.common.refresh') || 'تحديث'}>
                     🔄
                 </button>
             </div>
@@ -432,22 +283,23 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             <div className="insights-container">
                 {/* بطاقة الملخص */}
                 <div className="summary-card">
-                    <h3>{t('analytics.activity.currentActivity')}</h3>
+                    <h3>{t('analytics.activity.currentActivity') || 'نشاطك الحالي'}</h3>
                     <div className="summary-stats">
                         <div className="stat">
                             <span className="stat-value">{activityInsights.summary.totalMinutes}</span>
-                            <span className="stat-label">{t('analytics.activity.totalMinutes')}</span>
+                            <span className="stat-label">{t('analytics.activity.totalMinutes') || 'إجمالي الدقائق'}</span>
                         </div>
                         <div className="stat">
                             <span className="stat-value">{activityInsights.summary.totalCalories}</span>
-                            <span className="stat-label">{t('analytics.activity.totalCalories')}</span>
+                            <span className="stat-label">{t('analytics.activity.totalCalories') || 'إجمالي السعرات'}</span>
                         </div>
                         <div className="stat">
                             <span className="stat-value">{activityInsights.summary.activitiesCount}</span>
-                            <span className="stat-label">{t('analytics.activity.activitiesCount')}</span>
+                            <span className="stat-label">{t('analytics.activity.activitiesCount') || 'عدد الأنشطة'}</span>
                         </div>
                     </div>
                     
+                    {/* شريط التقدم الأسبوعي */}
                     <div className="progress-container">
                         <div className="progress-bar-bg">
                             <div 
@@ -455,17 +307,27 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                                 style={{ width: `${activityInsights.summary.weekProgress}%` }}
                             >
                                 <span className="progress-text">
-                                    {t('analytics.activity.weekProgress', { progress: activityInsights.summary.weekProgress })}
+                                    {t('analytics.activity.weekProgress', { progress: activityInsights.summary.weekProgress }) || `${activityInsights.summary.weekProgress}% من هدف الأسبوع`}
                                 </span>
                             </div>
                         </div>
                     </div>
+                    
+                    {/* النشاط المفضل */}
+                    {activityInsights.summary.bestActivity && (
+                        <div className="best-activity">
+                            <span className="best-icon">{getBestActivityIcon(activityInsights.summary.bestActivity)}</span>
+                            <span className="best-text">
+                                {t('analytics.activity.bestActivity') || 'نشاطك المفضل'}: {activityInsights.summary.bestActivity}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* عوامل التأثير */}
-                {activityInsights.insights.length > 0 && (
+                {activityInsights.insights && activityInsights.insights.length > 0 && (
                     <div className="factors-card">
-                        <h3>{t('analytics.activity.factors.title')}</h3>
+                        <h3>{t('analytics.activity.factors.title') || 'رؤى وتحليلات'}</h3>
                         <div className="factors-list">
                             {activityInsights.insights.map((insight, idx) => (
                                 <div key={idx} className={`factor-item severity-${insight.severity}`}>
@@ -476,10 +338,13 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                                         {insight.type === 'weight_impact' && '⚖️'}
                                         {insight.type === 'bp_impact' && '❤️'}
                                         {insight.type === 'glucose_impact' && '🩸'}
+                                        {insight.type === 'duration_impact' && '⏱️'}
+                                        {insight.type === 'favorite_activity' && '🎯'}
+                                        {insight.type === 'achievement' && '🏆'}
                                     </div>
                                     <div className="factor-content">
                                         <p className="factor-message">{insight.message}</p>
-                                        <p className="factor-details">{insight.details}</p>
+                                        {insight.details && <p className="factor-details">{insight.details}</p>}
                                     </div>
                                 </div>
                             ))}
@@ -488,30 +353,34 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 )}
 
                 {/* التوصيات */}
-                <div className="recommendations-card">
-                    <h3>{t('analytics.activity.recommendations.title')}</h3>
-                    <div className="recommendations-list">
-                        {activityInsights.recommendations.map((rec, idx) => (
-                            <div key={idx} className={`recommendation priority-${rec.priority}`}>
-                                <div className="rec-header">
-                                    <span className="rec-icon">{rec.icon}</span>
-                                    <span className="rec-title">{rec.title}</span>
+                {activityInsights.recommendations && activityInsights.recommendations.length > 0 && (
+                    <div className="recommendations-card">
+                        <h3>{t('analytics.activity.recommendations.title') || 'توصيات ذكية'}</h3>
+                        <div className="recommendations-list">
+                            {activityInsights.recommendations.map((rec, idx) => (
+                                <div key={idx} className={`recommendation priority-${rec.priority}`}>
+                                    <div className="rec-header">
+                                        <span className="rec-icon">{rec.icon}</span>
+                                        <span className="rec-title">{rec.title}</span>
+                                    </div>
+                                    <p className="rec-main">{rec.mainAdvice}</p>
+                                    <p className="rec-based">📌 {rec.basedOn}</p>
+                                    {rec.tips && rec.tips.length > 0 && (
+                                        <ul className="rec-tips">
+                                            {rec.tips.map((tip, i) => (
+                                                <li key={i}>💡 {tip}</li>
+                                            ))}
+                                        </ul>
+                                    )}
                                 </div>
-                                <p className="rec-main">{rec.mainAdvice}</p>
-                                <p className="rec-based">📌 {rec.basedOn}</p>
-                                <ul className="rec-tips">
-                                    {rec.tips.map((tip, i) => (
-                                        <li key={i}>{tip}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
                 
                 <div className="analytics-footer">
                     <small>
-                        {t('analytics.common.lastUpdate')}: {new Date(activityInsights.lastUpdated).toLocaleString(isArabic ? 'ar-EG' : 'en-US')}
+                        {t('analytics.common.lastUpdate') || 'آخر تحديث'}: {new Date(activityInsights.lastUpdated).toLocaleString(isArabic ? 'ar-EG' : 'en-US')}
                     </small>
                 </div>
             </div>

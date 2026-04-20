@@ -92,7 +92,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         fetchHistory();
     }, [refreshKey, fetchHistory]);
 
-    // تصفية البيانات حسب البحث
+    // تصفية البيانات حسب البحث - إضافة القلب والأكسجين
     const filteredHistory = useMemo(() => {
         const safeHistory = getSafeHistory();
         if (!searchTerm.trim()) return safeHistory;
@@ -104,11 +104,13 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                    record.weight_kg?.toString().includes(searchLower) ||
                    record.systolic_pressure?.toString().includes(searchLower) ||
                    record.diastolic_pressure?.toString().includes(searchLower) ||
-                   record.blood_glucose?.toString().includes(searchLower);
+                   record.blood_glucose?.toString().includes(searchLower) ||
+                   record.heart_rate?.toString().includes(searchLower) ||
+                   record.spo2?.toString().includes(searchLower);
         });
     }, [history, searchTerm, i18n.language, getSafeHistory]);
 
-    // فرز البيانات
+    // فرز البيانات - إضافة القلب والأكسجين
     const sortedHistory = useMemo(() => {
         if (!filteredHistory.length) return [];
         
@@ -232,47 +234,71 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         return sortConfig.direction === 'desc' ? '⬇️' : '⬆️';
     };
 
-    // ✅ دالة محسنة للحصول على الحالة الصحية - تدعم القيم المفقودة
+    // ✅ دالة محسنة للحصول على الحالة الصحية - تشمل القلب والأكسجين
     const getHealthStatus = (record) => {
         const issues = [];
         
-        // ✅ التحقق من ضغط الدم - فقط إذا كانت القيم موجودة
+        // ✅ نبضات القلب
+        if (record.heart_rate) {
+            if (record.heart_rate > 100) {
+                issues.push(t('history.highHeartRate') || '⚠️ نبض مرتفع');
+            } else if (record.heart_rate < 60) {
+                issues.push(t('history.lowHeartRate') || '⚠️ نبض منخفض');
+            } else {
+                issues.push(t('history.normalHeartRate') || '✅ نبض طبيعي');
+            }
+        } else {
+            issues.push(t('history.heartRateNotMeasured') || '❓ لم يتم قياس النبض');
+        }
+        
+        // ✅ نسبة الأكسجين
+        if (record.spo2) {
+            if (record.spo2 < 95) {
+                issues.push(t('history.lowSpO2') || '⚠️ أكسجين منخفض');
+            } else {
+                issues.push(t('history.normalSpO2') || '✅ أكسجين طبيعي');
+            }
+        } else {
+            issues.push(t('history.spo2NotMeasured') || '❓ لم يتم قياس الأكسجين');
+        }
+        
+        // ✅ ضغط الدم
         if (record.systolic_pressure && record.diastolic_pressure) {
             if (record.systolic_pressure > 140 || record.diastolic_pressure > 90) {
-                issues.push(t('history.highBP'));
+                issues.push(t('history.highBP') || '⚠️ ضغط مرتفع');
             } else if (record.systolic_pressure < 90 || record.diastolic_pressure < 60) {
-                issues.push(t('history.lowBP'));
+                issues.push(t('history.lowBP') || '⚠️ ضغط منخفض');
             } else {
-                issues.push(t('history.normalBP'));
+                issues.push(t('history.normalBP') || '✅ ضغط طبيعي');
             }
         } else {
-            issues.push(t('history.bpNotMeasured'));
+            issues.push(t('history.bpNotMeasured') || '❓ لم يتم قياس الضغط');
         }
         
-        // ✅ التحقق من الجلوكوز - فقط إذا كانت القيمة موجودة
+        // ✅ الجلوكوز
         if (record.blood_glucose) {
             if (record.blood_glucose > 140) {
-                issues.push(t('history.highGlucose'));
+                issues.push(t('history.highGlucose') || '⚠️ سكر مرتفع');
             } else if (record.blood_glucose < 70) {
-                issues.push(t('history.lowGlucose'));
+                issues.push(t('history.lowGlucose') || '⚠️ سكر منخفض');
             } else {
-                issues.push(t('history.normalGlucose'));
+                issues.push(t('history.normalGlucose') || '✅ سكر طبيعي');
             }
         } else {
-            issues.push(t('history.glucoseNotMeasured'));
+            issues.push(t('history.glucoseNotMeasured') || '❓ لم يتم قياس السكر');
         }
         
-        // ✅ التحقق من الوزن - فقط إذا كانت القيمة موجودة
+        // ✅ الوزن
         if (record.weight_kg) {
             if (record.weight_kg > 100) {
-                issues.push(t('history.highWeight'));
+                issues.push(t('history.highWeight') || '⚠️ وزن مرتفع');
             } else if (record.weight_kg < 50) {
-                issues.push(t('history.lowWeight'));
+                issues.push(t('history.lowWeight') || '⚠️ وزن منخفض');
             } else {
-                issues.push(t('history.normalWeight'));
+                issues.push(t('history.normalWeight') || '✅ وزن طبيعي');
             }
         } else {
-            issues.push(t('history.weightNotMeasured'));
+            issues.push(t('history.weightNotMeasured') || '❓ لم يتم قياس الوزن');
         }
         
         return issues;
@@ -280,24 +306,13 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
 
     // ✅ دالة محسنة للحصول على لون الحالة
     const getStatusColor = (status) => {
-        if (status.includes(t('history.normalBP')) || 
-            status.includes(t('history.normalGlucose')) || 
-            status.includes(t('history.normalWeight'))) {
+        if (status.includes('✅')) {
             return '#10b981';
         }
-        if (status.includes(t('history.highBP')) || 
-            status.includes(t('history.highGlucose')) || 
-            status.includes(t('history.highWeight'))) {
+        if (status.includes('⚠️')) {
             return '#ef4444';
         }
-        if (status.includes(t('history.lowBP')) || 
-            status.includes(t('history.lowGlucose')) || 
-            status.includes(t('history.lowWeight'))) {
-            return '#f59e0b';
-        }
-        if (status.includes(t('history.bpNotMeasured')) ||
-            status.includes(t('history.glucoseNotMeasured')) ||
-            status.includes(t('history.weightNotMeasured'))) {
+        if (status.includes('❓')) {
             return '#94a3b8';
         }
         return '#64748b';
@@ -305,26 +320,9 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
 
     // ✅ دالة محسنة للحصول على أيقونة الحالة
     const getStatusIcon = (status) => {
-        if (status.includes(t('history.normalBP')) || 
-            status.includes(t('history.normalGlucose')) || 
-            status.includes(t('history.normalWeight'))) {
-            return '✅';
-        }
-        if (status.includes(t('history.highBP')) || 
-            status.includes(t('history.highGlucose')) || 
-            status.includes(t('history.highWeight'))) {
-            return '⚠️';
-        }
-        if (status.includes(t('history.lowBP')) || 
-            status.includes(t('history.lowGlucose')) || 
-            status.includes(t('history.lowWeight'))) {
-            return '⚡';
-        }
-        if (status.includes(t('history.bpNotMeasured')) ||
-            status.includes(t('history.glucoseNotMeasured')) ||
-            status.includes(t('history.weightNotMeasured'))) {
-            return '❓';
-        }
+        if (status.includes('✅')) return '✅';
+        if (status.includes('⚠️')) return '⚠️';
+        if (status.includes('❓')) return '❓';
         return '📊';
     };
 
@@ -366,6 +364,8 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
     const pressureCount = safeHistory.filter(r => r.systolic_pressure && r.diastolic_pressure && 
         r.systolic_pressure !== null && r.diastolic_pressure !== null).length;
     const glucoseCount = safeHistory.filter(r => r.blood_glucose && r.blood_glucose !== null && r.blood_glucose !== '').length;
+    const heartRateCount = safeHistory.filter(r => r.heart_rate && r.heart_rate !== null && r.heart_rate !== '').length;
+    const spo2Count = safeHistory.filter(r => r.spo2 && r.spo2 !== null && r.spo2 !== '').length;
 
     if (loading) {
         return (
@@ -467,6 +467,16 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                         <span className="stat-label">{t('history.glucose')}</span>
                         <span className="stat-value">{glucoseCount}</span>
                     </div>
+                    <div className="stat-item">
+                        <span className="stat-icon">❤️</span>
+                        <span className="stat-label">{t('history.heartRate') || 'النبض'}</span>
+                        <span className="stat-value">{heartRateCount}</span>
+                    </div>
+                    <div className="stat-item">
+                        <span className="stat-icon">💨</span>
+                        <span className="stat-label">{t('history.spo2') || 'الأكسجين'}</span>
+                        <span className="stat-value">{spo2Count}</span>
+                    </div>
                 </div>
             </div>
 
@@ -532,6 +542,21 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                                             <span className="sort-icon">{getSortIcon('blood_glucose')}</span>
                                         </span>
                                     </th>
+                                    {/* ✅ أعمدة جديدة */}
+                                    <th onClick={() => handleSort('heart_rate')} className="sortable">
+                                        <span className="th-content">
+                                            <span className="th-icon">❤️</span>
+                                            <span className="th-text">{t('history.heartRate') || 'النبض'}</span>
+                                            <span className="sort-icon">{getSortIcon('heart_rate')}</span>
+                                        </span>
+                                    </th>
+                                    <th onClick={() => handleSort('spo2')} className="sortable">
+                                        <span className="th-content">
+                                            <span className="th-icon">💨</span>
+                                            <span className="th-text">{t('history.spo2') || 'الأكسجين'}</span>
+                                            <span className="sort-icon">{getSortIcon('spo2')}</span>
+                                        </span>
+                                    </th>
                                     <th>📈 {t('history.status')}</th>
                                     <th>⚙️ {t('history.actions')}</th>
                                 </tr>
@@ -563,6 +588,13 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                                             </td>
                                             <td className="glucose-cell">
                                                 {displayValue(record.blood_glucose, 'mg/dL', 0)}
+                                            </td>
+                                            {/* ✅ أعمدة جديدة */}
+                                            <td className="heart-rate-cell">
+                                                {displayValue(record.heart_rate, 'BPM', 0)}
+                                            </td>
+                                            <td className="spo2-cell">
+                                                {displayValue(record.spo2, '%', 0)}
                                             </td>
                                             <td className="status-cell">
                                                 <div className="status-badges">
@@ -1171,8 +1203,12 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
     color: var(--text-tertiary);
 }
 
+.heart-rate-cell, .spo2-cell {
+    text-align: center;
+}
+
 .status-cell {
-    min-width: 130px;
+    min-width: 180px;
 }
 
 .status-badges {

@@ -17,7 +17,9 @@ function HealthForm({ onDataSubmitted }) {
         weight: '',
         systolic: '',
         diastolic: '',
-        glucose: ''
+        glucose: '',
+        heartRate: '',    // ✅ جديد: نبضات القلب
+        spo2: ''          // ✅ جديد: نسبة الأكسجين
     });
     
     const [loading, setLoading] = useState(false);
@@ -44,12 +46,14 @@ function HealthForm({ onDataSubmitted }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // حدود التحقق من الصحة
+    // حدود التحقق من الصحة - مع إضافة حدود القلب والأكسجين
     const VALIDATION_LIMITS = {
         weight: { min: 20, max: 300, normalMin: 50, normalMax: 100 },
         systolic: { min: 50, max: 250, normalMin: 90, normalMax: 140 },
         diastolic: { min: 30, max: 180, normalMin: 60, normalMax: 90 },
-        glucose: { min: 30, max: 600, normalMin: 70, normalMax: 140 }
+        glucose: { min: 30, max: 600, normalMin: 70, normalMax: 140 },
+        heartRate: { min: 30, max: 220, normalMin: 60, normalMax: 100 },
+        spo2: { min: 50, max: 100, normalMin: 95, normalMax: 100 }
     };
 
     // الحفظ التلقائي
@@ -90,48 +94,93 @@ function HealthForm({ onDataSubmitted }) {
         }
     }, [t]);
 
-const validateForm = () => {
-    let errors = {};
-    let hasAnyData = false;
+    // ✅ دالة التحقق المعدلة - تدعم الحقول الاختيارية مع الحقول الجديدة
+    const validateForm = () => {
+        let errors = {};
+        let hasAnyData = false;
 
-    // التحقق من الوزن - اختياري
-    if (formData.weight && formData.weight.trim() !== '') {
-        hasAnyData = true;
-        const weight = parseFloat(formData.weight);
-        if (isNaN(weight)) {
-            errors.weight = t('health.form.errors.invalidNumber');
-        } else if (weight < VALIDATION_LIMITS.weight.min || weight > VALIDATION_LIMITS.weight.max) {
-            errors.weight = t('health.form.errors.range', VALIDATION_LIMITS.weight);
+        // التحقق من الوزن - اختياري
+        if (formData.weight && formData.weight.trim() !== '') {
+            hasAnyData = true;
+            const weight = parseFloat(formData.weight);
+            if (isNaN(weight)) {
+                errors.weight = t('health.form.errors.invalidNumber');
+            } else if (weight < VALIDATION_LIMITS.weight.min || weight > VALIDATION_LIMITS.weight.max) {
+                errors.weight = t('health.form.errors.range', VALIDATION_LIMITS.weight);
+            }
         }
-    }
 
-    // التحقق من الضغط الانقباضي - اختياري
-    if (formData.systolic && formData.systolic.trim() !== '') {
-        hasAnyData = true;
-        // ... التحقق
-    }
+        // التحقق من الضغط الانقباضي - اختياري
+        if (formData.systolic && formData.systolic.trim() !== '') {
+            hasAnyData = true;
+            const systolic = parseInt(formData.systolic);
+            if (isNaN(systolic)) {
+                errors.systolic = t('health.form.errors.invalidNumber');
+            } else if (systolic < VALIDATION_LIMITS.systolic.min || systolic > VALIDATION_LIMITS.systolic.max) {
+                errors.systolic = t('health.form.errors.range', VALIDATION_LIMITS.systolic);
+            }
+        }
 
-    // التحقق من الضغط الانبساطي - اختياري
-    if (formData.diastolic && formData.diastolic.trim() !== '') {
-        hasAnyData = true;
-        // ... التحقق
-    }
+        // التحقق من الضغط الانبساطي - اختياري
+        if (formData.diastolic && formData.diastolic.trim() !== '') {
+            hasAnyData = true;
+            const diastolic = parseInt(formData.diastolic);
+            if (isNaN(diastolic)) {
+                errors.diastolic = t('health.form.errors.invalidNumber');
+            } else if (diastolic < VALIDATION_LIMITS.diastolic.min || diastolic > VALIDATION_LIMITS.diastolic.max) {
+                errors.diastolic = t('health.form.errors.range', VALIDATION_LIMITS.diastolic);
+            }
+            // التحقق من أن الضغط الانقباضي أكبر من الانبساطي (إذا كان كلاهما موجود)
+            if (formData.systolic && formData.systolic.trim() !== '') {
+                const systolic = parseInt(formData.systolic);
+                if (!isNaN(systolic) && !isNaN(diastolic) && systolic <= diastolic) {
+                    errors.diastolic = t('health.form.errors.systolicGreater');
+                }
+            }
+        }
 
-    // التحقق من الجلوكوز - اختياري
-    if (formData.glucose && formData.glucose.trim() !== '') {
-        hasAnyData = true;
-        // ... التحقق
-    }
+        // التحقق من الجلوكوز - اختياري
+        if (formData.glucose && formData.glucose.trim() !== '') {
+            hasAnyData = true;
+            const glucose = parseFloat(formData.glucose);
+            if (isNaN(glucose)) {
+                errors.glucose = t('health.form.errors.invalidNumber');
+            } else if (glucose < VALIDATION_LIMITS.glucose.min || glucose > VALIDATION_LIMITS.glucose.max) {
+                errors.glucose = t('health.form.errors.range', VALIDATION_LIMITS.glucose);
+            }
+        }
 
-    // ✅ السماح بالإرسال إذا كان هناك حقل واحد على الأقل مملوء
-    if (!hasAnyData) {
-        errors._general = t('health.form.errors.noData');
-        return false;
-    }
+        // ✅ التحقق من نبضات القلب - اختياري
+        if (formData.heartRate && formData.heartRate.trim() !== '') {
+            hasAnyData = true;
+            const heartRate = parseInt(formData.heartRate);
+            if (isNaN(heartRate)) {
+                errors.heartRate = t('health.form.errors.invalidNumber');
+            } else if (heartRate < VALIDATION_LIMITS.heartRate.min || heartRate > VALIDATION_LIMITS.heartRate.max) {
+                errors.heartRate = t('health.form.errors.range', VALIDATION_LIMITS.heartRate);
+            }
+        }
 
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-};
+        // ✅ التحقق من نسبة الأكسجين - اختياري
+        if (formData.spo2 && formData.spo2.trim() !== '') {
+            hasAnyData = true;
+            const spo2 = parseInt(formData.spo2);
+            if (isNaN(spo2)) {
+                errors.spo2 = t('health.form.errors.invalidNumber');
+            } else if (spo2 < VALIDATION_LIMITS.spo2.min || spo2 > VALIDATION_LIMITS.spo2.max) {
+                errors.spo2 = t('health.form.errors.range', VALIDATION_LIMITS.spo2);
+            }
+        }
+
+        // ✅ السماح بالإرسال إذا كان هناك حقل واحد على الأقل مملوء
+        if (!hasAnyData) {
+            errors._general = t('health.form.errors.noData');
+            return false;
+        }
+
+        setValidationErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
 
     // مسح الرسالة تلقائياً
     useEffect(() => {
@@ -160,7 +209,9 @@ const validateForm = () => {
             weight: '',
             systolic: '',
             diastolic: '',
-            glucose: ''
+            glucose: '',
+            heartRate: '',
+            spo2: ''
         });
         setValidationErrors({});
         localStorage.removeItem('healthForm_autoSave');
@@ -168,106 +219,119 @@ const validateForm = () => {
         setMessageType('info');
     };
 
-// ✅ دالة الإرسال المعدلة - تدعم الحقول الاختيارية
-const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    
-    if (isSubmittingRef.current || !isMountedRef.current) return;
-    
-    if (!validateForm()) {
-        setMessage(t('health.form.correctErrors'));
-        setMessageType('error');
-        return;
-    }
-
-    isSubmittingRef.current = true;
-    setLoading(true);
-    setMessage('');
-    setMessageType('');
-
-    // ✅ بناء كائن البيانات ديناميكياً - فقط الحقول المملوءة
-    const data = {};
-    
-    if (formData.weight && formData.weight.trim() !== '') {
-        data.weight_kg = parseFloat(formData.weight);
-    }
-    
-    if (formData.systolic && formData.systolic.trim() !== '') {
-        data.systolic_pressure = parseInt(formData.systolic);
-    }
-    
-    if (formData.diastolic && formData.diastolic.trim() !== '') {
-        data.diastolic_pressure = parseInt(formData.diastolic);
-    }
-    
-    if (formData.glucose && formData.glucose.trim() !== '') {
-        data.blood_glucose = parseFloat(formData.glucose);
-    }
-
-    console.log('📤 Sending health data to server (partial entry):', data);
-
-    try {
-        const response = await axiosInstance.post('/health_status/', data);
+    // ✅ دالة الإرسال المعدلة - تدعم الحقول الاختيارية بما فيها القلب والأكسجين
+    const handleSubmit = useCallback(async (e) => {
+        e.preventDefault();
         
-        console.log('✅ Server response:', response.data);
+        if (isSubmittingRef.current || !isMountedRef.current) return;
         
-        if (isMountedRef.current) {
-            setMessage(t('health.form.submissionSuccess'));
-            setMessageType('success');
+        if (!validateForm()) {
+            setMessage(t('health.form.correctErrors'));
+            setMessageType('error');
+            return;
+        }
+
+        isSubmittingRef.current = true;
+        setLoading(true);
+        setMessage('');
+        setMessageType('');
+
+        // ✅ بناء كائن البيانات ديناميكياً - فقط الحقول المملوءة
+        const data = {};
+        
+        if (formData.weight && formData.weight.trim() !== '') {
+            data.weight_kg = parseFloat(formData.weight);
+        }
+        
+        if (formData.systolic && formData.systolic.trim() !== '') {
+            data.systolic_pressure = parseInt(formData.systolic);
+        }
+        
+        if (formData.diastolic && formData.diastolic.trim() !== '') {
+            data.diastolic_pressure = parseInt(formData.diastolic);
+        }
+        
+        if (formData.glucose && formData.glucose.trim() !== '') {
+            data.blood_glucose = parseFloat(formData.glucose);
+        }
+        
+        // ✅ حقول جديدة
+        if (formData.heartRate && formData.heartRate.trim() !== '') {
+            data.heart_rate = parseInt(formData.heartRate);
+        }
+        
+        if (formData.spo2 && formData.spo2.trim() !== '') {
+            data.spo2 = parseInt(formData.spo2);
+        }
+
+        console.log('📤 Sending health data to server (partial entry):', data);
+
+        try {
+            const response = await axiosInstance.post('/health_status/', data);
             
-            resetForm();
-            localStorage.removeItem('healthForm_autoSave');
+            console.log('✅ Server response:', response.data);
             
-            console.log('📢 Calling onDataSubmitted...');
-            if (onDataSubmitted) {
-                onDataSubmitted();
-                console.log('✅ onDataSubmitted called');
-            } else {
-                console.warn('⚠️ onDataSubmitted is not defined');
+            if (isMountedRef.current) {
+                setMessage(t('health.form.submissionSuccess'));
+                setMessageType('success');
+                
+                resetForm();
+                localStorage.removeItem('healthForm_autoSave');
+                
+                console.log('📢 Calling onDataSubmitted...');
+                if (onDataSubmitted) {
+                    onDataSubmitted();
+                    console.log('✅ onDataSubmitted called');
+                } else {
+                    console.warn('⚠️ onDataSubmitted is not defined');
+                }
             }
-        }
 
-    } catch (err) {
-        console.error('❌ Submission failed:', err);
-        
-        if (!isMountedRef.current) return;
-        
-        let errorMessage = t('health.form.submissionError');
-        
-        if (err.response?.status === 400) {
-            const errorData = err.response.data;
-            if (errorData?.weight_kg) {
-                errorMessage = Array.isArray(errorData.weight_kg) ? errorData.weight_kg[0] : errorData.weight_kg;
-            } else if (errorData?.systolic_pressure) {
-                errorMessage = Array.isArray(errorData.systolic_pressure) ? errorData.systolic_pressure[0] : errorData.systolic_pressure;
-            } else if (errorData?.diastolic_pressure) {
-                errorMessage = Array.isArray(errorData.diastolic_pressure) ? errorData.diastolic_pressure[0] : errorData.diastolic_pressure;
-            } else if (errorData?.blood_glucose) {
-                errorMessage = Array.isArray(errorData.blood_glucose) ? errorData.blood_glucose[0] : errorData.blood_glucose;
-            } else if (typeof errorData === 'string') {
-                errorMessage = errorData;
-            } else {
-                errorMessage = JSON.stringify(errorData);
+        } catch (err) {
+            console.error('❌ Submission failed:', err);
+            
+            if (!isMountedRef.current) return;
+            
+            let errorMessage = t('health.form.submissionError');
+            
+            if (err.response?.status === 400) {
+                const errorData = err.response.data;
+                if (errorData?.weight_kg) {
+                    errorMessage = Array.isArray(errorData.weight_kg) ? errorData.weight_kg[0] : errorData.weight_kg;
+                } else if (errorData?.systolic_pressure) {
+                    errorMessage = Array.isArray(errorData.systolic_pressure) ? errorData.systolic_pressure[0] : errorData.systolic_pressure;
+                } else if (errorData?.diastolic_pressure) {
+                    errorMessage = Array.isArray(errorData.diastolic_pressure) ? errorData.diastolic_pressure[0] : errorData.diastolic_pressure;
+                } else if (errorData?.blood_glucose) {
+                    errorMessage = Array.isArray(errorData.blood_glucose) ? errorData.blood_glucose[0] : errorData.blood_glucose;
+                } else if (errorData?.heart_rate) {
+                    errorMessage = Array.isArray(errorData.heart_rate) ? errorData.heart_rate[0] : errorData.heart_rate;
+                } else if (errorData?.spo2) {
+                    errorMessage = Array.isArray(errorData.spo2) ? errorData.spo2[0] : errorData.spo2;
+                } else if (typeof errorData === 'string') {
+                    errorMessage = errorData;
+                } else {
+                    errorMessage = JSON.stringify(errorData);
+                }
+            } else if (err.response?.status === 401) {
+                errorMessage = t('health.form.sessionExpired');
+            } else if (err.response?.status === 500) {
+                errorMessage = t('health.form.serverError');
+            } else if (err.code === 'ERR_NETWORK') {
+                errorMessage = '❌ Network error: Cannot connect to server';
             }
-        } else if (err.response?.status === 401) {
-            errorMessage = t('health.form.sessionExpired');
-        } else if (err.response?.status === 500) {
-            errorMessage = t('health.form.serverError');
-        } else if (err.code === 'ERR_NETWORK') {
-            errorMessage = '❌ Network error: Cannot connect to server';
+            
+            setMessage(errorMessage);
+            setMessageType('error');
+        } finally {
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isSubmittingRef.current = false;
         }
-        
-        setMessage(errorMessage);
-        setMessageType('error');
-    } finally {
-        if (isMountedRef.current) {
-            setLoading(false);
-        }
-        isSubmittingRef.current = false;
-    }
-}, [formData, t, onDataSubmitted, validateForm]);
+    }, [formData, t, onDataSubmitted, validateForm]);
 
-    // حساب مؤشرات الصحة
+    // ✅ حساب مؤشرات الصحة - مع إضافة القلب والأكسجين
     const calculateHealthIndicators = () => {
         const indicators = [];
         
@@ -351,6 +415,53 @@ const handleSubmit = useCallback(async (e) => {
             }
         }
         
+        // ✅ مؤشر نبضات القلب
+        if (formData.heartRate) {
+            const heartRate = parseInt(formData.heartRate);
+            if (heartRate > VALIDATION_LIMITS.heartRate.normalMax) {
+                indicators.push({
+                    type: 'warning',
+                    icon: '❤️',
+                    message: t('health.form.indicators.heartRateHigh') || '⚠️ نبضات قلب مرتفعة',
+                    advice: t('health.form.advice.heartRateHigh') || 'استشر طبيبك إذا كان النبض مرتفعاً باستمرار'
+                });
+            } else if (heartRate < VALIDATION_LIMITS.heartRate.normalMin) {
+                indicators.push({
+                    type: 'warning',
+                    icon: '💓',
+                    message: t('health.form.indicators.heartRateLow') || '⚠️ نبضات قلب منخفضة',
+                    advice: t('health.form.advice.heartRateLow') || 'استشر طبيبك إذا كان النبض منخفضاً باستمرار'
+                });
+            } else {
+                indicators.push({
+                    type: 'success',
+                    icon: '✅',
+                    message: t('health.form.indicators.heartRateNormal') || '✅ نبضات قلب طبيعية',
+                    advice: t('health.form.advice.heartRateNormal') || 'حافظ على نشاطك البدني المنتظم'
+                });
+            }
+        }
+        
+        // ✅ مؤشر نسبة الأكسجين
+        if (formData.spo2) {
+            const spo2 = parseInt(formData.spo2);
+            if (spo2 < VALIDATION_LIMITS.spo2.normalMin) {
+                indicators.push({
+                    type: 'warning',
+                    icon: '💨',
+                    message: t('health.form.indicators.spo2Low') || '⚠️ نسبة أكسجين منخفضة',
+                    advice: t('health.form.advice.spo2Low') || 'استشر طبيبك فوراً إذا كانت النسبة أقل من 90%'
+                });
+            } else {
+                indicators.push({
+                    type: 'success',
+                    icon: '✅',
+                    message: t('health.form.indicators.spo2Normal') || '✅ نسبة أكسجين طبيعية',
+                    advice: t('health.form.advice.spo2Normal') || 'حافظ على تهوية جيدة ومارس تمارين التنفس'
+                });
+            }
+        }
+        
         return indicators;
     };
 
@@ -412,7 +523,6 @@ const handleSubmit = useCallback(async (e) => {
                                 step="0.1"
                                 value={formData.weight}
                                 onChange={(e) => handleInputChange('weight', e.target.value)}
-                                required
                                 placeholder={t('health.form.weightPlaceholder')}
                                 className={validationErrors.weight ? 'error' : ''}
                             />
@@ -438,7 +548,6 @@ const handleSubmit = useCallback(async (e) => {
                                 type="number"
                                 value={formData.systolic}
                                 onChange={(e) => handleInputChange('systolic', e.target.value)}
-                                required
                                 placeholder={t('health.form.systolicPlaceholder')}
                                 className={validationErrors.systolic ? 'error' : ''}
                             />
@@ -464,7 +573,6 @@ const handleSubmit = useCallback(async (e) => {
                                 type="number"
                                 value={formData.diastolic}
                                 onChange={(e) => handleInputChange('diastolic', e.target.value)}
-                                required
                                 placeholder={t('health.form.diastolicPlaceholder')}
                                 className={validationErrors.diastolic ? 'error' : ''}
                             />
@@ -491,7 +599,6 @@ const handleSubmit = useCallback(async (e) => {
                                 step="0.1"
                                 value={formData.glucose}
                                 onChange={(e) => handleInputChange('glucose', e.target.value)}
-                                required
                                 placeholder={t('health.form.glucosePlaceholder')}
                                 className={validationErrors.glucose ? 'error' : ''}
                             />
@@ -503,6 +610,58 @@ const handleSubmit = useCallback(async (e) => {
                                 <span className="error-text">{validationErrors.glucose}</span>
                             </div>
                         )}
+                    </div>
+
+                    {/* ✅ حقل نبضات القلب - جديد */}
+                    <div className="input-group">
+                        <label htmlFor="heartRate">
+                            <span className="field-icon">❤️</span>
+                            <span className="field-label">{t('health.form.heartRate') || 'نبضات القلب'}</span>
+                        </label>
+                        <div className="input-wrapper">
+                            <input
+                                id="heartRate"
+                                type="number"
+                                value={formData.heartRate}
+                                onChange={(e) => handleInputChange('heartRate', e.target.value)}
+                                placeholder={t('health.form.heartRatePlaceholder') || '60-100 BPM'}
+                                className={validationErrors.heartRate ? 'error' : ''}
+                            />
+                            <span className="input-unit">BPM</span>
+                        </div>
+                        {validationErrors.heartRate && (
+                            <div className="error-message">
+                                <span className="error-icon">❌</span>
+                                <span className="error-text">{validationErrors.heartRate}</span>
+                            </div>
+                        )}
+                        <small className="field-hint">{t('health.form.heartRateHint') || 'المعدل الطبيعي: 60-100 نبضة في الدقيقة'}</small>
+                    </div>
+
+                    {/* ✅ حقل نسبة الأكسجين - جديد */}
+                    <div className="input-group">
+                        <label htmlFor="spo2">
+                            <span className="field-icon">💨</span>
+                            <span className="field-label">{t('health.form.spo2') || 'نسبة الأكسجين'}</span>
+                        </label>
+                        <div className="input-wrapper">
+                            <input
+                                id="spo2"
+                                type="number"
+                                value={formData.spo2}
+                                onChange={(e) => handleInputChange('spo2', e.target.value)}
+                                placeholder={t('health.form.spo2Placeholder') || '95-100%'}
+                                className={validationErrors.spo2 ? 'error' : ''}
+                            />
+                            <span className="input-unit">%</span>
+                        </div>
+                        {validationErrors.spo2 && (
+                            <div className="error-message">
+                                <span className="error-icon">❌</span>
+                                <span className="error-text">{validationErrors.spo2}</span>
+                            </div>
+                        )}
+                        <small className="field-hint">{t('health.form.spo2Hint') || 'المعدل الطبيعي: 95% - 100%'}</small>
                     </div>
                 </div>
 
@@ -874,6 +1033,12 @@ input:checked + .toggle-slider::before {
     padding: 0.2rem 0.5rem;
     border-radius: 6px;
     border: 1px solid var(--border-light);
+}
+
+.field-hint {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    margin-top: 0.25rem;
 }
 
 .error-message {
@@ -1272,6 +1437,10 @@ input:checked + .toggle-slider::before {
     .input-unit {
         font-size: 0.75rem;
         padding: 0.15rem 0.4rem;
+    }
+
+    .field-hint {
+        font-size: 0.65rem;
     }
 
     .indicator-item {
