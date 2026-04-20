@@ -552,48 +552,51 @@ const handleUserUpdate = async (e) => {
     }
 };
 
-    const handleChangePassword = async (e) => {
-        e.preventDefault();
-        setChangingPassword(true);
-        setMessage('');
+// ابحث عن دالة handleChangePassword وقم بتعديل الرابط:
+
+const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setChangingPassword(true);
+    setMessage('');
+    
+    if (passwordData.new_password !== passwordData.confirm_password) {
+        setMessage(t('profile.password.passwordsDoNotMatch'));
+        setMessageType('error');
+        setChangingPassword(false);
+        return;
+    }
+    
+    if (passwordData.new_password.length < 8) {
+        setMessage(t('profile.password.passwordTooShort'));
+        setMessageType('error');
+        setChangingPassword(false);
+        return;
+    }
+    
+    try {
+        // ✅ غير هذا الرابط من /users/change-password/ إلى /change-password/
+        await axiosInstance.post('/change-password/', {
+            current_password: passwordData.current_password,
+            new_password: passwordData.new_password
+        });
         
-        if (passwordData.new_password !== passwordData.confirm_password) {
-            setMessage(t('profile.password.passwordsDoNotMatch'));
-            setMessageType('error');
-            setChangingPassword(false);
-            return;
-        }
+        setMessage(t('profile.password.changed'));
+        setMessageType('success');
+        setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
         
-        if (passwordData.new_password.length < 8) {
-            setMessage(t('profile.password.passwordTooShort'));
-            setMessageType('error');
-            setChangingPassword(false);
-            return;
+    } catch (error) {
+        console.error('Error changing password:', error);
+        if (error.response?.status === 400) {
+            setMessage(t('profile.password.wrongCurrentPassword'));
+        } else {
+            setMessage(t('profile.password.changeError'));
         }
-        
-        try {
-            await axiosInstance.post('/users/change-password/', {
-                current_password: passwordData.current_password,
-                new_password: passwordData.new_password
-            });
-            
-            setMessage(t('profile.password.changed'));
-            setMessageType('success');
-            setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
-            
-        } catch (error) {
-            console.error('Error changing password:', error);
-            if (error.response?.status === 400) {
-                setMessage(t('profile.password.wrongCurrentPassword'));
-            } else {
-                setMessage(t('profile.password.changeError'));
-            }
-            setMessageType('error');
-        } finally {
-            setChangingPassword(false);
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
+        setMessageType('error');
+    } finally {
+        setChangingPassword(false);
+        setTimeout(() => setMessage(''), 3000);
+    }
+};
 
     const handleAddGoal = async (e) => {
         e.preventDefault();
