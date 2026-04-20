@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import esp32Service from '../services/esp32Service';
+import ActivityAnalytics from './Analytics/ActivityAnalytics';
 import '../index.css';
 
 const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
@@ -17,6 +18,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
     const [editingId, setEditingId] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
+    const [refreshAnalytics, setRefreshAnalytics] = useState(0);
     
     // ✅ حالة المستشعر (ESP32)
     const [sensorConnected, setSensorConnected] = useState(false);
@@ -45,18 +47,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
     const [fetching, setFetching] = useState(true);
     const [message, setMessage] = useState('');
     const [error, setError] = useState(null);
-
-    // ✅ تحليلات النشاط - حالة جديدة
-    const [activityAnalytics, setActivityAnalytics] = useState({
-        totalActivities: 0,
-        totalCalories: 0,
-        totalMinutes: 0,
-        averageDuration: 0,
-        mostActiveDay: null,
-        weeklyProgress: 0,
-        showAnalytics: true,
-        recommendation: ''
-    });
 
     // تحميل إعدادات الوضع المظلم
     useEffect(() => {
@@ -165,75 +155,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         };
     }, [t]);
 
-    // ✅ دالة تحليل النشاط
-    const calculateActivityAnalytics = useCallback((activitiesList) => {
-        if (!activitiesList || activitiesList.length === 0) {
-            setActivityAnalytics({
-                totalActivities: 0,
-                totalCalories: 0,
-                totalMinutes: 0,
-                averageDuration: 0,
-                mostActiveDay: null,
-                weeklyProgress: 0,
-                showAnalytics: true,
-                recommendation: t('activities.noDataAnalytics') || '📊 لا توجد بيانات كافية للتحليل. قم بتسجيل 3 أنشطة على الأقل لتفعيل التوصيات الذكية.'
-            });
-            return;
-        }
-
-        const totalActivities = activitiesList.length;
-        const totalCalories = activitiesList.reduce((sum, act) => sum + (act.calories_burned || 0), 0);
-        const totalMinutes = activitiesList.reduce((sum, act) => sum + (act.duration_minutes || 0), 0);
-        const averageDuration = totalMinutes / totalActivities;
-        
-        // تحليل أكثر يوم نشاط
-        const dayCount = {};
-        activitiesList.forEach(act => {
-            if (act.start_time) {
-                const day = new Date(act.start_time).toLocaleDateString();
-                dayCount[day] = (dayCount[day] || 0) + 1;
-            }
-        });
-        const mostActiveDay = Object.keys(dayCount).length > 0 ? 
-            Object.keys(dayCount).reduce((a, b) => dayCount[a] > dayCount[b] ? a : b) : null;
-        
-        // حساب التقدم الأسبوعي (آخر 7 أيام)
-        const lastWeek = new Date();
-        lastWeek.setDate(lastWeek.getDate() - 7);
-        const recentActivities = activitiesList.filter(act => 
-            act.start_time && new Date(act.start_time) >= lastWeek
-        );
-        const weeklyProgress = recentActivities.length;
-        
-        // ✅ توصيات ذكية محسنة
-        let recommendation = '';
-        if (totalActivities < 3) {
-            recommendation = t('activities.lowDataRecommendation') || '🌟 سجل 3 أنشطة إضافية هذا الأسبوع لتفعيل التحليل الذكي والحصول على توصيات مخصصة.';
-        } else if (weeklyProgress === 0) {
-            recommendation = t('activities.noRecentActivity') || '⚠️ لم تمارس أي نشاط خلال الأسبوع الماضي. حاول ممارسة 30 دقيقة يومياً للحفاظ على صحتك.';
-        } else if (weeklyProgress < 3) {
-            recommendation = t('activities.lowWeeklyActivity') || '💪 أنت في طريقك الصحيح! حاول زيادة نشاطك إلى 3-5 مرات أسبوعياً لتحقيق أفضل النتائج.';
-        } else if (totalMinutes / totalActivities < 20) {
-            recommendation = t('activities.shortDurationRecommendation') || '⏱️ أنشطتك قصيرة المدة. جرب زيادة مدة التمرين إلى 30 دقيقة لحرق المزيد من السعرات.';
-        } else if (totalCalories / totalActivities < 100) {
-            recommendation = t('activities.lowCalorieRecommendation') || '🔥 جرب أنشطة أكثر كثافة مثل الركض أو السباحة لزيادة حرق السعرات.';
-        } else {
-            recommendation = t('activities.greatProgress') || '🎉 أداء رائع! استمر بهذا المستوى من النشاط البدني. أنت في الطريق الصحيح لتحقيق أهدافك الصحية.';
-        }
-        
-        setActivityAnalytics({
-            totalActivities,
-            totalCalories,
-            totalMinutes,
-            averageDuration: Math.round(averageDuration),
-            mostActiveDay,
-            weeklyProgress,
-            showAnalytics: true,
-            recommendation
-        });
-    }, [t]);
-
-    // دالة fetchActivities المعدلة
+    // دالة fetchActivities
     const fetchActivities = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
@@ -256,9 +178,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             
             if (isMountedRef.current) {
                 setActivities(activitiesData);
-                // ✅ تحليل النشاط بعد جلب البيانات
-                calculateActivityAnalytics(activitiesData);
                 if (onActivityChange) onActivityChange();
+                // ✅ تحديث التحليلات
+                setRefreshAnalytics(prev => prev + 1);
                 setError(null);
             }
         } catch (err) {
@@ -266,7 +188,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             if (isMountedRef.current) {
                 setError(t('activities.fetchError'));
                 setActivities([]);
-                calculateActivityAnalytics([]);
             }
         } finally {
             if (isMountedRef.current) {
@@ -274,7 +195,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             }
             isFetchingRef.current = false;
         }
-    }, [t, onActivityChange, calculateActivityAnalytics]);
+    }, [t, onActivityChange]);
 
     useEffect(() => {
         fetchActivities();
@@ -324,10 +245,10 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         try {
             await axiosInstance.delete(`/activities/${id}/`);
             if (isMountedRef.current) {
-                const updatedActivities = activities.filter(activity => activity.id !== id);
-                setActivities(updatedActivities);
-                calculateActivityAnalytics(updatedActivities); // ✅ تحديث التحليلات
+                setActivities(prev => prev.filter(activity => activity.id !== id));
                 setMessage(t('activities.deleted'));
+                // ✅ تحديث التحليلات
+                setRefreshAnalytics(prev => prev + 1);
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
                 }, 3000);
@@ -342,7 +263,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         } finally {
             if (isMountedRef.current) setLoading(false);
         }
-    }, [t, onActivityChange, editingId, activities, calculateActivityAnalytics]);
+    }, [t, onActivityChange, editingId]);
 
     const getActivityOptions = () => [
         { value: 'walking', label: t('activities.walking'), icon: '🚶‍♂️', color: '#3498db' },
@@ -404,23 +325,21 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 response = await axiosInstance.put(`/activities/${editingId}/`, dataToSend);
                 if (isMountedRef.current) {
                     setMessage(t('activities.updated'));
-                    const updatedActivities = activities.map(a => a.id === editingId ? { ...response.data, activity_type: formData.activity_type } : a);
-                    setActivities(updatedActivities);
-                    calculateActivityAnalytics(updatedActivities); // ✅ تحديث التحليلات
+                    setActivities(prev => prev.map(a => a.id === editingId ? { ...response.data, activity_type: formData.activity_type } : a));
                 }
             } else {
                 response = await axiosInstance.post('/activities/', dataToSend);
                 if (isMountedRef.current) {
                     setMessage(t('activities.successMessage'));
-                    const updatedActivities = [{ ...response.data, activity_type: formData.activity_type }, ...activities];
-                    setActivities(updatedActivities);
-                    calculateActivityAnalytics(updatedActivities); // ✅ تحديث التحليلات
+                    setActivities(prev => [{ ...response.data, activity_type: formData.activity_type }, ...prev]);
                 }
             }
             
             if (response.status === 200 || response.status === 201 && isMountedRef.current) {
                 if (onActivityChange) onActivityChange();
                 if (onDataSubmitted) onDataSubmitted();
+                // ✅ تحديث التحليلات
+                setRefreshAnalytics(prev => prev + 1);
                 resetForm();
                 if (isEditing) { setIsEditing(false); setEditingId(null); }
                 setTimeout(() => {
@@ -438,7 +357,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
             }
             isSubmittingRef.current = false;
         }
-    }, [formData, isEditing, editingId, t, onActivityChange, onDataSubmitted, validateFormData, activities, calculateActivityAnalytics]);
+    }, [formData, isEditing, editingId, t, onActivityChange, onDataSubmitted]);
 
     const cancelEdit = () => {
         resetForm();
@@ -499,7 +418,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         }, 3000);
     };
 
-    // ✅ دالة حفظ بيانات المستشعر كقراءة صحية (في HealthStatus)
+    // ✅ دالة حفظ بيانات المستشعر كقراءة صحية
     const addSensorDataAsHealthRecord = async () => {
         if (!sensorHeartRate && !sensorSpO2) {
             setError(t('watch.noWatchData') || 'لا توجد بيانات من المستشعر');
@@ -540,7 +459,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         }
     };
 
-    // ✅ دالة حفظ بيانات المستشعر كنشاط (للأغراض القديمة - اختيارية)
+    // ✅ دالة حفظ بيانات المستشعر كنشاط
     const addSensorDataAsActivity = async () => {
         if (!sensorHeartRate && !sensorSpO2) {
             setError(t('watch.noWatchData'));
@@ -575,10 +494,10 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         try {
             const response = await axiosInstance.post('/activities/', dataToSend);
             if (isMountedRef.current) {
-                const updatedActivities = [{ ...response.data, activity_type: 'walking' }, ...activities];
-                setActivities(updatedActivities);
-                calculateActivityAnalytics(updatedActivities); // ✅ تحديث التحليلات
+                setActivities(prev => [{ ...response.data, activity_type: 'walking' }, ...prev]);
                 setMessage(t('watch.watchDataAdded'));
+                // ✅ تحديث التحليلات
+                setRefreshAnalytics(prev => prev + 1);
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
                 }, 3000);
@@ -615,15 +534,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         }
     };
 
-    // ✅ دالة تحديث التحليلات يدويًا
-    const refreshAnalytics = () => {
-        calculateActivityAnalytics(activities);
-        setMessage(t('activities.analyticsUpdated') || '📊 تم تحديث التحليلات');
-        setTimeout(() => {
-            if (isMountedRef.current) setMessage('');
-        }, 2000);
-    };
-
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -634,73 +544,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
 
     return (
         <div className={`activity-form-container ${darkMode ? 'dark-mode' : ''}`}>
-            {/* ✅ قسم تحليلات النشاط (يظهر دائمًا مع إحصائيات بسيطة) */}
-            <div className="analytics-section card">
-                <div className="analytics-header">
-                    <h3>🧠 {t('activities.smartAnalytics') || 'تحليلات النشاط الذكية'}</h3>
-                    <button onClick={refreshAnalytics} className="refresh-analytics-btn" title={t('common.refresh')}>
-                        🔄 {t('common.update')}
-                    </button>
-                </div>
-                
-                {activityAnalytics.totalActivities === 0 ? (
-                    <div className="analytics-empty">
-                        <div className="empty-icon">📊</div>
-                        <p>{t('activities.noDataAnalytics') || 'لا توجد بيانات كافية للتحليل'}</p>
-                        <small>{t('activities.analyticsHint') || 'قم بإضافة 3 أنشطة على الأقل لتفعيل التحليلات والتوصيات الذكية'}</small>
-                    </div>
-                ) : (
-                    <>
-                        <div className="analytics-stats-grid">
-                            <div className="analytics-stat">
-                                <span className="stat-icon">🏃</span>
-                                <div className="stat-info">
-                                    <span className="stat-value">{activityAnalytics.totalActivities}</span>
-                                    <span className="stat-label">{t('activities.totalActivities') || 'إجمالي الأنشطة'}</span>
-                                </div>
-                            </div>
-                            <div className="analytics-stat">
-                                <span className="stat-icon">🔥</span>
-                                <div className="stat-info">
-                                    <span className="stat-value">{activityAnalytics.totalCalories}</span>
-                                    <span className="stat-label">{t('activities.totalCalories') || 'إجمالي السعرات'}</span>
-                                </div>
-                            </div>
-                            <div className="analytics-stat">
-                                <span className="stat-icon">⏱️</span>
-                                <div className="stat-info">
-                                    <span className="stat-value">{activityAnalytics.totalMinutes}</span>
-                                    <span className="stat-label">{t('activities.totalMinutes') || 'إجمالي الدقائق'}</span>
-                                </div>
-                            </div>
-                            <div className="analytics-stat">
-                                <span className="stat-icon">📊</span>
-                                <div className="stat-info">
-                                    <span className="stat-value">{activityAnalytics.weeklyProgress}</span>
-                                    <span className="stat-label">{t('activities.weeklyProgress') || 'نشاط هذا الأسبوع'}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div className="analytics-recommendation">
-                            <div className="recommendation-icon">💡</div>
-                            <div className="recommendation-text">
-                                <strong>{t('activities.recommendation') || 'توصية ذكية'}:</strong>
-                                <p>{activityAnalytics.recommendation}</p>
-                            </div>
-                        </div>
-                        
-                        {activityAnalytics.averageDuration > 0 && (
-                            <div className="analytics-insight">
-                                <small>
-                                    📈 {t('activities.averageDuration') || 'متوسط مدة النشاط'}: {activityAnalytics.averageDuration} {t('common.minutes')}
-                                    {activityAnalytics.mostActiveDay && ` | 🌟 ${t('activities.mostActiveDay') || 'أكثر يوم نشاط'}: ${activityAnalytics.mostActiveDay}`}
-                                </small>
-                            </div>
-                        )}
-                    </>
-                )}
-            </div>
+            {/* ✅ قسم تحليلات النشاط المتقدمة - يظهر في أعلى الصفحة */}
+            <ActivityAnalytics refreshTrigger={refreshAnalytics} />
 
             {/* ✅ قسم ESP32 Monitor */}
             <div className={`watch-section adb-section ${sensorStatus === 'connected' ? 'connected' : ''}`}>
@@ -932,7 +777,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 )}
             </div>
 
-            {/* الأنماط (styles) - تم إضافة أنماط التحليلات الجديدة */}
+            {/* الأنماط - تم اختصارها للحفاظ على المساحة */}
             <style jsx>{`
                 .activity-form-container {
                     max-width: 800px;
@@ -942,135 +787,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                     min-height: 100vh;
                     transition: background var(--transition-medium, 0.3s);
                 }
-                
-                /* ✅ أنماط قسم التحليلات الجديد */
-                .analytics-section {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    margin-bottom: var(--spacing-lg, 1.5rem);
-                }
-                .dark-mode .analytics-section {
-                    background: linear-gradient(135deg, #4c51bf 0%, #5a67d8 100%);
-                }
-                .analytics-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: var(--spacing-md, 1rem);
-                    flex-wrap: wrap;
-                    gap: var(--spacing-sm, 0.5rem);
-                }
-                .analytics-header h3 {
-                    margin: 0;
-                    color: white;
-                    font-size: 1.2rem;
-                }
-                .refresh-analytics-btn {
-                    padding: var(--spacing-xs, 0.25rem) var(--spacing-md, 1rem);
-                    background: rgba(255, 255, 255, 0.2);
-                    border: 1px solid rgba(255, 255, 255, 0.3);
-                    border-radius: var(--radius-full, 9999px);
-                    color: white;
-                    cursor: pointer;
-                    font-size: 0.85rem;
-                    transition: all var(--transition-medium, 0.3s);
-                }
-                .refresh-analytics-btn:hover {
-                    background: rgba(255, 255, 255, 0.3);
-                    transform: translateY(-2px);
-                }
-                .analytics-empty {
-                    text-align: center;
-                    padding: var(--spacing-xl, 1.5rem);
-                }
-                .analytics-empty .empty-icon {
-                    font-size: 3rem;
-                    margin-bottom: var(--spacing-md, 1rem);
-                    opacity: 0.8;
-                }
-                .analytics-empty p {
-                    margin: 0 0 var(--spacing-sm, 0.5rem) 0;
-                    font-weight: 500;
-                }
-                .analytics-empty small {
-                    opacity: 0.8;
-                    font-size: 0.75rem;
-                }
-                .analytics-stats-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                    gap: var(--spacing-md, 1rem);
-                    margin-bottom: var(--spacing-lg, 1.5rem);
-                }
-                .analytics-stat {
-                    background: rgba(255, 255, 255, 0.15);
-                    backdrop-filter: blur(10px);
-                    border-radius: var(--radius-lg, 0.5rem);
-                    padding: var(--spacing-md, 1rem);
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm, 0.5rem);
-                    transition: all var(--transition-medium, 0.3s);
-                }
-                .analytics-stat:hover {
-                    transform: translateY(-3px);
-                    background: rgba(255, 255, 255, 0.25);
-                }
-                .stat-icon {
-                    font-size: 1.8rem;
-                }
-                .stat-info {
-                    display: flex;
-                    flex-direction: column;
-                }
-                .stat-value {
-                    font-size: 1.5rem;
-                    font-weight: 800;
-                    line-height: 1.2;
-                }
-                .stat-label {
-                    font-size: 0.7rem;
-                    opacity: 0.9;
-                }
-                .analytics-recommendation {
-                    background: rgba(255, 255, 255, 0.1);
-                    border-radius: var(--radius-lg, 0.5rem);
-                    padding: var(--spacing-md, 1rem);
-                    display: flex;
-                    gap: var(--spacing-sm, 0.5rem);
-                    margin-bottom: var(--spacing-sm, 0.5rem);
-                    border-right: 3px solid #fbbf24;
-                }
-                [dir="rtl"] .analytics-recommendation {
-                    border-right: none;
-                    border-left: 3px solid #fbbf24;
-                }
-                .recommendation-icon {
-                    font-size: 1.5rem;
-                }
-                .recommendation-text {
-                    flex: 1;
-                }
-                .recommendation-text strong {
-                    display: block;
-                    margin-bottom: var(--spacing-xs, 0.25rem);
-                    font-size: 0.85rem;
-                    color: #fbbf24;
-                }
-                .recommendation-text p {
-                    margin: 0;
-                    font-size: 0.85rem;
-                    line-height: 1.4;
-                }
-                .analytics-insight {
-                    text-align: center;
-                    padding-top: var(--spacing-sm, 0.5rem);
-                    border-top: 1px solid rgba(255, 255, 255, 0.2);
-                    font-size: 0.7rem;
-                    opacity: 0.8;
-                }
-                
-                /* باقي الأنماط كما هي */
                 .watch-section {
                     background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
                     border-radius: var(--radius-2xl, 1rem);
@@ -1680,7 +1396,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 }
                 @media (max-width: 768px) {
                     .activity-form-container { padding: var(--spacing-md, 1rem); }
-                    .form-row, .watch-actions, .health-stats-grid, .analytics-stats-grid {
+                    .form-row, .watch-actions, .health-stats-grid {
                         grid-template-columns: 1fr;
                         flex-direction: column;
                     }
@@ -1712,15 +1428,11 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                     border-right: none;
                     border-left: 3px solid var(--error, #ef4444);
                 }
-                [dir="rtl"] .analytics-recommendation {
-                    border-right: none;
-                    border-left: 3px solid #fbbf24;
-                }
                 @media (prefers-reduced-motion: reduce) {
-                    .watch-section, .card, .activity-card, .submit-btn, .edit-btn, .delete-btn, .analytics-stat {
+                    .watch-section, .card, .activity-card, .submit-btn, .edit-btn, .delete-btn {
                         transition: none !important;
                     }
-                    .activity-card:hover, .analytics-stat:hover { transform: none !important; }
+                    .activity-card:hover { transform: none !important; }
                     .pulse-dot { animation: none !important; }
                     .spinner, .spinner-small { animation: none !important; }
                 }
