@@ -90,19 +90,17 @@ function Dashboard() {
         checkAuth();
     }, []);
 
-    // ✅ جلب بيانات الصحة - المسار الصحيح
+    // ✅ جلب بيانات الصحة - مع دعم الحقول الفارغة
     const fetchHealthData = async () => {
         try {
             setLoading(true);
             setError(null);
             
-            // ✅ المسار الصحيح للـ API
             const response = await axiosInstance.get('/health_status/');
             console.log('📊 API Response:', response.data);
             
             let records = [];
             
-            // ✅ معالجة البيانات القادمة من API
             if (response.data?.results) {
                 records = response.data.results;
             } else if (Array.isArray(response.data)) {
@@ -114,7 +112,7 @@ function Dashboard() {
             console.log('📊 Records found:', records.length);
             setHealthRecords(records);
             
-            // ✅ استخراج أحدث قراءة
+            // ✅ استخراج أحدث قراءة (قد تحتوي على قيم null)
             if (records.length > 0) {
                 const sortedRecords = [...records].sort((a, b) => 
                     new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at)
@@ -123,7 +121,7 @@ function Dashboard() {
                 
                 console.log('📊 Latest record:', latest);
                 
-                // ✅ التحقق من صحة البيانات
+                // ✅ السماح بالقيم null (تعني أن المستخدم لم يقم بالقياس)
                 const weight = latest.weight_kg ? parseFloat(latest.weight_kg) : null;
                 const systolic = latest.systolic_pressure ? parseInt(latest.systolic_pressure) : null;
                 const diastolic = latest.diastolic_pressure ? parseInt(latest.diastolic_pressure) : null;
@@ -147,7 +145,6 @@ function Dashboard() {
                     recorded_at: latest.recorded_at
                 }));
             } else {
-                // ✅ محاولة جلب من localStorage كنسخة احتياطية
                 const storedData = localStorage.getItem('lastHealthReading');
                 if (storedData) {
                     try {
@@ -166,7 +163,6 @@ function Dashboard() {
             console.error('❌ Error fetching health data:', err);
             setError(t('dashboard.fetchError'));
             
-            // ✅ محاولة جلب من localStorage عند فشل API
             const storedData = localStorage.getItem('lastHealthReading');
             if (storedData) {
                 try {
@@ -207,6 +203,7 @@ function Dashboard() {
         setRefreshKey(prevKey => prevKey + 1);
     };
 
+    // ✅ دالة محسنة لعرض القيم - تعرض "—" للقيم null أو undefined
     const displayValue = (value, unit = '') => {
         if (value === null || value === undefined || value === '') {
             return '—';
@@ -215,8 +212,8 @@ function Dashboard() {
     };
 
     const displayBloodPressure = (systolic, diastolic) => {
-        if (!systolic && systolic !== 0) return '—';
-        if (!diastolic && diastolic !== 0) return '—';
+        if ((!systolic && systolic !== 0) || systolic === null) return '—';
+        if ((!diastolic && diastolic !== 0) || diastolic === null) return '—';
         return `${systolic} / ${diastolic}`;
     };
 
@@ -242,6 +239,16 @@ function Dashboard() {
         setRefreshKey(prev => prev + 1);
     };
 
+    // ✅ حساب عدد القياسات الفعلية (غير null)
+    const getMeasuredCount = () => {
+        let count = 0;
+        if (healthData?.weight !== null && healthData?.weight !== undefined) count++;
+        if (healthData?.systolic !== null && healthData?.systolic !== undefined) count++;
+        if (healthData?.diastolic !== null && healthData?.diastolic !== undefined) count++;
+        if (healthData?.glucose !== null && healthData?.glucose !== undefined) count++;
+        return count;
+    };
+
     const renderSectionContent = () => {
         switch (activeSection) {
             case 'health':
@@ -256,6 +263,19 @@ function Dashboard() {
                                 )}
                             </div>
                             
+                            {/* ✅ عرض عدد القياسات المسجلة اليوم */}
+                            <div className="measurement-badge">
+                                <span className="badge-icon">📋</span>
+                                <span className="badge-text">
+                                    {getMeasuredCount()}/4 {t('dashboard.measurementsRecorded', 'قياسات مسجلة')}
+                                </span>
+                                {getMeasuredCount() < 4 && (
+                                    <span className="badge-hint">
+                                        {t('dashboard.missingMeasurements', 'يمكنك ترك الحقول الفارغة للقياسات التي لم تجريها')}
+                                    </span>
+                                )}
+                            </div>
+                            
                             <div className="summary-cards">
                                 <div className="summary-card">
                                     <div className="card-icon">⚖️</div>
@@ -264,7 +284,10 @@ function Dashboard() {
                                         <p className="card-value">
                                             {displayValue(healthData?.weight, t('dashboard.kg'))}
                                         </p>
-                                        {healthData?.recorded_at && (
+                                        {healthData?.weight === null && (
+                                            <small className="missing-badge">⚠️ {t('dashboard.notMeasured', 'لم يتم القياس')}</small>
+                                        )}
+                                        {healthData?.recorded_at && healthData?.weight !== null && (
                                             <div className="card-time">
                                                 {new Date(healthData.recorded_at).toLocaleTimeString(
                                                     i18n.language === 'ar' ? 'ar-EG' : 'en-US',
@@ -283,6 +306,9 @@ function Dashboard() {
                                         <p className="card-value">
                                             {displayBloodPressure(healthData?.systolic, healthData?.diastolic)}
                                         </p>
+                                        {(!healthData?.systolic || !healthData?.diastolic) && (
+                                            <small className="missing-badge">⚠️ {t('dashboard.notMeasured', 'لم يتم القياس')}</small>
+                                        )}
                                         <small>{t('dashboard.sysDia')}</small>
                                     </div>
                                     <div className="card-glow"></div>
@@ -295,13 +321,17 @@ function Dashboard() {
                                         <p className="card-value">
                                             {displayValue(healthData?.glucose, 'mg/dL')}
                                         </p>
+                                        {healthData?.glucose === null && (
+                                            <small className="missing-badge">⚠️ {t('dashboard.notMeasured', 'لم يتم القياس')}</small>
+                                        )}
                                         <small>{t('dashboard.glucoseLevel')}</small>
                                     </div>
                                     <div className="card-glow"></div>
                                 </div>
                             </div>
                             
-                            {!healthData?.weight && !healthData?.systolic && !healthData?.glucose && (
+                            {/* ✅ رسالة تشجيعية إذا كانت جميع القياسات مفقودة */}
+                            {getMeasuredCount() === 0 && (
                                 <div className="no-data-message">
                                     <div className="no-data-icon">📊</div>
                                     <h4>{t('dashboard.noDataTitle', 'لا توجد بيانات صحية')}</h4>
@@ -314,14 +344,35 @@ function Dashboard() {
                                     </button>
                                 </div>
                             )}
+                            
+                            {/* ✅ رسالة تشجيعية للقياسات الناقصة */}
+                            {getMeasuredCount() > 0 && getMeasuredCount() < 4 && (
+                                <div className="partial-data-message">
+                                    <span>💡</span>
+                                    <p>{t('dashboard.partialDataHint', 'يمكنك تسجيل القياسات المتبقية من النموذج أدناه. الحقول التي تتركها فارغة ستعني أنك لم تقم بالقياس اليوم.')}</p>
+                                </div>
+                            )}
                         </div>
                         
                         <div className="health-components">
                             <div className="health-form">
-                                <HealthForm onDataSubmitted={handleDataSubmitted} />
+                                {/* ✅ تمرير prop للسماح بالحقول الاختيارية */}
+                                <HealthForm 
+                                    onDataSubmitted={handleDataSubmitted} 
+                                    allowPartialEntries={true}
+                                />
                             </div>
-                            <ActivityForm onDataSubmitted={handleDataSubmitted} />
-                            <HealthHistory refreshKey={refreshKey} onDataSubmitted={handleDataSubmitted} />
+                            {/* ✅ ActivityForm مع تحليلات النشاط */}
+                            <ActivityForm 
+                                onDataSubmitted={handleDataSubmitted} 
+                                onActivityChange={handleDataSubmitted}
+                            />
+                            {/* ✅ HealthHistory مع دعم الحقول الفارغة */}
+                            <HealthHistory 
+                                refreshKey={refreshKey} 
+                                onDataSubmitted={handleDataSubmitted}
+                                allowIncompleteEntries={true}
+                            />
                             <HealthCharts refreshKey={refreshKey} />
                         </div>
                     </div>
@@ -826,6 +877,71 @@ input:checked + .toggle-slider::before {
     gap: var(--spacing-xs);
 }
 
+/* ✅ شارة القياسات */
+.measurement-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    background: var(--secondary-bg);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-full);
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    border: 1px solid var(--border-light);
+}
+
+.badge-icon {
+    font-size: 1.1rem;
+}
+
+.badge-text {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.badge-hint {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+}
+
+/* ✅ رسالة البيانات الجزئية */
+.partial-data-message {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+    border-right: 3px solid var(--primary);
+}
+
+[dir="rtl"] .partial-data-message {
+    border-right: none;
+    border-left: 3px solid var(--primary);
+}
+
+.partial-data-message span {
+    font-size: 1.5rem;
+}
+
+.partial-data-message p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+/* ✅ شارة القياس المفقود */
+.missing-badge {
+    display: inline-block;
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.65rem;
+    margin-top: 4px;
+}
+
 /* ===== بطاقات الملخص ===== */
 .summary-cards {
     display: grid;
@@ -1232,6 +1348,16 @@ input:checked + .toggle-slider::before {
         font-size: 1.5rem;
     }
 
+    .measurement-badge {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .partial-data-message {
+        flex-direction: column;
+        text-align: center;
+    }
+
     .no-data-message {
         padding: var(--spacing-xl);
     }
@@ -1361,6 +1487,11 @@ input:checked + .toggle-slider::before {
 
 [dir="rtl"] .header-info {
     align-items: flex-start;
+}
+
+[dir="rtl"] .partial-data-message {
+    border-right: none;
+    border-left: 3px solid var(--primary);
 }
 
 @media (max-width: 767px) {

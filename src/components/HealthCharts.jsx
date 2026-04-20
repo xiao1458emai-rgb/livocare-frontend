@@ -85,18 +85,24 @@ function HealthCharts({ refreshKey }) {
                 data = Object.values(response.data).filter(item => item && typeof item === 'object');
             }
             
-            // ✅ تصفية البيانات الصالحة فقط
+            // ✅ تصفية البيانات الصالحة فقط - تشمل جميع القياسات بما فيها القلب والأكسجين
             const validData = data.filter(record => 
                 record && 
                 record.recorded_at && 
                 (record.weight_kg !== null || 
                  record.systolic_pressure !== null || 
-                 record.blood_glucose !== null)
+                 record.diastolic_pressure !== null ||
+                 record.blood_glucose !== null ||
+                 record.heart_rate !== null ||
+                 record.spo2 !== null)
             );
             
             if (isMountedRef.current) {
                 if (validData.length > 0) {
                     setHistory(validData);
+                    console.log('📊 Health charts data loaded:', validData.length, 'records');
+                    console.log('📊 Contains heart rate:', validData.some(r => r.heart_rate));
+                    console.log('📊 Contains SpO2:', validData.some(r => r.spo2));
                 } else {
                     setHistory([]);
                     console.log('No valid health data available');
@@ -144,7 +150,7 @@ function HealthCharts({ refreshKey }) {
 
     const processChartData = () => {
         if (!history || history.length === 0) {
-            return { dates: [], weights: [], systolic: [], diastolic: [], glucose: [] };
+            return { dates: [], weights: [], systolic: [], diastolic: [], glucose: [], heartRate: [], spo2: [] };
         }
 
         // ✅ ترتيب البيانات حسب التاريخ
@@ -183,10 +189,22 @@ function HealthCharts({ refreshKey }) {
             return (val !== null && val !== undefined && !isNaN(parseFloat(val))) ? parseFloat(val) : null;
         });
 
-        return { dates, weights, systolic, diastolic, glucose };
+        // ✅ بيانات القلب (Heart Rate)
+        const heartRate = sortedHistory.map(record => {
+            const val = record.heart_rate;
+            return (val !== null && val !== undefined && !isNaN(parseInt(val))) ? parseInt(val) : null;
+        });
+
+        // ✅ بيانات الأكسجين (SpO2)
+        const spo2 = sortedHistory.map(record => {
+            const val = record.spo2;
+            return (val !== null && val !== undefined && !isNaN(parseInt(val))) ? parseInt(val) : null;
+        });
+
+        return { dates, weights, systolic, diastolic, glucose, heartRate, spo2 };
     };
 
-    const getChartOptions = (min, max) => ({
+    const getChartOptions = (min, max, yLabel = '') => ({
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -197,6 +215,7 @@ function HealthCharts({ refreshKey }) {
                     usePointStyle: true,
                     padding: 15,
                     color: darkMode ? '#f8fafc' : '#2c3e50',
+                    font: { size: 11 }
                 }
             },
             tooltip: {
@@ -204,6 +223,17 @@ function HealthCharts({ refreshKey }) {
                 backgroundColor: darkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(0, 0, 0, 0.8)',
                 titleColor: darkMode ? '#f8fafc' : '#ffffff',
                 bodyColor: darkMode ? '#cbd5e1' : '#ffffff',
+                callbacks: {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        let value = context.raw;
+                        if (value !== null) {
+                            label += ': ' + value;
+                            if (yLabel) label += ' ' + yLabel;
+                        }
+                        return label;
+                    }
+                }
             }
         },
         scales: {
@@ -215,6 +245,7 @@ function HealthCharts({ refreshKey }) {
                     maxRotation: 45,
                     minRotation: 45,
                     color: darkMode ? '#cbd5e1' : '#64748b',
+                    font: { size: 10 }
                 }
             },
             y: {
@@ -224,16 +255,23 @@ function HealthCharts({ refreshKey }) {
                 },
                 ticks: {
                     color: darkMode ? '#cbd5e1' : '#64748b',
+                    stepSize: yLabel === 'BPM' ? 20 : (yLabel === 'SpO₂%' ? 5 : undefined)
                 },
                 min: min,
-                max: max
+                max: max,
+                title: {
+                    display: !!yLabel,
+                    text: yLabel,
+                    color: darkMode ? '#cbd5e1' : '#64748b',
+                    font: { size: 11 }
+                }
             }
         },
     });
 
-    const getDynamicRange = (data, padding = 0.1) => {
+    const getDynamicRange = (data, padding = 0.1, defaultMin = 0, defaultMax = 100) => {
         const validData = data.filter(val => val !== null && !isNaN(val));
-        if (validData.length === 0) return { min: 0, max: 100 };
+        if (validData.length === 0) return { min: defaultMin, max: defaultMax };
         
         const min = Math.min(...validData);
         const max = Math.max(...validData);
@@ -243,6 +281,23 @@ function HealthCharts({ refreshKey }) {
             min: Math.max(0, min - range * padding),
             max: max + range * padding
         };
+    };
+
+    // ✅ نطاقات خاصة للقلب والأكسجين
+    const getHeartRateRange = (data) => {
+        const validData = data.filter(val => val !== null && !isNaN(val));
+        if (validData.length === 0) return { min: 40, max: 120 };
+        const min = Math.min(...validData);
+        const max = Math.max(...validData);
+        return { min: Math.max(30, min - 10), max: max + 10 };
+    };
+
+    const getSpO2Range = (data) => {
+        const validData = data.filter(val => val !== null && !isNaN(val));
+        if (validData.length === 0) return { min: 85, max: 100 };
+        const min = Math.min(...validData);
+        const max = Math.max(...validData);
+        return { min: Math.max(70, min - 5), max: Math.min(100, max + 5) };
     };
 
     if (loading) {
@@ -277,14 +332,16 @@ function HealthCharts({ refreshKey }) {
         );
     }
 
-    const { dates, weights, systolic, diastolic, glucose } = processChartData();
+    const { dates, weights, systolic, diastolic, glucose, heartRate, spo2 } = processChartData();
     
     // ✅ التحقق من وجود بيانات صالحة للعرض
     const hasWeightData = weights.some(w => w !== null);
     const hasBPData = systolic.some(s => s !== null) || diastolic.some(d => d !== null);
     const hasGlucoseData = glucose.some(g => g !== null);
+    const hasHeartRateData = heartRate.some(h => h !== null);
+    const hasSpO2Data = spo2.some(s => s !== null);
 
-    if (!hasWeightData && !hasBPData && !hasGlucoseData) {
+    if (!hasWeightData && !hasBPData && !hasGlucoseData && !hasHeartRateData && !hasSpO2Data) {
         return (
             <div className={`insufficient-data ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="data-icon">📊</div>
@@ -297,6 +354,19 @@ function HealthCharts({ refreshKey }) {
     const weightRange = getDynamicRange(weights);
     const pressureRange = getDynamicRange([...systolic, ...diastolic]);
     const glucoseRange = getDynamicRange(glucose);
+    const heartRateRange = getHeartRateRange(heartRate);
+    const spo2Range = getSpO2Range(spo2);
+
+    // ✅ حساب الإحصائيات للقلب والأكسجين
+    const validHeartRates = heartRate.filter(h => h !== null);
+    const validSpO2 = spo2.filter(s => s !== null);
+    
+    const avgHeartRate = validHeartRates.length > 0 
+        ? Math.round(validHeartRates.reduce((a, b) => a + b, 0) / validHeartRates.length) 
+        : null;
+    const avgSpO2 = validSpO2.length > 0 
+        ? Math.round(validSpO2.reduce((a, b) => a + b, 0) / validSpO2.length) 
+        : null;
 
     return (
         <div className={`health-charts-container ${darkMode ? 'dark-mode' : ''}`}>
@@ -327,6 +397,20 @@ function HealthCharts({ refreshKey }) {
                         <span className="stat-label">{t('charts.day')}</span>
                         <span className="stat-value">{new Set(dates).size}</span>
                     </div>
+                    {avgHeartRate && (
+                        <div className="stat">
+                            <span className="stat-icon">❤️</span>
+                            <span className="stat-label">{t('charts.avgHeartRate')}</span>
+                            <span className="stat-value">{avgHeartRate}</span>
+                        </div>
+                    )}
+                    {avgSpO2 && (
+                        <div className="stat">
+                            <span className="stat-icon">💨</span>
+                            <span className="stat-label">{t('charts.avgSpO2')}</span>
+                            <span className="stat-value">{avgSpO2}%</span>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -351,14 +435,15 @@ function HealthCharts({ refreshKey }) {
                                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
                                         borderWidth: 3,
                                         tension: 0.4,
-                                        pointRadius: 6,
+                                        pointRadius: 5,
+                                        pointHoverRadius: 7,
                                         pointBackgroundColor: '#3b82f6',
                                         pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
                                         pointBorderWidth: 2,
                                         fill: true,
                                     }]
                                 }} 
-                                options={getChartOptions(weightRange.min, weightRange.max)}
+                                options={getChartOptions(weightRange.min, weightRange.max, 'kg')}
                             />
                         </div>
                     </div>
@@ -385,7 +470,8 @@ function HealthCharts({ refreshKey }) {
                                             backgroundColor: 'rgba(239, 68, 68, 0.1)',
                                             borderWidth: 3,
                                             tension: 0.4,
-                                            pointRadius: 6,
+                                            pointRadius: 5,
+                                            pointHoverRadius: 7,
                                             pointBackgroundColor: '#ef4444',
                                             pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
                                             pointBorderWidth: 2,
@@ -398,7 +484,8 @@ function HealthCharts({ refreshKey }) {
                                             backgroundColor: 'rgba(139, 92, 246, 0.1)',
                                             borderWidth: 3,
                                             tension: 0.4,
-                                            pointRadius: 6,
+                                            pointRadius: 5,
+                                            pointHoverRadius: 7,
                                             pointBackgroundColor: '#8b5cf6',
                                             pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
                                             pointBorderWidth: 2,
@@ -406,7 +493,7 @@ function HealthCharts({ refreshKey }) {
                                         }
                                     ]
                                 }} 
-                                options={getChartOptions(pressureRange.min, pressureRange.max)}
+                                options={getChartOptions(pressureRange.min, pressureRange.max, 'mmHg')}
                             />
                         </div>
                     </div>
@@ -432,22 +519,165 @@ function HealthCharts({ refreshKey }) {
                                         backgroundColor: 'rgba(16, 185, 129, 0.1)',
                                         borderWidth: 3,
                                         tension: 0.4,
-                                        pointRadius: 6,
+                                        pointRadius: 5,
+                                        pointHoverRadius: 7,
                                         pointBackgroundColor: '#10b981',
                                         pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
                                         pointBorderWidth: 2,
                                         fill: true,
                                     }]
                                 }} 
-                                options={getChartOptions(glucoseRange.min, glucoseRange.max)}
+                                options={getChartOptions(glucoseRange.min, glucoseRange.max, 'mg/dL')}
                             />
+                        </div>
+                    </div>
+                )}
+
+                {/* ✅ الرسم البياني لمعدل ضربات القلب (Heart Rate) */}
+                {hasHeartRateData && (
+                    <div className="chart-card heart-rate-card">
+                        <div className="chart-header">
+                            <h3>
+                                <span className="chart-icon">❤️</span>
+                                {t('charts.heartRateTitle') || 'معدل ضربات القلب'}
+                            </h3>
+                            <div className="chart-legend">
+                                <div className="legend-item">
+                                    <div className="legend-color" style={{ backgroundColor: '#ec489a' }}></div>
+                                    <span>{t('charts.heartRateLabel') || 'نبضات القلب'}</span>
+                                </div>
+                                <div className="legend-item normal-range">
+                                    <div className="legend-color" style={{ backgroundColor: 'rgba(16, 185, 129, 0.3)' }}></div>
+                                    <span>{t('charts.normalRange') || 'المعدل الطبيعي (60-100)'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="chart-container">
+                            <Line 
+                                data={{
+                                    labels: dates,
+                                    datasets: [
+                                        {
+                                            label: t('charts.heartRateLabel') || 'معدل ضربات القلب (BPM)',
+                                            data: heartRate,
+                                            borderColor: '#ec489a',
+                                            backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                                            borderWidth: 3,
+                                            tension: 0.4,
+                                            pointRadius: 5,
+                                            pointHoverRadius: 7,
+                                            pointBackgroundColor: '#ec489a',
+                                            pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
+                                            pointBorderWidth: 2,
+                                            fill: true,
+                                        },
+                                        {
+                                            label: t('charts.normalLower') || 'الحد الأدنى الطبيعي (60)',
+                                            data: Array(dates.length).fill(60),
+                                            borderColor: 'rgba(16, 185, 129, 0.5)',
+                                            borderWidth: 2,
+                                            borderDash: [5, 5],
+                                            pointRadius: 0,
+                                            fill: false,
+                                        },
+                                        {
+                                            label: t('charts.normalUpper') || 'الحد الأعلى الطبيعي (100)',
+                                            data: Array(dates.length).fill(100),
+                                            borderColor: 'rgba(16, 185, 129, 0.5)',
+                                            borderWidth: 2,
+                                            borderDash: [5, 5],
+                                            pointRadius: 0,
+                                            fill: false,
+                                        }
+                                    ]
+                                }} 
+                                options={getChartOptions(heartRateRange.min, heartRateRange.max, 'BPM')}
+                            />
+                        </div>
+                        <div className="chart-footer">
+                            {avgHeartRate && (
+                                <div className="chart-stat">
+                                    {t('charts.averageHeartRate') || 'المتوسط'}: {avgHeartRate} BPM
+                                    {avgHeartRate > 100 && <span className="warning"> ⚠️ مرتفع</span>}
+                                    {avgHeartRate < 60 && <span className="warning"> ⚠️ منخفض</span>}
+                                </div>
+                            )}
+                            <div className="chart-stat">
+                                {t('charts.heartRateHint') || 'المعدل الطبيعي: 60-100 نبضة في الدقيقة'}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ✅ الرسم البياني لنسبة الأكسجين في الدم (SpO2) */}
+                {hasSpO2Data && (
+                    <div className="chart-card spo2-card">
+                        <div className="chart-header">
+                            <h3>
+                                <span className="chart-icon">💨</span>
+                                {t('charts.spo2Title') || 'نسبة الأكسجين في الدم'}
+                            </h3>
+                            <div className="chart-legend">
+                                <div className="legend-item">
+                                    <div className="legend-color" style={{ backgroundColor: '#06b6d4' }}></div>
+                                    <span>{t('charts.spo2Label') || 'تشبع الأكسجين'}</span>
+                                </div>
+                                <div className="legend-item normal-range">
+                                    <div className="legend-color" style={{ backgroundColor: 'rgba(16, 185, 129, 0.3)' }}></div>
+                                    <span>{t('charts.normalRange') || 'المعدل الطبيعي (≥95%)'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="chart-container">
+                            <Line 
+                                data={{
+                                    labels: dates,
+                                    datasets: [
+                                        {
+                                            label: t('charts.spo2Label') || 'نسبة الأكسجين (SpO₂%)',
+                                            data: spo2,
+                                            borderColor: '#06b6d4',
+                                            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                                            borderWidth: 3,
+                                            tension: 0.4,
+                                            pointRadius: 5,
+                                            pointHoverRadius: 7,
+                                            pointBackgroundColor: '#06b6d4',
+                                            pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
+                                            pointBorderWidth: 2,
+                                            fill: true,
+                                        },
+                                        {
+                                            label: t('charts.normalThreshold') || 'الحد الطبيعي (95%)',
+                                            data: Array(dates.length).fill(95),
+                                            borderColor: 'rgba(16, 185, 129, 0.5)',
+                                            borderWidth: 2,
+                                            borderDash: [5, 5],
+                                            pointRadius: 0,
+                                            fill: false,
+                                        }
+                                    ]
+                                }} 
+                                options={getChartOptions(spo2Range.min, 100, 'SpO₂%')}
+                            />
+                        </div>
+                        <div className="chart-footer">
+                            {avgSpO2 && (
+                                <div className="chart-stat">
+                                    {t('charts.averageSpO2') || 'المتوسط'}: {avgSpO2}%
+                                    {avgSpO2 < 95 && <span className="warning"> ⚠️ منخفض</span>}
+                                </div>
+                            )}
+                            <div className="chart-stat">
+                                {t('charts.spo2Hint') || 'المعدل الطبيعي: 95% - 100%'}
+                            </div>
                         </div>
                     </div>
                 )}
             </div>
             <style jsx>{`
  /* ===========================================
-   HealthCharts.css - محسن للجوال والشاشات الكبيرة
+   HealthCharts.css - مع رسوم القلب والأكسجين
    =========================================== */
 
 /* الثيم الفاتح */
@@ -466,6 +696,8 @@ function HealthCharts({ refreshKey }) {
     --success-color: #10b981;
     --error-color: #ef4444;
     --warning-color: #f59e0b;
+    --heart-color: #ec489a;
+    --spo2-color: #06b6d4;
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
     --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
@@ -491,6 +723,8 @@ function HealthCharts({ refreshKey }) {
     --success-color: #4ade80;
     --error-color: #f87171;
     --warning-color: #fbbf24;
+    --heart-color: #f472b6;
+    --spo2-color: #22d3ee;
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
     --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.5);
     --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5);
@@ -553,12 +787,6 @@ function HealthCharts({ refreshKey }) {
     align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
-}
-
-.controls-group {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
 }
 
 .refresh-btn {
@@ -676,6 +904,16 @@ function HealthCharts({ refreshKey }) {
     border-color: var(--primary-color);
 }
 
+/* بطاقة القلب */
+.heart-rate-card {
+    border-top: 3px solid var(--heart-color);
+}
+
+/* بطاقة الأكسجين */
+.spo2-card {
+    border-top: 3px solid var(--spo2-color);
+}
+
 .chart-header {
     display: flex;
     justify-content: space-between;
@@ -709,7 +947,7 @@ function HealthCharts({ refreshKey }) {
     display: flex;
     align-items: center;
     gap: 0.35rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--text-secondary);
     padding: 0.25rem 0.5rem;
     background: var(--card-bg);
@@ -722,9 +960,9 @@ function HealthCharts({ refreshKey }) {
 }
 
 .legend-color {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
 }
 
 .chart-container {
@@ -745,7 +983,7 @@ function HealthCharts({ refreshKey }) {
 
 .chart-stat {
     color: var(--text-tertiary);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     background: var(--card-bg);
     padding: 0.25rem 0.75rem;
     border-radius: 20px;
@@ -755,6 +993,11 @@ function HealthCharts({ refreshKey }) {
 .chart-stat:hover {
     color: var(--text-primary);
     background: var(--primary-light);
+}
+
+.chart-stat .warning {
+    color: var(--warning-color);
+    font-weight: 500;
 }
 
 /* ===========================================
@@ -950,11 +1193,6 @@ function HealthCharts({ refreshKey }) {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
-    }
-
-    .controls-group {
-        width: 100%;
-        justify-content: space-between;
     }
 
     .refresh-btn {

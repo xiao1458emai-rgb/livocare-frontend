@@ -47,46 +47,45 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
     }, []);
 
     // ✅ جلب البيانات - مع useCallback ومنع الطلبات المتزامنة
-// ✅ تعديل دالة fetchHistory
-const fetchHistory = useCallback(async () => {
-    if (isFetchingRef.current || !isMountedRef.current) return;
-    
-    isFetchingRef.current = true;
-    setLoading(true);
-    setError(null);
-    
-    try {
-        const response = await axiosInstance.get('/health_status/');
+    const fetchHistory = useCallback(async () => {
+        if (isFetchingRef.current || !isMountedRef.current) return;
         
-        if (!isMountedRef.current) return;
+        isFetchingRef.current = true;
+        setLoading(true);
+        setError(null);
         
-        // ✅ معالجة البيانات - دعم results والمصفوفة
-        let historyData = [];
-        if (response.data?.results) {
-            historyData = response.data.results;
-        } else if (Array.isArray(response.data)) {
-            historyData = response.data;
-        } else {
-            historyData = [];
+        try {
+            const response = await axiosInstance.get('/health_status/');
+            
+            if (!isMountedRef.current) return;
+            
+            // ✅ معالجة البيانات - دعم results والمصفوفة
+            let historyData = [];
+            if (response.data?.results) {
+                historyData = response.data.results;
+            } else if (Array.isArray(response.data)) {
+                historyData = response.data;
+            } else {
+                historyData = [];
+            }
+            
+            console.log('📜 Health history loaded:', historyData.length, 'records');
+            setHistory(historyData);
+            setSelectedRecords([]);
+            setCurrentPage(1);
+        } catch (err) {
+            console.error('Error fetching health history:', err);
+            if (isMountedRef.current) {
+                setError(t('history.fetchError'));
+                setHistory([]);
+            }
+        } finally {
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
+            isFetchingRef.current = false;
         }
-        
-        console.log('📜 Health history loaded:', historyData.length, 'records');
-        setHistory(historyData);
-        setSelectedRecords([]);
-        setCurrentPage(1);
-    } catch (err) {
-        console.error('Error fetching health history:', err);
-        if (isMountedRef.current) {
-            setError(t('history.fetchError'));
-            setHistory([]);
-        }
-    } finally {
-        if (isMountedRef.current) {
-            setLoading(false);
-        }
-        isFetchingRef.current = false;
-    }
-}, [t]);
+    }, [t]);
 
     // ✅ جلب البيانات عند التغيير
     useEffect(() => {
@@ -233,49 +232,140 @@ const fetchHistory = useCallback(async () => {
         return sortConfig.direction === 'desc' ? '⬇️' : '⬆️';
     };
 
+    // ✅ دالة محسنة للحصول على الحالة الصحية - تدعم القيم المفقودة
     const getHealthStatus = (record) => {
         const issues = [];
         
-        if (record.systolic_pressure > 140 || record.diastolic_pressure > 90) {
-            issues.push(t('history.highBP'));
-        }
-        if (record.systolic_pressure < 90 || record.diastolic_pressure < 60) {
-            issues.push(t('history.lowBP'));
-        }
-        if (record.blood_glucose > 140) {
-            issues.push(t('history.highGlucose'));
-        }
-        if (record.blood_glucose < 70) {
-            issues.push(t('history.lowGlucose'));
-        }
-        if (record.weight_kg > 100) {
-            issues.push(t('history.highWeight'));
-        }
-        if (record.weight_kg < 50) {
-            issues.push(t('history.lowWeight'));
+        // ✅ التحقق من ضغط الدم - فقط إذا كانت القيم موجودة
+        if (record.systolic_pressure && record.diastolic_pressure) {
+            if (record.systolic_pressure > 140 || record.diastolic_pressure > 90) {
+                issues.push(t('history.highBP'));
+            } else if (record.systolic_pressure < 90 || record.diastolic_pressure < 60) {
+                issues.push(t('history.lowBP'));
+            } else {
+                issues.push(t('history.normalBP'));
+            }
+        } else {
+            issues.push(t('history.bpNotMeasured'));
         }
         
-        return issues.length > 0 ? issues : [t('history.normal')];
+        // ✅ التحقق من الجلوكوز - فقط إذا كانت القيمة موجودة
+        if (record.blood_glucose) {
+            if (record.blood_glucose > 140) {
+                issues.push(t('history.highGlucose'));
+            } else if (record.blood_glucose < 70) {
+                issues.push(t('history.lowGlucose'));
+            } else {
+                issues.push(t('history.normalGlucose'));
+            }
+        } else {
+            issues.push(t('history.glucoseNotMeasured'));
+        }
+        
+        // ✅ التحقق من الوزن - فقط إذا كانت القيمة موجودة
+        if (record.weight_kg) {
+            if (record.weight_kg > 100) {
+                issues.push(t('history.highWeight'));
+            } else if (record.weight_kg < 50) {
+                issues.push(t('history.lowWeight'));
+            } else {
+                issues.push(t('history.normalWeight'));
+            }
+        } else {
+            issues.push(t('history.weightNotMeasured'));
+        }
+        
+        return issues;
     };
 
+    // ✅ دالة محسنة للحصول على لون الحالة
     const getStatusColor = (status) => {
-        if (status.includes(t('history.normal'))) return '#10b981';
-        if (status.includes(t('history.high')) || status.includes(t('history.low'))) return '#f59e0b';
-        return '#ef4444';
+        if (status.includes(t('history.normalBP')) || 
+            status.includes(t('history.normalGlucose')) || 
+            status.includes(t('history.normalWeight'))) {
+            return '#10b981';
+        }
+        if (status.includes(t('history.highBP')) || 
+            status.includes(t('history.highGlucose')) || 
+            status.includes(t('history.highWeight'))) {
+            return '#ef4444';
+        }
+        if (status.includes(t('history.lowBP')) || 
+            status.includes(t('history.lowGlucose')) || 
+            status.includes(t('history.lowWeight'))) {
+            return '#f59e0b';
+        }
+        if (status.includes(t('history.bpNotMeasured')) ||
+            status.includes(t('history.glucoseNotMeasured')) ||
+            status.includes(t('history.weightNotMeasured'))) {
+            return '#94a3b8';
+        }
+        return '#64748b';
     };
 
+    // ✅ دالة محسنة للحصول على أيقونة الحالة
     const getStatusIcon = (status) => {
-        if (status.includes(t('history.normal'))) return '✅';
-        if (status.includes(t('history.high'))) return '⚠️';
-        if (status.includes(t('history.low'))) return '⚡';
-        return '❌';
+        if (status.includes(t('history.normalBP')) || 
+            status.includes(t('history.normalGlucose')) || 
+            status.includes(t('history.normalWeight'))) {
+            return '✅';
+        }
+        if (status.includes(t('history.highBP')) || 
+            status.includes(t('history.highGlucose')) || 
+            status.includes(t('history.highWeight'))) {
+            return '⚠️';
+        }
+        if (status.includes(t('history.lowBP')) || 
+            status.includes(t('history.lowGlucose')) || 
+            status.includes(t('history.lowWeight'))) {
+            return '⚡';
+        }
+        if (status.includes(t('history.bpNotMeasured')) ||
+            status.includes(t('history.glucoseNotMeasured')) ||
+            status.includes(t('history.weightNotMeasured'))) {
+            return '❓';
+        }
+        return '📊';
     };
 
-    // ✅ استخدام history الآمن في الإحصائيات
+    // ✅ عرض القيمة مع دعم البيانات المفقودة
+    const displayValue = (value, unit, precision = 1) => {
+        if (value === null || value === undefined || value === '') {
+            return <span className="missing-data">—</span>;
+        }
+        const numValue = typeof value === 'number' ? value : parseFloat(value);
+        if (isNaN(numValue)) {
+            return <span className="missing-data">—</span>;
+        }
+        const formattedValue = precision === 0 ? Math.round(numValue) : numValue.toFixed(precision);
+        return (
+            <span className="value">
+                {formattedValue}
+                <span className="unit">{unit}</span>
+            </span>
+        );
+    };
+
+    // ✅ عرض ضغط الدم مع دعم البيانات المفقودة
+    const displayBloodPressure = (systolic, diastolic) => {
+        if ((!systolic && systolic !== 0) || (!diastolic && diastolic !== 0)) {
+            return <span className="missing-data">—</span>;
+        }
+        return (
+            <div className="pressure-display">
+                <span className="systolic">{systolic}</span>
+                <span className="separator">/</span>
+                <span className="diastolic">{diastolic}</span>
+            </div>
+        );
+    };
+
+    // ✅ استخدام history الآمن في الإحصائيات - حساب القيم الفعلية فقط
     const safeHistory = getSafeHistory();
-    const weightCount = safeHistory.filter(r => r.weight_kg).length;
-    const pressureCount = safeHistory.filter(r => r.systolic_pressure && r.diastolic_pressure).length;
-    const glucoseCount = safeHistory.filter(r => r.blood_glucose).length;
+    const weightCount = safeHistory.filter(r => r.weight_kg && r.weight_kg !== null && r.weight_kg !== '').length;
+    const pressureCount = safeHistory.filter(r => r.systolic_pressure && r.diastolic_pressure && 
+        r.systolic_pressure !== null && r.diastolic_pressure !== null).length;
+    const glucoseCount = safeHistory.filter(r => r.blood_glucose && r.blood_glucose !== null && r.blood_glucose !== '').length;
 
     if (loading) {
         return (
@@ -305,6 +395,7 @@ const fetchHistory = useCallback(async () => {
 
     // دالة تنسيق التاريخ بناءً على اللغة
     const formatDate = (dateString) => {
+        if (!dateString) return { date: t('history.unknownDate'), time: '', full: '' };
         const date = new Date(dateString);
         const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-US';
         return {
@@ -465,35 +556,13 @@ const fetchHistory = useCallback(async () => {
                                                 <div className="time-display">{time}</div>
                                             </td>
                                             <td className="weight-cell">
-                                                {record.weight_kg ? (
-                                                    <span className="value">
-                                                        {record.weight_kg}
-                                                        <span className="unit">kg</span>
-                                                    </span>
-                                                ) : (
-                                                    <span className="missing-data">—</span>
-                                                )}
+                                                {displayValue(record.weight_kg, 'kg', 1)}
                                             </td>
                                             <td className="pressure-cell">
-                                                {record.systolic_pressure && record.diastolic_pressure ? (
-                                                    <div className="pressure-display">
-                                                        <span className="systolic">{record.systolic_pressure}</span>
-                                                        <span className="separator">/</span>
-                                                        <span className="diastolic">{record.diastolic_pressure}</span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="missing-data">—</span>
-                                                )}
+                                                {displayBloodPressure(record.systolic_pressure, record.diastolic_pressure)}
                                             </td>
                                             <td className="glucose-cell">
-                                                {record.blood_glucose ? (
-                                                    <span className="value">
-                                                        {record.blood_glucose}
-                                                        <span className="unit">mg/dL</span>
-                                                    </span>
-                                                ) : (
-                                                    <span className="missing-data">—</span>
-                                                )}
+                                                {displayValue(record.blood_glucose, 'mg/dL', 0)}
                                             </td>
                                             <td className="status-cell">
                                                 <div className="status-badges">
@@ -606,7 +675,6 @@ const fetchHistory = useCallback(async () => {
                 />
             )}
 
-
             <style jsx>{`
 /* ===========================================
    HealthHistory.css - محسن للجوال والشاشات الكبيرة
@@ -634,6 +702,7 @@ const fetchHistory = useCallback(async () => {
     --error-bg: #fee2e2;
     --info-color: #3b82f6;
     --info-bg: #dbeafe;
+    --missing-color: #94a3b8;
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
     --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
@@ -665,6 +734,7 @@ const fetchHistory = useCallback(async () => {
     --error-bg: rgba(239, 68, 68, 0.2);
     --info-color: #60a5fa;
     --info-bg: rgba(59, 130, 246, 0.2);
+    --missing-color: #64748b;
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
     --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.5);
     --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5);
@@ -1058,6 +1128,18 @@ const fetchHistory = useCallback(async () => {
     margin-top: 0.1rem;
 }
 
+/* ✅ أنماط البيانات المفقودة */
+.missing-data {
+    color: var(--missing-color);
+    font-style: italic;
+    font-size: 0.85rem;
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    background: var(--secondary-bg);
+    border-radius: 6px;
+    text-align: center;
+}
+
 .value {
     font-weight: 600;
     color: var(--text-primary);
@@ -1067,12 +1149,6 @@ const fetchHistory = useCallback(async () => {
     font-size: 0.7rem;
     color: var(--text-tertiary);
     margin-left: 0.2rem;
-}
-
-.missing-data {
-    color: var(--text-tertiary);
-    font-style: italic;
-    font-size: 0.8rem;
 }
 
 .pressure-display {
@@ -1507,6 +1583,11 @@ const fetchHistory = useCallback(async () => {
 
     .value {
         font-size: 0.8rem;
+    }
+
+    .missing-data {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.4rem;
     }
 
     .status-badge {
