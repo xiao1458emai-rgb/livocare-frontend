@@ -4,7 +4,25 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
-
+// دالة مساعدة لاستخراج البيانات من API بأمان
+const extractDataSafely = (response) => {
+    if (!response || !response.data) return [];
+    
+    // إذا كانت البيانات مصفوفة مباشرة
+    if (Array.isArray(response.data)) return response.data;
+    
+    // إذا كانت البيانات تحتوي على results (مثل paginated responses)
+    if (response.data.results && Array.isArray(response.data.results)) return response.data.results;
+    
+    // إذا كانت البيانات object مع مصفوفة داخل مفتاح آخر
+    if (response.data.data && Array.isArray(response.data.data)) return response.data.data;
+    
+    // إذا كانت البيانات object مع مصفوفة داخل items
+    if (response.data.items && Array.isArray(response.data.items)) return response.data.items;
+    
+    console.warn('Unexpected data format:', response.data);
+    return [];
+};
 // دالة لتقريب الأرقام
 const roundNumber = (num, decimals = 1) => {
     if (isNaN(num)) return 0;
@@ -337,75 +355,113 @@ function ProfileManager({ isAuthReady }) {
         }
     };
 
-    const fetchCurrentHealthData = async () => {
-        try {
-            const [sleepRes, activitiesRes, mealsRes, moodRes, healthRes, habitsRes] = await Promise.all([
-                axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
-                axiosInstance.get('/activities/').catch(() => ({ data: [] })),
-                axiosInstance.get('/meals/').catch(() => ({ data: [] })),
-                axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
-                axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
-                axiosInstance.get('/habit-logs/').catch(() => ({ data: [] }))
-            ]);
-            
-            let avgSleep = 0;
-            if (sleepRes.data.length > 0) {
-                const hours = sleepRes.data.map(s => {
-                    const start = new Date(s.sleep_start || s.start_time);
-                    const end = new Date(s.sleep_end || s.end_time);
-                    return (end - start) / (1000 * 60 * 60);
-                }).filter(h => h > 0 && h < 24);
-                if (hours.length > 0) {
-                    avgSleep = roundNumber(hours.reduce((a, b) => a + b, 0) / hours.length, 1);
-                }
+const fetchCurrentHealthData = async () => {
+    try {
+        const [sleepRes, activitiesRes, mealsRes, moodRes, healthRes, habitsRes] = await Promise.all([
+            axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
+            axiosInstance.get('/activities/').catch(() => ({ data: [] })),
+            axiosInstance.get('/meals/').catch(() => ({ data: [] })),
+            axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
+            axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
+            axiosInstance.get('/habit-logs/').catch(() => ({ data: [] }))
+        ]);
+        
+        // ✅ استخدم الدالة المساعدة لاستخراج البيانات
+        const sleepData = extractDataSafely(sleepRes);
+        const activitiesData = extractDataSafely(activitiesRes);
+        const mealsData = extractDataSafely(mealsRes);
+        const moodData = extractDataSafely(moodRes);
+        const healthData = extractDataSafely(healthRes);
+        const habitsData = extractDataSafely(habitsRes);
+        
+        // حساب متوسط النوم
+        let avgSleep = 0;
+        if (sleepData.length > 0) {
+            const hours = sleepData.map(s => {
+                const start = new Date(s.sleep_start || s.start_time);
+                const end = new Date(s.sleep_end || s.end_time);
+                return (end - start) / (1000 * 60 * 60);
+            }).filter(h => h > 0 && h < 24);
+            if (hours.length > 0) {
+                avgSleep = roundNumber(hours.reduce((a, b) => a + b, 0) / hours.length, 1);
             }
-            
-            const weekAgo = new Date();
-            weekAgo.setDate(weekAgo.getDate() - 7);
-            const weeklyActivity = activitiesRes.data.filter(a => {
-                const date = new Date(a.start_time || a.created_at);
-                return date >= weekAgo;
-            }).reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
-            
-            let avgCalories = 0;
-            if (mealsRes.data.length > 0) {
-                avgCalories = Math.round(mealsRes.data.reduce((sum, m) => sum + (m.total_calories || 0), 0) / mealsRes.data.length);
-            }
-            
-            let avgMood = 0;
-            if (moodRes.data.length > 0) {
-                const getScore = (m) => {
-                    const map = { 'Excellent': 5, 'Good': 4, 'Neutral': 3, 'Stressed': 2, 'Anxious': 2, 'Sad': 1 };
-                    return map[m.mood] || 3;
-                };
-                avgMood = roundNumber(moodRes.data.reduce((sum, m) => sum + getScore(m), 0) / moodRes.data.length, 1);
-            }
-            
-            let habitCompletion = 0;
-            if (habitsRes.data.length > 0) {
-                const completed = habitsRes.data.filter(h => h.is_completed).length;
-                habitCompletion = Math.round((completed / habitsRes.data.length) * 100);
-            }
-            
-            let latestWeight = null;
-            if (healthRes.data.length > 0) {
-                const sortedHealth = [...healthRes.data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                latestWeight = sortedHealth[0]?.weight_kg || null;
-            }
-            
-            setHealthData({
-                weight: latestWeight,
-                sleep: avgSleep,
-                activity: weeklyActivity,
-                calories: avgCalories,
-                mood: avgMood,
-                habit_completion: habitCompletion
-            });
-            
-        } catch (error) {
-            console.error('Error fetching health data:', error);
         }
-    };
+        
+        // حساب النشاط الأسبوعي
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const weeklyActivity = activitiesData.filter(a => {
+            const date = new Date(a.start_time || a.created_at);
+            return date >= weekAgo;
+        }).reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
+        
+        // حساب متوسط السعرات
+        let avgCalories = 0;
+        if (mealsData.length > 0) {
+            const validCalories = mealsData.map(m => m.total_calories || 0).filter(c => c > 0);
+            if (validCalories.length > 0) {
+                avgCalories = Math.round(validCalories.reduce((a, b) => a + b, 0) / validCalories.length);
+            }
+        }
+        
+        // حساب متوسط المزاج
+        let avgMood = 0;
+        if (moodData.length > 0) {
+            const getScore = (m) => {
+                const moodMap = { 
+                    'Excellent': 5, 'Good': 4, 'Neutral': 3, 
+                    'Stressed': 2, 'Anxious': 2, 'Sad': 1,
+                    'Happy': 4, 'Normal': 3, 'Bad': 2
+                };
+                const moodValue = m.mood || m.mood_state || 'Neutral';
+                return moodMap[moodValue] || 3;
+            };
+            const scores = moodData.map(m => getScore(m)).filter(s => s > 0);
+            if (scores.length > 0) {
+                avgMood = roundNumber(scores.reduce((a, b) => a + b, 0) / scores.length, 1);
+            }
+        }
+        
+        // حساب نسبة إكمال العادات
+        let habitCompletion = 0;
+        if (habitsData.length > 0) {
+            const completed = habitsData.filter(h => h.is_completed === true).length;
+            habitCompletion = Math.round((completed / habitsData.length) * 100);
+        }
+        
+        // الحصول على آخر وزن
+        let latestWeight = null;
+        if (healthData.length > 0) {
+            const sortedHealth = [...healthData].sort((a, b) => {
+                const dateA = new Date(a.recorded_at || a.created_at);
+                const dateB = new Date(b.recorded_at || b.created_at);
+                return dateB - dateA;
+            });
+            latestWeight = sortedHealth[0]?.weight_kg || sortedHealth[0]?.weight || null;
+        }
+        
+        setHealthData({
+            weight: latestWeight,
+            sleep: avgSleep,
+            activity: weeklyActivity,
+            calories: avgCalories,
+            mood: avgMood,
+            habit_completion: habitCompletion
+        });
+        
+    } catch (error) {
+        console.error('Error fetching health data:', error);
+        // تعيين قيم افتراضية في حالة الخطأ
+        setHealthData({
+            weight: null,
+            sleep: 0,
+            activity: 0,
+            calories: 0,
+            mood: 0,
+            habit_completion: 0
+        });
+    }
+};
 
 // استبدل دالة fetchUserData بهذه النسخة
 const fetchUserData = async () => {
