@@ -63,21 +63,22 @@ async function saveNotificationToDjango(notification) {
         console.log('📤 Saving notification to Django with token...');
         
         // ✅ استخدم المسار الصحيح (بدون /create/)
-        const response = await fetch('https://livocare.onrender.com/api/notifications/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                title: notification.title || 'LivoCare',
-                message: notification.body || 'لديك إشعار جديد',
-                type: notification.type || 'info',
-                priority: notification.priority || 'medium',
-                is_read: false,
-                action_url: notification.url || '/notifications'
-            })
-        });
+// في sw.js - استخدم المسار الصحيح
+            const response = await fetch('https://livocare.onrender.com/api/notifications/create/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    title: notification.title || 'LivoCare',
+                    message: notification.body || 'لديك إشعار جديد',
+                    type: notification.type || 'info',
+                    priority: notification.priority || 'medium',
+                    is_read: false,
+                    action_url: notification.url || '/notifications'
+                })
+            });
         
         if (response.ok) {
             const result = await response.json();
