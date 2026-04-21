@@ -1,4 +1,4 @@
-// public/sw.js
+// public/sw.js - النسخة النهائية المصححة
 let cachedToken = null;
 
 self.addEventListener('install', function(event) {
@@ -11,17 +11,22 @@ self.addEventListener('activate', function(event) {
     event.waitUntil(clients.claim());
 });
 
-// ✅ دالة للحصول على التوكين
+// ✅ دالة للحصول على التوكين - نسخة مبسطة ومضمونة
 async function getAccessToken() {
+    // أولاً: التحقق من التوكين المخزن
     if (cachedToken) {
+        console.log('✅ Using cached token');
         return cachedToken;
     }
     
+    // ثانياً: محاولة الحصول من الصفحات المفتوحة
     try {
         const clients = await self.clients.matchAll({
             type: 'window',
             includeUncontrolled: true
         });
+        
+        console.log(`Found ${clients.length} clients`);
         
         for (const client of clients) {
             return new Promise((resolve) => {
@@ -29,13 +34,14 @@ async function getAccessToken() {
                 channel.port1.onmessage = (event) => {
                     if (event.data && event.data.token) {
                         cachedToken = event.data.token;
+                        console.log('✅ Token obtained from client');
                         resolve(cachedToken);
                     } else {
                         resolve(null);
                     }
                 };
                 client.postMessage({ type: 'GET_TOKEN' }, [channel.port2]);
-                setTimeout(() => resolve(null), 2000);
+                setTimeout(() => resolve(null), 3000);
             });
         }
         return null;
@@ -48,9 +54,11 @@ async function getAccessToken() {
 // ✅ دالة لحفظ الإشعار في Django
 async function saveNotificationToDjango(notification) {
     try {
+        console.log('🔍 Getting token for saving notification...');
         const token = await getAccessToken();
+        
         if (!token) {
-            console.log('No token, skipping save to Django');
+            console.log('❌ No token available, skipping save to Django');
             return;
         }
         
@@ -76,10 +84,10 @@ async function saveNotificationToDjango(notification) {
             const result = await response.json();
             console.log('✅ Notification saved to Django:', result);
         } else {
-            console.log('Failed to save notification:', response.status);
+            console.log('❌ Failed to save notification:', response.status);
         }
     } catch (error) {
-        console.error('Failed to save notification to Django:', error);
+        console.error('❌ Failed to save notification to Django:', error);
     }
 }
 
