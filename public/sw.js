@@ -1,4 +1,6 @@
 // public/sw.js
+let cachedToken = null;
+
 self.addEventListener('install', function(event) {
     console.log('✅ Service Worker installed');
     self.skipWaiting();
@@ -9,19 +11,33 @@ self.addEventListener('activate', function(event) {
     event.waitUntil(clients.claim());
 });
 
-// ✅ دالة للحصول على التوكين
+// ✅ دالة للحصول على التوكين - طريقة مبسطة
 async function getAccessToken() {
+    // إذا كان لدينا توكين مخزن، استخدمه
+    if (cachedToken) {
+        return cachedToken;
+    }
+    
     try {
-        // محاولة الحصول من IndexedDB أو من fetch
-        const clients = await self.clients.matchAll();
-        if (clients.length > 0) {
+        // محاولة الحصول من الصفحات المفتوحة
+        const clients = await self.clients.matchAll({
+            type: 'window',
+            includeUncontrolled: true
+        });
+        
+        for (const client of clients) {
             return new Promise((resolve) => {
                 const channel = new MessageChannel();
                 channel.port1.onmessage = (event) => {
-                    resolve(event.data.token);
+                    if (event.data && event.data.token) {
+                        cachedToken = event.data.token;
+                        resolve(cachedToken);
+                    } else {
+                        resolve(null);
+                    }
                 };
-                clients[0].postMessage({ type: 'GET_TOKEN' }, [channel.port2]);
-                setTimeout(() => resolve(null), 1000);
+                client.postMessage({ type: 'GET_TOKEN' }, [channel.port2]);
+                setTimeout(() => resolve(null), 2000);
             });
         }
         return null;
@@ -40,6 +56,8 @@ async function saveNotificationToDjango(notification) {
             return;
         }
         
+        console.log('📤 Saving notification to Django with token...');
+        
         const response = await fetch('https://livocare.onrender.com/api/notifications/create/', {
             method: 'POST',
             headers: {
@@ -57,7 +75,8 @@ async function saveNotificationToDjango(notification) {
         });
         
         if (response.ok) {
-            console.log('✅ Notification saved to Django');
+            const result = await response.json();
+            console.log('✅ Notification saved to Django:', result);
         } else {
             console.log('Failed to save notification:', response.status);
         }
@@ -98,7 +117,6 @@ self.addEventListener('push', function(event) {
         requireInteraction: true
     };
     
-    // ✅ عرض الإشعار وحفظه في Django
     event.waitUntil(
         Promise.all([
             self.registration.showNotification(data.title || 'LivoCare', options),
@@ -116,13 +134,11 @@ self.addEventListener('notificationclick', function(event) {
         event.waitUntil(
             clients.matchAll({ type: 'window', includeUncontrolled: true })
                 .then(windowClients => {
-                    // إذا كانت هناك نافذة مفتوحة، انتقل إليها
                     for (let client of windowClients) {
                         if (client.url.includes(urlToOpen) && 'focus' in client) {
                             return client.focus();
                         }
                     }
-                    // وإلا افتح نافذة جديدة
                     if (clients.openWindow) {
                         return clients.openWindow(urlToOpen);
                     }
@@ -131,10 +147,17 @@ self.addEventListener('notificationclick', function(event) {
     }
 });
 
-// ✅ الاستماع لرسائل من الصفحة الرئيسية للحصول على التوكين
+// ✅ الاستماع لرسائل من الصفحة الرئيسية
 self.addEventListener('message', function(event) {
-    if (event.data && event.data.type === 'TOKEN_RESPONSE') {
-        // تخزين التوكين مؤقتاً
-        self.token = event.data.token;
+    console.log('📨 Message received in SW:', event.data);
+    
+    if (event.data && event.data.type === 'GET_TOKEN') {
+        // هذا يتم التعامل معه من خلال MessageChannel
+        console.log('Token requested via message channel');
+    }
+    
+    if (event.data && event.data.type === 'TOKEN') {
+        cachedToken = event.data.token;
+        console.log('✅ Token cached in Service Worker');
     }
 });
