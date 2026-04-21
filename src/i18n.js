@@ -573,7 +573,21 @@ const resources = {
             "bpNormal": "✅ ضغط الدم طبيعي (بين 90/60 - 140/90)",
             "glucoseHigh": "⚠️ جلوكوز الدم مرتفع (أعلى من 140)",
             "glucoseLow": "⚠️ جلوكوز الدم منخفض (أقل من 70)",
-            "glucoseNormal": "✅ جلوكوز الدم طبيعي (بين 70-140)"
+            "glucoseNormal": "✅ جلوكوز الدم طبيعي (بين 70-140)",
+            "health.form.indicators.heartRateHigh": "⚠️ نبضات قلب مرتفعة",
+"health.form.indicators.heartRateLow": "⚠️ نبضات قلب منخفضة",
+"health.form.indicators.heartRateNormal": "✅ نبضات قلب طبيعية",
+"health.form.indicators.spo2Low": "⚠️ نسبة أكسجين منخفضة",
+"health.form.indicators.spo2Normal": "✅ نسبة أكسجين طبيعية",
+
+"health.form.advice.heartRateHigh": "استشر طبيبك إذا كان النبض مرتفعاً باستمرار",
+"health.form.advice.heartRateLow": "استشر طبيبك إذا كان النبض منخفضاً باستمرار",
+"health.form.advice.heartRateNormal": "حافظ على نشاطك البدني المنتظم",
+"health.form.advice.spo2Low": "استشر طبيبك فوراً إذا كانت النسبة أقل من 90%",
+"health.form.advice.spo2Normal": "حافظ على تهوية جيدة ومارس تمارين التنفس",
+
+"health.form.errors.heartRate": "يجب أن يكون النبض بين {{min}} و {{max}} نبضة في الدقيقة",
+"health.form.errors.spo2": "يجب أن تكون نسبة الأكسجين بين {{min}} و {{max}}%"
           },
           "weightHint": "النطاق الطبيعي: 50-100 كجم",
           "systolicHint": "النطاق الطبيعي: 90-140 mmHg",
@@ -632,7 +646,12 @@ const resources = {
   "spo2Low": "استشر طبيبك فوراً إذا كانت النسبة أقل من 90%",
   "spo2Normal": "حافظ على تهوية جيدة ومارس تمارين التنفس"
 }
-          }
+          },
+          "health.form.heartRate": "معدل ضربات القلب",
+"health.form.heartRatePlaceholder": "60-100",
+"health.form.spo2": "نسبة الأكسجين في الدم",
+"health.form.spo2Placeholder": "95-100",
+"health.form.spo2Hint": "المعدل الطبيعي: 95% - 100%",
         }
       },
 
@@ -686,7 +705,21 @@ const resources = {
 "normalUpper": "الحد الأعلى الطبيعي (100)",
 "normalThreshold": "الحد الطبيعي (95%)",
 "averageHeartRate": "المتوسط",
-"averageSpO2": "المتوسط"
+"averageSpO2": "المتوسط",
+"charts.heartRateTitle": "معدل ضربات القلب",
+"charts.heartRateLabel": "نبضات القلب (BPM)",
+"charts.avgHeartRate": "متوسط النبض",
+"charts.avgSpO2": "متوسط الأكسجين",
+"charts.spo2Title": "نسبة الأكسجين في الدم",
+"charts.spo2Label": "نسبة الأكسجين (SpO₂%)",
+"charts.heartRateHint": "المعدل الطبيعي: 60-100 نبضة في الدقيقة",
+"charts.spo2Hint": "المعدل الطبيعي: 95% - 100%",
+"charts.normalRange": "المعدل الطبيعي",
+"charts.normalLower": "الحد الأدنى الطبيعي (60)",
+"charts.normalUpper": "الحد الأعلى الطبيعي (100)",
+"charts.normalThreshold": "الحد الطبيعي (95%)",
+"charts.averageHeartRate": "المتوسط",
+"charts.averageSpO2": "المتوسط"
       },
 
       "history": {
@@ -729,7 +762,14 @@ const resources = {
 "heartRateNotMeasured": "❓ لم يتم قياس النبض",
 "lowSpO2": "⚠️ أكسجين منخفض",
 "normalSpO2": "✅ أكسجين طبيعي",
-"spo2NotMeasured": "❓ لم يتم قياس الأكسجين"
+"spo2NotMeasured": "❓ لم يتم قياس الأكسجين",
+"history.bpNotMeasured": "لم يتم قياس الضغط",
+"history.glucoseNotMeasured": "لم يتم قياس السكر",
+"history.weightNotMeasured": "لم يتم قياس الوزن",
+"history.normalGlucose": "✅ طبيعي",
+"history.normalWeight": "✅ طبيعي",
+"history.page": "صفحة",
+"history.of": "من"
       },
 
   "profile": {
@@ -1037,7 +1077,21 @@ const resources = {
         "normalStatus": "طبيعي",
         "editRecord": "تعديل",
         "deleteRecord": "حذف",
-        "systolicDiastolic": "انقباضي / انبساطي"
+        "systolicDiastolic": "انقباضي / انبساطي",
+        "dashboard.energyAnalysis": "⚡ تحليل استهلاك الطاقة",
+"dashboard.bmr": "معدل الأيض الأساسي",
+"dashboard.dailyBurn": "الحرق اليومي",
+"dashboard.avgDailyIntake": "متوسط الاستهلاك اليومي",
+"dashboard.dailyDeficit": "العجز اليومي",
+"dashboard.pulsePressureAnalysis": "❤️ تحليل ضغط النبض",
+"dashboard.pulsePressure": "ضغط النبض",
+"dashboard.preExerciseRisk": "⚠️ تحليل المخاطر قبل التمرين",
+"dashboard.todaysActivity": "نشاط اليوم",
+"dashboard.noExerciseYet": "⚠️ لم تمارس الرياضة بعد",
+"dashboard.vitalSigns": "📊 العلامات الحيوية",
+"dashboard.high": "⚠️ مرتفع",
+"dashboard.low": "⚠️ منخفض",
+"dashboard.ideal": "✅ مثالي"
       },
 
       "app": {
@@ -1361,7 +1415,24 @@ const resources = {
 "currentActivity": "نشاطك الحالي",
 "factors": {
   "title": "رؤى وتحليلات"
-}
+},
+"analytics.activity.bestActivity": "🏋️ نشاطك المفضل",
+"analytics.activity.totalMinutes": "إجمالي الدقائق",
+"analytics.activity.totalCalories": "إجمالي السعرات",
+"analytics.activity.activitiesCount": "عدد الأنشطة",
+"analytics.activity.weekProgress": "{{progress}}% من هدف الأسبوع",
+"analytics.activity.currentActivity": "📊 نشاطك الحالي",
+"analytics.activity.insights.shortDuration": "⏱️ أنشطتك قصيرة المدة",
+"analytics.activity.insights.shortDurationDetails": "متوسط مدة نشاطك {{avg}} دقيقة فقط",
+"analytics.activity.insights.favoriteActivity": "🎯 نشاطك المفضل",
+"analytics.activity.insights.favoriteActivityDetails": "أكثر نشاط تمارسه هو {{activity}}",
+"analytics.activity.recommendations.title": "💡 توصيات ذكية",
+"analytics.activity.recommendations.increaseActivity.title": "🏃 زد نشاطك الأسبوعي",
+"analytics.activity.recommendations.increaseActivity.advice": "تحتاج {{minutes}} دقيقة إضافية هذا الأسبوع",
+"analytics.activity.recommendations.increaseActivity.tip1": "💡 امشِ 15 دقيقة إضافية يومياً",
+"analytics.activity.recommendations.increaseActivity.tip2": "💡 استخدم الدرج بدلاً من المصعد",
+"analytics.activity.recommendations.increaseActivity.tip3": "💡 جرب تطبيقات تتبع النشاط",
+"analytics.activity.factors.title": "💡 رؤى وتحليلات"
         },
         "habit": {
           "title": "💊 تحليلات العادات الذكية",
@@ -1657,7 +1728,15 @@ const resources = {
       "unread": "غير مقروء",
       "read": "مقروء",
       "last7Days": "آخر 7 أيام"
-    }
+    },
+    "notifications.preferences": "تفضيلات الإشعارات",
+"notifications.deleteAllRead": "حذف المقروء",
+"notifications.stats": "إحصائيات",
+"notifications.total": "إجمالي الإشعارات",
+"notifications.stats.total": "الإجمالي",
+"notifications.stats.unread": "غير مقروء",
+"notifications.stats.read": "مقروء",
+"notifications.stats.last7Days": "آخر 7 أيام"
   },
 
       "smartDashboard": {
@@ -2303,7 +2382,14 @@ const resources = {
         "waitingData": "⏳ انتظار البيانات",
         "saveAsHealthRecord": "حفظ كقراءة صحية",
 "healthDataAdded": "✅ تم حفظ القراءة الصحية",
-"healthDataAddError": "❌ فشل حفظ القراءة الصحية"
+"healthDataAddError": "❌ فشل حفظ القراءة الصحية",
+"watch.saveAsHealthRecord": "💾 حفظ كقراءة صحية",
+"watch.healthDataAdded": "✅ تم حفظ القراءة الصحية",
+"watch.healthDataAddError": "❌ فشل حفظ القراءة الصحية",
+"watch.highStatus": "⚠️ مرتفع",
+"watch.lowStatus": "⚠️ منخفض",
+"watch.normalStatus": "✅ طبيعي",
+"watch.waitingData": "⏳ انتظار البيانات"
       },
   "chat": {
     "title": "الدردشة الذكية",
@@ -2894,7 +2980,19 @@ const resources = {
           "bpNormal": "✅ Blood pressure is normal (90/60 - 140/90)",
           "glucoseHigh": "⚠️ Blood glucose is high (above 140)",
           "glucoseLow": "⚠️ Blood glucose is low (below 70)",
-          "glucoseNormal": "✅ Blood glucose is normal (70-140)"
+          "glucoseNormal": "✅ Blood glucose is normal (70-140)",
+          "health.form.indicators.heartRateHigh": "⚠️ High heart rate",
+"health.form.indicators.heartRateLow": "⚠️ Low heart rate",
+"health.form.indicators.heartRateNormal": "✅ Normal heart rate",
+"health.form.indicators.spo2Low": "⚠️ Low blood oxygen",
+"health.form.indicators.spo2Normal": "✅ Normal blood oxygen",
+"health.form.advice.heartRateHigh": "Consult your doctor if heart rate remains high",
+"health.form.advice.heartRateLow": "Consult your doctor if heart rate remains low",
+"health.form.advice.heartRateNormal": "Maintain your regular physical activity",
+"health.form.advice.spo2Low": "Consult your doctor immediately if below 90%",
+"health.form.advice.spo2Normal": "Maintain good ventilation and practice breathing exercises",
+"health.form.errors.heartRate": "Heart rate should be between {{min}} and {{max}} BPM",
+"health.form.errors.spo2": "Blood oxygen should be between {{min}} and {{max}}%"
         },
         "weightHint": "Normal range: 50-100 kg",
         "systolicHint": "Normal range: 90-140 mmHg",
@@ -2950,7 +3048,12 @@ const resources = {
       "heartRateLow": "⚠️ Low heart rate",
       "heartRateNormal": "✅ Normal heart rate",
       "spo2Low": "⚠️ Low blood oxygen",
-      "spo2Normal": "✅ Normal blood oxygen"
+      "spo2Normal": "✅ Normal blood oxygen",
+      "health.form.heartRate": "Heart Rate",
+"health.form.heartRatePlaceholder": "60-100",
+"health.form.spo2": "Blood Oxygen (SpO₂)",
+"health.form.spo2Placeholder": "95-100",
+"health.form.spo2Hint": "Normal range: 95% - 100%",
     }}
     },
 
@@ -3004,7 +3107,21 @@ const resources = {
   "normalUpper": "Upper Normal Limit (100)",
   "normalThreshold": "Normal Threshold (95%)",
   "averageHeartRate": "Average",
-  "averageSpO2": "Average"
+  "averageSpO2": "Average",
+  "charts.heartRateTitle": "Heart Rate",
+"charts.heartRateLabel": "Heart Rate (BPM)",
+"charts.avgHeartRate": "Avg Heart Rate",
+"charts.avgSpO2": "Avg SpO₂",
+"charts.spo2Title": "Blood Oxygen Level",
+"charts.spo2Label": "Oxygen Saturation (SpO₂%)",
+"charts.heartRateHint": "Normal range: 60-100 BPM",
+"charts.spo2Hint": "Normal range: 95% - 100%",
+"charts.normalRange": "Normal Range",
+"charts.normalLower": "Lower Normal Limit (60)",
+"charts.normalUpper": "Upper Normal Limit (100)",
+"charts.normalThreshold": "Normal Threshold (95%)",
+"charts.averageHeartRate": "Average",
+"charts.averageSpO2": "Average"
     },
 
     "history": {
@@ -3047,7 +3164,14 @@ const resources = {
   "heartRateNotMeasured": "❓ Heart rate not measured",
   "lowSpO2": "⚠️ Low SpO2",
   "normalSpO2": "✅ Normal SpO2",
-  "spo2NotMeasured": "❓ SpO2 not measured"
+  "spo2NotMeasured": "❓ SpO2 not measured",
+  "history.bpNotMeasured": "Not measured",
+"history.glucoseNotMeasured": "Not measured",
+"history.weightNotMeasured": "Not measured",
+"history.normalGlucose": "✅ Normal",
+"history.normalWeight": "✅ Normal",
+"history.page": "Page",
+"history.of": "of"
     },
 
   "profile": {
@@ -3354,7 +3478,21 @@ const resources = {
       "normalStatus": "Normal",
       "editRecord": "Edit",
       "deleteRecord": "Delete",
-      "systolicDiastolic": "Systolic / Diastolic"
+      "systolicDiastolic": "Systolic / Diastolic",
+      "dashboard.energyAnalysis": "⚡ Energy Analysis",
+"dashboard.bmr": "BMR",
+"dashboard.dailyBurn": "Daily Burn",
+"dashboard.avgDailyIntake": "Avg Daily Intake",
+"dashboard.dailyDeficit": "Daily Deficit",
+"dashboard.pulsePressureAnalysis": "❤️ Pulse Pressure Analysis",
+"dashboard.pulsePressure": "Pulse Pressure",
+"dashboard.preExerciseRisk": "⚠️ Pre-Exercise Risk",
+"dashboard.todaysActivity": "Today's Activity",
+"dashboard.noExerciseYet": "⚠️ No exercise yet",
+"dashboard.vitalSigns": "📊 Vital Signs",
+"dashboard.high": "⚠️ High",
+"dashboard.low": "⚠️ Low",
+"dashboard.ideal": "✅ Ideal"
     },
 
     "app": {
@@ -3647,7 +3785,24 @@ const resources = {
       "favoriteActivity": "🎯 Your Favorite Activity",
       "favoriteActivityDetails": "Your most frequent activity is {{activity}}",
       "achievement": "🏆 Great Achievement",
-      "achievementDetails": "You've reached your weekly activity goal!"}
+      "achievementDetails": "You've reached your weekly activity goal!"},
+      "analytics.activity.insights.shortDuration": "⏱️ Your activities are short",
+"analytics.activity.insights.shortDurationDetails": "Average activity duration is {{avg}} minutes only",
+"analytics.activity.insights.favoriteActivity": "🎯 Your favorite activity",
+"analytics.activity.insights.favoriteActivityDetails": "Your most frequent activity is {{activity}}",
+"analytics.activity.recommendations.title": "Smart Recommendations",
+"analytics.activity.recommendations.increaseActivity.title": "Increase Your Weekly Activity",
+"analytics.activity.recommendations.increaseActivity.advice": "You need {{minutes}} more minutes this week",
+"analytics.activity.recommendations.increaseActivity.tip1": "🚶 Walk 15 extra minutes daily",
+"analytics.activity.recommendations.increaseActivity.tip2": "💡 Use stairs instead of elevator",
+"analytics.activity.recommendations.increaseActivity.tip3": "💡 Try activity tracking apps",
+"analytics.activity.bestActivity": "🏋️ Your favorite activity",
+"analytics.activity.totalMinutes": "Total Minutes",
+"analytics.activity.totalCalories": "Total Calories",
+"analytics.activity.activitiesCount": "Activities",
+"analytics.activity.weekProgress": "{{progress}}% of weekly goal",
+"analytics.activity.currentActivity": "📊 Your Current Activity",
+"analytics.activity.factors.title": "💡 Insights & Analytics"
       },
       "habit": {
         "title": "💊 Smart Habit Analytics",
@@ -4616,7 +4771,14 @@ const resources = {
       "waitingData": "⏳ Waiting for data",
         "saveAsHealthRecord": "Save as Health Record",
   "healthDataAdded": "✅ Health record saved",
-  "healthDataAddError": "❌ Failed to save health record"
+  "healthDataAddError": "❌ Failed to save health record",
+  "watch.saveAsHealthRecord": "💾 Save as Health Record",
+"watch.healthDataAdded": "✅ Health record saved",
+"watch.healthDataAddError": "❌ Failed to save health record",
+"watch.highStatus": "⚠️ High",
+"watch.lowStatus": "⚠️ Low",
+"watch.normalStatus": "✅ Normal",
+"watch.waitingData": "⏳ Waiting for data"
     },
   "chat": {
     "title": "Smart Chat",
