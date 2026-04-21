@@ -14,13 +14,11 @@ function Sidebar({ activeSection, onSectionChange }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [hoveredItem, setHoveredItem] = useState(null);
     
-    // ✅ useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const intervalRef = useRef(null);
     const abortControllerRef = useRef(null);
-    const isFetchingRef = useRef(false);  // ✅ منع الطلبات المتزامنة
+    const isFetchingRef = useRef(false);
 
-    // تحميل إعدادات الوضع المظلم وتفضيلات الحركة - مرة واحدة فقط
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -35,7 +33,6 @@ function Sidebar({ activeSection, onSectionChange }) {
         return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
     }, []);
 
-    // استمع لتغييرات الوضع المظلم
     useEffect(() => {
         const handleThemeChange = (e) => {
             setDarkMode(e.detail?.darkMode ?? false);
@@ -59,21 +56,40 @@ function Sidebar({ activeSection, onSectionChange }) {
 
     const sections = getSections();
 
-    const getSectionInfo = (sectionId) => ({
-        name: sectionId === 'reports' ? t('sidebar.sections.reports.name', 'Reports') : 
-            sectionId === 'smart' ? t('sidebar.sections.smart.name', 'Smart Features') : 
-            t(`sidebar.sections.${sectionId}.name`, sectionId.charAt(0).toUpperCase() + sectionId.slice(1)),
-        description: sectionId === 'reports' ? t('sidebar.sections.reports.description', 'Health reports and analytics') : 
-                    sectionId === 'smart' ? t('sidebar.sections.smart.description', 'Advanced recommendations & analytics') : 
-                    t(`sidebar.sections.${sectionId}.description`, '')
-    });
+    const getSectionInfo = (sectionId) => {
+        const sectionNames = {
+            health: t('sidebar.sections.health.name', 'Vital Health'),
+            nutrition: t('sidebar.sections.nutrition.name', 'Nutrition'),
+            sleep: t('sidebar.sections.sleep.name', 'Sleep'),
+            mood: t('sidebar.sections.mood.name', 'Mood'),
+            habits: t('sidebar.sections.habits.name', 'Habits & Medications'),
+            smart: t('sidebar.sections.smart.name', 'Smart Features'),
+            chat: t('sidebar.sections.chat.name', 'Smart Chat'),
+            reports: t('sidebar.sections.reports.name', 'Reports'),
+            profile: t('sidebar.sections.profile.name', 'User Management')
+        };
+        
+        const sectionDescriptions = {
+            health: t('sidebar.sections.health.description', 'Track biometric measurements'),
+            nutrition: t('sidebar.sections.nutrition.description', 'Manage meals and calories'),
+            sleep: t('sidebar.sections.sleep.description', 'Sleep quality and hours'),
+            mood: t('sidebar.sections.mood.description', 'Track emotions and feelings'),
+            habits: t('sidebar.sections.habits.description', 'Supplements and daily routine'),
+            smart: t('sidebar.sections.smart.description', 'Advanced recommendations & analytics'),
+            chat: t('sidebar.sections.chat.description', 'Intelligent health assistant'),
+            reports: t('sidebar.sections.reports.description', 'Health reports and analytics'),
+            profile: t('sidebar.sections.profile.description', 'Settings and goals')
+        };
+        
+        return {
+            name: sectionNames[sectionId] || sectionId,
+            description: sectionDescriptions[sectionId] || ''
+        };
+    };
 
-    // ✅ جلب عدد الإشعارات - مع useCallback لمنع إعادة الإنشاء
     const fetchNotificationCount = useCallback(async () => {
-        // ✅ منع الطلبات المتزامنة
         if (isFetchingRef.current || !isMountedRef.current) return;
         
-        // إلغاء الطلب السابق إذا كان قيد التنفيذ
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
@@ -90,22 +106,18 @@ function Sidebar({ activeSection, onSectionChange }) {
                 setNotificationCount(response.data.count);
             }
         } catch (error) {
-            // تجاهل خطأ الإلغاء (AbortError)
             if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
                 return;
             }
-            console.error('Error fetching notification count:', error);
+            console.error(t('sidebar.errorFetchingCount'), error);
         } finally {
             isFetchingRef.current = false;
         }
-    }, []);
+    }, [t]);
 
-    // ✅ جلب البيانات عند التحميل - مع تنظيف صحيح
     useEffect(() => {
-        // جلب أول مرة
         fetchNotificationCount();
         
-        // استماع لتحديثات الإشعارات
         const handleNotificationCount = (e) => {
             if (isMountedRef.current) {
                 setNotificationCount(e.detail.count);
@@ -114,7 +126,6 @@ function Sidebar({ activeSection, onSectionChange }) {
         
         window.addEventListener('notificationCount', handleNotificationCount);
         
-        // تحديث كل 60 ثانية
         intervalRef.current = setInterval(() => {
             fetchNotificationCount();
         }, 60000);
@@ -130,7 +141,6 @@ function Sidebar({ activeSection, onSectionChange }) {
         };
     }, [fetchNotificationCount]);
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -144,7 +154,6 @@ function Sidebar({ activeSection, onSectionChange }) {
         };
     }, []);
 
-    // تبديل وضع التصغير
     const toggleCollapse = () => {
         setIsCollapsed(!isCollapsed);
     };
@@ -154,13 +163,11 @@ function Sidebar({ activeSection, onSectionChange }) {
             className={`sidebar ${isRTL ? 'rtl' : 'ltr'} ${darkMode ? 'dark-mode' : ''} ${reducedMotion ? 'reduce-motion' : ''} ${isCollapsed ? 'collapsed' : ''}`} 
             dir={isRTL ? 'rtl' : 'ltr'}
         >
-            {/* خلفية متحركة محسنة */}
             <div className="sidebar-bg">
                 <div className="bg-particles"></div>
                 <div className="bg-gradient"></div>
             </div>
 
-            {/* رأس السايدبار المحسن */}
             <div className="sidebar-header">
                 <div className="app-logo">
                     <div className="logo-wrapper">
@@ -169,28 +176,27 @@ function Sidebar({ activeSection, onSectionChange }) {
                     </div>
                     {!isCollapsed && (
                         <div className="logo-text">
-                            <span className="app-name">LivoCare</span>
-                            <span className="app-tagline">{t('sidebar.tagline')}</span>
+                            <span className="app-name">{t('sidebar.appName', 'LivoCare')}</span>
+                            <span className="app-tagline">{t('sidebar.tagline', 'Your Health Care')}</span>
                         </div>
                     )}
                 </div>
                 <button 
                     className="collapse-toggle" 
                     onClick={toggleCollapse}
-                    aria-label={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
-                    title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
+                    aria-label={isCollapsed ? t('sidebar.expand', 'Expand') : t('sidebar.collapse', 'Collapse')}
+                    title={isCollapsed ? t('sidebar.expand', 'Expand') : t('sidebar.collapse', 'Collapse')}
                 >
                     <span className="toggle-icon" aria-hidden="true">{isCollapsed ? '→' : '←'}</span>
                 </button>
             </div>
 
-            {/* قسم التنقل الرئيسي المحسن */}
             <nav className="sidebar-nav">
                 <div className="nav-section">
                     {!isCollapsed && (
                         <h3 className="nav-title">
                             <span className="title-icon" aria-hidden="true">📊</span>
-                            {t('sidebar.dashboard')}
+                            {t('sidebar.dashboard', 'Dashboard')}
                         </h3>
                     )}
                     <div className="nav-items">
@@ -236,7 +242,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                                         </>
                                     )}
                                     
-                                    {/* Tooltip للوضع المصغر */}
                                     {isCollapsed && isHovered && (
                                         <div className="nav-tooltip">
                                             <span className="tooltip-name">{sectionInfo.name}</span>
@@ -249,20 +254,19 @@ function Sidebar({ activeSection, onSectionChange }) {
                     </div>
                 </div>
 
-                {/* قسم الإشعارات المحسن */}
                 <div className="nav-section extras">
                     {!isCollapsed && (
                         <h3 className="nav-title">
                             <span className="title-icon" aria-hidden="true">⚡</span>
-                            {t('sidebar.extras')}
+                            {t('sidebar.extras', 'Extras')}
                         </h3>
                     )}
                     <div className="nav-items">
                         <button 
                             className={`nav-item extra-item ${activeSection === 'notifications' ? 'active' : ''}`}
                             onClick={() => onSectionChange('notifications')}
-                            aria-label={t('sidebar.notifications')}
-                            title={isCollapsed ? t('sidebar.notifications') : undefined}
+                            aria-label={t('sidebar.notifications', 'Notifications')}
+                            title={isCollapsed ? t('sidebar.notifications', 'Notifications') : undefined}
                         >
                             <div className="nav-item-content">
                                 <div className="nav-icon-wrapper">
@@ -270,8 +274,8 @@ function Sidebar({ activeSection, onSectionChange }) {
                                 </div>
                                 {!isCollapsed && (
                                     <div className="nav-text">
-                                        <span className="nav-name">{t('sidebar.notifications')}</span>
-                                        <span className="nav-description">{t('sidebar.notificationsDesc')}</span>
+                                        <span className="nav-name">{t('sidebar.notifications', 'Notifications')}</span>
+                                        <span className="nav-description">{t('sidebar.notificationsDesc', 'Latest updates and alerts')}</span>
                                     </div>
                                 )}
                             </div>
@@ -285,18 +289,17 @@ function Sidebar({ activeSection, onSectionChange }) {
                 </div>
             </nav>
 
-            {/* تذييل السايدبار المحسن */}
             {!isCollapsed && (
                 <div className="sidebar-footer">
                     <div className="user-stats">
                         <div className="stat-item">
-                            <span className="stat-value">7</span>
-                            <span className="stat-label">{t('sidebar.activeSections')}</span>
+                            <span className="stat-value">{t('sidebar.activeSectionsCount', '7')}</span>
+                            <span className="stat-label">{t('sidebar.activeSections', 'Active Sections')}</span>
                         </div>
                         <div className="stat-divider" aria-hidden="true"></div>
                         <div className="stat-item">
-                            <span className="stat-value">100%</span>
-                            <span className="stat-label">{t('sidebar.healthCoverage')}</span>
+                            <span className="stat-value">{t('sidebar.healthCoveragePercent', '100%')}</span>
+                            <span className="stat-label">{t('sidebar.healthCoverage', 'Health Coverage')}</span>
                         </div>
                     </div>
 
@@ -306,15 +309,16 @@ function Sidebar({ activeSection, onSectionChange }) {
                             <div className="avatar-status online"></div>
                         </div>
                         <div className="user-info">
-                            <span className="user-name">{t('sidebar.userName')}</span>
-                            <span className="user-role">{t('sidebar.userRole')}</span>
+                            <span className="user-name">{t('sidebar.userName', 'Livocare User')}</span>
+                            <span className="user-role">{t('sidebar.userRole', 'Premium User')}</span>
                         </div>
-                        <button className="user-menu-btn" aria-label={t('sidebar.userMenu')}>
+                        <button className="user-menu-btn" aria-label={t('sidebar.userMenu', 'User menu')}>
                             <span className="menu-dots" aria-hidden="true">⋮</span>
                         </button>
                     </div>
                 </div>
             )}
+
             <style jsx global>{`
                 /* ===========================================
                    Sidebar.css - النسخة المحسنة والمطورة

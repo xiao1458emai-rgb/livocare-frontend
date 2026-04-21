@@ -1142,28 +1142,43 @@ const resources = {
 },
 
 "sidebar": {
+  // ... existing keys ...
   "appName": "LivoCare",
   "tagline": "العناية بصحتك",
-  "dashboard": "لوحة التحكم",
+  "dashboard": "📊 لوحة التحكم",
+  "expand": "توسيع",
+  "collapse": "طي",
+  "errorFetchingCount": "خطأ في جلب عدد الإشعارات:",
+  "activeSectionsCount": "7",
   "activeSections": "أقسام نشطة",
+  "healthCoveragePercent": "100%",
   "healthCoverage": "تغطية صحية",
-  "analytics": "التحليلات المتقدمة",
-  "analyticsDesc": "إحصائيات وتقارير صحتك",
+  "userName": "مستخدم Livocare",
+  "userRole": "مستخدم متميز",
+  "userMenu": "قائمة المستخدم",
   "notifications": "الإشعارات",
   "notificationsDesc": "آخر التحديثات والتنبيهات",
   "extras": "إضافات",
-  "userName": "مستخدم Livocare",
-  "userRole": "مستخدم متميز",
-  "reports": "التقارير",
-  "reportsDesc": "تقارير صحية شاملة",
+  "tooltips": {
+    "health": "الصحة الحيوية",
+    "nutrition": "التغذية",
+    "sleep": "النوم",
+    "mood": "الحالة المزاجية",
+    "habits": "العادات والأدوية",
+    "smart": "الميزات الذكية",
+    "chat": "الدردشة الذكية",
+    "reports": "التقارير",
+    "profile": "الملف الشخصي"
+  },
   "sections": {
     "health": { "name": "الصحة الحيوية", "description": "تتبع القياسات الحيوية" },
     "nutrition": { "name": "التغذية", "description": "إدارة الوجبات والسعرات" },
     "sleep": { "name": "النوم", "description": "جودة وعدد ساعات النوم" },
     "mood": { "name": "الحالة المزاجية", "description": "تتبع المشاعر والعواطف" },
     "habits": { "name": "العادات والأدوية", "description": "المكملات والروتين اليومي" },
-    "chat": { "name": "الدردشة الذكية", "description": "مساعد ذكي للصحة" },
     "smart": { "name": "الميزات الذكية", "description": "توصيات وتحليلات متقدمة" },
+    "chat": { "name": "الدردشة الذكية", "description": "مساعد ذكي للصحة" },
+    "reports": { "name": "التقارير", "description": "تقارير صحية وتحليلات" },
     "profile": { "name": "إدارة المستخدم", "description": "الإعدادات والأهداف" }
   }
 },
@@ -4157,32 +4172,47 @@ const resources = {
       "rating": "rating"
     },
 
-    "sidebar": {
-      "appName": "LivoCare",
-      "tagline": "Your Health Care",
-      "dashboard": "Dashboard",
-      "activeSections": "Active Sections",
-      "healthCoverage": "Health Coverage",
-      "analytics": "Advanced Analytics",
-      "analyticsDesc": "Health statistics and reports",
-      "notifications": "Notifications",
-      "notificationsDesc": "Latest updates and alerts",
-      "extras": "Extras",
-      "userName": "Livocare User",
-      "userRole": "Premium User",
-      "reports": "Reports",
-      "reportsDesc": "Health reports and analytics",
-      "sections": {
-        "health": { "name": "Vital Health", "description": "Track biometric measurements" },
-        "nutrition": { "name": "Nutrition", "description": "Manage meals and calories" },
-        "sleep": { "name": "Sleep", "description": "Sleep quality and hours" },
-        "mood": { "name": "Mood", "description": "Track emotions and feelings" },
-        "habits": { "name": "Habits & Medications", "description": "Supplements and daily routine" },
-        "chat": { "name": "Smart Chat", "description": "Intelligent health assistant" },
-        "smart": { "name": "Smart Features", "description": "Advanced recommendations & analytics" },
-        "profile": { "name": "User Management", "description": "Settings and goals" }
-      }
-    },
+ "sidebar": {
+  // ... existing keys ...
+  "appName": "LivoCare",
+  "tagline": "Your Health Care",
+  "dashboard": "📊 Dashboard",
+  "expand": "Expand",
+  "collapse": "Collapse",
+  "errorFetchingCount": "Error fetching notification count:",
+  "activeSectionsCount": "7",
+  "activeSections": "Active Sections",
+  "healthCoveragePercent": "100%",
+  "healthCoverage": "Health Coverage",
+  "userName": "Livocare User",
+  "userRole": "Premium User",
+  "userMenu": "User menu",
+  "notifications": "Notifications",
+  "notificationsDesc": "Latest updates and alerts",
+  "extras": "Extras",
+  "tooltips": {
+    "health": "Vital Health",
+    "nutrition": "Nutrition",
+    "sleep": "Sleep",
+    "mood": "Mood",
+    "habits": "Habits & Medications",
+    "smart": "Smart Features",
+    "chat": "Smart Chat",
+    "reports": "Reports",
+    "profile": "Profile"
+  },
+  "sections": {
+    "health": { "name": "Vital Health", "description": "Track biometric measurements" },
+    "nutrition": { "name": "Nutrition", "description": "Manage meals and calories" },
+    "sleep": { "name": "Sleep", "description": "Sleep quality and hours" },
+    "mood": { "name": "Mood", "description": "Track emotions and feelings" },
+    "habits": { "name": "Habits & Medications", "description": "Supplements and daily routine" },
+    "smart": { "name": "Smart Features", "description": "Advanced recommendations & analytics" },
+    "chat": { "name": "Smart Chat", "description": "Intelligent health assistant" },
+    "reports": { "name": "Reports", "description": "Health reports and analytics" },
+    "profile": { "name": "User Management", "description": "Settings and goals" }
+  }
+},
 
     "health_insights": {
       "title": "🧠 Advanced Health Insights",
