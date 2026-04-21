@@ -75,9 +75,24 @@ function App() {
             // طلب إذن الإشعارات
             requestNotificationPermission();
             
-            // إرسال التوكين إلى Service Worker
-            const sendTokenToSW = async () => {
-                if ('serviceWorker' in navigator) {
+            // ✅ إعداد الرد على طلبات التوكين من Service Worker
+            if ('serviceWorker' in navigator) {
+                const messageHandler = (event) => {
+                    console.log('📨 Page received message from SW:', event.data);
+                    
+                    if (event.data && event.data.type === 'GET_TOKEN') {
+                        const token = localStorage.getItem('access_token');
+                        if (event.ports && event.ports[0]) {
+                            event.ports[0].postMessage({ token: token });
+                            console.log('✅ Token sent back to Service Worker via MessageChannel');
+                        }
+                    }
+                };
+                
+                navigator.serviceWorker.addEventListener('message', messageHandler);
+                
+                // إرسال التوكين مباشرة أيضاً
+                const sendTokenToSW = async () => {
                     const registration = await navigator.serviceWorker.ready;
                     if (registration.active) {
                         const token = localStorage.getItem('access_token');
@@ -85,13 +100,16 @@ function App() {
                             type: 'TOKEN',
                             token: token
                         });
-                        console.log('✅ Token sent to Service Worker');
+                        console.log('✅ Token sent to Service Worker directly');
                     }
-                }
-            };
-            
-            // تأخير قليل للتأكد من جاهزية Service Worker
-            setTimeout(sendTokenToSW, 2000);
+                };
+                
+                setTimeout(sendTokenToSW, 2000);
+                
+                return () => {
+                    navigator.serviceWorker.removeEventListener('message', messageHandler);
+                };
+            }
         }
     }, [isAuthenticated]);
 
