@@ -51,20 +51,19 @@ async function getAccessToken() {
     }
 }
 
-// ✅ دالة لحفظ الإشعار في Django
+// في sw.js - أصلح دالة saveNotificationToDjango
 async function saveNotificationToDjango(notification) {
     try {
-        console.log('🔍 Getting token for saving notification...');
         const token = await getAccessToken();
-        
         if (!token) {
-            console.log('❌ No token available, skipping save to Django');
+            console.log('No token, skipping save to Django');
             return;
         }
         
         console.log('📤 Saving notification to Django with token...');
         
-        const response = await fetch('https://livocare.onrender.com/api/notifications/create/', {
+        // ✅ استخدم المسار الصحيح (بدون /create/)
+        const response = await fetch('https://livocare.onrender.com/api/notifications/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
