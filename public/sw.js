@@ -11,15 +11,13 @@ self.addEventListener('activate', function(event) {
     event.waitUntil(clients.claim());
 });
 
-// ✅ دالة للحصول على التوكين - طريقة مبسطة
+// ✅ دالة للحصول على التوكين
 async function getAccessToken() {
-    // إذا كان لدينا توكين مخزن، استخدمه
     if (cachedToken) {
         return cachedToken;
     }
     
     try {
-        // محاولة الحصول من الصفحات المفتوحة
         const clients = await self.clients.matchAll({
             type: 'window',
             includeUncontrolled: true
@@ -132,15 +130,15 @@ self.addEventListener('notificationclick', function(event) {
     if (event.action === 'open') {
         const urlToOpen = event.notification.data.url || '/';
         event.waitUntil(
-            clients.matchAll({ type: 'window', includeUncontrolled: true })
+            self.clients.matchAll({ type: 'window', includeUncontrolled: true })
                 .then(windowClients => {
                     for (let client of windowClients) {
                         if (client.url.includes(urlToOpen) && 'focus' in client) {
                             return client.focus();
                         }
                     }
-                    if (clients.openWindow) {
-                        return clients.openWindow(urlToOpen);
+                    if (self.clients.openWindow) {
+                        return self.clients.openWindow(urlToOpen);
                     }
                 })
         );
@@ -150,11 +148,6 @@ self.addEventListener('notificationclick', function(event) {
 // ✅ الاستماع لرسائل من الصفحة الرئيسية
 self.addEventListener('message', function(event) {
     console.log('📨 Message received in SW:', event.data);
-    
-    if (event.data && event.data.type === 'GET_TOKEN') {
-        // هذا يتم التعامل معه من خلال MessageChannel
-        console.log('Token requested via message channel');
-    }
     
     if (event.data && event.data.type === 'TOKEN') {
         cachedToken = event.data.token;

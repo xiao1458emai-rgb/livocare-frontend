@@ -8,7 +8,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import AuthCallback from './components/AuthCallback';
-import { requestNotificationPermission } from './utils/pushNotifications'; // ✅ أضف هذا السطر
+import { requestNotificationPermission } from './utils/pushNotifications';
 
 function App() {
     const { t, i18n } = useTranslation();
@@ -69,11 +69,29 @@ function App() {
         initApp();
     }, [i18n]);
 
-    // ✅ طلب إذن الإشعارات بعد تسجيل الدخول
+    // ✅ طلب إذن الإشعارات وإرسال التوكين إلى Service Worker بعد تسجيل الدخول
     useEffect(() => {
         if (isAuthenticated) {
-            // ✅ طلب إذن الإشعارات الفورية
+            // طلب إذن الإشعارات
             requestNotificationPermission();
+            
+            // إرسال التوكين إلى Service Worker
+            const sendTokenToSW = async () => {
+                if ('serviceWorker' in navigator) {
+                    const registration = await navigator.serviceWorker.ready;
+                    if (registration.active) {
+                        const token = localStorage.getItem('access_token');
+                        registration.active.postMessage({
+                            type: 'TOKEN',
+                            token: token
+                        });
+                        console.log('✅ Token sent to Service Worker');
+                    }
+                }
+            };
+            
+            // تأخير قليل للتأكد من جاهزية Service Worker
+            setTimeout(sendTokenToSW, 2000);
         }
     }, [isAuthenticated]);
 
