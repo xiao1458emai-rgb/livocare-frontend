@@ -11,15 +11,15 @@ self.addEventListener('activate', function(event) {
     event.waitUntil(clients.claim());
 });
 
-// ✅ دالة للحصول على التوكين - نسخة مبسطة ومضمونة
+// ✅ دالة للحصول على التوكين
 async function getAccessToken() {
-    // أولاً: التحقق من التوكين المخزن
+    // أولاً: التحقق من التوكين المخزن في المتغير العام
     if (cachedToken) {
-        console.log('✅ Using cached token');
+        console.log('✅ Using cached token from variable');
         return cachedToken;
     }
     
-    // ثانياً: محاولة الحصول من الصفحات المفتوحة
+    // ثانياً: محاولة الحصول من IndexedDB أو localStorage عبر clients
     try {
         const clients = await self.clients.matchAll({
             type: 'window',
@@ -29,12 +29,11 @@ async function getAccessToken() {
         console.log(`Found ${clients.length} clients`);
         
         for (const client of clients) {
-            return new Promise((resolve) => {
+            const token = await new Promise((resolve) => {
                 const channel = new MessageChannel();
                 channel.port1.onmessage = (event) => {
                     if (event.data && event.data.token) {
                         cachedToken = event.data.token;
-                        console.log('✅ Token obtained from client');
                         resolve(cachedToken);
                     } else {
                         resolve(null);
@@ -43,6 +42,11 @@ async function getAccessToken() {
                 client.postMessage({ type: 'GET_TOKEN' }, [channel.port2]);
                 setTimeout(() => resolve(null), 3000);
             });
+            
+            if (token) {
+                console.log('✅ Token obtained from client');
+                return token;
+            }
         }
         return null;
     } catch (e) {
@@ -51,40 +55,41 @@ async function getAccessToken() {
     }
 }
 
-// في sw.js - أصلح دالة saveNotificationToDjango
+// ✅ دالة لحفظ الإشعار في Django
 async function saveNotificationToDjango(notification) {
     try {
+        console.log('🔍 Getting token for saving notification...');
         const token = await getAccessToken();
+        
         if (!token) {
-            console.log('No token, skipping save to Django');
+            console.log('❌ No token available, skipping save to Django');
             return;
         }
         
         console.log('📤 Saving notification to Django with token...');
         
-        // ✅ استخدم المسار الصحيح (بدون /create/)
-// في sw.js - استخدم المسار الصحيح
-            const response = await fetch('https://livocare.onrender.com/api/notifications/create/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    title: notification.title || 'LivoCare',
-                    message: notification.body || 'لديك إشعار جديد',
-                    type: notification.type || 'info',
-                    priority: notification.priority || 'medium',
-                    is_read: false,
-                    action_url: notification.url || '/notifications'
-                })
-            });
+        const response = await fetch('https://livocare.onrender.com/api/notifications/create/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                title: notification.title || 'LivoCare',
+                message: notification.body || 'لديك إشعار جديد',
+                type: notification.type || 'info',
+                priority: notification.priority || 'medium',
+                is_read: false,
+                action_url: notification.url || '/notifications'
+            })
+        });
         
         if (response.ok) {
             const result = await response.json();
             console.log('✅ Notification saved to Django:', result);
         } else {
-            console.log('❌ Failed to save notification:', response.status);
+            const errorText = await response.text();
+            console.log('❌ Failed to save notification:', response.status, errorText);
         }
     } catch (error) {
         console.error('❌ Failed to save notification to Django:', error);
@@ -160,5 +165,12 @@ self.addEventListener('message', function(event) {
     if (event.data && event.data.type === 'TOKEN') {
         cachedToken = event.data.token;
         console.log('✅ Token cached in Service Worker');
+    }
+    
+    // الرد على طلبات GET_TOKEN
+    if (event.data && event.data.type === 'GET_TOKEN' && event.ports && event.ports[0]) {
+        const token = cachedToken || null;
+        event.ports[0].postMessage({ token: token });
+        console.log('✅ Token sent via message channel');
     }
 });
