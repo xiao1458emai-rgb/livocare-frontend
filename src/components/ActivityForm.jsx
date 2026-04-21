@@ -544,8 +544,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
 
     return (
         <div className={`activity-form-container ${darkMode ? 'dark-mode' : ''}`}>
-            {/* ✅ قسم تحليلات النشاط المتقدمة - يظهر في أعلى الصفحة */}
-            <ActivityAnalytics refreshTrigger={refreshAnalytics} />
 
             {/* ✅ قسم ESP32 Monitor */}
             <div className={`watch-section adb-section ${sensorStatus === 'connected' ? 'connected' : ''}`}>
