@@ -9,8 +9,6 @@ function Sidebar({ activeSection, onSectionChange }) {
     const { t, i18n } = useTranslation();
     const isRTL = i18n.language === 'ar';
     const [notificationCount, setNotificationCount] = useState(0);
-    const [darkMode, setDarkMode] = useState(false);
-    const [reducedMotion, setReducedMotion] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [hoveredItem, setHoveredItem] = useState(null);
     
@@ -18,29 +16,6 @@ function Sidebar({ activeSection, onSectionChange }) {
     const intervalRef = useRef(null);
     const abortControllerRef = useRef(null);
     const isFetchingRef = useRef(false);
-
-    useEffect(() => {
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                             window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setDarkMode(savedDarkMode);
-        
-        const motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-        setReducedMotion(motionMediaQuery.matches);
-        
-        const handleMotionChange = (e) => setReducedMotion(e.matches);
-        motionMediaQuery.addEventListener('change', handleMotionChange);
-        
-        return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
-    }, []);
-
-    useEffect(() => {
-        const handleThemeChange = (e) => {
-            setDarkMode(e.detail?.darkMode ?? false);
-        };
-        
-        window.addEventListener('themeChange', handleThemeChange);
-        return () => window.removeEventListener('themeChange', handleThemeChange);
-    }, []);
 
     const getSections = () => [
         { id: 'health', icon: '❤️', color: '#ef4444', gradient: 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)', tooltip: t('sidebar.tooltips.health') },
@@ -160,9 +135,10 @@ function Sidebar({ activeSection, onSectionChange }) {
 
     return (
         <aside 
-            className={`sidebar ${isRTL ? 'rtl' : 'ltr'} ${darkMode ? 'dark-mode' : ''} ${reducedMotion ? 'reduce-motion' : ''} ${isCollapsed ? 'collapsed' : ''}`} 
+            className={`sidebar ${isRTL ? 'rtl' : 'ltr'} ${isCollapsed ? 'collapsed' : ''}`} 
             dir={isRTL ? 'rtl' : 'ltr'}
         >
+            {/* خلفية متحركة */}
             <div className="sidebar-bg">
                 <div className="bg-particles"></div>
                 <div className="bg-gradient"></div>
@@ -319,56 +295,14 @@ function Sidebar({ activeSection, onSectionChange }) {
                 </div>
             )}
 
-            <style jsx global>{`
-                /* ===========================================
-                   Sidebar.css - النسخة المحسنة والمطورة
-                   تم التحسين لجميع أحجام الشاشات والوضع الليلي
-                   =========================================== */
-
-                /* ===== المتغيرات والثيمات ===== */
-                :root {
-                    --sidebar-gradient-start: #1e293b;
-                    --sidebar-gradient-end: #0f172a;
-                    --sidebar-text: #ffffff;
-                    --sidebar-text-secondary: rgba(255,255,255,0.7);
-                    --sidebar-text-tertiary: rgba(255,255,255,0.5);
-                    --sidebar-bg-particles: rgba(255,255,255,0.05);
-                    --sidebar-hover: rgba(255,255,255,0.1);
-                    --sidebar-active: rgba(255,255,255,0.15);
-                    --sidebar-border: rgba(255,255,255,0.1);
-                    --sidebar-scroll: rgba(255,255,255,0.3);
-                    --sidebar-scroll-hover: rgba(255,255,255,0.5);
-                    --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                    --transition-medium: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                    --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-                    --radius-sm: 8px;
-                    --radius-md: 10px;
-                    --radius-lg: 12px;
-                    --radius-xl: 15px;
-                    --radius-full: 50px;
-                }
-
-                /* الثيم المظلم المحسن */
-                .dark-mode {
-                    --sidebar-gradient-start: #0b1120;
-                    --sidebar-gradient-end: #030712;
-                    --sidebar-text: #f8fafc;
-                    --sidebar-text-secondary: rgba(248,250,252,0.7);
-                    --sidebar-text-tertiary: rgba(248,250,252,0.5);
-                    --sidebar-bg-particles: rgba(255,255,255,0.03);
-                    --sidebar-hover: rgba(255,255,255,0.15);
-                    --sidebar-active: rgba(255,255,255,0.2);
-                    --sidebar-border: rgba(255,255,255,0.15);
-                    --sidebar-scroll: rgba(255,255,255,0.4);
-                    --sidebar-scroll-hover: rgba(255,255,255,0.6);
-                }
-
-                /* ===== الحاوية الرئيسية ===== */
+            {/* الأنماط المخصصة للسايدبار */}
+            <style>{`
+                /* أنماط السايدبار */
                 .sidebar {
                     width: 280px;
                     height: 100vh;
-                    background: linear-gradient(135deg, var(--sidebar-gradient-start) 0%, var(--sidebar-gradient-end) 100%);
-                    color: var(--sidebar-text);
+                    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                    color: white;
                     display: flex;
                     flex-direction: column;
                     position: fixed;
@@ -377,8 +311,12 @@ function Sidebar({ activeSection, onSectionChange }) {
                     overflow-y: auto;
                     overflow-x: hidden;
                     z-index: 1000;
-                    transition: width var(--transition-medium), all var(--transition-medium);
+                    transition: width 0.3s ease, all 0.3s ease;
                     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+                }
+
+                .dark-mode .sidebar {
+                    background: linear-gradient(135deg, #0b1120 0%, #030712 100%);
                 }
 
                 /* وضع مصغر */
@@ -398,7 +336,7 @@ function Sidebar({ activeSection, onSectionChange }) {
                     margin: 0;
                 }
 
-                /* ===== خلفية متحركة محسنة ===== */
+                /* خلفية متحركة */
                 .sidebar-bg {
                     position: absolute;
                     top: 0;
@@ -413,9 +351,9 @@ function Sidebar({ activeSection, onSectionChange }) {
                     position: absolute;
                     width: 100%;
                     height: 100%;
-                    background-image: radial-gradient(circle at 30% 40%, var(--sidebar-bg-particles) 0%, transparent 30%),
-                                      radial-gradient(circle at 70% 60%, var(--sidebar-bg-particles) 0%, transparent 30%),
-                                      radial-gradient(circle at 40% 80%, var(--sidebar-bg-particles) 0%, transparent 30%);
+                    background-image: radial-gradient(circle at 30% 40%, rgba(255,255,255,0.05) 0%, transparent 30%),
+                                      radial-gradient(circle at 70% 60%, rgba(255,255,255,0.05) 0%, transparent 30%),
+                                      radial-gradient(circle at 40% 80%, rgba(255,255,255,0.05) 0%, transparent 30%);
                     animation: particleFloat 20s infinite;
                 }
 
@@ -433,17 +371,10 @@ function Sidebar({ activeSection, onSectionChange }) {
                     50% { transform: scale(1.1) translate(10px, -10px); }
                 }
 
-                /* دعم الحركة المخفضة */
-                .reduce-motion .bg-particles,
-                .reduce-motion .logo-glow,
-                .reduce-motion .avatar-status {
-                    animation: none !important;
-                }
-
-                /* ===== رأس السايدبار المحسن ===== */
+                /* رأس السايدبار */
                 .sidebar-header {
                     padding: 2rem 1.5rem;
-                    border-bottom: 1px solid var(--sidebar-border);
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
                     position: relative;
                     z-index: 1;
                     display: flex;
@@ -471,7 +402,7 @@ function Sidebar({ activeSection, onSectionChange }) {
                     right: 0;
                     bottom: 0;
                     background: linear-gradient(135deg, #60a5fa, #a78bfa);
-                    border-radius: var(--radius-xl);
+                    border-radius: 12px;
                     filter: blur(10px);
                     opacity: 0.6;
                     animation: glowPulse 2s infinite;
@@ -487,17 +418,13 @@ function Sidebar({ activeSection, onSectionChange }) {
                     width: 50px;
                     height: 50px;
                     background: linear-gradient(135deg, #60a5fa, #a78bfa);
-                    border-radius: var(--radius-xl);
+                    border-radius: 12px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     font-size: 2rem;
                     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                    transition: transform var(--transition-fast);
-                }
-
-                .logo-icon:active {
-                    transform: scale(0.95);
+                    transition: transform 0.2s ease;
                 }
 
                 .logo-text {
@@ -516,43 +443,35 @@ function Sidebar({ activeSection, onSectionChange }) {
 
                 .app-tagline {
                     font-size: 0.8rem;
-                    color: var(--sidebar-text-secondary);
+                    color: rgba(255,255,255,0.7);
                     margin-top: 0.25rem;
                 }
 
                 .collapse-toggle {
-                    background: var(--sidebar-hover);
+                    background: rgba(255,255,255,0.1);
                     border: none;
-                    color: var(--sidebar-text);
+                    color: white;
                     width: 32px;
                     height: 32px;
-                    border-radius: var(--radius-full);
+                    border-radius: 50%;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    transition: all var(--transition-fast);
+                    transition: all 0.2s ease;
                 }
 
                 .collapse-toggle:hover {
-                    background: var(--sidebar-active);
+                    background: rgba(255,255,255,0.15);
                     transform: scale(1.05);
-                }
-
-                .collapse-toggle:active {
-                    transform: scale(0.95);
-                }
-
-                .toggle-icon {
-                    font-size: 1.2rem;
-                    transition: transform var(--transition-fast);
                 }
 
                 .sidebar.collapsed .toggle-icon {
                     transform: rotate(180deg);
+                    display: inline-block;
                 }
 
-                /* ===== قائمة التنقل المحسنة ===== */
+                /* قائمة التنقل */
                 .sidebar-nav {
                     flex: 1;
                     padding: 1.5rem 0;
@@ -573,7 +492,7 @@ function Sidebar({ activeSection, onSectionChange }) {
                     align-items: center;
                     gap: 0.5rem;
                     font-size: 0.8rem;
-                    color: var(--sidebar-text-secondary);
+                    color: rgba(255,255,255,0.7);
                     margin: 0 1.5rem 1rem 1.5rem;
                     text-transform: uppercase;
                     letter-spacing: 1px;
@@ -593,12 +512,12 @@ function Sidebar({ activeSection, onSectionChange }) {
                 .nav-item {
                     background: none;
                     border: none;
-                    color: var(--sidebar-text);
+                    color: white;
                     padding: 0;
                     margin: 0 0.75rem;
-                    border-radius: var(--radius-lg);
+                    border-radius: 12px;
                     cursor: pointer;
-                    transition: all var(--transition-fast);
+                    transition: all 0.2s ease;
                     position: relative;
                     width: calc(100% - 1.5rem);
                 }
@@ -608,33 +527,33 @@ function Sidebar({ activeSection, onSectionChange }) {
                     align-items: center;
                     gap: 1rem;
                     padding: 0.75rem 1rem;
-                    border-radius: var(--radius-lg);
-                    transition: all var(--transition-fast);
+                    border-radius: 12px;
+                    transition: all 0.2s ease;
                 }
 
                 .nav-item:hover .nav-item-content {
-                    background: var(--sidebar-hover);
+                    background: rgba(255,255,255,0.1);
                     transform: translateX(5px);
                 }
 
                 .nav-item.active .nav-item-content {
-                    background: var(--sidebar-active);
+                    background: rgba(255,255,255,0.15);
                 }
 
                 .nav-icon-wrapper {
                     width: 36px;
                     height: 36px;
-                    border-radius: var(--radius-md);
+                    border-radius: 10px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    transition: all var(--transition-fast);
+                    transition: all 0.2s ease;
                     flex-shrink: 0;
                 }
 
                 .nav-icon {
                     font-size: 1.3rem;
-                    transition: transform var(--transition-fast);
+                    transition: transform 0.2s ease;
                 }
 
                 .nav-item:hover .nav-icon {
@@ -659,7 +578,7 @@ function Sidebar({ activeSection, onSectionChange }) {
 
                 .nav-description {
                     font-size: 0.7rem;
-                    color: var(--sidebar-text-secondary);
+                    color: rgba(255,255,255,0.7);
                     line-height: 1.3;
                     white-space: nowrap;
                     overflow: hidden;
@@ -671,7 +590,7 @@ function Sidebar({ activeSection, onSectionChange }) {
                     top: 50%;
                     transform: translateY(-50%);
                     right: 1rem;
-                    background: var(--active-color, #ef4444);
+                    background: #ef4444;
                     color: white;
                     font-size: 0.7rem;
                     font-weight: 600;
@@ -696,6 +615,7 @@ function Sidebar({ activeSection, onSectionChange }) {
                     position: absolute;
                     top: 50%;
                     transform: translateY(-50%);
+                    left: 0;
                     width: 4px;
                     height: 60%;
                     background: var(--active-color);
@@ -711,7 +631,7 @@ function Sidebar({ activeSection, onSectionChange }) {
                     right: 0;
                     bottom: 0;
                     background: var(--active-gradient);
-                    border-radius: var(--radius-lg);
+                    border-radius: 12px;
                     opacity: 0.2;
                     filter: blur(8px);
                 }
@@ -721,18 +641,22 @@ function Sidebar({ activeSection, onSectionChange }) {
                     50% { opacity: 0.5; }
                 }
 
-                /* Tooltip للوضع المصغر */
+                /* Tooltip */
                 .nav-tooltip {
                     position: fixed;
                     left: 90px;
-                    background: var(--sidebar-gradient-end);
+                    background: #1e293b;
                     padding: 0.5rem 1rem;
-                    border-radius: var(--radius-md);
-                    box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0,0,0,0.3));
+                    border-radius: 10px;
+                    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
                     z-index: 2000;
                     white-space: nowrap;
                     pointer-events: none;
-                    animation: tooltipFadeIn var(--transition-fast) ease;
+                    animation: tooltipFadeIn 0.2s ease;
+                }
+
+                .dark-mode .nav-tooltip {
+                    background: #0b1120;
                 }
 
                 [dir="rtl"] .nav-tooltip {
@@ -760,13 +684,13 @@ function Sidebar({ activeSection, onSectionChange }) {
                 .tooltip-desc {
                     display: block;
                     font-size: 0.7rem;
-                    color: var(--sidebar-text-secondary);
+                    color: rgba(255,255,255,0.7);
                 }
 
-                /* ===== تذييل السايدبار المحسن ===== */
+                /* تذييل السايدبار */
                 .sidebar-footer {
                     padding: 1.5rem;
-                    border-top: 1px solid var(--sidebar-border);
+                    border-top: 1px solid rgba(255,255,255,0.1);
                     position: relative;
                     z-index: 1;
                 }
@@ -778,7 +702,7 @@ function Sidebar({ activeSection, onSectionChange }) {
                     margin-bottom: 1rem;
                     padding: 0.75rem;
                     background: rgba(0, 0, 0, 0.2);
-                    border-radius: var(--radius-lg);
+                    border-radius: 12px;
                 }
 
                 .stat-item {
@@ -799,13 +723,13 @@ function Sidebar({ activeSection, onSectionChange }) {
 
                 .stat-label {
                     font-size: 0.7rem;
-                    color: var(--sidebar-text-secondary);
+                    color: rgba(255,255,255,0.7);
                 }
 
                 .stat-divider {
                     width: 1px;
                     height: 30px;
-                    background: var(--sidebar-border);
+                    background: rgba(255,255,255,0.1);
                 }
 
                 .user-profile {
@@ -814,7 +738,7 @@ function Sidebar({ activeSection, onSectionChange }) {
                     gap: 0.75rem;
                     padding: 0.5rem;
                     background: rgba(0, 0, 0, 0.2);
-                    border-radius: var(--radius-lg);
+                    border-radius: 12px;
                 }
 
                 .user-avatar {
@@ -822,7 +746,7 @@ function Sidebar({ activeSection, onSectionChange }) {
                     width: 40px;
                     height: 40px;
                     background: linear-gradient(135deg, #60a5fa, #a78bfa);
-                    border-radius: var(--radius-md);
+                    border-radius: 10px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -840,7 +764,11 @@ function Sidebar({ activeSection, onSectionChange }) {
                     width: 12px;
                     height: 12px;
                     border-radius: 50%;
-                    border: 2px solid var(--sidebar-gradient-end);
+                    border: 2px solid #1e293b;
+                }
+
+                .dark-mode .avatar-status {
+                    border-color: #0b1120;
                 }
 
                 .avatar-status.online {
@@ -870,34 +798,30 @@ function Sidebar({ activeSection, onSectionChange }) {
                 .user-role {
                     display: block;
                     font-size: 0.7rem;
-                    color: var(--sidebar-text-secondary);
+                    color: rgba(255,255,255,0.7);
                 }
 
                 .user-menu-btn {
                     background: none;
                     border: none;
-                    color: var(--sidebar-text-secondary);
+                    color: rgba(255,255,255,0.7);
                     cursor: pointer;
                     padding: 0.25rem;
-                    border-radius: var(--radius-sm);
-                    transition: all var(--transition-fast);
+                    border-radius: 8px;
+                    transition: all 0.2s ease;
                 }
 
                 .user-menu-btn:hover {
-                    background: var(--sidebar-hover);
+                    background: rgba(255,255,255,0.1);
                     color: white;
                     transform: scale(1.1);
-                }
-
-                .user-menu-btn:active {
-                    transform: scale(0.95);
                 }
 
                 .menu-dots {
                     font-size: 1.2rem;
                 }
 
-                /* ===== RTL دعم كامل ===== */
+                /* RTL دعم */
                 .sidebar.rtl {
                     left: auto;
                     right: 0;
@@ -908,8 +832,8 @@ function Sidebar({ activeSection, onSectionChange }) {
                 }
 
                 .sidebar.rtl .active-indicator {
-                    left: 0;
-                    right: auto;
+                    left: auto;
+                    right: 0;
                     border-radius: 4px 0 0 4px;
                 }
 
@@ -927,7 +851,7 @@ function Sidebar({ activeSection, onSectionChange }) {
                     left: -2px;
                 }
 
-                /* ===== شريط التمرير المخصص ===== */
+                /* شريط التمرير */
                 .sidebar::-webkit-scrollbar {
                     width: 4px;
                 }
@@ -937,17 +861,15 @@ function Sidebar({ activeSection, onSectionChange }) {
                 }
 
                 .sidebar::-webkit-scrollbar-thumb {
-                    background: var(--sidebar-scroll);
+                    background: rgba(255, 255, 255, 0.3);
                     border-radius: 2px;
                 }
 
                 .sidebar::-webkit-scrollbar-thumb:hover {
-                    background: var(--sidebar-scroll-hover);
+                    background: rgba(255, 255, 255, 0.5);
                 }
 
-                /* ===== تصميم متجاوب ===== */
-                
-                /* شاشات متوسطة (768px - 1023px) */
+                /* استجابة */
                 @media (max-width: 1023px) and (min-width: 768px) {
                     .sidebar {
                         width: 250px;
@@ -966,7 +888,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     }
                 }
 
-                /* شاشات صغيرة (<768px) */
                 @media (max-width: 767px) {
                     .sidebar {
                         width: 100%;
@@ -1001,7 +922,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                         overflow-x: auto;
                         padding: 0 0.5rem;
                         gap: 0.5rem;
-                        scrollbar-width: thin;
                     }
                     
                     .nav-items::-webkit-scrollbar {
@@ -1065,7 +985,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     }
                 }
 
-                /* شاشات صغيرة جداً (<480px) */
                 @media (max-width: 479px) {
                     .sidebar-header {
                         padding: 0.75rem;
@@ -1118,25 +1037,17 @@ function Sidebar({ activeSection, onSectionChange }) {
                     }
                 }
 
-                /* ===== تحسينات التباين العالي ===== */
-                @media (prefers-contrast: high) {
-                    .nav-item.active .nav-item-content {
-                        border: 2px solid var(--active-color);
+                @media (prefers-reduced-motion: reduce) {
+                    .bg-particles,
+                    .logo-glow,
+                    .avatar-status,
+                    .nav-badge,
+                    .active-indicator {
+                        animation: none !important;
                     }
                     
-                    .sidebar {
-                        border-right: 1px solid var(--sidebar-border);
-                    }
-                }
-
-                /* ===== تحسينات للأجهزة اللمسية ===== */
-                @media (hover: none) and (pointer: coarse) {
-                    .nav-item:active .nav-item-content {
-                        transform: scale(0.98);
-                    }
-                    
-                    .logo-icon:active {
-                        transform: scale(0.95);
+                    .nav-item:hover .nav-icon {
+                        transform: none !important;
                     }
                 }
             `}</style>

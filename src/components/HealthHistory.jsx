@@ -1,3 +1,4 @@
+// src/components/HealthHistory.jsx
 'use client'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,40 +14,21 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
     const [editingRecord, setEditingRecord] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [sortConfig, setSortConfig] = useState({ key: 'recorded_at', direction: 'desc' });
-    const [darkMode, setDarkMode] = useState(false);
     const [selectedRecords, setSelectedRecords] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
     
-    // ✅ useRef لمنع التحديثات المتكررة
+    // useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
     const isDeletingRef = useRef(false);
 
-    // دالة مساعدة للتأكد من أن history مصفوفة
     const getSafeHistory = useCallback(() => {
         return Array.isArray(history) ? history : [];
     }, [history]);
 
-    // تحميل إعدادات الوضع المظلم
-    useEffect(() => {
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                             window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setDarkMode(savedDarkMode);
-    }, []);
-
-    // استمع لتغييرات الوضع المظلم
-    useEffect(() => {
-        const handleThemeChange = (e) => {
-            setDarkMode(e.detail?.darkMode ?? false);
-        };
-        
-        window.addEventListener('themeChange', handleThemeChange);
-        return () => window.removeEventListener('themeChange', handleThemeChange);
-    }, []);
-
-    // ✅ جلب البيانات - مع useCallback ومنع الطلبات المتزامنة
+    // جلب البيانات
     const fetchHistory = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
@@ -59,17 +41,14 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
             
             if (!isMountedRef.current) return;
             
-            // ✅ معالجة البيانات - دعم results والمصفوفة
             let historyData = [];
             if (response.data?.results) {
                 historyData = response.data.results;
             } else if (Array.isArray(response.data)) {
                 historyData = response.data;
-            } else {
-                historyData = [];
             }
             
-            console.log('📜 Health history loaded:', historyData.length, 'records');
+            console.log('📜 Health history loaded:', historyData.length);
             setHistory(historyData);
             setSelectedRecords([]);
             setCurrentPage(1);
@@ -87,12 +66,11 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         }
     }, [t]);
 
-    // ✅ جلب البيانات عند التغيير
     useEffect(() => {
         fetchHistory();
     }, [refreshKey, fetchHistory]);
 
-    // تصفية البيانات حسب البحث - إضافة القلب والأكسجين
+    // تصفية البيانات حسب البحث
     const filteredHistory = useMemo(() => {
         const safeHistory = getSafeHistory();
         if (!searchTerm.trim()) return safeHistory;
@@ -110,7 +88,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         });
     }, [history, searchTerm, i18n.language, getSafeHistory]);
 
-    // فرز البيانات - إضافة القلب والأكسجين
+    // فرز البيانات
     const sortedHistory = useMemo(() => {
         if (!filteredHistory.length) return [];
         
@@ -138,7 +116,6 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
 
     const totalPages = Math.ceil(sortedHistory.length / itemsPerPage);
 
-    // طلب الفرز
     const handleSort = (key) => {
         setSortConfig(prev => ({
             key,
@@ -146,7 +123,6 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         }));
     };
 
-    // ✅ الحذف مع تأكيد - مع منع الطلبات المتزامنة
     const handleDelete = useCallback(async (id) => {
         if (isDeletingRef.current || !isMountedRef.current) return;
         
@@ -174,7 +150,6 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         }
     }, [t, onDataSubmitted, fetchHistory]);
 
-    // ✅ حذف متعدد
     const handleBulkDelete = useCallback(async () => {
         if (selectedRecords.length === 0 || isDeletingRef.current || !isMountedRef.current) return;
         
@@ -203,7 +178,6 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         }
     }, [selectedRecords, onDataSubmitted, fetchHistory, t]);
 
-    // تحديد/إلغاء تحديد كل السجلات
     const toggleSelectAll = () => {
         if (selectedRecords.length === paginatedHistory.length) {
             setSelectedRecords([]);
@@ -212,7 +186,6 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         }
     };
 
-    // تحديد/إلغاء تحديد سجل
     const toggleSelect = (id) => {
         if (selectedRecords.includes(id)) {
             setSelectedRecords(selectedRecords.filter(recId => recId !== id));
@@ -221,7 +194,6 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         }
     };
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -234,131 +206,107 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         return sortConfig.direction === 'desc' ? '⬇️' : '⬆️';
     };
 
-    // ✅ دالة محسنة للحصول على الحالة الصحية - تشمل القلب والأكسجين
     const getHealthStatus = (record) => {
         const issues = [];
         
-        // ✅ نبضات القلب
         if (record.heart_rate) {
             if (record.heart_rate > 100) {
-                issues.push(t('history.highHeartRate') || '⚠️ نبض مرتفع');
+                issues.push('⚠️ ' + (t('history.highHeartRate') || 'نبض مرتفع'));
             } else if (record.heart_rate < 60) {
-                issues.push(t('history.lowHeartRate') || '⚠️ نبض منخفض');
+                issues.push('⚠️ ' + (t('history.lowHeartRate') || 'نبض منخفض'));
             } else {
-                issues.push(t('history.normalHeartRate') || '✅ نبض طبيعي');
+                issues.push('✅ ' + (t('history.normalHeartRate') || 'نبض طبيعي'));
             }
         } else {
-            issues.push(t('history.heartRateNotMeasured') || '❓ لم يتم قياس النبض');
+            issues.push('❓ ' + (t('history.heartRateNotMeasured') || 'لم يتم قياس النبض'));
         }
         
-        // ✅ نسبة الأكسجين
         if (record.spo2) {
             if (record.spo2 < 95) {
-                issues.push(t('history.lowSpO2') || '⚠️ أكسجين منخفض');
+                issues.push('⚠️ ' + (t('history.lowSpO2') || 'أكسجين منخفض'));
             } else {
-                issues.push(t('history.normalSpO2') || '✅ أكسجين طبيعي');
+                issues.push('✅ ' + (t('history.normalSpO2') || 'أكسجين طبيعي'));
             }
         } else {
-            issues.push(t('history.spo2NotMeasured') || '❓ لم يتم قياس الأكسجين');
+            issues.push('❓ ' + (t('history.spo2NotMeasured') || 'لم يتم قياس الأكسجين'));
         }
         
-        // ✅ ضغط الدم
         if (record.systolic_pressure && record.diastolic_pressure) {
             if (record.systolic_pressure > 140 || record.diastolic_pressure > 90) {
-                issues.push(t('history.highBP') || '⚠️ ضغط مرتفع');
+                issues.push('⚠️ ' + (t('history.highBP') || 'ضغط مرتفع'));
             } else if (record.systolic_pressure < 90 || record.diastolic_pressure < 60) {
-                issues.push(t('history.lowBP') || '⚠️ ضغط منخفض');
+                issues.push('⚠️ ' + (t('history.lowBP') || 'ضغط منخفض'));
             } else {
-                issues.push(t('history.normalBP') || '✅ ضغط طبيعي');
+                issues.push('✅ ' + (t('history.normalBP') || 'ضغط طبيعي'));
             }
         } else {
-            issues.push(t('history.bpNotMeasured') || '❓ لم يتم قياس الضغط');
+            issues.push('❓ ' + (t('history.bpNotMeasured') || 'لم يتم قياس الضغط'));
         }
         
-        // ✅ الجلوكوز
         if (record.blood_glucose) {
             if (record.blood_glucose > 140) {
-                issues.push(t('history.highGlucose') || '⚠️ سكر مرتفع');
+                issues.push('⚠️ ' + (t('history.highGlucose') || 'سكر مرتفع'));
             } else if (record.blood_glucose < 70) {
-                issues.push(t('history.lowGlucose') || '⚠️ سكر منخفض');
+                issues.push('⚠️ ' + (t('history.lowGlucose') || 'سكر منخفض'));
             } else {
-                issues.push(t('history.normalGlucose') || '✅ سكر طبيعي');
+                issues.push('✅ ' + (t('history.normalGlucose') || 'سكر طبيعي'));
             }
         } else {
-            issues.push(t('history.glucoseNotMeasured') || '❓ لم يتم قياس السكر');
+            issues.push('❓ ' + (t('history.glucoseNotMeasured') || 'لم يتم قياس السكر'));
         }
         
-        // ✅ الوزن
         if (record.weight_kg) {
             if (record.weight_kg > 100) {
-                issues.push(t('history.highWeight') || '⚠️ وزن مرتفع');
+                issues.push('⚠️ ' + (t('history.highWeight') || 'وزن مرتفع'));
             } else if (record.weight_kg < 50) {
-                issues.push(t('history.lowWeight') || '⚠️ وزن منخفض');
+                issues.push('⚠️ ' + (t('history.lowWeight') || 'وزن منخفض'));
             } else {
-                issues.push(t('history.normalWeight') || '✅ وزن طبيعي');
+                issues.push('✅ ' + (t('history.normalWeight') || 'وزن طبيعي'));
             }
         } else {
-            issues.push(t('history.weightNotMeasured') || '❓ لم يتم قياس الوزن');
+            issues.push('❓ ' + (t('history.weightNotMeasured') || 'لم يتم قياس الوزن'));
         }
         
         return issues;
     };
 
-    // ✅ دالة محسنة للحصول على لون الحالة
     const getStatusColor = (status) => {
-        if (status.includes('✅')) {
-            return '#10b981';
-        }
-        if (status.includes('⚠️')) {
-            return '#ef4444';
-        }
-        if (status.includes('❓')) {
-            return '#94a3b8';
-        }
+        if (status.includes('✅')) return '#10b981';
+        if (status.includes('⚠️')) return '#ef4444';
+        if (status.includes('❓')) return '#94a3b8';
         return '#64748b';
     };
 
-    // ✅ دالة محسنة للحصول على أيقونة الحالة
-    const getStatusIcon = (status) => {
-        if (status.includes('✅')) return '✅';
-        if (status.includes('⚠️')) return '⚠️';
-        if (status.includes('❓')) return '❓';
-        return '📊';
-    };
-
-    // ✅ عرض القيمة مع دعم البيانات المفقودة
     const displayValue = (value, unit, precision = 1) => {
         if (value === null || value === undefined || value === '') {
-            return <span className="missing-data">—</span>;
+            return <span className="stat-label" style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>—</span>;
         }
         const numValue = typeof value === 'number' ? value : parseFloat(value);
         if (isNaN(numValue)) {
-            return <span className="missing-data">—</span>;
+            return <span className="stat-label" style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>—</span>;
         }
         const formattedValue = precision === 0 ? Math.round(numValue) : numValue.toFixed(precision);
         return (
-            <span className="value">
+            <span className="stat-value">
                 {formattedValue}
-                <span className="unit">{unit}</span>
+                <span className="stat-label" style={{ fontSize: '0.7rem', marginLeft: '2px' }}>{unit}</span>
             </span>
         );
     };
 
-    // ✅ عرض ضغط الدم مع دعم البيانات المفقودة
     const displayBloodPressure = (systolic, diastolic) => {
         if ((!systolic && systolic !== 0) || (!diastolic && diastolic !== 0)) {
-            return <span className="missing-data">—</span>;
+            return <span className="stat-label" style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>—</span>;
         }
         return (
-            <div className="pressure-display">
-                <span className="systolic">{systolic}</span>
-                <span className="separator">/</span>
-                <span className="diastolic">{diastolic}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                <span style={{ color: 'var(--error)' }}>{systolic}</span>
+                <span style={{ color: 'var(--text-tertiary)' }}>/</span>
+                <span style={{ color: 'var(--warning)' }}>{diastolic}</span>
             </div>
         );
     };
 
-    // ✅ استخدام history الآمن في الإحصائيات - حساب القيم الفعلية فقط
     const safeHistory = getSafeHistory();
     const weightCount = safeHistory.filter(r => r.weight_kg && r.weight_kg !== null && r.weight_kg !== '').length;
     const pressureCount = safeHistory.filter(r => r.systolic_pressure && r.diastolic_pressure && 
@@ -369,10 +317,10 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
 
     if (loading) {
         return (
-            <div className={`health-history-container ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="loading-container">
-                    <div className="loading-spinner"></div>
-                    <p className="loading-text">{t('history.loading')}</p>
+            <div className="analytics-container">
+                <div className="analytics-loading">
+                    <div className="spinner"></div>
+                    <p>{t('history.loading')}</p>
                 </div>
             </div>
         );
@@ -380,121 +328,77 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
 
     if (error) {
         return (
-            <div className={`health-history-container ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="error-container">
-                    <div className="error-icon">⚠️</div>
-                    <p className="error-message">{error}</p>
-                    <button onClick={fetchHistory} className="retry-btn">
-                        <span className="btn-icon">🔄</span>
-                        <span className="btn-text">{t('history.retry')}</span>
+            <div className="analytics-container">
+                <div className="analytics-error">
+                    <div className="empty-icon">⚠️</div>
+                    <p>{error}</p>
+                    <button onClick={fetchHistory} className="type-btn active">
+                        🔄 {t('history.retry')}
                     </button>
                 </div>
             </div>
         );
     }
 
-    // دالة تنسيق التاريخ بناءً على اللغة
     const formatDate = (dateString) => {
         if (!dateString) return { date: t('history.unknownDate'), time: '', full: '' };
         const date = new Date(dateString);
         const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-US';
         return {
-            date: date.toLocaleDateString(locale, {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            }),
-            time: date.toLocaleTimeString(locale, {
-                hour: '2-digit',
-                minute: '2-digit'
-            }),
+            date: date.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' }),
+            time: date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
             full: date.toLocaleString(locale)
         };
     };
 
     return (
-        <div className={`health-history-container ${darkMode ? 'dark-mode' : ''}`}>
+        <div className="analytics-container">
             {/* رأس القسم */}
-            <div className="section-header">
-                <div className="header-title">
+            <div className="analytics-header" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-md)' }}>
                     <h2>
-                        <span className="title-icon">📊</span>
+                        <span>📊</span>
                         {t('history.title')}
                     </h2>
-                    <div className="header-controls">
-                        <div className="search-box">
-                            <span className="search-icon">🔍</span>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+                        <div className="search-box" style={{ position: 'relative' }}>
+                            <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>🔍</span>
                             <input
                                 type="text"
                                 placeholder={t('history.searchPlaceholder')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="search-input"
+                                style={{ paddingLeft: '2rem' }}
                             />
                         </div>
                         {selectedRecords.length > 0 && (
-                            <button
-                                onClick={handleBulkDelete}
-                                className="bulk-delete-btn"
-                            >
-                                <span className="btn-icon">🗑️</span>
-                                <span className="btn-text">
-                                    {t('history.deleteSelected', { count: selectedRecords.length })}
-                                </span>
+                            <button onClick={handleBulkDelete} className="delete-read-btn">
+                                🗑️ {t('history.deleteSelected', { count: selectedRecords.length })}
                             </button>
                         )}
                     </div>
                 </div>
                 
-                <div className="stats-summary">
-                    <div className="stat-item">
-                        <span className="stat-icon">📝</span>
-                        <span className="stat-label">{t('history.record')}</span>
-                        <span className="stat-value">{safeHistory.length}</span>
-                    </div>
-                    <div className="stat-item">
-                        <span className="stat-icon">⚖️</span>
-                        <span className="stat-label">{t('history.weight')}</span>
-                        <span className="stat-value">{weightCount}</span>
-                    </div>
-                    <div className="stat-item">
-                        <span className="stat-icon">❤️</span>
-                        <span className="stat-label">{t('history.pressure')}</span>
-                        <span className="stat-value">{pressureCount}</span>
-                    </div>
-                    <div className="stat-item">
-                        <span className="stat-icon">🩸</span>
-                        <span className="stat-label">{t('history.glucose')}</span>
-                        <span className="stat-value">{glucoseCount}</span>
-                    </div>
-                    <div className="stat-item">
-                        <span className="stat-icon">❤️</span>
-                        <span className="stat-label">{t('history.heartRate') || 'النبض'}</span>
-                        <span className="stat-value">{heartRateCount}</span>
-                    </div>
-                    <div className="stat-item">
-                        <span className="stat-icon">💨</span>
-                        <span className="stat-label">{t('history.spo2') || 'الأكسجين'}</span>
-                        <span className="stat-value">{spo2Count}</span>
-                    </div>
+                <div className="type-filters" style={{ justifyContent: 'flex-start', marginTop: 'var(--spacing-md)' }}>
+                    <span className="type-btn">📝 {t('history.record')} {safeHistory.length}</span>
+                    <span className="type-btn">⚖️ {t('history.weight')} {weightCount}</span>
+                    <span className="type-btn">❤️ {t('history.pressure')} {pressureCount}</span>
+                    <span className="type-btn">🩸 {t('history.glucose')} {glucoseCount}</span>
+                    <span className="type-btn">❤️ {t('history.heartRate') || 'النبض'} {heartRateCount}</span>
+                    <span className="type-btn">💨 {t('history.spo2') || 'الأكسجين'} {spo2Count}</span>
                 </div>
             </div>
 
             {/* حالة عدم وجود بيانات */}
             {safeHistory.length === 0 && !editingRecord && (
-                <div className="empty-state">
+                <div className="analytics-empty">
                     <div className="empty-icon">📝</div>
-                    <h3 className="empty-title">{t('history.noRecords')}</h3>
-                    <p className="empty-message">{t('history.startAdding')}</p>
-                    <div className="empty-tips">
-                        <div className="tip-item">
-                            <span className="tip-icon">💡</span>
-                            <span className="tip-text">{t('history.tip1')}</span>
-                        </div>
-                        <div className="tip-item">
-                            <span className="tip-icon">💡</span>
-                            <span className="tip-text">{t('history.tip2')}</span>
-                        </div>
+                    <h3>{t('history.noRecords')}</h3>
+                    <p>{t('history.startAdding')}</p>
+                    <div className="type-filters" style={{ justifyContent: 'center', marginTop: 'var(--spacing-md)' }}>
+                        <span className="type-btn">💡 {t('history.tip1')}</span>
+                        <span className="type-btn">💡 {t('history.tip2')}</span>
                     </div>
                 </div>
             )}
@@ -502,63 +406,50 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
             {/* جدول البيانات */}
             {safeHistory.length > 0 && (
                 <>
-                    <div className="table-container">
-                        <table className="health-table">
+                    <div className="table-container" style={{ overflowX: 'auto', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-light)', marginBottom: 'var(--spacing-lg)' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                             <thead>
-                                <tr>
-                                    <th className="checkbox-cell">
+                                <tr style={{ background: 'var(--tertiary-bg)' }}>
+                                    <th style={{ padding: '0.75rem', width: '40px', textAlign: 'center' }}>
                                         <input
                                             type="checkbox"
                                             checked={selectedRecords.length === paginatedHistory.length && paginatedHistory.length > 0}
                                             onChange={toggleSelectAll}
-                                            className="select-checkbox"
+                                            style={{ accentColor: 'var(--primary)' }}
                                         />
                                     </th>
-                                    <th onClick={() => handleSort('recorded_at')} className="sortable">
-                                        <span className="th-content">
-                                            <span className="th-icon">📅</span>
-                                            <span className="th-text">{t('history.date')}</span>
-                                            <span className="sort-icon">{getSortIcon('recorded_at')}</span>
-                                        </span>
+                                    <th onClick={() => handleSort('recorded_at')} style={{ cursor: 'pointer', padding: '0.75rem', whiteSpace: 'nowrap' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span>📅</span> {t('history.date')} <span>{getSortIcon('recorded_at')}</span>
+                                        </div>
                                     </th>
-                                    <th onClick={() => handleSort('weight_kg')} className="sortable">
-                                        <span className="th-content">
-                                            <span className="th-icon">⚖️</span>
-                                            <span className="th-text">{t('history.weight')}</span>
-                                            <span className="sort-icon">{getSortIcon('weight_kg')}</span>
-                                        </span>
+                                    <th onClick={() => handleSort('weight_kg')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span>⚖️</span> {t('history.weight')} <span>{getSortIcon('weight_kg')}</span>
+                                        </div>
                                     </th>
-                                    <th onClick={() => handleSort('systolic_pressure')} className="sortable">
-                                        <span className="th-content">
-                                            <span className="th-icon">❤️</span>
-                                            <span className="th-text">{t('history.bloodPressure')}</span>
-                                            <span className="sort-icon">{getSortIcon('systolic_pressure')}</span>
-                                        </span>
+                                    <th onClick={() => handleSort('systolic_pressure')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span>❤️</span> {t('history.bloodPressure')} <span>{getSortIcon('systolic_pressure')}</span>
+                                        </div>
                                     </th>
-                                    <th onClick={() => handleSort('blood_glucose')} className="sortable">
-                                        <span className="th-content">
-                                            <span className="th-icon">🩸</span>
-                                            <span className="th-text">{t('history.glucose')}</span>
-                                            <span className="sort-icon">{getSortIcon('blood_glucose')}</span>
-                                        </span>
+                                    <th onClick={() => handleSort('blood_glucose')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span>🩸</span> {t('history.glucose')} <span>{getSortIcon('blood_glucose')}</span>
+                                        </div>
                                     </th>
-                                    {/* ✅ أعمدة جديدة */}
-                                    <th onClick={() => handleSort('heart_rate')} className="sortable">
-                                        <span className="th-content">
-                                            <span className="th-icon">❤️</span>
-                                            <span className="th-text">{t('history.heartRate') || 'النبض'}</span>
-                                            <span className="sort-icon">{getSortIcon('heart_rate')}</span>
-                                        </span>
+                                    <th onClick={() => handleSort('heart_rate')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span>❤️</span> {t('history.heartRate') || 'النبض'} <span>{getSortIcon('heart_rate')}</span>
+                                        </div>
                                     </th>
-                                    <th onClick={() => handleSort('spo2')} className="sortable">
-                                        <span className="th-content">
-                                            <span className="th-icon">💨</span>
-                                            <span className="th-text">{t('history.spo2') || 'الأكسجين'}</span>
-                                            <span className="sort-icon">{getSortIcon('spo2')}</span>
-                                        </span>
+                                    <th onClick={() => handleSort('spo2')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span>💨</span> {t('history.spo2') || 'الأكسجين'} <span>{getSortIcon('spo2')}</span>
+                                        </div>
                                     </th>
-                                    <th>📈 {t('history.status')}</th>
-                                    <th>⚙️ {t('history.actions')}</th>
+                                    <th style={{ padding: '0.75rem' }}>📈 {t('history.status')}</th>
+                                    <th style={{ padding: '0.75rem' }}>⚙️ {t('history.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -567,67 +458,49 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                                     const statuses = getHealthStatus(record);
                                     
                                     return (
-                                        <tr key={record.id} className={`table-row ${selectedRecords.includes(record.id) ? 'selected' : ''}`}>
-                                            <td className="checkbox-cell">
+                                        <tr key={record.id} className={`table-row ${selectedRecords.includes(record.id) ? 'selected' : ''}`} style={{
+                                            transition: 'background var(--transition-fast)',
+                                            background: selectedRecords.includes(record.id) ? 'var(--info-bg)' : 'transparent'
+                                        }}>
+                                            <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedRecords.includes(record.id)}
                                                     onChange={() => toggleSelect(record.id)}
-                                                    className="select-checkbox"
+                                                    style={{ accentColor: 'var(--primary)' }}
                                                 />
                                             </td>
-                                            <td className="date-cell">
-                                                <div className="date-display">{date}</div>
-                                                <div className="time-display">{time}</div>
+                                            <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
+                                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{date}</div>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{time}</div>
                                             </td>
-                                            <td className="weight-cell">
-                                                {displayValue(record.weight_kg, 'kg', 1)}
-                                            </td>
-                                            <td className="pressure-cell">
-                                                {displayBloodPressure(record.systolic_pressure, record.diastolic_pressure)}
-                                            </td>
-                                            <td className="glucose-cell">
-                                                {displayValue(record.blood_glucose, 'mg/dL', 0)}
-                                            </td>
-                                            {/* ✅ أعمدة جديدة */}
-                                            <td className="heart-rate-cell">
-                                                {displayValue(record.heart_rate, 'BPM', 0)}
-                                            </td>
-                                            <td className="spo2-cell">
-                                                {displayValue(record.spo2, '%', 0)}
-                                            </td>
-                                            <td className="status-cell">
-                                                <div className="status-badges">
+                                            <td style={{ padding: '0.75rem' }}>{displayValue(record.weight_kg, 'kg', 1)}</td>
+                                            <td style={{ padding: '0.75rem' }}>{displayBloodPressure(record.systolic_pressure, record.diastolic_pressure)}</td>
+                                            <td style={{ padding: '0.75rem' }}>{displayValue(record.blood_glucose, 'mg/dL', 0)}</td>
+                                            <td style={{ padding: '0.75rem', textAlign: 'center' }}>{displayValue(record.heart_rate, 'BPM', 0)}</td>
+                                            <td style={{ padding: '0.75rem', textAlign: 'center' }}>{displayValue(record.spo2, '%', 0)}</td>
+                                            <td style={{ padding: '0.75rem', minWidth: '180px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                                     {statuses.map((status, index) => (
-                                                        <span 
-                                                            key={index}
-                                                            className="status-badge"
-                                                            style={{ 
-                                                                backgroundColor: getStatusColor(status),
-                                                                color: 'white'
-                                                            }}
-                                                            title={status}
-                                                        >
-                                                            <span className="status-icon">{getStatusIcon(status)}</span>
-                                                            <span className="status-text">{status}</span>
+                                                        <span key={index} className="priority-badge" style={{
+                                                            background: getStatusColor(status),
+                                                            color: 'white',
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.25rem',
+                                                            width: 'fit-content'
+                                                        }}>
+                                                            {status.substring(0, 2)} {status.substring(3)}
                                                         </span>
                                                     ))}
                                                 </div>
                                             </td>
-                                            <td className="actions-cell">
-                                                <div className="action-buttons">
-                                                    <button 
-                                                        onClick={() => setEditingRecord(record)}
-                                                        className="btn-edit"
-                                                        title={t('history.editTooltip')}
-                                                    >
+                                            <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <button onClick={() => setEditingRecord(record)} className="notification-action-btn" title={t('history.editTooltip')}>
                                                         ✏️
                                                     </button>
-                                                    <button 
-                                                        onClick={() => setDeleteConfirm(record.id)}
-                                                        className="btn-delete"
-                                                        title={t('history.deleteTooltip')}
-                                                    >
+                                                    <button onClick={() => setDeleteConfirm(record.id)} className="notification-action-btn" title={t('history.deleteTooltip')}>
                                                         🗑️
                                                     </button>
                                                 </div>
@@ -641,21 +514,21 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
 
                     {/* Pagination */}
                     {totalPages > 1 && (
-                        <div className="pagination">
+                        <div className="type-filters" style={{ justifyContent: 'center' }}>
                             <button
                                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                 disabled={currentPage === 1}
-                                className="pagination-btn"
+                                className="type-btn"
                             >
                                 {i18n.language === 'ar' ? '→' : '←'}
                             </button>
-                            <span className="pagination-info">
+                            <span className="stat-label">
                                 {t('history.page')} {currentPage} {t('history.of')} {totalPages}
                             </span>
                             <button
                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                 disabled={currentPage === totalPages}
-                                className="pagination-btn"
+                                className="type-btn"
                             >
                                 {i18n.language === 'ar' ? '←' : '→'}
                             </button>
@@ -666,29 +539,41 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
 
             {/* نافذة تأكيد الحذف */}
             {deleteConfirm && (
-                <div className="modal-backdrop">
-                    <div className="confirm-modal">
-                        <div className="modal-header">
-                            <span className="modal-icon">⚠️</span>
-                            <h3 className="modal-title">{t('history.deleteConfirmTitle')}</h3>
+                <div className="modal-backdrop" style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000
+                }}>
+                    <div className="confirm-modal" style={{
+                        background: 'var(--card-bg)',
+                        borderRadius: 'var(--radius-xl)',
+                        padding: 'var(--spacing-lg)',
+                        maxWidth: '380px',
+                        width: '90%',
+                        border: '1px solid var(--border-light)',
+                        boxShadow: 'var(--shadow-xl)'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: 'var(--spacing-md)' }}>
+                            <span style={{ fontSize: '1.6rem' }}>⚠️</span>
+                            <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>{t('history.deleteConfirmTitle')}</h3>
                         </div>
-                        <div className="modal-body">
-                            <p className="modal-message">{t('history.deleteConfirmMessage')}</p>
-                            <p className="modal-warning">{t('history.irreversibleAction')}</p>
+                        <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                            <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{t('history.deleteConfirmMessage')}</p>
+                            <p style={{ color: 'var(--error)', fontSize: '0.8rem' }}>{t('history.irreversibleAction')}</p>
                         </div>
-                        <div className="modal-actions">
-                            <button 
-                                onClick={() => setDeleteConfirm(null)}
-                                className="btn-cancel"
-                            >
+                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <button onClick={() => setDeleteConfirm(null)} className="type-btn" style={{ flex: 1 }}>
                                 {t('common.cancel')}
                             </button>
-                            <button 
-                                onClick={() => handleDelete(deleteConfirm)}
-                                className="btn-confirm-delete"
-                            >
-                                <span className="btn-icon">🗑️</span>
-                                <span className="btn-text">{t('history.confirmDelete')}</span>
+                            <button onClick={() => handleDelete(deleteConfirm)} className="type-btn active" style={{ flex: 1, background: 'var(--error)', color: 'white' }}>
+                                🗑️ {t('history.confirmDelete')}
                             </button>
                         </div>
                     </div>
@@ -707,1033 +592,41 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                 />
             )}
 
-            <style jsx>{`
-/* ===========================================
-   HealthHistory.css - محسن للجوال والشاشات الكبيرة
-   =========================================== */
-
-/* الثيم الفاتح */
-:root {
-    --primary-bg: #ffffff;
-    --secondary-bg: #f8fafc;
-    --tertiary-bg: #f1f5f9;
-    --card-bg: #ffffff;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-tertiary: #64748b;
-    --border-light: #e2e8f0;
-    --border-medium: #cbd5e1;
-    --primary-color: #3b82f6;
-    --primary-dark: #2563eb;
-    --primary-light: #60a5fa;
-    --success-color: #10b981;
-    --success-bg: #d1fae5;
-    --warning-color: #f59e0b;
-    --warning-bg: #fef3c7;
-    --error-color: #ef4444;
-    --error-bg: #fee2e2;
-    --info-color: #3b82f6;
-    --info-bg: #dbeafe;
-    --missing-color: #94a3b8;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
-    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1);
-    --transition-fast: 0.2s ease;
-    --transition-medium: 0.3s ease;
-    --transition-slow: 0.5s ease;
-}
-
-/* الثيم المظلم */
-.dark-mode {
-    --primary-bg: #0f172a;
-    --secondary-bg: #1e293b;
-    --tertiary-bg: #334155;
-    --card-bg: #1e293b;
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-tertiary: #94a3b8;
-    --border-light: #334155;
-    --border-medium: #475569;
-    --primary-color: #60a5fa;
-    --primary-dark: #3b82f6;
-    --primary-light: #93c5fd;
-    --success-color: #4ade80;
-    --success-bg: rgba(16, 185, 129, 0.2);
-    --warning-color: #fbbf24;
-    --warning-bg: rgba(245, 158, 11, 0.2);
-    --error-color: #f87171;
-    --error-bg: rgba(239, 68, 68, 0.2);
-    --info-color: #60a5fa;
-    --info-bg: rgba(59, 130, 246, 0.2);
-    --missing-color: #64748b;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
-    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.5);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5);
-    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.5);
-}
-
-.health-history-container {
-    background: var(--card-bg);
-    border-radius: 28px;
-    padding: 2rem;
-    border: 1px solid var(--border-light);
-    box-shadow: var(--shadow-xl);
-    margin-top: 2rem;
-    transition: all var(--transition-medium);
-}
-
-/* ===========================================
-   رأس القسم
-   =========================================== */
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 2px solid var(--border-light);
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.header-title {
-    flex: 1;
-}
-
-.header-title h2 {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 0 0 1rem 0;
-    color: var(--text-primary);
-    font-size: 1.5rem;
-    font-weight: 700;
-}
-
-.title-icon {
-    font-size: 1.8rem;
-    animation: bounce 2s infinite;
-}
-
-@keyframes bounce {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
-
-.header-controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.search-box {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.search-icon {
-    position: absolute;
-    left: 1rem;
-    color: var(--text-tertiary);
-    font-size: 0.9rem;
-}
-
-.search-input {
-    padding: 0.6rem 1rem 0.6rem 2.3rem;
-    border: 2px solid var(--border-light);
-    border-radius: 12px;
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    min-width: 220px;
-    transition: all var(--transition-fast);
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-
-.bulk-delete-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1rem;
-    background: var(--error-bg);
-    color: var(--error-color);
-    border: 1px solid var(--error-color);
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    font-size: 0.85rem;
-    font-weight: 500;
-}
-
-.bulk-delete-btn:active {
-    transform: scale(0.96);
-}
-
-.bulk-delete-btn:hover {
-    background: var(--error-color);
-    color: white;
-    transform: translateY(-2px);
-}
-
-.stats-summary {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--secondary-bg);
-    padding: 0.4rem 0.8rem;
-    border-radius: 50px;
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-fast);
-}
-
-.stat-item:active {
-    transform: scale(0.96);
-}
-
-.stat-item:hover {
-    transform: translateY(-2px);
-}
-
-.stat-icon {
-    font-size: 1rem;
-}
-
-.stat-label {
-    color: var(--text-secondary);
-    font-size: 0.8rem;
-}
-
-.stat-value {
-    color: var(--primary-color);
-    font-weight: 700;
-    font-size: 1rem;
-}
-
-/* ===========================================
-   حالات التحميل
-   =========================================== */
-.loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
-}
-
-.loading-spinner {
-    width: 45px;
-    height: 45px;
-    border: 4px solid var(--border-light);
-    border-top-color: var(--primary-color);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.loading-text {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
-/* حالة الخطأ */
-.error-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
-    text-align: center;
-    padding: 2rem;
-}
-
-.error-icon {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-    animation: shake 0.5s ease;
-}
-
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
-}
-
-.error-message {
-    color: var(--error-color);
-    margin-bottom: 1.5rem;
-    font-size: 0.9rem;
-}
-
-.retry-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.2rem;
-    background: var(--error-color);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all var(--transition-medium);
-    font-size: 0.85rem;
-    font-weight: 500;
-}
-
-.retry-btn:active {
-    transform: scale(0.96);
-}
-
-.retry-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-/* حالة عدم وجود بيانات */
-.empty-state {
-    text-align: center;
-    padding: 3rem 2rem;
-}
-
-.empty-icon {
-    font-size: 3.5rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-    animation: float 3s infinite;
-}
-
-@keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-}
-
-.empty-title {
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-    font-size: 1.1rem;
-}
-
-.empty-message {
-    color: var(--text-secondary);
-    margin-bottom: 1.5rem;
-    font-size: 0.9rem;
-}
-
-.empty-tips {
-    max-width: 380px;
-    margin: 0 auto;
-}
-
-.tip-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.6rem;
-    background: var(--secondary-bg);
-    border-radius: 10px;
-    margin-bottom: 0.5rem;
-}
-
-.tip-item:last-child {
-    margin-bottom: 0;
-}
-
-.tip-icon {
-    font-size: 1rem;
-}
-
-.tip-text {
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-}
-
-/* ===========================================
-   جدول البيانات
-   =========================================== */
-.table-container {
-    overflow-x: auto;
-    border-radius: 16px;
-    border: 1px solid var(--border-light);
-    background: var(--secondary-bg);
-    margin-bottom: 1.5rem;
-}
-
-.health-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-}
-
-.health-table th {
-    background: var(--tertiary-bg);
-    padding: 0.875rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    border-bottom: 2px solid var(--border-light);
-    white-space: nowrap;
-}
-
-.th-content {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.th-icon {
-    font-size: 1rem;
-}
-
-.sortable {
-    cursor: pointer;
-    transition: background-color var(--transition-fast);
-}
-
-.sortable:hover {
-    background: var(--primary-bg);
-}
-
-.sort-icon {
-    color: var(--text-tertiary);
-    font-size: 0.9rem;
-}
-
-.checkbox-cell {
-    width: 40px;
-    text-align: center;
-}
-
-.select-checkbox {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-    accent-color: var(--primary-color);
-}
-
-.table-row {
-    transition: background-color var(--transition-fast);
-}
-
-.table-row:hover {
-    background: var(--primary-bg);
-}
-
-.table-row.selected {
-    background: var(--info-bg);
-}
-
-.health-table td {
-    padding: 0.75rem;
-    border-bottom: 1px solid var(--border-light);
-    color: var(--text-secondary);
-}
-
-.date-cell {
-    white-space: nowrap;
-}
-
-.date-display {
-    font-weight: 600;
-    color: var(--text-primary);
-    font-size: 0.85rem;
-}
-
-.time-display {
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-    margin-top: 0.1rem;
-}
-
-/* ✅ أنماط البيانات المفقودة */
-.missing-data {
-    color: var(--missing-color);
-    font-style: italic;
-    font-size: 0.85rem;
-    display: inline-block;
-    padding: 0.2rem 0.5rem;
-    background: var(--secondary-bg);
-    border-radius: 6px;
-    text-align: center;
-}
-
-.value {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.unit {
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-    margin-left: 0.2rem;
-}
-
-.pressure-display {
-    display: flex;
-    align-items: center;
-    gap: 0.2rem;
-}
-
-.systolic {
-    color: var(--error-color);
-    font-weight: 600;
-}
-
-.diastolic {
-    color: var(--warning-color);
-    font-weight: 600;
-}
-
-.separator {
-    color: var(--text-tertiary);
-}
-
-.heart-rate-cell, .spo2-cell {
-    text-align: center;
-}
-
-.status-cell {
-    min-width: 180px;
-}
-
-.status-badges {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.2rem 0.5rem;
-    border-radius: 20px;
-    font-size: 0.7rem;
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.status-icon {
-    font-size: 0.75rem;
-}
-
-.actions-cell {
-    white-space: nowrap;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: center;
-}
-
-.btn-edit, .btn-delete {
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-}
-
-.btn-edit:active, .btn-delete:active {
-    transform: scale(0.9);
-}
-
-.btn-edit {
-    background: var(--info-bg);
-    color: var(--info-color);
-}
-
-.btn-edit:hover {
-    background: var(--info-color);
-    color: white;
-    transform: scale(1.05);
-}
-
-.btn-delete {
-    background: var(--error-bg);
-    color: var(--error-color);
-}
-
-.btn-delete:hover {
-    background: var(--error-color);
-    color: white;
-    transform: scale(1.05);
-}
-
-/* ===========================================
-   Pagination
-   =========================================== */
-.pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    margin-top: 1.5rem;
-}
-
-.pagination-btn {
-    width: 36px;
-    height: 36px;
-    border: none;
-    border-radius: 8px;
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    font-size: 1.1rem;
-}
-
-.pagination-btn:active {
-    transform: scale(0.95);
-}
-
-.pagination-btn:hover:not(:disabled) {
-    background: var(--primary-color);
-    color: white;
-    transform: scale(1.05);
-}
-
-.pagination-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.pagination-info {
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-}
-
-/* ===========================================
-   Modal
-   =========================================== */
-.modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.confirm-modal {
-    background: var(--card-bg);
-    border-radius: 24px;
-    padding: 1.5rem;
-    max-width: 380px;
-    width: 90%;
-    border: 1px solid var(--border-light);
-    box-shadow: var(--shadow-xl);
-    animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.modal-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-}
-
-.modal-icon {
-    font-size: 1.6rem;
-}
-
-.modal-title {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-.modal-body {
-    margin-bottom: 1.5rem;
-}
-
-.modal-message {
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-}
-
-.modal-warning {
-    color: var(--error-color);
-    font-size: 0.8rem;
-}
-
-.modal-actions {
-    display: flex;
-    gap: 0.75rem;
-}
-
-.btn-cancel {
-    flex: 1;
-    padding: 0.6rem;
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    border: 1px solid var(--border-light);
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    font-weight: 500;
-    font-size: 0.85rem;
-}
-
-.btn-cancel:active {
-    transform: scale(0.96);
-}
-
-.btn-cancel:hover {
-    background: var(--hover-bg);
-}
-
-.btn-confirm-delete {
-    flex: 1;
-    padding: 0.6rem;
-    background: var(--error-color);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: all var(--transition-fast);
-    font-weight: 500;
-    font-size: 0.85rem;
-}
-
-.btn-confirm-delete:active {
-    transform: scale(0.96);
-}
-
-.btn-confirm-delete:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-/* ===========================================
-   RTL دعم
-   =========================================== */
-[dir="rtl"] .search-icon {
-    left: auto;
-    right: 1rem;
-}
-
-[dir="rtl"] .search-input {
-    padding: 0.6rem 2.3rem 0.6rem 1rem;
-}
-
-[dir="rtl"] .th-content {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .unit {
-    margin-left: 0;
-    margin-right: 0.2rem;
-}
-
-[dir="rtl"] .status-badge {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .pagination-btn {
-    transform: scaleX(-1);
-}
-
-/* ===========================================
-   تصميم متجاوب
-   =========================================== */
-@media (max-width: 1024px) {
-    .stats-summary {
-        width: 100%;
-        justify-content: space-between;
-    }
-}
-
-@media (max-width: 768px) {
-    .health-history-container {
-        padding: 1.25rem;
-        border-radius: 20px;
-    }
-
-    .section-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .header-title h2 {
-        font-size: 1.2rem;
-    }
-
-    .title-icon {
-        font-size: 1.5rem;
-    }
-
-    .header-controls {
-        width: 100%;
-        flex-direction: column;
-    }
-
-    .search-box {
-        width: 100%;
-    }
-
-    .search-input {
-        width: 100%;
-        min-width: auto;
-    }
-
-    .bulk-delete-btn {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .stats-summary {
-        flex-wrap: wrap;
-    }
-
-    .stat-item {
-        flex: 1;
-        min-width: 100px;
-        justify-content: center;
-    }
-
-    .status-badges {
-        flex-direction: row;
-        flex-wrap: wrap;
-    }
-
-    .status-badge {
-        width: auto;
-    }
-
-    .action-buttons {
-        flex-direction: row;
-    }
-
-    .btn-edit, .btn-delete {
-        width: 32px;
-        height: 32px;
-    }
-
-    .pagination {
-        gap: 0.75rem;
-    }
-
-    .pagination-btn {
-        width: 32px;
-        height: 32px;
-        font-size: 1rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .health-history-container {
-        padding: 1rem;
-        border-radius: 16px;
-        margin-top: 1rem;
-    }
-
-    .section-header {
-        margin-bottom: 1rem;
-        padding-bottom: 1rem;
-    }
-
-    .header-title h2 {
-        font-size: 1.1rem;
-        margin-bottom: 0.75rem;
-    }
-
-    .stats-summary {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .stat-item {
-        width: 100%;
-        justify-content: space-between;
-    }
-
-    .stat-label {
-        font-size: 0.75rem;
-    }
-
-    .stat-value {
-        font-size: 0.9rem;
-    }
-
-    .health-table th,
-    .health-table td {
-        padding: 0.5rem;
-    }
-
-    .date-display {
-        font-size: 0.75rem;
-    }
-
-    .time-display {
-        font-size: 0.6rem;
-    }
-
-    .value {
-        font-size: 0.8rem;
-    }
-
-    .missing-data {
-        font-size: 0.7rem;
-        padding: 0.15rem 0.4rem;
-    }
-
-    .status-badge {
-        font-size: 0.65rem;
-        padding: 0.15rem 0.4rem;
-    }
-
-    .btn-edit, .btn-delete {
-        width: 28px;
-        height: 28px;
-        font-size: 0.85rem;
-    }
-
-    .pagination-info {
-        font-size: 0.75rem;
-    }
-
-    .pagination-btn {
-        width: 28px;
-        height: 28px;
-        font-size: 0.9rem;
-    }
-
-    .confirm-modal {
-        padding: 1.25rem;
-        max-width: 320px;
-    }
-
-    .modal-title {
-        font-size: 1rem;
-    }
-
-    .modal-message {
-        font-size: 0.85rem;
-    }
-
-    .btn-cancel,
-    .btn-confirm-delete {
-        padding: 0.5rem;
-        font-size: 0.8rem;
-    }
-}
-
-/* الوضع الأفقي (Landscape) */
-@media (max-height: 600px) and (orientation: landscape) {
-    .health-history-container {
-        padding: 1rem;
-    }
-
-    .loading-container,
-    .error-container {
-        min-height: 250px;
-    }
-
-    .empty-state {
-        padding: 1.5rem;
-    }
-
-    .table-container {
-        max-height: 300px;
-        overflow-y: auto;
-    }
-}
-
-/* للمستخدمين الذين يفضلون الحركة المنخفضة */
-@media (prefers-reduced-motion: reduce) {
-    .health-history-container,
-    .stat-item,
-    .bulk-delete-btn,
-    .retry-btn,
-    .btn-edit,
-    .btn-delete,
-    .pagination-btn,
-    .btn-cancel,
-    .btn-confirm-delete {
-        transition: none;
-    }
-    
-    .loading-spinner {
-        animation: none;
-    }
-    
-    .title-icon,
-    .empty-icon {
-        animation: none;
-    }
-    
-    .stat-item:hover,
-    .btn-edit:hover,
-    .btn-delete:hover {
-        transform: none;
-    }
-}
-
-/* تحسينات اللمس للأجهزة المحمولة */
-@media (hover: none) and (pointer: coarse) {
-    .bulk-delete-btn:active,
-    .retry-btn:active,
-    .btn-edit:active,
-    .btn-delete:active,
-    .pagination-btn:active,
-    .btn-cancel:active,
-    .btn-confirm-delete:active {
-        transform: scale(0.96);
-    }
-    
-    .stat-item:active {
-        transform: scale(0.96);
-    }
-}
+            {/* الأنماط الإضافية */}
+            <style>{`
+                .table-row:hover {
+                    background: var(--hover-bg) !important;
+                }
+                
+                .search-box input {
+                    min-width: 220px;
+                }
+                
+                @media (max-width: 768px) {
+                    .search-box input {
+                        min-width: auto;
+                        width: 100%;
+                    }
+                    
+                    .search-box {
+                        width: 100%;
+                    }
+                }
+                
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                
+                .modal-backdrop {
+                    animation: fadeIn 0.2s ease;
+                }
+                
+                @media (prefers-reduced-motion: reduce) {
+                    .modal-backdrop {
+                        animation: none;
+                    }
+                }
             `}</style>
         </div>
     );

@@ -35,18 +35,21 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const isArabic = i18n.language.startsWith('ar');
+    const isArabic = i18n.language?.startsWith('ar');
 
+    // متابعة الثيم من ThemeManager
     useEffect(() => {
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                             window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setDarkMode(savedDarkMode);
-    }, []);
-
-    useEffect(() => {
-        const handleThemeChange = (e) => setDarkMode(e.detail?.darkMode ?? false);
-        window.addEventListener('themeChange', handleThemeChange);
-        return () => window.removeEventListener('themeChange', handleThemeChange);
+        const checkDarkMode = () => {
+            const isDark = document.documentElement.classList.contains('dark-mode');
+            setDarkMode(isDark);
+        };
+        
+        checkDarkMode();
+        
+        const observer = new MutationObserver(checkDarkMode);
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        
+        return () => observer.disconnect();
     }, []);
 
     useEffect(() => {
@@ -64,7 +67,7 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
             setData(analysis);
         } catch (err) {
             console.error('Error fetching nutrition data:', err);
-            setError('حدث خطأ في تحميل البيانات');
+            setError(isArabic ? 'حدث خطأ في تحميل البيانات' : 'Error loading data');
         } finally {
             setLoading(false);
         }
@@ -111,42 +114,52 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         // ==================== التوصيات الذكية ====================
         const recommendations = [];
         
-        if (avgCalories < 1500) {
+        if (avgCalories < 1500 && avgCalories > 0) {
             recommendations.push({
                 icon: '🔥',
-                title: 'سعرات حرارية منخفضة',
-                advice: `تتناول ${Math.round(avgCalories)} سعرة في المتوسط، حاول زيادة ${Math.round(2000 - avgCalories)} سعرة يومياً`,
-                action: 'أضف وجبة خفيفة صحية بين الوجبات الرئيسية'
+                title: isArabic ? 'سعرات حرارية منخفضة' : 'Low Calories',
+                advice: isArabic 
+                    ? `تتناول ${Math.round(avgCalories)} سعرة في المتوسط، حاول زيادة ${Math.round(2000 - avgCalories)} سعرة يومياً`
+                    : `You average ${Math.round(avgCalories)} calories, try to increase by ${Math.round(2000 - avgCalories)} daily`,
+                action: isArabic ? 'أضف وجبة خفيفة صحية بين الوجبات الرئيسية' : 'Add a healthy snack between main meals'
             });
         } else if (avgCalories > 2500) {
             recommendations.push({
                 icon: '⚖️',
-                title: 'سعرات حرارية مرتفعة',
-                advice: `تتناول ${Math.round(avgCalories)} سعرة في المتوسط، حاول تقليل ${Math.round(avgCalories - 2200)} سعرة يومياً`,
-                action: 'قلل من الوجبات السريعة والحلويات'
+                title: isArabic ? 'سعرات حرارية مرتفعة' : 'High Calories',
+                advice: isArabic 
+                    ? `تتناول ${Math.round(avgCalories)} سعرة في المتوسط، حاول تقليل ${Math.round(avgCalories - 2200)} سعرة يومياً`
+                    : `You average ${Math.round(avgCalories)} calories, try to reduce by ${Math.round(avgCalories - 2200)} daily`,
+                action: isArabic ? 'قلل من الوجبات السريعة والحلويات' : 'Reduce fast food and sweets'
             });
-        } else {
+        } else if (avgCalories > 0) {
             recommendations.push({
                 icon: '✅',
-                title: 'سعرات متوازنة',
-                advice: `تتناول ${Math.round(avgCalories)} سعرة في المتوسط، استمر بهذا المعدل الممتاز`,
-                action: 'حافظ على تنوع وجباتك'
+                title: isArabic ? 'سعرات متوازنة' : 'Balanced Calories',
+                advice: isArabic 
+                    ? `تتناول ${Math.round(avgCalories)} سعرة في المتوسط، استمر بهذا المعدل الممتاز`
+                    : `You average ${Math.round(avgCalories)} calories, keep up this excellent rate`,
+                action: isArabic ? 'حافظ على تنوع وجباتك' : 'Keep your meals varied'
             });
         }
 
-        if (avgProtein < 50) {
+        if (avgProtein < 50 && avgProtein > 0) {
             recommendations.push({
                 icon: '💪',
-                title: 'البروتين منخفض',
-                advice: `تتناول ${avgProtein.toFixed(1)}g بروتين في المتوسط، حاول زيادة ${Math.round(50 - avgProtein)}g`,
-                action: 'أضف الدجاج، البيض، البقوليات أو الزبادي اليوناني'
+                title: isArabic ? 'البروتين منخفض' : 'Low Protein',
+                advice: isArabic 
+                    ? `تتناول ${avgProtein.toFixed(1)}g بروتين في المتوسط، حاول زيادة ${Math.round(50 - avgProtein)}g`
+                    : `You average ${avgProtein.toFixed(1)}g protein, try to increase by ${Math.round(50 - avgProtein)}g`,
+                action: isArabic ? 'أضف الدجاج، البيض، البقوليات أو الزبادي اليوناني' : 'Add chicken, eggs, legumes, or Greek yogurt'
             });
         } else if (avgProtein > 80) {
             recommendations.push({
                 icon: '💪',
-                title: 'بروتين ممتاز',
-                advice: `تتناول ${avgProtein.toFixed(1)}g بروتين في المتوسط، استمر بهذا المستوى`,
-                action: 'وازن بين البروتين والكربوهيدرات والدهون'
+                title: isArabic ? 'بروتين ممتاز' : 'Excellent Protein',
+                advice: isArabic 
+                    ? `تتناول ${avgProtein.toFixed(1)}g بروتين في المتوسط، استمر بهذا المستوى`
+                    : `You average ${avgProtein.toFixed(1)}g protein, keep up this level`,
+                action: isArabic ? 'وازن بين البروتين والكربوهيدرات والدهون' : 'Balance protein with carbs and fats'
             });
         }
 
@@ -154,12 +167,14 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         const mealTimes = meals.map(m => m.meal_time ? new Date(m.meal_time).getHours() : 0);
         const lateMeals = mealTimes.filter(h => h >= 22 || h <= 4).length;
         
-        if (lateMeals > totalMeals * 0.3) {
+        if (lateMeals > totalMeals * 0.3 && totalMeals > 0) {
             recommendations.push({
                 icon: '🌙',
-                title: 'وجبات متأخرة',
-                advice: `${lateMeals} وجبة بعد الساعة 10 مساءً تؤثر على جودة النوم`,
-                action: 'حاول إنهاء آخر وجبة قبل الساعة 8 مساءً'
+                title: isArabic ? 'وجبات متأخرة' : 'Late Meals',
+                advice: isArabic 
+                    ? `${lateMeals} وجبة بعد الساعة 10 مساءً تؤثر على جودة النوم`
+                    : `${lateMeals} meals after 10 PM affect sleep quality`,
+                action: isArabic ? 'حاول إنهاء آخر وجبة قبل الساعة 8 مساءً' : 'Try to finish your last meal before 8 PM'
             });
         }
 
@@ -167,24 +182,26 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         if (breakfastCount === 0 && totalMeals > 0) {
             recommendations.push({
                 icon: '🌅',
-                title: 'تناول الفطور',
-                advice: 'لم تسجل أي وجبة فطور، الفطور يمنحك الطاقة لبدء يومك',
-                action: 'جرب تناول فطور خفيف مثل زبادي مع فواكه أو بيض مع خبز'
+                title: isArabic ? 'تناول الفطور' : 'Eat Breakfast',
+                advice: isArabic ? 'لم تسجل أي وجبة فطور، الفطور يمنحك الطاقة لبدء يومك' : 'No breakfast recorded, breakfast gives you energy to start your day',
+                action: isArabic ? 'جرب تناول فطور خفيف مثل زبادي مع فواكه أو بيض مع خبز' : 'Try a light breakfast like yogurt with fruit or eggs with bread'
             });
         }
 
         // ==================== التنبؤات ====================
         const predictions = [];
         
-        if (avgCalories > 2200) {
+        if (avgCalories > 2200 && avgCalories > 0) {
             const weeklyGain = ((avgCalories - 2000) * 7) / 7700;
             if (weeklyGain > 0.2) {
                 predictions.push({
                     icon: '📈',
-                    title: 'توقع زيادة الوزن',
-                    text: `قد تزيد ${weeklyGain.toFixed(1)} كجم أسبوعياً إذا استمر هذا النمط`,
-                    probability: 'عالية',
-                    color: '#f59e0b'
+                    title: isArabic ? 'توقع زيادة الوزن' : 'Weight Gain Expected',
+                    text: isArabic 
+                        ? `قد تزيد ${weeklyGain.toFixed(1)} كجم أسبوعياً إذا استمر هذا النمط`
+                        : `You may gain ${weeklyGain.toFixed(1)} kg weekly if this pattern continues`,
+                    probability: isArabic ? 'عالية' : 'High',
+                    severity: 'high'
                 });
             }
         } else if (avgCalories < 1800 && avgCalories > 0) {
@@ -192,21 +209,23 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
             if (weeklyLoss > 0.2) {
                 predictions.push({
                     icon: '📉',
-                    title: 'توقع خسارة الوزن',
-                    text: `قد تخسر ${weeklyLoss.toFixed(1)} كجم أسبوعياً مع هذا العجز الحراري`,
-                    probability: 'متوسطة',
-                    color: '#10b981'
+                    title: isArabic ? 'توقع خسارة الوزن' : 'Weight Loss Expected',
+                    text: isArabic 
+                        ? `قد تخسر ${weeklyLoss.toFixed(1)} كجم أسبوعياً مع هذا العجز الحراري`
+                        : `You may lose ${weeklyLoss.toFixed(1)} kg weekly with this calorie deficit`,
+                    probability: isArabic ? 'متوسطة' : 'Medium',
+                    severity: 'medium'
                 });
             }
         }
 
-        if (avgProtein < 45 && avgCalories < 1800) {
+        if (avgProtein < 45 && avgCalories < 1800 && avgCalories > 0) {
             predictions.push({
                 icon: '😴',
-                title: 'نقص الطاقة محتمل',
-                text: 'قلة البروتين والسعرات قد تسبب الشعور بالتعب والإرهاق',
-                probability: 'عالية',
-                color: '#ef4444'
+                title: isArabic ? 'نقص الطاقة محتمل' : 'Energy Deficiency Possible',
+                text: isArabic ? 'قلة البروتين والسعرات قد تسبب الشعور بالتعب والإرهاق' : 'Low protein and calories may cause fatigue',
+                probability: isArabic ? 'عالية' : 'High',
+                severity: 'high'
             });
         }
 
@@ -214,10 +233,10 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         const chartData = {
             labels: weekly.map(w => w.day),
             datasets: [{
-                label: 'السعرات الحرارية',
+                label: isArabic ? 'السعرات الحرارية' : 'Calories',
                 data: weekly.map(w => w.calories),
                 borderColor: '#ef4444',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                backgroundColor: darkMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
                 borderWidth: 2,
                 tension: 0.3,
                 fill: true,
@@ -227,7 +246,16 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         };
 
         const distributionData = {
-            labels: Object.keys(distribution).map(k => t(`nutrition.${k.toLowerCase()}`, k)),
+            labels: Object.keys(distribution).map(k => {
+                const typeMap = {
+                    'Breakfast': isArabic ? 'فطور' : 'Breakfast',
+                    'Lunch': isArabic ? 'غداء' : 'Lunch',
+                    'Dinner': isArabic ? 'عشاء' : 'Dinner',
+                    'Snack': isArabic ? 'وجبة خفيفة' : 'Snack',
+                    'Other': isArabic ? 'أخرى' : 'Other'
+                };
+                return typeMap[k] || k;
+            }),
             datasets: [{
                 data: Object.values(distribution),
                 backgroundColor: ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444'],
@@ -239,12 +267,29 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top', labels: { color: darkMode ? '#f8fafc' : '#2c3e50' } },
-                tooltip: { rtl: isArabic }
+                legend: { 
+                    position: 'top', 
+                    labels: { 
+                        color: darkMode ? '#f8fafc' : '#0f172a',
+                        font: { size: 11 }
+                    } 
+                },
+                tooltip: { 
+                    rtl: isArabic,
+                    bodyColor: darkMode ? '#f8fafc' : '#0f172a',
+                    backgroundColor: darkMode ? '#1e293b' : '#ffffff',
+                }
             },
             scales: {
-                y: { beginAtZero: true, grid: { color: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' } },
-                x: { grid: { display: false } }
+                y: { 
+                    beginAtZero: true, 
+                    grid: { color: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' },
+                    ticks: { color: darkMode ? '#94a3b8' : '#475569' }
+                },
+                x: { 
+                    grid: { display: false },
+                    ticks: { color: darkMode ? '#94a3b8' : '#475569' }
+                }
             }
         };
 
@@ -252,7 +297,13 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'bottom', labels: { color: darkMode ? '#f8fafc' : '#2c3e50' } },
+                legend: { 
+                    position: 'bottom', 
+                    labels: { 
+                        color: darkMode ? '#f8fafc' : '#0f172a',
+                        font: { size: 10 }
+                    } 
+                },
                 tooltip: { rtl: isArabic }
             }
         };
@@ -260,17 +311,17 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         // ==================== درجة التغذية ====================
         let nutritionScore = 0;
         if (avgCalories >= 1800 && avgCalories <= 2500) nutritionScore += 35;
-        else if (avgCalories >= 1500) nutritionScore += 20;
-        else nutritionScore += 10;
+        else if (avgCalories >= 1500 && avgCalories > 0) nutritionScore += 20;
+        else if (avgCalories > 0) nutritionScore += 10;
         
         if (avgProtein >= 60) nutritionScore += 35;
         else if (avgProtein >= 40) nutritionScore += 25;
         else if (avgProtein >= 20) nutritionScore += 15;
-        else nutritionScore += 5;
+        else if (avgProtein > 0) nutritionScore += 5;
         
         if (Object.keys(distribution).length >= 3) nutritionScore += 30;
         else if (Object.keys(distribution).length >= 2) nutritionScore += 20;
-        else nutritionScore += 10;
+        else if (Object.keys(distribution).length >= 1) nutritionScore += 10;
         
         nutritionScore = Math.min(100, Math.max(0, nutritionScore));
 
@@ -296,277 +347,160 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
 
     if (loading) {
         return (
-            <div className={`analytics-loading ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="spinner"></div>
-                <p>{t('analytics.nutrition.loading')}</p>
+            <div className="analytics-container">
+                <div className="analytics-loading">
+                    <div className="spinner"></div>
+                    <p>{t('analytics.nutrition.loading') || (isArabic ? 'جاري التحميل...' : 'Loading...')}</p>
+                </div>
             </div>
         );
     }
 
     if (error || !data) {
         return (
-            <div className={`analytics-error ${darkMode ? 'dark-mode' : ''}`}>
-                <p>📝 {error || 'لا توجد بيانات كافية للتحليل'}</p>
-                <button onClick={fetchData} className="retry-btn">🔄 تحديث</button>
+            <div className="analytics-container">
+                <div className="analytics-error">
+                    <p>📝 {error || (isArabic ? 'لا توجد بيانات كافية للتحليل' : 'Insufficient data for analysis')}</p>
+                    <button onClick={fetchData} className="retry-btn">🔄 {isArabic ? 'تحديث' : 'Refresh'}</button>
+                </div>
             </div>
         );
     }
 
     const getScoreStatus = (score) => {
-        if (score >= 80) return { text: 'ممتاز', color: '#10b981' };
-        if (score >= 60) return { text: 'جيد', color: '#3b82f6' };
-        if (score >= 40) return { text: 'متوسط', color: '#f59e0b' };
-        return { text: 'يحتاج تحسين', color: '#ef4444' };
+        if (score >= 80) return { text: isArabic ? 'ممتاز' : 'Excellent', color: '#10b981' };
+        if (score >= 60) return { text: isArabic ? 'جيد' : 'Good', color: '#3b82f6' };
+        if (score >= 40) return { text: isArabic ? 'متوسط' : 'Average', color: '#f59e0b' };
+        return { text: isArabic ? 'يحتاج تحسين' : 'Needs Improvement', color: '#ef4444' };
     };
 
     const scoreStatus = getScoreStatus(data.summary.nutritionScore);
 
     return (
-        <div className={`analytics-container nutrition-analytics ${darkMode ? 'dark-mode' : ''}`}>
+        <div className="analytics-container">
+            {/* رأس التحليلات */}
             <div className="analytics-header">
-                <h2>🍽️ تحليل التغذية</h2>
-                <button onClick={fetchData} className="refresh-btn" title="تحديث">🔄</button>
+                <h2>
+                    <span>🍽️</span>
+                    {isArabic ? 'تحليل التغذية' : 'Nutrition Analytics'}
+                </h2>
+                <button onClick={fetchData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>🔄</button>
             </div>
 
-            {/* بطاقة الملخص السريع */}
-            <div className="quick-summary">
-                <div className="summary-item">
-                    <span className="summary-icon">🍽️</span>
-                    <span className="summary-value">{data.summary.totalMeals}</span>
-                    <span className="summary-label">وجبة</span>
+            {/* بطاقات الإحصائيات السريعة */}
+            <div className="analytics-stats-grid">
+                <div className="analytics-stat-card">
+                    <div className="stat-icon">🍽️</div>
+                    <div className="stat-content">
+                        <div className="stat-value">{data.summary.totalMeals}</div>
+                        <div className="stat-label">{isArabic ? 'إجمالي الوجبات' : 'Total Meals'}</div>
+                    </div>
                 </div>
-                <div className="summary-item">
-                    <span className="summary-icon">🔥</span>
-                    <span className="summary-value">{data.summary.avgCalories}</span>
-                    <span className="summary-label">سعرة/متوسط</span>
+                <div className="analytics-stat-card">
+                    <div className="stat-icon">🔥</div>
+                    <div className="stat-content">
+                        <div className="stat-value">{data.summary.avgCalories}</div>
+                        <div className="stat-label">{isArabic ? 'متوسط السعرات' : 'Avg Calories'}</div>
+                    </div>
                 </div>
-                <div className="summary-item">
-                    <span className="summary-icon">💪</span>
-                    <span className="summary-value">{data.summary.avgProtein}g</span>
-                    <span className="summary-label">بروتين</span>
+                <div className="analytics-stat-card">
+                    <div className="stat-icon">💪</div>
+                    <div className="stat-content">
+                        <div className="stat-value">{data.summary.avgProtein}g</div>
+                        <div className="stat-label">{isArabic ? 'متوسط البروتين' : 'Avg Protein'}</div>
+                    </div>
                 </div>
-                <div className="summary-item">
-                    <span className="summary-icon">⭐</span>
-                    <span className="summary-value">{data.summary.nutritionScore}%</span>
-                    <span className="summary-label">درجة التغذية</span>
+                <div className="analytics-stat-card">
+                    <div className="stat-icon">⭐</div>
+                    <div className="stat-content">
+                        <div className="stat-value">{data.summary.nutritionScore}%</div>
+                        <div className="stat-label">{isArabic ? 'درجة التغذية' : 'Nutrition Score'}</div>
+                    </div>
                 </div>
             </div>
 
-            {/* درجة التغذية */}
-            <div className="nutrition-score-card">
-                <div className="score-circle" style={{ background: `conic-gradient(${scoreStatus.color} 0% ${data.summary.nutritionScore}%, #e5e7eb ${data.summary.nutritionScore}% 100%)` }}>
-                    <span>{data.summary.nutritionScore}</span>
-                </div>
-                <div className="score-info">
-                    <h3>درجة التغذية</h3>
-                    <p style={{ color: scoreStatus.color }}>{scoreStatus.text}</p>
+            {/* درجة التغذية - باستخدام insight-card */}
+            <div className="insight-card">
+                <div className="insight-icon">⭐</div>
+                <div className="insight-content">
+                    <h3>{isArabic ? 'درجة التغذية' : 'Nutrition Score'}</h3>
+                    <div className="stat-value" style={{ fontSize: '2rem', color: scoreStatus.color }}>
+                        {data.summary.nutritionScore}%
+                    </div>
+                    <p className="stat-trend" style={{ color: scoreStatus.color }}>
+                        {scoreStatus.text}
+                    </p>
                 </div>
             </div>
 
             {/* الرسوم البيانية */}
-            <div className="charts-section">
-                <div className="chart-card">
-                    <h4>📈 اتجاه السعرات الأسبوعي</h4>
-                    <div className="chart-container" style={{ height: '220px' }}>
+            <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: '1.5rem' }}>
+                <div className="strengths">
+                    <h4>📈 {isArabic ? 'اتجاه السعرات الأسبوعي' : 'Weekly Calories Trend'}</h4>
+                    <div style={{ height: '220px' }}>
                         <Line data={data.chartData} options={data.chartOptions} />
                     </div>
                 </div>
-                <div className="chart-card">
-                    <h4>🥗 توزيع الوجبات</h4>
-                    <div className="chart-container" style={{ height: '200px' }}>
+                <div className="weaknesses">
+                    <h4>🥗 {isArabic ? 'توزيع الوجبات' : 'Meal Distribution'}</h4>
+                    <div style={{ height: '200px' }}>
                         <Pie data={data.distributionData} options={data.pieOptions} />
                     </div>
                 </div>
             </div>
 
-            {/* التوصيات والتنبؤات معاً */}
-            <div className="insights-combined">
-                <div className="recommendations-section">
-                    <h3>💡 توصيات ذكية</h3>
+            {/* التوصيات والتنبؤات */}
+            <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                {/* التوصيات */}
+                <div className="recommendations-section" style={{ margin: 0 }}>
+                    <h3>💡 {isArabic ? 'توصيات ذكية' : 'Smart Recommendations'}</h3>
                     <div className="recommendations-list">
                         {data.recommendations.map((rec, idx) => (
-                            <div key={idx} className="rec-card">
+                            <div key={idx} className="recommendation-card">
                                 <div className="rec-header">
                                     <span className="rec-icon">{rec.icon}</span>
-                                    <span className="rec-title">{rec.title}</span>
+                                    <span className="rec-category">{rec.title}</span>
                                 </div>
-                                <p className="rec-advice">{rec.advice}</p>
-                                <div className="rec-action">
-                                    <span>🎯</span>
-                                    <span>{rec.action}</span>
+                                <p className="rec-message">{rec.advice}</p>
+                                <div className="rec-advice">
+                                    🎯 {rec.action}
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                <div className="predictions-section">
-                    <h3>🔮 تنبؤات</h3>
-                    <div className="predictions-list">
+                {/* التنبؤات */}
+                <div className="recommendations-section" style={{ margin: 0 }}>
+                    <h3>🔮 {isArabic ? 'تنبؤات' : 'Predictions'}</h3>
+                    <div className="recommendations-list">
                         {data.predictions.length > 0 ? data.predictions.map((pred, idx) => (
-                            <div key={idx} className="pred-card" style={{ borderLeftColor: pred.color }}>
-                                <div className="pred-header">
-                                    <span className="pred-icon">{pred.icon}</span>
-                                    <span className="pred-title">{pred.title}</span>
-                                    <span className="pred-prob" style={{ color: pred.color }}>{pred.probability}</span>
+                            <div key={idx} className={`recommendation-card priority-${pred.severity === 'high' ? 'high' : 'medium'}`}>
+                                <div className="rec-header">
+                                    <span className="rec-icon">{pred.icon}</span>
+                                    <span className="rec-category">{pred.title}</span>
+                                    <span className="rec-type" style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+                                        {pred.probability}
+                                    </span>
                                 </div>
-                                <p className="pred-text">{pred.text}</p>
+                                <p className="rec-message">{pred.text}</p>
                             </div>
                         )) : (
-                            <div className="no-predictions">
-                                <span>📊</span>
-                                <p>سجل المزيد من الوجبات للحصول على تنبؤات دقيقة</p>
+                            <div className="analytics-empty" style={{ padding: '2rem' }}>
+                                <div className="empty-icon">📊</div>
+                                <p>{isArabic ? 'سجل المزيد من الوجبات للحصول على تنبؤات دقيقة' : 'Log more meals for accurate predictions'}</p>
                             </div>
                         )}
                     </div>
                 </div>
             </div>
 
+            {/* تذييل */}
             <div className="analytics-footer">
-                <small>آخر تحديث: {new Date().toLocaleString(isArabic ? 'ar-EG' : 'en-US')}</small>
+                <small>
+                    {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date().toLocaleString(isArabic ? 'ar-EG' : 'en-US')}
+                </small>
             </div>
-
-            <style jsx>{`
-                .quick-summary {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 12px;
-                    margin-bottom: 20px;
-                }
-                .summary-item {
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    padding: 12px;
-                    text-align: center;
-                }
-                .summary-icon {
-                    font-size: 1.5rem;
-                    display: block;
-                    margin-bottom: 4px;
-                }
-                .summary-value {
-                    font-size: 1.3rem;
-                    font-weight: bold;
-                    display: block;
-                    color: var(--text-primary);
-                }
-                .summary-label {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-                .nutrition-score-card {
-                    display: flex;
-                    align-items: center;
-                    gap: 20px;
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
-                    padding: 16px;
-                    margin-bottom: 20px;
-                }
-                .score-circle {
-                    width: 80px;
-                    height: 80px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 1.5rem;
-                    font-weight: bold;
-                    color: var(--text-primary);
-                }
-                .charts-section {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 16px;
-                    margin-bottom: 20px;
-                }
-                .chart-card {
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    padding: 12px;
-                }
-                .chart-card h4 {
-                    margin: 0 0 10px 0;
-                    font-size: 0.9rem;
-                    color: var(--text-secondary);
-                }
-                .chart-container {
-                    width: 100%;
-                }
-                .insights-combined {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 16px;
-                }
-                .recommendations-section, .predictions-section {
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    padding: 16px;
-                }
-                .recommendations-section h3, .predictions-section h3 {
-                    margin: 0 0 12px 0;
-                    font-size: 1rem;
-                }
-                .rec-card, .pred-card {
-                    background: var(--card-bg);
-                    border-radius: 12px;
-                    padding: 12px;
-                    margin-bottom: 10px;
-                }
-                .rec-header, .pred-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-bottom: 8px;
-                }
-                .rec-icon, .pred-icon {
-                    font-size: 1.2rem;
-                }
-                .rec-title, .pred-title {
-                    font-weight: 600;
-                    flex: 1;
-                }
-                .rec-advice {
-                    font-size: 0.85rem;
-                    margin: 0 0 8px 0;
-                    color: var(--text-secondary);
-                }
-                .rec-action, .pred-text {
-                    font-size: 0.8rem;
-                    color: var(--primary-color);
-                    display: flex;
-                    gap: 6px;
-                    align-items: center;
-                }
-                .pred-card {
-                    border-left: 3px solid;
-                }
-                .pred-prob {
-                    font-size: 0.7rem;
-                    padding: 2px 6px;
-                    border-radius: 12px;
-                    background: rgba(0,0,0,0.05);
-                }
-                .no-predictions {
-                    text-align: center;
-                    padding: 20px;
-                    color: var(--text-tertiary);
-                }
-                .analytics-footer {
-                    margin-top: 16px;
-                    text-align: center;
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-                @media (max-width: 768px) {
-                    .quick-summary { grid-template-columns: repeat(2, 1fr); }
-                    .charts-section { grid-template-columns: 1fr; }
-                    .insights-combined { grid-template-columns: 1fr; }
-                }
-                .dark-mode .rec-card, .dark-mode .pred-card {
-                    background: #1e293b;
-                }
-            `}</style>
         </div>
     );
 };

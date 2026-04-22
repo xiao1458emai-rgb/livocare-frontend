@@ -2,24 +2,22 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import axiosInstance from "../../services/api";  // ✅ أضف هذا السطر
+import axiosInstance from "../../services/api";
 import NutritionAnalytics from '../Analytics/NutritionAnalytics';
 import BarcodeScanner from '../Camera/BarcodeScanner';
-import '../../index.css';
+import '../../index.css';  
 
-// ... باقي الكود كما هو ...
 // إعداد أنواع الوجبات مع دعم الترجمة
 const getMealTypeChoices = (t) => [
-    { value: 'Breakfast', label: `🍳 ${t('nutrition.breakfast')}`, color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' },
-    { value: 'Lunch', label: `🍲 ${t('nutrition.lunch')}`, color: '#FF6B35', bg: 'rgba(255, 107, 53, 0.15)' },
-    { value: 'Dinner', label: `🍽️ ${t('nutrition.dinner')}`, color: '#2E86AB', bg: 'rgba(46, 134, 171, 0.15)' },
-    { value: 'Snack', label: `🍎 ${t('nutrition.snack')}`, color: '#A23B72', bg: 'rgba(162, 59, 114, 0.15)' },
-    { value: 'Other', label: `📝 ${t('nutrition.other')}`, color: '#6A8D73', bg: 'rgba(106, 141, 115, 0.15)' },
+    { value: 'Breakfast', label: `🍳 ${t('nutrition.breakfast', 'فطور')}`, color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' },
+    { value: 'Lunch', label: `🍲 ${t('nutrition.lunch', 'غداء')}`, color: '#FF6B35', bg: 'rgba(255, 107, 53, 0.15)' },
+    { value: 'Dinner', label: `🍽️ ${t('nutrition.dinner', 'عشاء')}`, color: '#2E86AB', bg: 'rgba(46, 134, 171, 0.15)' },
+    { value: 'Snack', label: `🍎 ${t('nutrition.snack', 'وجبة خفيفة')}`, color: '#A23B72', bg: 'rgba(162, 59, 114, 0.15)' },
+    { value: 'Other', label: `📝 ${t('nutrition.other', 'أخرى')}`, color: '#6A8D73', bg: 'rgba(106, 141, 115, 0.15)' },
 ];
 
 function NutritionForm({ onDataSubmitted, isAuthReady }) {
     const { t, i18n } = useTranslation();
-    const [darkMode, setDarkMode] = useState(false);
     
     // ✅ useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
@@ -64,50 +62,48 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
     const checkAuth = () => {
         const token = localStorage.getItem('access_token');
         if (!token) {
-            setMessage(t('nutrition.loginRequired'));
+            setMessage(t('nutrition.loginRequired', 'الرجاء تسجيل الدخول'));
             setMessageType('error');
             return false;
         }
         return true;
     };
-// ✅ تعديل دالة fetchMeals
-const fetchMeals = useCallback(async () => {
-    if (!isAuthReady || !isMountedRef.current) return;
-    if (!checkAuth()) return;
-    
-    setLoadingMeals(true);
-    try {
-        const response = await axiosInstance.get('/meals/');
+
+    // ✅ دالة fetchMeals
+    const fetchMeals = useCallback(async () => {
+        if (!isAuthReady || !isMountedRef.current) return;
+        if (!checkAuth()) return;
         
-        if (!isMountedRef.current) return;
-        
-        // ✅ معالجة البيانات - دعم results والمصفوفة
-        let mealsData = [];
-        if (response.data?.results) {
-            mealsData = response.data.results;
-        } else if (Array.isArray(response.data)) {
-            mealsData = response.data;
-        } else {
-            mealsData = [];
+        setLoadingMeals(true);
+        try {
+            const response = await axiosInstance.get('/meals/');
+            
+            if (!isMountedRef.current) return;
+            
+            let mealsData = [];
+            if (response.data?.results) {
+                mealsData = response.data.results;
+            } else if (Array.isArray(response.data)) {
+                mealsData = response.data;
+            }
+            
+            console.log('🍽️ Meals loaded:', mealsData.length);
+            setMeals(mealsData);
+            setMessage('');
+            
+        } catch (error) {
+            console.error('Error fetching meals:', error);
+            if (isMountedRef.current) {
+                setMessage(t('nutrition.errorLoading', 'خطأ في تحميل البيانات'));
+                setMessageType('error');
+                setMeals([]);
+            }
+        } finally {
+            if (isMountedRef.current) {
+                setLoadingMeals(false);
+            }
         }
-        
-        console.log('🍽️ Meals loaded:', mealsData.length, 'records');
-        setMeals(mealsData);
-        setMessage('');
-        
-    } catch (error) {
-        console.error('Error fetching meals:', error);
-        if (isMountedRef.current) {
-            setMessage(t('nutrition.errorLoading'));
-            setMessageType('error');
-            setMeals([]);
-        }
-    } finally {
-        if (isMountedRef.current) {
-            setLoadingMeals(false);
-        }
-    }
-}, [isAuthReady, t]);
+    }, [isAuthReady, t]);
 
     // ✅ جلب الوجبات عند تحميل المكون
     useEffect(() => {
@@ -117,13 +113,13 @@ const fetchMeals = useCallback(async () => {
     }, [isAuthReady, fetchMeals]);
 
     const handleDeleteMeal = async (mealId) => {
-        if (!window.confirm(t('nutrition.deleteConfirm'))) return;
+        if (!window.confirm(t('nutrition.deleteConfirm', 'هل أنت متأكد من حذف هذه الوجبة؟'))) return;
         
         try {
             await axiosInstance.delete(`/meals/${mealId}/`);
             if (isMountedRef.current) {
                 setMeals(prev => prev.filter(meal => meal.id !== mealId));
-                setMessage(t('nutrition.mealDeleted'));
+                setMessage(t('nutrition.mealDeleted', 'تم حذف الوجبة بنجاح'));
                 setMessageType('success');
                 setRefreshAnalytics(prev => prev + 1);
                 setTimeout(() => setMessage(''), 3000);
@@ -131,7 +127,7 @@ const fetchMeals = useCallback(async () => {
         } catch (error) {
             console.error('Error deleting meal:', error);
             if (isMountedRef.current) {
-                setMessage(t('nutrition.deleteError'));
+                setMessage(t('nutrition.deleteError', 'خطأ في حذف الوجبة'));
                 setMessageType('error');
             }
         }
@@ -149,7 +145,7 @@ const fetchMeals = useCallback(async () => {
 
         try {
             const response = await axiosInstance.get(`/food/search/?query=${encodeURIComponent(query)}`);
-            const results = response.data.data || response.data.results || [];
+            const results = response.data?.data || response.data?.results || [];
             
             if (isMountedRef.current) {
                 const updatedItems = [...foodItems];
@@ -320,67 +316,73 @@ const fetchMeals = useCallback(async () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    const handleBarcodeScanned = async (result) => {
+        console.log('📦 Barcode result:', result);
+        const barcode = result;
 
-// في NutritionForm.jsx، استبدل دالة handleBarcodeScanned بهذه النسخة:
+        if (!barcode) return;
 
-// في NutritionForm.jsx، قم بتعديل handleBarcodeScanned:
+        setShowScanner(false);
+        setIsLoading(true);
+        setMessage('جاري البحث عن المنتج...');
+        setMessageType('info');
 
-// داخل NutritionForm.jsx
+        try {
+            const offResponse = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, { timeout: 15000 });
 
-// قم بتعديل handleBarcodeScanned كما يلي:
-const handleBarcodeScanned = async (result) => {
-    console.log('📦 Barcode result received:', result);
-    const barcode = result;
+            if (offResponse.data.status === 1) {
+                const product = offResponse.data.product;
+                const nutriments = product.nutriments || {};
 
-    if (!barcode) return;
+                const productData = {
+                    name: product.product_name || product.generic_name || `منتج (${barcode.slice(-8)})`,
+                    calories: nutriments['energy-kcal'] || nutriments.energy || 0,
+                    protein: nutriments.proteins || 0,
+                    carbs: nutriments.carbohydrates || 0,
+                    fat: nutriments.fat || 0,
+                    barcode: barcode,
+                    unit: 'غرام'
+                };
 
-    // ✅ 1. أغلق الماسح فورًا لمنع أي مسح إضافي
-    setShowScanner(false);
+                setFoodItems(prev => [...prev, {
+                    name: productData.name,
+                    quantity: '100',
+                    unit: 'غرام',
+                    calories: productData.calories.toString(),
+                    protein: productData.protein.toString(),
+                    carbs: productData.carbs.toString(),
+                    fat: productData.fat.toString(),
+                    barcode: barcode,
+                    isSearching: false,
+                    searchResults: [],
+                    showResults: false,
+                    selectedFood: productData,
+                    manualEdit: true
+                }]);
 
-    // ✅ 2. ابدأ عملية جلب البيانات وعرض حالة التحميل
-    setIsLoading(true);
-    setMessage('جاري البحث عن المنتج...');
-    setMessageType('info');
-
-    try {
-        const offResponse = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, { timeout: 15000 });
-        console.log('📡 Open Food Facts response:', offResponse.data);
-
-        if (offResponse.data.status === 1) {
-            const product = offResponse.data.product;
-            const nutriments = product.nutriments || {};
-
-            const productData = {
-                name: product.product_name || product.generic_name || `منتج (${barcode.slice(-8)})`,
-                calories: nutriments['energy-kcal'] || nutriments.energy || 0,
-                protein: nutriments.proteins || 0,
-                carbs: nutriments.carbohydrates || 0,
-                fat: nutriments.fat || 0,
-                barcode: barcode,
-                unit: 'غرام'
-            };
-
-            // ✅ 3. أضف المنتج إلى القائمة
-            setFoodItems(prev => [...prev, {
-                name: productData.name,
-                quantity: '100',
-                unit: 'غرام',
-                calories: productData.calories.toString(),
-                protein: productData.protein.toString(),
-                carbs: productData.carbs.toString(),
-                fat: productData.fat.toString(),
-                barcode: barcode,
-                isSearching: false,
-                searchResults: [],
-                showResults: false,
-                selectedFood: productData,
-                manualEdit: true
-            }]);
-
-            setMessage(`✅ تم العثور على المنتج: ${productData.name}`);
-            setMessageType('success');
-        } else {
-            // إضافة منتج جديد إذا لم يتم العثور عليه
+                setMessage(`✅ تم العثور على المنتج: ${productData.name}`);
+                setMessageType('success');
+            } else {
+                setFoodItems(prev => [...prev, {
+                    name: `منتج جديد (${barcode.slice(-8)})`,
+                    quantity: '100',
+                    unit: 'غرام',
+                    calories: '',
+                    protein: '',
+                    carbs: '',
+                    fat: '',
+                    barcode: barcode,
+                    isSearching: false,
+                    searchResults: [],
+                    showResults: false,
+                    selectedFood: null,
+                    manualEdit: true
+                }]);
+                setMessage(`⚠️ المنتج غير موجود، تمت إضافته كمنتج جديد`);
+                setMessageType('info');
+            }
+        } catch (error) {
+            console.error('❌ Error in barcode search:', error);
             setFoodItems(prev => [...prev, {
                 name: `منتج جديد (${barcode.slice(-8)})`,
                 quantity: '100',
@@ -396,45 +398,25 @@ const handleBarcodeScanned = async (result) => {
                 selectedFood: null,
                 manualEdit: true
             }]);
-            setMessage(`⚠️ المنتج (${barcode}) غير موجود، تمت إضافته كمنتج جديد.`);
-            setMessageType('info');
+            setMessage(`⚠️ خطأ في البحث، تمت إضافة منتج جديد`);
+            setMessageType('error');
+        } finally {
+            setIsLoading(false);
+            setTimeout(() => setMessage(''), 5000);
         }
-    } catch (error) {
-        console.error('❌ Error in barcode search:', error);
-        setFoodItems(prev => [...prev, {
-            name: `منتج جديد (${barcode.slice(-8)})`,
-            quantity: '100',
-            unit: 'غرام',
-            calories: '',
-            protein: '',
-            carbs: '',
-            fat: '',
-            barcode: barcode,
-            isSearching: false,
-            searchResults: [],
-            showResults: false,
-            selectedFood: null,
-            manualEdit: true
-        }]);
-        setMessage(`⚠️ خطأ في البحث، تمت إضافة منتج جديد بالباركود: ${barcode}`);
-        setMessageType('error');
-    } finally {
-        // ✅ 4. انتهت العملية، قم بإخفاء رسالة التحميل
-        setIsLoading(false);
-        setTimeout(() => setMessage(''), 5000);
-    }
-};
+    };
+
     const handleUpdateMeal = async (e) => {
         e.preventDefault();
         if (!isAuthReady || !editingMeal) {
-            setMessage(t('nutrition.loginRequired'));
+            setMessage(t('nutrition.loginRequired', 'الرجاء تسجيل الدخول'));
             setMessageType('error');
             return;
         }
         setIsLoading(true);
         const validItems = foodItems.filter(item => item.name && item.quantity);
         if (validItems.length === 0) {
-            setMessage(t('nutrition.atLeastOneIngredient'));
+            setMessage(t('nutrition.atLeastOneIngredient', 'أضف مكون واحد على الأقل'));
             setMessageType('error');
             setIsLoading(false);
             return;
@@ -457,7 +439,7 @@ const handleBarcodeScanned = async (result) => {
                 ingredients
             });
             if (isMountedRef.current) {
-                setMessage(t('nutrition.mealUpdated'));
+                setMessage(t('nutrition.mealUpdated', 'تم تحديث الوجبة بنجاح'));
                 setMessageType('success');
                 setRefreshAnalytics(prev => prev + 1);
                 setShowEditForm(false);
@@ -468,7 +450,7 @@ const handleBarcodeScanned = async (result) => {
         } catch (error) {
             console.error('Update error:', error);
             if (isMountedRef.current) {
-                setMessage(t('nutrition.updateFailed'));
+                setMessage(t('nutrition.updateFailed', 'فشل تحديث الوجبة'));
                 setMessageType('error');
             }
         } finally {
@@ -479,14 +461,14 @@ const handleBarcodeScanned = async (result) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!isAuthReady) {
-            setMessage(t('nutrition.loginRequired'));
+            setMessage(t('nutrition.loginRequired', 'الرجاء تسجيل الدخول'));
             setMessageType('error');
             return;
         }
         setIsLoading(true);
         const validItems = foodItems.filter(item => item.name && item.quantity);
         if (validItems.length === 0) {
-            setMessage(t('nutrition.atLeastOneIngredient'));
+            setMessage(t('nutrition.atLeastOneIngredient', 'أضف مكون واحد على الأقل'));
             setMessageType('error');
             setIsLoading(false);
             return;
@@ -509,7 +491,7 @@ const handleBarcodeScanned = async (result) => {
                 ingredients
             });
             if (isMountedRef.current) {
-                setMessage(t('nutrition.mealAdded'));
+                setMessage(t('nutrition.mealAdded', 'تم إضافة الوجبة بنجاح'));
                 setMessageType('success');
                 setRefreshAnalytics(prev => prev + 1);
                 await fetchMeals();
@@ -519,7 +501,7 @@ const handleBarcodeScanned = async (result) => {
         } catch (error) {
             console.error('Submission error:', error);
             if (isMountedRef.current) {
-                setMessage(t('nutrition.failedToSave'));
+                setMessage(t('nutrition.failedToSave', 'فشل حفظ الوجبة'));
                 setMessageType('error');
             }
         } finally {
@@ -557,7 +539,7 @@ const handleBarcodeScanned = async (result) => {
 
     const formatMealDate = (dateString) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('ar-EG', {
+        return date.toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US', {
             weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
             hour: '2-digit', minute: '2-digit'
         });
@@ -572,19 +554,6 @@ const handleBarcodeScanned = async (result) => {
         ];
     };
 
-    // تحميل إعدادات الوضع المظلم
-    useEffect(() => {
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                             window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setDarkMode(savedDarkMode);
-    }, []);
-
-    useEffect(() => {
-        const handleThemeChange = (e) => setDarkMode(e.detail?.darkMode ?? false);
-        window.addEventListener('themeChange', handleThemeChange);
-        return () => window.removeEventListener('themeChange', handleThemeChange);
-    }, []);
-
     // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
@@ -595,1389 +564,330 @@ const handleBarcodeScanned = async (result) => {
     }, []);
 
     return (
-        <div className={`nutrition-form-container ${darkMode ? 'dark-mode' : ''}`}>
+        <div className="analytics-container">
             {/* ✅ ماسح الباركود */}
             {showScanner && (
                 <BarcodeScanner 
                     onScan={handleBarcodeScanned} 
                     onClose={() => setShowScanner(false)} 
-                    darkMode={darkMode} 
                 />
             )}
             
-            <div className="form-content">
-                {/* رأس النموذج المحسن */}
-                <div className="enhanced-header">
-                    <div className="header-pattern"></div>
-                    <div className="header-content-wrapper">
-                        <div className="header-icon-container">
-                            <div className="icon-glow"></div>
-                            <span className="header-icon">🥗</span>
-                        </div>
-                        <div className="header-text">
-                            <h1 className="header-title">{t('nutrition.addMeal')}</h1>
-                            <p className="header-subtitle">{t('nutrition.trackNutrition')}</p>
-                        </div>
-                        <div className="header-badge">
-                            <span className="badge-icon">📊</span>
-                            <span className="badge-text">{t('nutrition.dailyIntake')}</span>
-                        </div>
+            {/* رأس النموذج */}
+            <div className="analytics-header">
+                <h2>
+                    <span>🥗</span>
+                    {editingMeal ? t('nutrition.editMeal', 'تعديل وجبة') : t('nutrition.addMeal', 'إضافة وجبة')}
+                </h2>
+                <button 
+                    type="button" 
+                    onClick={() => setShowScanner(true)}
+                    className="refresh-btn"
+                    style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white' }}
+                    disabled={isLoading}
+                >
+                    📷
+                </button>
+            </div>
+
+            {/* ملخص التغذية السريع */}
+            <div className="analytics-stats-grid" style={{ marginBottom: 'var(--spacing-lg)' }}>
+                <div className="analytics-stat-card">
+                    <div className="stat-icon">🔥</div>
+                    <div className="stat-content">
+                        <div className="stat-value">{nutritionSummary.totalCalories}</div>
+                        <div className="stat-label">{t('nutrition.calories', 'سعرات')}</div>
+                    </div>
+                </div>
+                <div className="analytics-stat-card">
+                    <div className="stat-icon">💪</div>
+                    <div className="stat-content">
+                        <div className="stat-value">{nutritionSummary.totalProtein}g</div>
+                        <div className="stat-label">{t('nutrition.protein', 'بروتين')}</div>
+                    </div>
+                </div>
+                <div className="analytics-stat-card">
+                    <div className="stat-icon">🌾</div>
+                    <div className="stat-content">
+                        <div className="stat-value">{nutritionSummary.totalCarbs}g</div>
+                        <div className="stat-label">{t('nutrition.carbs', 'كربوهيدرات')}</div>
+                    </div>
+                </div>
+                <div className="analytics-stat-card">
+                    <div className="stat-icon">🫒</div>
+                    <div className="stat-content">
+                        <div className="stat-value">{nutritionSummary.totalFat}g</div>
+                        <div className="stat-label">{t('nutrition.fat', 'دهون')}</div>
+                    </div>
+                </div>
+            </div>
+
+            <form onSubmit={editingMeal ? handleUpdateMeal : handleSubmit}>
+                {/* قسم نوع الوجبة */}
+                <div className="recommendations-section">
+                    <h3>{t('nutrition.mealType', 'نوع الوجبة')}</h3>
+                    <div className="type-filters" style={{ marginTop: 'var(--spacing-md)' }}>
+                        {getMealTypeChoices(t).map(meal => (
+                            <button
+                                key={meal.value}
+                                type="button"
+                                className={`type-btn ${mealData.meal_type === meal.value ? 'active' : ''}`}
+                                onClick={() => setMealData(prev => ({ ...prev, meal_type: meal.value }))}
+                            >
+                                {meal.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
-                {/* ✅ زر مسح الباركود */}
-                <div className="barcode-button-container">
-                    <button 
-                        type="button" 
-                        onClick={() => setShowScanner(true)}
-                        className="barcode-scanner-btn"
-                        disabled={isLoading}
-                    >
-                        <span className="btn-icon">📷</span>
-                        <span className="btn-text">مسح باركود المنتج</span>
+                {/* قسم وقت الوجبة */}
+                <div className="recommendations-section">
+                    <h3>{t('nutrition.mealTime', 'وقت الوجبة')}</h3>
+                    <input
+                        type="datetime-local"
+                        name="meal_time"
+                        value={mealData.meal_time}
+                        onChange={handleMealChange}
+                        className="search-input"
+                        style={{ marginTop: 'var(--spacing-md)' }}
+                    />
+                </div>
+
+                {/* قسم المكونات */}
+                <div className="recommendations-section">
+                    <h3>{t('nutrition.ingredients', 'المكونات')}</h3>
+                    <div className="ingredients-container" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-md)' }}>
+                        {foodItems.map((item, index) => (
+                            <div key={index} className="card" style={{ padding: 'var(--spacing-md)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
+                                    <div className="card-icon" style={{ width: '32px', height: '32px', fontSize: '0.9rem' }}>
+                                        {index + 1}
+                                    </div>
+                                    {foodItems.length > 1 && (
+                                        <button type="button" onClick={() => handleRemoveItem(index)} className="delete-read-btn" style={{ padding: 'var(--spacing-xs) var(--spacing-md)' }}>
+                                            ✕
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+                                    <label>{t('nutrition.foodName', 'اسم الطعام')}</label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={item.name}
+                                        onChange={(e) => handleItemChange(index, e)}
+                                        className="search-input"
+                                        placeholder={t('nutrition.foodNamePlaceholder', 'ابحث عن طعام...')}
+                                    />
+                                    {item.showResults && item.searchResults.length > 0 && (
+                                        <div className="search-results" style={{ 
+                                            position: 'absolute', 
+                                            background: 'var(--card-bg)', 
+                                            border: '1px solid var(--border-light)',
+                                            borderRadius: 'var(--radius-lg)',
+                                            maxHeight: '200px',
+                                            overflowY: 'auto',
+                                            zIndex: 100
+                                        }}>
+                                            {item.searchResults.map((food, idx) => (
+                                                <div key={idx} className="recommendation-card" onClick={() => handleSelectFood(index, food)} style={{ cursor: 'pointer', margin: 0 }}>
+                                                    <div className="rec-header">
+                                                        <span className="rec-category">{food.name}</span>
+                                                        <span className="rec-type">{food.calories} kcal</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                                    <div className="field-group">
+                                        <label>{t('nutrition.quantity', 'الكمية')}</label>
+                                        <input
+                                            type="number"
+                                            value={item.quantity}
+                                            onChange={(e) => handleQuantityChange(index, e)}
+                                            className="search-input"
+                                            step="any"
+                                        />
+                                    </div>
+                                    <div className="field-group">
+                                        <label>{t('nutrition.unit', 'الوحدة')}</label>
+                                        <select
+                                            value={item.unit}
+                                            onChange={(e) => {
+                                                const newItems = [...foodItems];
+                                                newItems[index].unit = e.target.value;
+                                                setFoodItems(newItems);
+                                            }}
+                                            className="search-input"
+                                        >
+                                            {getUnitOptions().map(unit => (
+                                                <option key={unit.value} value={unit.value}>{unit.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div className="analytics-stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-md)' }}>
+                                    <div className="field-group">
+                                        <label>🔥 {t('nutrition.calories', 'سعرات')}</label>
+                                        <input
+                                            type="number"
+                                            name="calories"
+                                            value={item.calories}
+                                            onChange={(e) => handleItemChange(index, e)}
+                                            className="search-input"
+                                            placeholder="kcal"
+                                        />
+                                    </div>
+                                    <div className="field-group">
+                                        <label>💪 {t('nutrition.protein', 'بروتين')}</label>
+                                        <input
+                                            type="number"
+                                            name="protein"
+                                            value={item.protein}
+                                            onChange={(e) => handleItemChange(index, e)}
+                                            className="search-input"
+                                            placeholder="g"
+                                        />
+                                    </div>
+                                    <div className="field-group">
+                                        <label>🌾 {t('nutrition.carbs', 'كربوهيدرات')}</label>
+                                        <input
+                                            type="number"
+                                            name="carbs"
+                                            value={item.carbs}
+                                            onChange={(e) => handleItemChange(index, e)}
+                                            className="search-input"
+                                            placeholder="g"
+                                        />
+                                    </div>
+                                    <div className="field-group">
+                                        <label>🫒 {t('nutrition.fat', 'دهون')}</label>
+                                        <input
+                                            type="number"
+                                            name="fat"
+                                            value={item.fat}
+                                            onChange={(e) => handleItemChange(index, e)}
+                                            className="search-input"
+                                            placeholder="g"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        <button type="button" onClick={handleAddItem} className="add-ingredient-btn" style={{ width: '100%', padding: 'var(--spacing-md)', background: 'var(--secondary-bg)', border: '2px dashed var(--border-light)', borderRadius: 'var(--radius-lg)', cursor: 'pointer' }}>
+                            ➕ {t('nutrition.addIngredient', 'أضف مكون')}
+                        </button>
+                    </div>
+                </div>
+
+                {/* قسم الملاحظات */}
+                <div className="recommendations-section">
+                    <h3>{t('nutrition.notes', 'ملاحظات')}</h3>
+                    <textarea
+                        name="notes"
+                        value={mealData.notes}
+                        onChange={handleMealChange}
+                        className="search-input"
+                        style={{ minHeight: '80px', resize: 'vertical' }}
+                        placeholder={t('nutrition.notesPlaceholder', 'أي ملاحظات إضافية...')}
+                    />
+                </div>
+
+                {/* أزرار الإجراء */}
+                <div className="analytics-header" style={{ justifyContent: 'center', gap: 'var(--spacing-md)', borderBottom: 'none' }}>
+                    <button type="button" onClick={clearForm} className="type-btn">
+                        🔄 {t('common.reset', 'إعادة تعيين')}
+                    </button>
+                    <button type="submit" disabled={isLoading} className="type-btn active">
+                        {isLoading ? '⏳' : '💾'} {editingMeal ? t('common.update', 'تحديث') : t('common.save', 'حفظ')}
                     </button>
                 </div>
+            </form>
 
-                {/* ملخص التغذية السريع */}
-                <div className="enhanced-summary-card">
-                    <div className="summary-gradient"></div>
-                    <div className="summary-content">
-                        <div className="summary-title">
-                            <span className="summary-icon">📊</span>
-                            <h4>{t('nutrition.mealSummary')}</h4>
-                        </div>
-                        <div className="summary-stats-grid">
-                            <div className="stat-item">
-                                <div className="stat-icon">🔥</div>
-                                <div className="stat-info">
-                                    <span className="stat-value">{nutritionSummary.totalCalories}</span>
-                                    <span className="stat-label">{t('nutrition.calories')}</span>
-                                </div>
-                            </div>
-                            <div className="stat-item">
-                                <div className="stat-icon">💪</div>
-                                <div className="stat-info">
-                                    <span className="stat-value">{nutritionSummary.totalProtein}g</span>
-                                    <span className="stat-label">{t('nutrition.protein')}</span>
-                                </div>
-                            </div>
-                            <div className="stat-item">
-                                <div className="stat-icon">🌾</div>
-                                <div className="stat-info">
-                                    <span className="stat-value">{nutritionSummary.totalCarbs}g</span>
-                                    <span className="stat-label">{t('nutrition.carbs')}</span>
-                                </div>
-                            </div>
-                            <div className="stat-item">
-                                <div className="stat-icon">🫒</div>
-                                <div className="stat-info">
-                                    <span className="stat-value">{nutritionSummary.totalFat}g</span>
-                                    <span className="stat-label">{t('nutrition.fat')}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            {/* قسم الوجبات المسجلة */}
+            <div className="recommendations-section" style={{ marginTop: 'var(--spacing-xl)' }}>
+                <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)' }}>
+                    <h3>📋 {t('nutrition.recentMeals', 'الوجبات المسجلة')}</h3>
+                    <button onClick={fetchMeals} className="refresh-btn" disabled={loadingMeals}>
+                        {loadingMeals ? '⏳' : '🔄'}
+                    </button>
                 </div>
-
-                <form onSubmit={editingMeal ? handleUpdateMeal : handleSubmit}>
-                    {/* قسم نوع الوجبة */}
-                    <div className="form-section">
-                        <div className="section-header">
-                            <div className="section-number">1</div>
-                            <h3 className="section-title">{t('nutrition.mealType')}</h3>
-                            <div className="section-line"></div>
-                        </div>
-                        <div className="meal-type-grid">
-                            {getMealTypeChoices(t).map(meal => (
-                                <button
-                                    key={meal.value}
-                                    type="button"
-                                    className={`meal-type-chip ${mealData.meal_type === meal.value ? 'active' : ''}`}
-                                    style={{
-                                        '--chip-color': meal.color,
-                                        '--chip-bg': meal.bg,
-                                        background: mealData.meal_type === meal.value ? meal.color : meal.bg,
-                                        color: mealData.meal_type === meal.value ? 'white' : meal.color
-                                    }}
-                                    onClick={() => setMealData(prev => ({ ...prev, meal_type: meal.value }))}
-                                >
-                                    {meal.label}
-                                </button>
-                            ))}
-                        </div>
+                
+                {loadingMeals ? (
+                    <div className="analytics-loading">
+                        <div className="spinner"></div>
                     </div>
-
-                    {/* قسم وقت الوجبة */}
-                    <div className="form-section">
-                        <div className="section-header">
-                            <div className="section-number">2</div>
-                            <h3 className="section-title">{t('nutrition.mealTime')}</h3>
-                            <div className="section-line"></div>
-                        </div>
-                        <input
-                            type="datetime-local"
-                            name="meal_time"
-                            value={mealData.meal_time}
-                            onChange={handleMealChange}
-                            className="time-input"
-                        />
+                ) : meals.length === 0 ? (
+                    <div className="analytics-empty">
+                        <div className="empty-icon">🍽️</div>
+                        <p>{t('nutrition.noMealsYet', 'لا توجد وجبات مسجلة بعد')}</p>
                     </div>
-
-                    {/* قسم المكونات */}
-                    <div className="form-section">
-                        <div className="section-header">
-                            <div className="section-number">3</div>
-                            <h3 className="section-title">{t('nutrition.ingredients')}</h3>
-                            <div className="section-line"></div>
-                        </div>
-                        <div className="ingredients-container">
-                            {foodItems.map((item, index) => (
-                                <div key={index} className="ingredient-card">
-                                    <div className="card-header">
-                                        <div className="item-number-wrapper">
-                                            <span className="item-number">{index + 1}</span>
-                                        </div>
-                                        {foodItems.length > 1 && (
-                                            <button type="button" onClick={() => handleRemoveItem(index)} className="remove-btn">
-                                                ✕
-                                            </button>
-                                        )}
+                ) : (
+                    <div className="notifications-list">
+                        {meals.slice(0, 10).map(meal => (
+                            <div key={meal.id} className="notification-card">
+                                <div className="notification-header">
+                                    <div className="notification-title">
+                                        <span>{getMealTypeChoices(t).find(m => m.value === meal.meal_type)?.label}</span>
                                     </div>
-                                    <div className="ingredient-fields">
-                                        <div className="field-group">
-                                            <div className="field-label">
-                                                <span>🥗</span>
-                                                <span>{t('nutrition.foodName')}</span>
-                                            </div>
-                                            <input
-                                                type="text"
-                                                name="name"
-                                                value={item.name}
-                                                onChange={(e) => handleItemChange(index, e)}
-                                                className="ingredient-input"
-                                                placeholder={t('nutrition.foodNamePlaceholder')}
-                                            />
-                                            {item.showResults && item.searchResults.length > 0 && (
-                                                <div className="search-results">
-                                                    {item.searchResults.map((food, idx) => (
-                                                        <div key={idx} className="result-item" onClick={() => handleSelectFood(index, food)}>
-                                                            <span className="food-name">{food.name}</span>
-                                                            <div className="result-nutrients">
-                                                                <span className="nutrient calories">{food.calories} kcal</span>
-                                                                <span className="nutrient protein">{food.protein}g</span>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            {item.isSearching && <div className="searching-indicator">جاري البحث...</div>}
-                                        </div>
-                                        <div className="field-row">
-                                            <div className="field-group">
-                                                <div className="field-label">
-                                                    <span>⚖️</span>
-                                                    <span>{t('nutrition.quantity')}</span>
-                                                </div>
-                                                <input
-                                                    type="number"
-                                                    value={item.quantity}
-                                                    onChange={(e) => handleQuantityChange(index, e)}
-                                                    className="quantity-input"
-                                                    step="any"
-                                                />
-                                            </div>
-                                            <div className="field-group">
-                                                <div className="field-label">
-                                                    <span>📏</span>
-                                                    <span>{t('nutrition.unit')}</span>
-                                                </div>
-                                                <select
-                                                    value={item.unit}
-                                                    onChange={(e) => {
-                                                        const newItems = [...foodItems];
-                                                        newItems[index].unit = e.target.value;
-                                                        setFoodItems(newItems);
-                                                    }}
-                                                    className="unit-select"
-                                                >
-                                                    {getUnitOptions().map(unit => (
-                                                        <option key={unit.value} value={unit.value}>{unit.label}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div className="nutrition-fields-row">
-                                            <div className="field-group">
-                                                <div className="field-label">🔥 {t('nutrition.calories')}</div>
-                                                <input
-                                                    type="number"
-                                                    name="calories"
-                                                    value={item.calories}
-                                                    onChange={(e) => handleItemChange(index, e)}
-                                                    className="nutrition-input"
-                                                    placeholder="kcal"
-                                                />
-                                            </div>
-                                            <div className="field-group">
-                                                <div className="field-label">💪 {t('nutrition.protein')}</div>
-                                                <input
-                                                    type="number"
-                                                    name="protein"
-                                                    value={item.protein}
-                                                    onChange={(e) => handleItemChange(index, e)}
-                                                    className="nutrition-input"
-                                                    placeholder="g"
-                                                />
-                                            </div>
-                                            <div className="field-group">
-                                                <div className="field-label">🌾 {t('nutrition.carbs')}</div>
-                                                <input
-                                                    type="number"
-                                                    name="carbs"
-                                                    value={item.carbs}
-                                                    onChange={(e) => handleItemChange(index, e)}
-                                                    className="nutrition-input"
-                                                    placeholder="g"
-                                                />
-                                            </div>
-                                            <div className="field-group">
-                                                <div className="field-label">🫒 {t('nutrition.fat')}</div>
-                                                <input
-                                                    type="number"
-                                                    name="fat"
-                                                    value={item.fat}
-                                                    onChange={(e) => handleItemChange(index, e)}
-                                                    className="nutrition-input"
-                                                    placeholder="g"
-                                                />
-                                            </div>
+                                    <div className="notification-meta">
+                                        <span className="notification-time">{formatMealDate(meal.meal_time)}</span>
+                                        <div className="notification-actions">
+                                            <button onClick={() => handleEditMeal(meal)} className="notification-action-btn">✏️</button>
+                                            <button onClick={() => handleDeleteMeal(meal.id)} className="notification-action-btn">🗑️</button>
                                         </div>
                                     </div>
                                 </div>
-                            ))}
-                            <button type="button" onClick={handleAddItem} className="add-ingredient-btn">
-                                <span>➕</span>
-                                <span>{t('nutrition.addIngredient')}</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* قسم الملاحظات */}
-                    <div className="form-section">
-                        <div className="section-header">
-                            <div className="section-number">4</div>
-                            <h3 className="section-title">{t('nutrition.notes')}</h3>
-                            <div className="section-line"></div>
-                        </div>
-                        <textarea
-                            name="notes"
-                            value={mealData.notes}
-                            onChange={handleMealChange}
-                            className="notes-textarea"
-                            placeholder={t('nutrition.notesPlaceholder')}
-                        />
-                    </div>
-
-                    {/* أزرار الإجراء */}
-                    <div className="form-actions-enhanced">
-                        <button type="button" onClick={clearForm} className="action-btn secondary">
-                            <span>🔄</span>
-                            <span>{t('common.reset')}</span>
-                        </button>
-                        <button type="submit" disabled={isLoading} className="action-btn primary">
-                            {isLoading ? (
-                                <><span className="loading-spinner-small"></span><span>{t('common.saving')}</span></>
-                            ) : (
-                                <><span>💾</span><span>{editingMeal ? t('common.update') : t('common.save')}</span></>
-                            )}
-                        </button>
-                    </div>
-                </form>
-
-                {/* قسم الوجبات المسجلة */}
-                <div className="enhanced-history-section">
-                    <div className="history-header">
-                        <div className="header-left">
-                            <span className="history-icon">📋</span>
-                            <h3>{t('nutrition.recentMeals')}</h3>
-                        </div>
-                        <div className="header-right">
-                            <span className="meals-count">{meals.length} {t('nutrition.meals')}</span>
-                            <button onClick={fetchMeals} className="refresh-history-btn" disabled={loadingMeals}>
-                                {loadingMeals ? '⏳' : '🔄'}
-                            </button>
-                        </div>
-                    </div>
-                    
-                    {loadingMeals ? (
-                        <div className="loading-state">
-                            <div className="loading-spinner"></div>
-                            <p>{t('common.loading')}</p>
-                        </div>
-                    ) : meals.length === 0 ? (
-                        <div className="empty-state">
-                            <div className="empty-illustration">🍽️</div>
-                            <p>{t('nutrition.noMealsYet')}</p>
-                        </div>
-                    ) : (
-                        <div className="meals-timeline">
-                            {meals.slice(0, 10).map(meal => (
-                                <div key={meal.id} className="timeline-item">
-                                    <div className="timeline-marker" style={{ background: getMealTypeColor(meal.meal_type) }}>
-                                        {getMealTypeChoices(t).find(m => m.value === meal.meal_type)?.label.split(' ')[0]}
-                                    </div>
-                                    <div className="timeline-content">
-                                        <div className="content-header">
-                                            <span className="meal-type">{getMealTypeChoices(t).find(m => m.value === meal.meal_type)?.label}</span>
-                                            <div className="meal-actions">
-                                                <button onClick={() => handleEditMeal(meal)} className="icon-btn edit" title={t('common.edit')}>✏️</button>
-                                                <button onClick={() => handleDeleteMeal(meal.id)} className="icon-btn delete" title={t('common.delete')}>🗑️</button>
-                                            </div>
-                                        </div>
-                                        <div className="meal-time">{formatMealDate(meal.meal_time)}</div>
-                                        <div className="nutrition-badges">
-                                            <div className="badge calories">
-                                                <span className="badge-value">{meal.total_calories}</span>
-                                                <span className="badge-label">{t('nutrition.calories')}</span>
-                                            </div>
-                                            {meal.ingredients && meal.ingredients.length > 0 && (
-                                                <>
-                                                    <div className="badge protein">
-                                                        <span className="badge-value">{meal.ingredients.reduce((sum, i) => sum + (i.protein || 0), 0)}g</span>
-                                                        <span className="badge-label">{t('nutrition.protein')}</span>
-                                                    </div>
-                                                    <div className="badge carbs">
-                                                        <span className="badge-value">{meal.ingredients.reduce((sum, i) => sum + (i.carbs || 0), 0)}g</span>
-                                                        <span className="badge-label">{t('nutrition.carbs')}</span>
-                                                    </div>
-                                                    <div className="badge fat">
-                                                        <span className="badge-value">{meal.ingredients.reduce((sum, i) => sum + (i.fat || 0), 0)}g</span>
-                                                        <span className="badge-label">{t('nutrition.fat')}</span>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
+                                <div className="notification-content">
+                                    <div className="nutrition-badges" style={{ display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-sm)' }}>
+                                        <span className="priority-badge priority-urgent">🔥 {meal.total_calories}</span>
                                         {meal.ingredients && meal.ingredients.length > 0 && (
-                                            <div className="ingredients-list">
-                                                <ul>
-                                                    {meal.ingredients.slice(0, 4).map((ing, idx) => (
-                                                        <li key={idx}>🍽️ {ing.name} {ing.quantity}{ing.unit}</li>
-                                                    ))}
-                                                    {meal.ingredients.length > 4 && (
-                                                        <li className="more-tag">+{meal.ingredients.length - 4}</li>
-                                                    )}
-                                                </ul>
-                                            </div>
+                                            <>
+                                                <span className="priority-badge priority-high">💪 {meal.ingredients.reduce((sum, i) => sum + (i.protein || 0), 0)}g</span>
+                                                <span className="priority-badge priority-medium">🌾 {meal.ingredients.reduce((sum, i) => sum + (i.carbs || 0), 0)}g</span>
+                                                <span className="priority-badge priority-low">🫒 {meal.ingredients.reduce((sum, i) => sum + (i.fat || 0), 0)}g</span>
+                                            </>
                                         )}
-                                        {meal.notes && <div className="notes">📝 {meal.notes}</div>}
                                     </div>
+                                    {meal.ingredients && meal.ingredients.length > 0 && (
+                                        <div className="ingredients-list" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-xs)' }}>
+                                            {meal.ingredients.slice(0, 4).map((ing, idx) => (
+                                                <span key={idx} className="rec-type tip">🍽️ {ing.name} {ing.quantity}{ing.unit}</span>
+                                            ))}
+                                            {meal.ingredients.length > 4 && (
+                                                <span className="rec-type">+{meal.ingredients.length - 4}</span>
+                                            )}
+                                        </div>
+                                    )}
+                                    {meal.notes && <div className="rec-advice" style={{ marginTop: 'var(--spacing-sm)' }}>📝 {meal.notes}</div>}
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* رسائل الإشعارات */}
             {message && (
-                <div className={`notification-message ${messageType}`}>
+                <div className={`notification-message ${messageType}`} style={{
+                    position: 'fixed',
+                    bottom: 'var(--spacing-lg)',
+                    right: 'var(--spacing-lg)',
+                    padding: 'var(--spacing-md) var(--spacing-lg)',
+                    borderRadius: 'var(--radius-lg)',
+                    background: messageType === 'success' ? 'var(--success)' : messageType === 'error' ? 'var(--error)' : 'var(--info)',
+                    color: 'white',
+                    zIndex: 1000
+                }}>
                     <span>{message}</span>
-                    <button onClick={() => setMessage('')} className="close-message">✕</button>
+                    <button onClick={() => setMessage('')} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', marginLeft: 'var(--spacing-md)' }}>✕</button>
                 </div>
             )}
-
-            <style jsx>{`
-/* NutritionForm.css - متوافق مع ThemeManager */
-
-.nutrition-form-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: var(--spacing-lg);
-}
-
-/* ===== رأس النموذج المحسن ===== */
-.enhanced-header {
-    position: relative;
-    background: var(--primary-gradient);
-    border-radius: var(--radius-2xl);
-    overflow: hidden;
-    margin-bottom: var(--spacing-xl);
-    box-shadow: var(--shadow-xl);
-}
-
-.header-pattern {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-
-.header-content-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-lg);
-    padding: var(--spacing-xl);
-    backdrop-filter: blur(10px);
-}
-
-.header-icon-container {
-    position: relative;
-    width: 80px;
-    height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.icon-glow {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background: rgba(255,255,255,0.3);
-    border-radius: 50%;
-    animation: pulse 2s infinite;
-}
-
-.header-icon {
-    position: relative;
-    font-size: 3.5rem;
-    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));
-}
-
-.header-text {
-    flex: 1;
-}
-
-.header-title {
-    color: white;
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0 0 var(--spacing-sm) 0;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.header-subtitle {
-    color: rgba(255,255,255,0.9);
-    font-size: 1rem;
-    margin: 0;
-}
-
-.header-badge {
-    background: rgba(255,255,255,0.2);
-    backdrop-filter: blur(5px);
-    padding: var(--spacing-sm) var(--spacing-lg);
-    border-radius: var(--radius-full);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    border: 1px solid rgba(255,255,255,0.3);
-}
-
-/* ===== زر مسح الباركود ===== */
-.barcode-button-container {
-    margin-bottom: var(--spacing-lg);
-}
-
-.barcode-scanner-btn {
-    width: 100%;
-    padding: var(--spacing-md) var(--spacing-lg);
-    background: linear-gradient(135deg, #10b981, #059669);
-    border: none;
-    border-radius: var(--radius-lg);
-    color: white;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    transition: all var(--transition-medium);
-}
-
-.barcode-scanner-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
-}
-
-.barcode-scanner-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* ===== ملخص التغذية ===== */
-.enhanced-summary-card {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
-    position: relative;
-    overflow: hidden;
-    border: 1px solid var(--border-light);
-    box-shadow: var(--shadow-md);
-}
-
-.summary-gradient {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--primary-gradient);
-}
-
-.summary-content {
-    position: relative;
-}
-
-.summary-title {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
-}
-
-.summary-icon {
-    font-size: 1.5rem;
-}
-
-.summary-title h4 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.2rem;
-}
-
-.summary-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--spacing-lg);
-}
-
-.stat-item {
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    transition: all var(--transition-medium);
-    border: 1px solid var(--border-light);
-}
-
-.stat-item:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-}
-
-.stat-icon {
-    width: 48px;
-    height: 48px;
-    background: var(--card-bg);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-}
-
-.stat-info {
-    flex: 1;
-}
-
-.stat-value {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.stat-label {
-    font-size: 0.85rem;
-    color: var(--text-tertiary);
-}
-
-/* ===== أقسام النموذج ===== */
-.form-section {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.section-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
-}
-
-.section-number {
-    width: 36px;
-    height: 36px;
-    background: var(--primary-gradient);
-    color: white;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 1rem;
-}
-
-.section-title {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.2rem;
-}
-
-.section-line {
-    flex: 1;
-    height: 2px;
-    background: linear-gradient(90deg, var(--primary), transparent);
-}
-
-/* ===== أنواع الوجبات ===== */
-.meal-type-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: var(--spacing-sm);
-}
-
-.meal-type-chip {
-    all: unset;
-    padding: var(--spacing-sm) var(--spacing-sm);
-    border-radius: var(--radius-full);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    cursor: pointer;
-    transition: all var(--transition-medium);
-    font-size: 0.9rem;
-    border: 2px solid transparent;
-}
-
-.meal-type-chip.active {
-    background: var(--chip-color) !important;
-    color: white;
-    transform: scale(1.05);
-    box-shadow: var(--shadow-md);
-}
-
-.meal-type-chip:not(.active) {
-    background: var(--chip-bg);
-    color: var(--chip-color);
-}
-
-/* ===== المدخلات ===== */
-.time-input,
-.ingredient-input,
-.quantity-input,
-.unit-select,
-.nutrition-input,
-.notes-textarea {
-    width: 100%;
-    padding: var(--spacing-sm) var(--spacing-md);
-    background: var(--secondary-bg);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    color: var(--text-primary);
-    font-size: 1rem;
-    transition: all var(--transition-fast);
-}
-
-.time-input:focus,
-.ingredient-input:focus,
-.quantity-input:focus,
-.unit-select:focus,
-.nutrition-input:focus,
-.notes-textarea:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
-}
-
-/* ===== مكونات الوجبة ===== */
-.ingredients-container {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-}
-
-.ingredient-card {
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-medium);
-}
-
-.ingredient-card:hover {
-    box-shadow: var(--shadow-md);
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-md);
-}
-
-.item-number-wrapper {
-    width: 32px;
-    height: 32px;
-    background: var(--primary-gradient);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.item-number {
-    color: white;
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-.remove-btn {
-    width: 36px;
-    height: 36px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--error-bg);
-    color: var(--error);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.remove-btn:hover {
-    background: var(--error);
-    color: white;
-    transform: scale(1.05);
-}
-
-.ingredient-fields {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-}
-
-.field-group {
-    position: relative;
-}
-
-.field-label {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    margin-bottom: var(--spacing-sm);
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
-.field-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-md);
-}
-
-.nutrition-fields-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--spacing-sm);
-}
-
-/* ===== نتائج البحث ===== */
-.search-results {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--card-bg);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    margin-top: var(--spacing-xs);
-    max-height: 300px;
-    overflow-y: auto;
-    z-index: 100;
-    box-shadow: var(--shadow-lg);
-}
-
-.result-item {
-    padding: var(--spacing-sm) var(--spacing-md);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.result-item:hover {
-    background: var(--hover-bg);
-}
-
-.food-name {
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.result-nutrients {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-.nutrient {
-    font-size: 0.85rem;
-    padding: 2px 8px;
-    border-radius: var(--radius-full);
-}
-
-.nutrient.calories {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-}
-
-.nutrient.protein {
-    background: rgba(34, 197, 94, 0.1);
-    color: #22c55e;
-}
-
-.searching-indicator {
-    margin-top: var(--spacing-xs);
-    font-size: 0.8rem;
-    color: var(--text-tertiary);
-}
-
-/* ===== زر إضافة مكون ===== */
-.add-ingredient-btn {
-    width: 100%;
-    padding: var(--spacing-md);
-    background: var(--secondary-bg);
-    border: 2px dashed var(--border-light);
-    border-radius: var(--radius-lg);
-    color: var(--text-secondary);
-    font-size: 1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    transition: all var(--transition-medium);
-}
-
-.add-ingredient-btn:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: var(--hover-bg);
-}
-
-/* ===== أزرار الإجراء ===== */
-.form-actions-enhanced {
-    display: flex;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-xl);
-}
-
-.action-btn {
-    flex: 1;
-    padding: var(--spacing-md);
-    border: none;
-    border-radius: var(--radius-lg);
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    transition: all var(--transition-medium);
-}
-
-.action-btn.primary {
-    background: var(--primary-gradient);
-    color: white;
-}
-
-.action-btn.primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-.action-btn.secondary {
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    border: 1px solid var(--border-light);
-}
-
-.action-btn.secondary:hover {
-    background: var(--hover-bg);
-    border-color: var(--primary);
-}
-
-.loading-spinner-small {
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    display: inline-block;
-}
-
-/* ===== قسم الوجبات المسجلة ===== */
-.enhanced-history-section {
-    background: var(--card-bg);
-    border-radius: var(--radius-2xl);
-    padding: var(--spacing-xl);
-    margin-top: var(--spacing-xl);
-    border: 1px solid var(--border-light);
-}
-
-.history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-}
-
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.history-icon {
-    font-size: 1.8rem;
-}
-
-.header-left h3 {
-    margin: 0;
-    color: var(--text-primary);
-}
-
-.header-right {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-}
-
-.meals-count {
-    padding: 4px 12px;
-    background: var(--secondary-bg);
-    border-radius: var(--radius-full);
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-}
-
-.refresh-history-btn {
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all var(--transition-medium);
-}
-
-.refresh-history-btn:hover:not(:disabled) {
-    background: var(--primary);
-    color: white;
-    transform: rotate(180deg);
-}
-
-/* ===== الخط الزمني ===== */
-.meals-timeline {
-    position: relative;
-}
-
-.meals-timeline::before {
-    content: '';
-    position: absolute;
-    left: 24px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: var(--border-light);
-}
-
-[dir="rtl"] .meals-timeline::before {
-    left: auto;
-    right: 24px;
-}
-
-.timeline-item {
-    position: relative;
-    padding-left: 60px;
-    margin-bottom: var(--spacing-lg);
-}
-
-[dir="rtl"] .timeline-item {
-    padding-left: 0;
-    padding-right: 60px;
-}
-
-.timeline-marker {
-    position: absolute;
-    left: 12px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow-md);
-}
-
-[dir="rtl"] .timeline-marker {
-    left: auto;
-    right: 12px;
-}
-
-.timeline-content {
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.content-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-sm);
-}
-
-.meal-type {
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: var(--text-primary);
-}
-
-.meal-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-.icon-btn {
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--card-bg);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.icon-btn.edit:hover {
-    background: var(--primary);
-    color: white;
-}
-
-.icon-btn.delete:hover {
-    background: var(--error);
-    color: white;
-}
-
-.meal-time {
-    color: var(--text-tertiary);
-    font-size: 0.85rem;
-    margin-bottom: var(--spacing-sm);
-}
-
-/* ===== شارات التغذية ===== */
-.nutrition-badges {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-md);
-    flex-wrap: wrap;
-}
-
-.nutrition-badges .badge {
-    flex: 1;
-    min-width: 60px;
-    padding: 6px 4px;
-    background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    box-shadow: var(--shadow-xs);
-}
-
-.badge-value {
-    font-size: 0.9rem;
-    font-weight: 700;
-}
-
-.badge.calories .badge-value { color: #ef4444; }
-.badge.protein .badge-value { color: #22c55e; }
-.badge.carbs .badge-value { color: #f59e0b; }
-.badge.fat .badge-value { color: #3b82f6; }
-
-.badge-label {
-    font-size: 0.6rem;
-    color: var(--text-tertiary);
-}
-
-.ingredients-list {
-    border-top: 1px solid var(--border-light);
-    padding-top: var(--spacing-sm);
-}
-
-.ingredients-list ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.ingredients-list li {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: var(--card-bg);
-    padding: 4px 8px;
-    border-radius: var(--radius-full);
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
-.more-tag {
-    background: var(--card-bg);
-    padding: 4px 8px;
-    border-radius: var(--radius-full);
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-}
-
-.notes {
-    margin-top: var(--spacing-sm);
-    padding-top: var(--spacing-sm);
-    border-top: 1px solid var(--border-light);
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-}
-
-/* ===== حالات التحميل والفارغة ===== */
-.loading-state,
-.empty-state {
-    text-align: center;
-    padding: var(--spacing-2xl);
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-}
-
-.loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--border-light);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto var(--spacing-md);
-}
-
-.empty-illustration {
-    font-size: 4rem;
-    margin-bottom: var(--spacing-md);
-    opacity: 0.6;
-}
-
-/* ===== الإشعارات ===== */
-.notification-message {
-    position: fixed;
-    bottom: var(--spacing-lg);
-    right: var(--spacing-lg);
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-radius: var(--radius-lg);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    animation: slideIn 0.3s ease;
-    z-index: 1000;
-    box-shadow: var(--shadow-lg);
-}
-
-[dir="rtl"] .notification-message {
-    right: auto;
-    left: var(--spacing-lg);
-}
-
-.notification-message.success {
-    background: var(--success);
-    color: white;
-}
-
-.notification-message.error {
-    background: var(--error);
-    color: white;
-}
-
-.notification-message.info {
-    background: var(--info);
-    color: white;
-}
-
-.close-message {
-    background: none;
-    border: none;
-    color: white;
-    cursor: pointer;
-    font-size: 1.2rem;
-    opacity: 0.8;
-    transition: opacity var(--transition-fast);
-}
-
-.close-message:hover {
-    opacity: 1;
-}
-
-/* ===== كاميرا ===== */
-.camera-btn {
-    width: 48px;
-    height: 48px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.2);
-    backdrop-filter: blur(5px);
-    color: white;
-    font-size: 1.5rem;
-    cursor: pointer;
-    transition: all var(--transition-medium);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.camera-btn:hover:not(:disabled) {
-    background: rgba(255,255,255,0.3);
-    transform: scale(1.05);
-}
-
-.camera-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* ===== أنيميشن ===== */
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); opacity: 0.3; }
-    50% { transform: scale(1.2); opacity: 0.5; }
-}
-
-@keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-
-[dir="rtl"] @keyframes slideIn {
-    from { transform: translateX(-100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-
-/* ===== استجابة ===== */
-@media (max-width: 768px) {
-    .nutrition-form-container {
-        padding: var(--spacing-md);
-    }
-    
-    .header-content-wrapper {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .meal-type-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-    
-    .summary-stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .field-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .nutrition-fields-row {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .form-actions-enhanced {
-        flex-direction: column;
-    }
-    
-    .timeline-item {
-        padding-left: 50px;
-    }
-    
-    [dir="rtl"] .timeline-item {
-        padding-right: 50px;
-        padding-left: 0;
-    }
-    
-    .timeline-marker {
-        left: 5px;
-        width: 35px;
-        height: 35px;
-    }
-    
-    [dir="rtl"] .timeline-marker {
-        left: auto;
-        right: 5px;
-    }
-}
-
-@media (max-width: 480px) {
-    .meal-type-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .summary-stats-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .nutrition-fields-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .notification-message {
-        left: var(--spacing-md);
-        right: var(--spacing-md);
-        bottom: var(--spacing-md);
-    }
-    
-    [dir="rtl"] .notification-message {
-        left: var(--spacing-md);
-        right: var(--spacing-md);
-    }
-}
-
-/* ===== دعم RTL ===== */
-[dir="rtl"] .section-line {
-    background: linear-gradient(90deg, transparent, var(--primary));
-}
-
-[dir="rtl"] .meals-timeline::before {
-    left: auto;
-    right: 24px;
-}
-
-[dir="rtl"] .result-nutrients {
-    flex-direction: row-reverse;
-}
-            `}</style>
         </div>
     );
 }

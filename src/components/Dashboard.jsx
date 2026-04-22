@@ -29,7 +29,7 @@ function Dashboard({ onLogout }) {
     const navigate = useNavigate();
     const isRTL = i18n.language === 'ar';
     
-    // ✅ useRef لمنع التحديثات المتكررة
+    // useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const refreshIntervalRef = useRef(null);
     const isFetchingRef = useRef(false);
@@ -53,21 +53,19 @@ function Dashboard({ onLogout }) {
         return false;
     });
 
-    // ✅ تطبيق الوضع المظلم
+    // تطبيق الوضع المظلم
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const html = document.documentElement;
             if (darkMode) {
                 html.classList.add('dark-mode');
-                document.body.style.backgroundColor = '#0a0f1f';
             } else {
                 html.classList.remove('dark-mode');
-                document.body.style.backgroundColor = '#f8fafc';
             }
         }
     }, [darkMode]);
 
-    // ✅ التحقق من المصادقة
+    // التحقق من المصادقة
     useEffect(() => {
         let isActive = true;
         
@@ -88,7 +86,7 @@ function Dashboard({ onLogout }) {
         return () => { isActive = false; };
     }, [navigate]);
 
-    // ✅ جلب البيانات - مع معالجة صحيحة للبيانات
+    // جلب البيانات
     const fetchHealthData = useCallback(async () => {
         console.log('🔄 fetchHealthData called, refreshKey:', refreshKey);
         
@@ -103,28 +101,21 @@ function Dashboard({ onLogout }) {
             
             if (!isMountedRef.current) return;
             
-            // ✅ معالجة البيانات من API (نتائج أو مصفوفة)
             let records = [];
             if (response.data?.results) {
                 records = response.data.results;
             } else if (Array.isArray(response.data)) {
                 records = response.data;
-            } else {
-                records = [];
             }
             
             console.log('📊 Processed records:', records.length);
             setHealthRecords(records);
             
-            // ✅ تحديث أحدث قراءة
             if (records.length > 0) {
-                // ترتيب تنازلي حسب التاريخ
                 const sortedRecords = [...records].sort((a, b) => 
                     new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at)
                 );
                 const latest = sortedRecords[0];
-                
-                console.log('📊 Latest record:', latest);
                 
                 setLatestHealthData({
                     weight: latest.weight_kg || null,
@@ -152,14 +143,14 @@ function Dashboard({ onLogout }) {
         }
     }, [isAuthReady, t, refreshKey]);
 
-    // ✅ جلب البيانات عند التغيير
+    // جلب البيانات عند التغيير
     useEffect(() => {
         if (isAuthReady) {
             fetchHealthData();
         }
     }, [refreshKey, isAuthReady, fetchHealthData]);
 
-    // ✅ إعدادات اللغة
+    // إعدادات اللغة
     useEffect(() => {
         if (typeof window !== 'undefined') {
             document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
@@ -175,7 +166,7 @@ function Dashboard({ onLogout }) {
         }
     }, [isRTL, i18n.language]);
     
-    // ✅ تنظيف
+    // تنظيف
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -234,27 +225,26 @@ function Dashboard({ onLogout }) {
     };
 
     const renderSectionContent = () => {
-        // ✅ عرض الصحة الرئيسي
         const healthSectionContent = (
             <div className="health-section">
                 {/* بطاقات الملخص */}
-                <div className="summary-section">
-                    <div className="summary-header">
+                <div className="recommendations-section" style={{ marginTop: 0 }}>
+                    <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
                         <h3>📊 {t('dashboard.dailySummary')}</h3>
-                        <span className="summary-date">{getTodayDate()}</span>
+                        <span className="stat-label">{getTodayDate()}</span>
                     </div>
                     
-                    <div className="summary-cards">
+                    <div className="analytics-stats-grid">
                         {/* الوزن */}
-                        <div className="summary-card">
-                            <div className="card-icon">⚖️</div>
-                            <div className="card-content">
-                                <h4>{t('dashboard.lastWeight')}</h4>
-                                <p className="card-value">
+                        <div className="analytics-stat-card">
+                            <div className="stat-icon">⚖️</div>
+                            <div className="stat-content">
+                                <div className="stat-label">{t('dashboard.lastWeight')}</div>
+                                <div className="stat-value">
                                     {latestHealthData?.weight ? `${latestHealthData.weight} ${t('dashboard.kg')}` : '—'}
-                                </p>
+                                </div>
                                 {latestHealthData?.recorded_at && (
-                                    <div className="card-time">
+                                    <div className="stat-label">
                                         {new Date(latestHealthData.recorded_at).toLocaleTimeString(
                                             i18n.language === 'ar' ? 'ar-EG' : 'en-US',
                                             { hour: '2-digit', minute: '2-digit' }
@@ -262,45 +252,43 @@ function Dashboard({ onLogout }) {
                                     </div>
                                 )}
                             </div>
-                            <div className="card-glow"></div>
                         </div>
                         
                         {/* ضغط الدم */}
-                        <div className="summary-card">
-                            <div className="card-icon">❤️</div>
-                            <div className="card-content">
-                                <h4>{t('dashboard.bloodPressure')}</h4>
-                                <p className="card-value">
+                        <div className="analytics-stat-card">
+                            <div className="stat-icon">❤️</div>
+                            <div className="stat-content">
+                                <div className="stat-label">{t('dashboard.bloodPressure')}</div>
+                                <div className="stat-value">
                                     {displayBloodPressure(latestHealthData?.systolic, latestHealthData?.diastolic)}
-                                </p>
-                                <small>{t('dashboard.sysDia')}</small>
+                                </div>
+                                <div className="stat-label">{t('dashboard.sysDia')}</div>
                             </div>
-                            <div className="card-glow"></div>
                         </div>
                         
                         {/* الجلوكوز */}
-                        <div className="summary-card">
-                            <div className="card-icon">🩸</div>
-                            <div className="card-content">
-                                <h4>{t('dashboard.bloodGlucose')}</h4>
-                                <p className="card-value">
+                        <div className="analytics-stat-card">
+                            <div className="stat-icon">🩸</div>
+                            <div className="stat-content">
+                                <div className="stat-label">{t('dashboard.bloodGlucose')}</div>
+                                <div className="stat-value">
                                     {displayValue(latestHealthData?.glucose, 'mg/dL')}
-                                </p>
-                                <small>{t('dashboard.glucoseLevel')}</small>
+                                </div>
+                                <div className="stat-label">{t('dashboard.glucoseLevel')}</div>
                             </div>
-                            <div className="card-glow"></div>
                         </div>
                     </div>
                     
                     {/* رسالة عدم وجود بيانات */}
                     {!latestHealthData && healthRecords.length === 0 && (
-                        <div className="no-data-message">
-                            <div className="no-data-icon">📊</div>
+                        <div className="analytics-empty">
+                            <div className="empty-icon">📊</div>
                             <h4>{t('dashboard.noDataTitle')}</h4>
                             <p>{t('dashboard.noDataMessage')}</p>
                             <button 
                                 onClick={() => document.querySelector('.health-form')?.scrollIntoView({ behavior: 'smooth' })}
-                                className="add-data-btn"
+                                className="type-btn active"
+                                style={{ marginTop: 'var(--spacing-md)' }}
                             >
                                 ➕ {t('dashboard.addFirstReading')}
                             </button>
@@ -327,7 +315,6 @@ function Dashboard({ onLogout }) {
             </div>
         );
 
-        // ✅ اختيار القسم حسب التبويب
         switch (activeSection) {
             case 'health':
                 return healthSectionContent;
@@ -370,33 +357,37 @@ function Dashboard({ onLogout }) {
         return titles[sectionKey] || t('dashboard.dashboard');
     };
     
-    // ✅ حالة التحميل
+    // حالة التحميل
     if (loading && healthRecords.length === 0) {
         return (
-            <div className={`loading-dashboard ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="loading-spinner"></div>
-                <h2>{t('dashboard.loadingSummary')}</h2>
-                <p>{t('dashboard.pleaseWait')}</p>
+            <div className="analytics-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="analytics-loading">
+                    <div className="spinner"></div>
+                    <h2>{t('dashboard.loadingSummary')}</h2>
+                    <p>{t('dashboard.pleaseWait')}</p>
+                </div>
             </div>
         );
     }
 
-    // ✅ حالة الخطأ
+    // حالة الخطأ
     if (error && healthRecords.length === 0) {
         return (
-            <div className={`error-dashboard ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="error-icon">⚠️</div>
-                <h2>{error}</h2>
-                <button onClick={fetchHealthData} className="retry-btn">
-                    🔄 {t('dashboard.retry')}
-                </button>
+            <div className="analytics-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="analytics-error">
+                    <div className="empty-icon">⚠️</div>
+                    <h2>{error}</h2>
+                    <button onClick={fetchHealthData} className="retry-btn">
+                        🔄 {t('dashboard.retry')}
+                    </button>
+                </div>
             </div>
         );
     }
 
-    // ✅ العرض الرئيسي
+    // العرض الرئيسي
     return (
-        <div className={`dashboard-layout ${darkMode ? 'dark-mode' : ''}`}>
+        <div className="dashboard-layout">
             {/* شريط التحكم العلوي */}
             <div className="control-bar">
                 <div className="control-left">
@@ -452,830 +443,6 @@ function Dashboard({ onLogout }) {
                     {renderSectionContent()}
                 </div>
             </main>
-
-            <style jsx>{`
-/* Dashboard.css - متوافق مع ThemeManager */
-
-/* ===== تخطيط عام ===== */
-.dashboard-layout {
-    min-height: 100vh;
-    background: var(--primary-bg);
-    transition: all var(--transition-slow);
-    position: relative;
-}
-
-/* ===== شريط التحكم ===== */
-.control-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 70px;
-    background: var(--card-bg);
-    border-bottom: 1px solid var(--border-light);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 var(--spacing-xl);
-    z-index: 1000;
-    backdrop-filter: blur(10px);
-    box-shadow: var(--shadow-md);
-}
-
-.control-left {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-}
-
-.menu-toggle {
-    display: none;
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    font-size: 1.2rem;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    -webkit-tap-highlight-color: transparent;
-}
-
-.menu-toggle:active {
-    transform: scale(0.95);
-}
-
-.app-name {
-    font-size: 1.5rem;
-    font-weight: 700;
-    background: var(--primary-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.control-center {
-    flex: 1;
-    text-align: center;
-}
-
-.date-display {
-    display: inline-block;
-    padding: var(--spacing-sm) var(--spacing-md);
-    background: var(--secondary-bg);
-    border-radius: var(--radius-full);
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    border: 1px solid var(--border-light);
-}
-
-.control-right {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-}
-
-.theme-toggle {
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    font-size: 1.2rem;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    -webkit-tap-highlight-color: transparent;
-}
-
-.theme-toggle:active {
-    transform: rotate(15deg) scale(0.95);
-}
-
-/* ===== السايدبار ===== */
-.sidebar-wrapper {
-    position: fixed;
-    top: 70px;
-    bottom: 0;
-    width: 280px;
-    z-index: 999;
-    transition: transform var(--transition-medium);
-}
-
-[dir="ltr"] .sidebar-wrapper {
-    left: 0;
-    transform: translateX(-100%);
-}
-
-[dir="rtl"] .sidebar-wrapper {
-    right: 0;
-    transform: translateX(100%);
-}
-
-.sidebar-wrapper.open {
-    transform: translateX(0);
-}
-
-/* Overlay للجوال */
-.sidebar-overlay {
-    position: fixed;
-    top: 70px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 998;
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-/* ===== المحتوى الرئيسي ===== */
-.dashboard-content {
-    margin-top: 70px;
-    padding: var(--spacing-xl);
-    min-height: calc(100vh - 70px);
-    background: var(--primary-bg);
-    transition: margin var(--transition-medium);
-}
-
-[dir="ltr"] .dashboard-content {
-    margin-left: 0;
-}
-
-[dir="rtl"] .dashboard-content {
-    margin-right: 0;
-}
-
-/* ===== رأس القسم ===== */
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-xl);
-    padding-bottom: var(--spacing-md);
-    border-bottom: 2px solid var(--border-light);
-    flex-wrap: wrap;
-    gap: var(--spacing-md);
-}
-
-.section-header h1 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.8rem;
-    font-weight: 700;
-}
-
-.last-updated {
-    padding: var(--spacing-sm) var(--spacing-md);
-    background: var(--secondary-bg);
-    border-radius: var(--radius-full);
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-    border: 1px solid var(--border-light);
-}
-
-/* ===== قسم الملخص ===== */
-.summary-section {
-    background: var(--card-bg);
-    border-radius: var(--radius-2xl);
-    padding: var(--spacing-xl);
-    margin-bottom: var(--spacing-xl);
-    border: 1px solid var(--border-light);
-    box-shadow: var(--shadow-lg);
-}
-
-.summary-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-    flex-wrap: wrap;
-    gap: var(--spacing-md);
-}
-
-.summary-header h3 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.3rem;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.summary-date {
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-    padding: var(--spacing-xs) var(--spacing-sm);
-    background: var(--secondary-bg);
-    border-radius: var(--radius-full);
-}
-
-/* ===== بطاقات الملخص ===== */
-.summary-cards {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--spacing-lg);
-}
-
-.summary-card {
-    background: var(--secondary-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-medium);
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
-}
-
-.summary-card:active {
-    transform: scale(0.98);
-}
-
-.summary-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-xl);
-    border-color: var(--primary);
-}
-
-.card-glow {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 100%;
-    background: radial-gradient(circle at 50% 0%, var(--primary) 0%, transparent 70%);
-    opacity: 0;
-    transition: opacity var(--transition-medium);
-    pointer-events: none;
-}
-
-.summary-card:hover .card-glow {
-    opacity: 0.1;
-}
-
-.card-icon {
-    width: 70px;
-    height: 70px;
-    background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    box-shadow: var(--shadow-md);
-    transition: all var(--transition-medium);
-}
-
-.summary-card:hover .card-icon {
-    transform: scale(1.1) rotate(5deg);
-    background: var(--primary);
-    color: white;
-}
-
-.card-content {
-    flex: 1;
-}
-
-.card-content h4 {
-    margin: 0 0 var(--spacing-sm) 0;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    font-weight: 600;
-}
-
-.card-value {
-    margin: 0 0 var(--spacing-xs) 0;
-    font-weight: 700;
-    font-size: 1.8rem;
-    color: var(--text-primary);
-}
-
-.card-time {
-    color: var(--text-tertiary);
-    font-size: 0.75rem;
-}
-
-.card-content small {
-    color: var(--text-secondary);
-    font-size: 0.75rem;
-}
-
-/* ===== قسم التحليلات ===== */
-.activity-analytics-wrapper {
-    margin: var(--spacing-xl) 0;
-    background: var(--card-bg);
-    border-radius: var(--radius-2xl);
-    padding: var(--spacing-xl);
-    border: 1px solid var(--border-light);
-    box-shadow: var(--shadow-lg);
-}
-
-/* ===== رسالة عدم وجود بيانات ===== */
-.no-data-message {
-    text-align: center;
-    padding: var(--spacing-2xl);
-    background: var(--secondary-bg);
-    border-radius: var(--radius-xl);
-    border: 2px dashed var(--border-light);
-    margin-top: var(--spacing-xl);
-}
-
-.no-data-icon {
-    font-size: 4rem;
-    margin-bottom: var(--spacing-md);
-    opacity: 0.5;
-}
-
-.no-data-message h4 {
-    margin: 0 0 var(--spacing-sm) 0;
-    color: var(--text-primary);
-    font-size: 1.2rem;
-}
-
-.no-data-message p {
-    margin: 0 0 var(--spacing-lg) 0;
-    color: var(--text-secondary);
-}
-
-.add-data-btn {
-    padding: var(--spacing-sm) var(--spacing-lg);
-    background: var(--primary-gradient);
-    color: white;
-    border: none;
-    border-radius: var(--radius-lg);
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-medium);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    -webkit-tap-highlight-color: transparent;
-}
-
-.add-data-btn:active {
-    transform: scale(0.96);
-}
-
-.add-data-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-/* ===== حالات التحميل والخطأ ===== */
-.loading-dashboard,
-.error-dashboard {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    background: var(--primary-bg);
-    text-align: center;
-    padding: var(--spacing-xl);
-}
-
-.loading-spinner {
-    width: 60px;
-    height: 60px;
-    border: 4px solid var(--border-light);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: var(--spacing-lg);
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.loading-dashboard h2 {
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
-    font-size: 1.3rem;
-}
-
-.loading-dashboard p {
-    color: var(--text-secondary);
-}
-
-.error-icon {
-    font-size: 4rem;
-    margin-bottom: var(--spacing-md);
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
-
-.error-dashboard h2 {
-    color: var(--error);
-    margin-bottom: var(--spacing-lg);
-    font-size: 1.2rem;
-}
-
-.retry-btn {
-    padding: var(--spacing-sm) var(--spacing-xl);
-    background: var(--error);
-    color: white;
-    border: none;
-    border-radius: var(--radius-lg);
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-medium);
-}
-
-.retry-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.retry-btn:active {
-    transform: scale(0.96);
-}
-
-/* ===== تحسينات للشاشات الكبيرة ===== */
-@media (min-width: 1025px) {
-    .sidebar-wrapper {
-        transform: translateX(0) !important;
-    }
-
-    .menu-toggle {
-        display: none !important;
-    }
-
-    [dir="ltr"] .dashboard-content {
-        margin-left: 280px !important;
-    }
-
-    [dir="rtl"] .dashboard-content {
-        margin-right: 280px !important;
-    }
-}
-
-/* ===== للشاشات الكبيرة جداً ===== */
-@media (min-width: 1400px) {
-    .sidebar-wrapper {
-        width: 320px;
-    }
-
-    [dir="ltr"] .dashboard-content {
-        margin-left: 320px !important;
-    }
-
-    [dir="rtl"] .dashboard-content {
-        margin-right: 320px !important;
-    }
-
-    .dashboard-content {
-        padding: var(--spacing-xl) var(--spacing-2xl);
-    }
-
-    .section-header h1 {
-        font-size: 2.2rem;
-    }
-}
-
-/* ===== للشاشات المتوسطة ===== */
-@media (min-width: 768px) and (max-width: 1024px) {
-    .sidebar-wrapper {
-        width: 260px;
-    }
-
-    [dir="ltr"] .dashboard-content {
-        margin-left: 260px !important;
-    }
-
-    [dir="rtl"] .dashboard-content {
-        margin-right: 260px !important;
-    }
-
-    .dashboard-content {
-        padding: var(--spacing-lg);
-    }
-
-    .summary-cards {
-        grid-template-columns: repeat(2, 1fr);
-        gap: var(--spacing-md);
-    }
-
-    .card-icon {
-        width: 60px;
-        height: 60px;
-        font-size: 1.6rem;
-    }
-
-    .card-value {
-        font-size: 1.6rem;
-    }
-}
-
-/* ===== للشاشات الصغيرة ===== */
-@media (max-width: 767px) {
-    .control-bar {
-        height: 60px;
-        padding: 0 var(--spacing-md);
-    }
-
-    .menu-toggle {
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .app-name {
-        font-size: 1.2rem;
-    }
-
-    .date-display {
-        display: none;
-    }
-
-    .dashboard-content {
-        margin-top: 60px;
-        padding: var(--spacing-md);
-    }
-
-    .section-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-        margin-bottom: var(--spacing-lg);
-    }
-
-    .section-header h1 {
-        font-size: 1.3rem;
-    }
-
-    .last-updated {
-        font-size: 0.75rem;
-        padding: var(--spacing-xs) var(--spacing-sm);
-    }
-
-    .summary-section {
-        padding: var(--spacing-lg);
-        border-radius: var(--radius-xl);
-    }
-
-    .summary-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-    }
-
-    .summary-header h3 {
-        font-size: 1.1rem;
-    }
-
-    .summary-cards {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-md);
-    }
-
-    .summary-card {
-        padding: var(--spacing-md);
-        gap: var(--spacing-md);
-        flex-direction: row;
-    }
-
-    .card-icon {
-        width: 55px;
-        height: 55px;
-        font-size: 1.6rem;
-        border-radius: var(--radius-md);
-    }
-
-    .card-value {
-        font-size: 1.5rem;
-    }
-
-    .activity-analytics-wrapper {
-        padding: var(--spacing-md);
-        border-radius: var(--radius-xl);
-        margin: var(--spacing-lg) 0;
-    }
-
-    .no-data-message {
-        padding: var(--spacing-xl);
-    }
-
-    .no-data-icon {
-        font-size: 3rem;
-    }
-
-    .add-data-btn {
-        padding: var(--spacing-sm) var(--spacing-lg);
-        font-size: 0.9rem;
-    }
-}
-
-/* ===== للشاشات الصغيرة جداً ===== */
-@media (max-width: 480px) {
-    .dashboard-content {
-        padding: var(--spacing-sm);
-    }
-
-    .section-header h1 {
-        font-size: 1.2rem;
-    }
-
-    .summary-section {
-        padding: var(--spacing-md);
-        border-radius: var(--radius-lg);
-    }
-
-    .summary-card {
-        flex-direction: column;
-        text-align: center;
-        gap: var(--spacing-sm);
-        padding: var(--spacing-md);
-    }
-
-    .card-icon {
-        margin: 0 auto;
-        width: 50px;
-        height: 50px;
-        font-size: 1.5rem;
-    }
-
-    .card-value {
-        font-size: 1.3rem;
-    }
-
-    .control-right {
-        gap: var(--spacing-sm);
-    }
-
-    .theme-toggle {
-        width: 36px;
-        height: 36px;
-        font-size: 1rem;
-    }
-
-    .loading-spinner {
-        width: 50px;
-        height: 50px;
-    }
-
-    .loading-dashboard h2 {
-        font-size: 1.1rem;
-    }
-
-    .error-icon {
-        font-size: 3rem;
-    }
-}
-
-/* ===== الوضع الأفقي ===== */
-@media (max-height: 600px) and (orientation: landscape) {
-    .control-bar {
-        height: 55px;
-    }
-
-    .dashboard-content {
-        margin-top: 55px;
-    }
-
-    .summary-section {
-        padding: var(--spacing-md);
-    }
-
-    .summary-cards {
-        grid-template-columns: repeat(3, 1fr);
-        gap: var(--spacing-sm);
-    }
-
-    .summary-card {
-        padding: var(--spacing-sm);
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .card-icon {
-        width: 45px;
-        height: 45px;
-        font-size: 1.3rem;
-    }
-
-    .card-value {
-        font-size: 1.2rem;
-    }
-}
-
-/* ===== دعم الحركة المخفضة ===== */
-@media (prefers-reduced-motion: reduce) {
-    .summary-card:hover,
-    .add-data-btn:hover,
-    .retry-btn:hover {
-        transform: none !important;
-        animation: none !important;
-    }
-
-    .loading-spinner {
-        animation: none !important;
-    }
-
-    .error-icon {
-        animation: none !important;
-    }
-
-    .sidebar-overlay {
-        animation: none !important;
-    }
-}
-
-/* ===== تحسينات اللمس للأجهزة المحمولة ===== */
-@media (hover: none) and (pointer: coarse) {
-    .summary-card:hover {
-        transform: none;
-    }
-
-    .add-data-btn:active,
-    .retry-btn:active,
-    .theme-toggle:active,
-    .menu-toggle:active {
-        transform: scale(0.96);
-    }
-}
-
-/* ===== دعم RTL ===== */
-[dir="rtl"] .summary-card {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .summary-header {
-    flex-direction: row-reverse;
-}
-
-@media (max-width: 767px) {
-    [dir="rtl"] .summary-card {
-        flex-direction: row-reverse;
-    }
-}
-
-@media (max-width: 480px) {
-    [dir="rtl"] .summary-card {
-        flex-direction: column;
-    }
-}
-    /* ===== زر تسجيل الخروج ===== */
-.logout-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm) var(--spacing-md);
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid var(--error);
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    transition: all var(--transition-medium);
-    color: var(--error);
-    font-weight: 500;
-    font-size: 0.9rem;
-}
-
-.logout-btn:hover {
-    background: var(--error);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.logout-btn:active {
-    transform: scale(0.96);
-}
-
-.logout-icon {
-    font-size: 1rem;
-}
-
-.logout-text {
-    font-size: 0.85rem;
-}
-
-/* استجابة للشاشات الصغيرة */
-@media (max-width: 768px) {
-    .logout-text {
-        display: none;
-    }
-    
-    .logout-btn {
-        padding: var(--spacing-sm);
-    }
-}
-            `}</style>
         </div>
     );
 }

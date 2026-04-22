@@ -5,6 +5,7 @@ import axiosInstance from '../../services/api';
 import NutritionAnalytics from '../Analytics/NutritionAnalytics';
 import '../../index.css';
 
+
 // دالة لتقريب الأرقام
 const roundNumber = (num, decimals = 1) => {
     if (isNaN(num)) return 0;
@@ -29,14 +30,10 @@ const mergeDuplicateItems = (items) => {
     return Object.values(merged);
 };
 
-// ✅ دالة مساعدة لاستخراج البيانات من response
+// دالة مساعدة لاستخراج البيانات من response
 const extractData = (response) => {
-    if (response?.results) {
-        return response.results;
-    }
-    if (Array.isArray(response)) {
-        return response;
-    }
+    if (response?.results) return response.results;
+    if (Array.isArray(response)) return response;
     return [];
 };
 
@@ -46,7 +43,6 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
     const [loading, setLoading] = useState(true);
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [lastUpdate, setLastUpdate] = useState(null);
-    const [darkMode, setDarkMode] = useState(false);
     const [activeTab, setActiveTab] = useState('basic');
     const [refreshAnalytics, setRefreshAnalytics] = useState(0);
     
@@ -62,25 +58,12 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
 
-    // ✅ تحديث autoRefreshRef
+    // تحديث autoRefreshRef
     useEffect(() => {
         autoRefreshRef.current = autoRefresh;
     }, [autoRefresh]);
 
-    // ✅ تحميل إعدادات الوضع المظلم
-    useEffect(() => {
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                             window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setDarkMode(savedDarkMode);
-    }, []);
-
-    useEffect(() => {
-        const handleThemeChange = (e) => setDarkMode(e.detail?.darkMode ?? false);
-        window.addEventListener('themeChange', handleThemeChange);
-        return () => window.removeEventListener('themeChange', handleThemeChange);
-    }, []);
-
-    // ✅ دالة جلب جميع الوجبات مع دعم pagination
+    // دالة جلب جميع الوجبات مع دعم pagination
     const fetchAllMeals = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
@@ -119,19 +102,19 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         }
     }, []);
 
-    // ✅ جلب البيانات عند التحميل أو عند طلب التحديث
+    // جلب البيانات عند التحميل أو عند طلب التحديث
     const handleRefresh = useCallback(async () => {
         await fetchAllMeals();
         setRefreshAnalytics(prev => prev + 1);
         if (onRefresh) onRefresh();
     }, [fetchAllMeals, onRefresh]);
 
-    // ✅ تحميل البيانات الأولية
+    // تحميل البيانات الأولية
     useEffect(() => {
         fetchAllMeals();
     }, [fetchAllMeals]);
 
-    // ✅ التحديث التلقائي
+    // التحديث التلقائي
     useEffect(() => {
         if (!autoRefresh) {
             if (intervalRef.current) clearInterval(intervalRef.current);
@@ -151,7 +134,7 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         };
     }, [autoRefresh, fetchAllMeals]);
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
+    // تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -236,11 +219,11 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
     }[type] || '🍽️');
     
     const getMealTypeLabel = (type) => ({ 
-        'Breakfast': t('nutrition.breakfast'), 
-        'Lunch': t('nutrition.lunch'), 
-        'Dinner': t('nutrition.dinner'), 
-        'Snack': t('nutrition.snack'), 
-        'Other': t('nutrition.other') 
+        'Breakfast': t('nutrition.breakfast', 'فطور'), 
+        'Lunch': t('nutrition.lunch', 'غداء'), 
+        'Dinner': t('nutrition.dinner', 'عشاء'), 
+        'Snack': t('nutrition.snack', 'وجبة خفيفة'), 
+        'Other': t('nutrition.other', 'أخرى') 
     }[type] || type);
     
     const formatDate = (dateString) => {
@@ -258,13 +241,13 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         const recs = [];
         const todayMeals = meals?.filter(meal => new Date(meal.meal_time).toDateString() === new Date().toDateString()) || [];
         
-        if (nutritionStats.totalMeals === 0) recs.push('📝 ابدأ بتسجيل أول وجبة لك');
-        if (goalProgress.calories >= 80) recs.push('🎯 ممتاز! أنت قريب من هدف السعرات اليومي');
-        if (nutritionStats.avgProtein < 50 && nutritionStats.avgProtein > 0) recs.push('💪 زد من تناول البروتين (دجاج، بيض، بقوليات)');
-        if (nutritionStats.avgCarbs > 300) recs.push('🌾 قلل من الكربوهيدرات (خبز، أرز، مكرونة)');
-        if (todayMeals.filter(m => m.meal_type === 'Breakfast').length === 0 && todayMeals.length > 0) recs.push('🌅 لا تنسَ وجبة الفطور لبدء يومك بنشاط');
+        if (nutritionStats.totalMeals === 0) recs.push('📝 ' + (t('nutrition.startFirstMeal', 'ابدأ بتسجيل أول وجبة لك')));
+        if (goalProgress.calories >= 80) recs.push('🎯 ' + (t('nutrition.closeToGoal', 'ممتاز! أنت قريب من هدف السعرات اليومي')));
+        if (nutritionStats.avgProtein < 50 && nutritionStats.avgProtein > 0) recs.push('💪 ' + (t('nutrition.increaseProtein', 'زد من تناول البروتين (دجاج، بيض، بقوليات)')));
+        if (nutritionStats.avgCarbs > 300) recs.push('🌾 ' + (t('nutrition.reduceCarbs', 'قلل من الكربوهيدرات (خبز، أرز، مكرونة)')));
+        if (todayMeals.filter(m => m.meal_type === 'Breakfast').length === 0 && todayMeals.length > 0) recs.push('🌅 ' + (t('nutrition.dontSkipBreakfast', 'لا تنسَ وجبة الفطور لبدء يومك بنشاط')));
         
-        return recs.length ? recs : ['✅ نظامك الغذائي متوازن، استمر!'];
+        return recs.length ? recs : ['✅ ' + (t('nutrition.balancedDiet', 'نظامك الغذائي متوازن، استمر!'))];
     };
 
     const getPrediction = () => {
@@ -275,9 +258,9 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         const weeklyChange = ((avgCalories - nutritionGoals.dailyCalories) * 7) / 7700;
         const maxChange = Math.min(Math.abs(weeklyChange), 1);
         
-        if (weeklyChange > 0.2) return { icon: '📈', text: `زيادة متوقعة ${maxChange.toFixed(1)} كجم أسبوعياً`, color: '#f59e0b' };
-        if (weeklyChange < -0.2) return { icon: '📉', text: `خسارة متوقعة ${maxChange.toFixed(1)} كجم أسبوعياً`, color: '#10b981' };
-        return { icon: '➡️', text: 'وزن مستقر متوقع', color: '#3b82f6' };
+        if (weeklyChange > 0.2) return { icon: '📈', text: (t('nutrition.weightGainExpected', 'زيادة متوقعة')) + ` ${maxChange.toFixed(1)} ` + (t('nutrition.kgPerWeek', 'كجم أسبوعياً')), color: '#f59e0b', severity: 'warning' };
+        if (weeklyChange < -0.2) return { icon: '📉', text: (t('nutrition.weightLossExpected', 'خسارة متوقعة')) + ` ${maxChange.toFixed(1)} ` + (t('nutrition.kgPerWeek', 'كجم أسبوعياً')), color: '#10b981', severity: 'success' };
+        return { icon: '➡️', text: t('nutrition.weightStable', 'وزن مستقر متوقع'), color: '#3b82f6', severity: 'info' };
     };
 
     const prediction = getPrediction();
@@ -285,137 +268,159 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
 
     if (loading && meals.length === 0) {
         return (
-            <div className="dashboard-loading-container">
-                <div className="dashboard-loading-spinner"></div>
-                <p>{t('nutrition.loading') || 'جاري تحميل البيانات...'}</p>
+            <div className="analytics-container">
+                <div className="analytics-loading">
+                    <div className="spinner"></div>
+                    <p>{t('nutrition.loading', 'جاري تحميل البيانات...')}</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className={`nutrition-dashboard-container ${darkMode ? 'dark-mode' : ''}`}>
+        <div className="analytics-container">
             {/* شريط التحكم */}
-            <div className="dashboard-control-bar">
-                <div className="dashboard-control-left">
-                    <button onClick={handleRefresh} className="dashboard-refresh-button">
-                        🔄 {t('nutrition.refresh') || 'تحديث'}
-                    </button>
+            <div className="analytics-header">
+                <h2>
+                    <span>🍽️</span>
+                    {t('nutrition.dashboard', 'لوحة التغذية')}
+                </h2>
+                <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
                     {lastUpdate && (
-                        <span className="dashboard-last-update">
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
                             🕒 {lastUpdate.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}
                         </span>
                     )}
-                </div>
-                <div className="dashboard-control-right">
-                    <label className="dashboard-auto-refresh">
+                    <button onClick={handleRefresh} className="refresh-btn" title={t('nutrition.refresh', 'تحديث')}>
+                        🔄
+                    </button>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', fontSize: '0.8rem', cursor: 'pointer' }}>
                         <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
-                        <span>{t('nutrition.autoRefresh') || 'تحديث تلقائي'}</span>
+                        <span>{t('nutrition.autoRefresh', 'تحديث تلقائي')}</span>
                     </label>
                 </div>
             </div>
 
             {/* التوصيات السريعة */}
             {recommendations.length > 0 && (
-                <div className="recommendations-card">
-                    <div className="recommendations-header">
-                        <span>💡</span>
-                        <span>{t('nutrition.smartRecommendations') || 'توصيات ذكية'}</span>
-                    </div>
-                    <ul className="recommendations-list">
+                <div className="recommendations-section">
+                    <h3>💡 {t('nutrition.smartRecommendations', 'توصيات ذكية')}</h3>
+                    <ul className="tips-grid" style={{ listStyle: 'none', padding: 0 }}>
                         {recommendations.map((rec, idx) => (
-                            <li key={idx}>{rec}</li>
+                            <li key={idx} className="tip-item" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                                <span>{rec}</span>
+                            </li>
                         ))}
                     </ul>
                 </div>
             )}
 
-            {/* تبويبات مبسطة */}
-            <div className="dashboard-tabs">
-                <button 
-                    className={activeTab === 'basic' ? 'dashboard-tab-active' : 'dashboard-tab'} 
-                    onClick={() => setActiveTab('basic')}
-                >
-                    📊 {t('nutrition.dashboard') || 'ملخص'}
+            {/* التنبؤ السريع */}
+            {prediction && (
+                <div className={`insight-card ${prediction.severity === 'warning' ? 'energy-critical' : ''}`}>
+                    <div className="insight-icon">{prediction.icon}</div>
+                    <div className="insight-content">
+                        <h3>{t('nutrition.prediction', 'توقع الوزن')}</h3>
+                        <p style={{ color: prediction.color, fontWeight: 'bold' }}>{prediction.text}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* تبويبات */}
+            <div className="analytics-tabs">
+                <button className={activeTab === 'basic' ? 'active' : ''} onClick={() => setActiveTab('basic')}>
+                    📊 {t('nutrition.summary', 'ملخص')}
                 </button>
-                <button 
-                    className={activeTab === 'insights' ? 'dashboard-tab-active' : 'dashboard-tab'} 
-                    onClick={() => setActiveTab('insights')}
-                >
-                    📈 {t('nutrition.advanced.title') || 'تحليلات متقدمة'}
+                <button className={activeTab === 'insights' ? 'active' : ''} onClick={() => setActiveTab('insights')}>
+                    📈 {t('nutrition.advanced.title', 'تحليلات متقدمة')}
                 </button>
             </div>
 
-            <div className="dashboard-tab-content">
+            <div className="tab-content">
                 {activeTab === 'basic' && (
                     <>
-                        {/* بطاقات سريعة */}
-                        <div className="stats-grid">
-                            <div className="stat-card">
+                        {/* بطاقات الإحصائيات السريعة */}
+                        <div className="analytics-stats-grid">
+                            <div className="analytics-stat-card">
                                 <div className="stat-icon">🍽️</div>
-                                <div className="stat-value">{nutritionStats.totalMeals}</div>
-                                <div className="stat-label">{t('nutrition.meals') || 'وجبة'}</div>
+                                <div className="stat-content">
+                                    <div className="stat-value">{nutritionStats.totalMeals}</div>
+                                    <div className="stat-label">{t('nutrition.meals', 'وجبة')}</div>
+                                </div>
                             </div>
-                            <div className="stat-card">
+                            <div className="analytics-stat-card">
                                 <div className="stat-icon">🔥</div>
-                                <div className="stat-value">{nutritionStats.totalCalories}</div>
-                                <div className="stat-label">{t('nutrition.calories') || 'سعرة'}</div>
+                                <div className="stat-content">
+                                    <div className="stat-value">{nutritionStats.totalCalories}</div>
+                                    <div className="stat-label">{t('nutrition.calories', 'سعرة')}</div>
+                                </div>
                             </div>
-                            <div className="stat-card">
+                            <div className="analytics-stat-card">
                                 <div className="stat-icon">💪</div>
-                                <div className="stat-value">{nutritionStats.avgProtein}g</div>
-                                <div className="stat-label">{t('nutrition.protein') || 'بروتين'}</div>
+                                <div className="stat-content">
+                                    <div className="stat-value">{nutritionStats.avgProtein}g</div>
+                                    <div className="stat-label">{t('nutrition.protein', 'بروتين')}</div>
+                                </div>
                             </div>
-                            <div className="stat-card">
+                            <div className="analytics-stat-card">
                                 <div className="stat-icon">📅</div>
-                                <div className="stat-value">{nutritionStats.todayCalories}</div>
-                                <div className="stat-label">{t('nutrition.today') || 'اليوم'}</div>
+                                <div className="stat-content">
+                                    <div className="stat-value">{nutritionStats.todayCalories}</div>
+                                    <div className="stat-label">{t('nutrition.today', 'اليوم')}</div>
+                                </div>
                             </div>
                         </div>
 
-                        {/* التنبؤ السريع */}
-                        {prediction && (
-                            <div className="prediction-card" style={{ borderColor: prediction.color }}>
-                                <span className="prediction-icon">{prediction.icon}</span>
-                                <span>{prediction.text}</span>
-                            </div>
-                        )}
-
                         {/* تقدم الأهداف */}
-                        <div className="goals-section">
-                            <h3>🎯 {t('nutrition.dailyGoalsProgress') || 'أهداف اليوم'}</h3>
-                            {[
-                                { key: 'calories', label: t('nutrition.calories') || 'سعرات', icon: '🔥', current: nutritionStats.todayCalories, goal: nutritionGoals.dailyCalories, unit: t('nutrition.caloriesUnit') || 'سعرة' },
-                                { key: 'protein', label: t('nutrition.protein') || 'بروتين', icon: '💪', current: nutritionStats.totalProtein, goal: nutritionGoals.dailyProtein, unit: 'g' }
-                            ].map(({ key, label, icon, current, goal, unit }) => (
-                                <div key={key} className="goal-item">
-                                    <div className="goal-header">
-                                        <span>{icon} {label}</span>
-                                        <span>{goalProgress[key]}%</span>
+                        <div className="recommendations-section">
+                            <h3>🎯 {t('nutrition.dailyGoalsProgress', 'أهداف اليوم')}</h3>
+                            <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr', gap: 'var(--spacing-md)' }}>
+                                {/* Calories */}
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-sm)' }}>
+                                        <span>🔥 {t('nutrition.calories', 'سعرات')}</span>
+                                        <span>{goalProgress.calories}%</span>
                                     </div>
                                     <div className="progress-bar">
-                                        <div className="progress-fill" style={{ width: `${goalProgress[key]}%` }}></div>
+                                        <div className="progress-fill" style={{ width: `${goalProgress.calories}%` }}></div>
                                     </div>
-                                    <div className="goal-values">
-                                        {Math.round(current)}{unit} / {goal}{unit}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--spacing-sm)', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
+                                        <span>{Math.round(nutritionStats.todayCalories)} {t('nutrition.caloriesUnit', 'سعرة')}</span>
+                                        <span>/ {nutritionGoals.dailyCalories} {t('nutrition.caloriesUnit', 'سعرة')}</span>
                                     </div>
                                 </div>
-                            ))}
+                                
+                                {/* Protein */}
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-sm)' }}>
+                                        <span>💪 {t('nutrition.protein', 'بروتين')}</span>
+                                        <span>{goalProgress.protein}%</span>
+                                    </div>
+                                    <div className="progress-bar">
+                                        <div className="progress-fill" style={{ width: `${goalProgress.protein}%` }}></div>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--spacing-sm)', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
+                                        <span>{nutritionStats.totalProtein}g</span>
+                                        <span>/ {nutritionGoals.dailyProtein}g</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* توزيع الوجبات */}
-                        <div className="distribution-section">
-                            <h4>📊 {t('nutrition.mealDistribution') || 'توزيع الوجبات'}</h4>
-                            <div className="distribution-list">
+                        <div className="recommendations-section">
+                            <h4>📊 {t('nutrition.mealDistribution', 'توزيع الوجبات')}</h4>
+                            <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr', gap: 'var(--spacing-sm)' }}>
                                 {['Breakfast', 'Lunch', 'Dinner', 'Snack'].map(type => {
                                     const count = meals?.filter(m => m.meal_type === type).length || 0;
                                     const percent = meals?.length ? Math.round((count / meals.length) * 100) : 0;
                                     return (
-                                        <div key={type} className="distribution-item">
-                                            <span>{getMealTypeIcon(type)} {getMealTypeLabel(type)}</span>
-                                            <div className="progress-bar">
-                                                <div className="progress-fill" style={{ width: `${percent}%`, background: '#667eea' }}></div>
+                                        <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                                            <span style={{ minWidth: '80px' }}>{getMealTypeIcon(type)} {getMealTypeLabel(type)}</span>
+                                            <div className="progress-bar" style={{ flex: 1 }}>
+                                                <div className="progress-fill" style={{ width: `${percent}%`, background: 'var(--secondary)' }}></div>
                                             </div>
-                                            <span>{percent}%</span>
+                                            <span style={{ minWidth: '45px', fontSize: '0.8rem' }}>{percent}%</span>
                                         </div>
                                     );
                                 })}
@@ -423,37 +428,39 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
                         </div>
 
                         {/* آخر الوجبات */}
-                        <div className="recent-meals">
-                            <h3>📝 {t('nutrition.loggedMeals') || 'آخر الوجبات'}</h3>
+                        <div className="recommendations-section">
+                            <h3>📝 {t('nutrition.loggedMeals', 'آخر الوجبات')}</h3>
                             {meals?.length === 0 ? (
-                                <div className="empty-state">
-                                    <p>{t('nutrition.noMeals') || 'لا توجد وجبات مسجلة'}</p>
-                                    <button onClick={handleRefresh} className="refresh-btn">
-                                        🔄 {t('nutrition.refresh') || 'تحديث'}
-                                    </button>
+                                <div className="analytics-empty">
+                                    <div className="empty-icon">🍽️</div>
+                                    <p>{t('nutrition.noMeals', 'لا توجد وجبات مسجلة')}</p>
                                 </div>
                             ) : (
-                                meals.slice(0, 5).map(meal => (
-                                    <div key={meal.id} className="meal-item">
-                                        <div className="meal-header">
-                                            <span>{getMealTypeIcon(meal.meal_type)} {getMealTypeLabel(meal.meal_type)}</span>
-                                            <span>🔥 {meal.total_calories}</span>
-                                        </div>
-                                        <div className="meal-time">{formatDate(meal.meal_time)}</div>
-                                        {meal.ingredients?.length > 0 && (
-                                            <div className="meal-ingredients">
-                                                {meal.ingredients.slice(0, 3).map((ing, i) => (
-                                                    <span key={i} className="ingredient-badge">
-                                                        {ing.name} {Math.round(ing.quantity)}{ing.unit}
-                                                    </span>
-                                                ))}
-                                                {meal.ingredients.length > 3 && (
-                                                    <span className="more-badge">+{meal.ingredients.length - 3}</span>
-                                                )}
+                                <div className="habits-list">
+                                    {meals.slice(0, 5).map(meal => (
+                                        <div key={meal.id} className="habit-card">
+                                            <div className="habit-header">
+                                                <span className="habit-name">{getMealTypeIcon(meal.meal_type)} {getMealTypeLabel(meal.meal_type)}</span>
+                                                <span className="habit-rate">🔥 {meal.total_calories}</span>
                                             </div>
-                                        )}
-                                    </div>
-                                ))
+                                            <div className="habit-desc">{formatDate(meal.meal_time)}</div>
+                                            {meal.ingredients?.length > 0 && (
+                                                <div className="meal-ingredients" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-xs)', marginTop: 'var(--spacing-sm)' }}>
+                                                    {meal.ingredients.slice(0, 3).map((ing, i) => (
+                                                        <span key={i} style={{ background: 'var(--tertiary-bg)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.7rem' }}>
+                                                            {ing.name} {Math.round(ing.quantity)}{ing.unit}
+                                                        </span>
+                                                    ))}
+                                                    {meal.ingredients.length > 3 && (
+                                                        <span style={{ background: 'var(--tertiary-bg)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
+                                                            +{meal.ingredients.length - 3}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
                     </>
@@ -464,622 +471,13 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
                 )}
             </div>
 
-            <style jsx>{`
- 
-/* NutritionDashboard.css - متوافق مع ThemeManager */
-
-.nutrition-dashboard-container {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: var(--spacing-lg);
-    background: var(--primary-bg);
-    min-height: 100vh;
-}
-
-/* شريط التحكم */
-.dashboard-control-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-}
-
-.dashboard-control-left {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    flex-wrap: wrap;
-}
-
-.dashboard-refresh-button {
-    padding: var(--spacing-sm) var(--spacing-lg);
-    border: none;
-    border-radius: var(--radius-full);
-    background: var(--primary-gradient);
-    color: white;
-    cursor: pointer;
-    transition: all var(--transition-medium);
-}
-
-.dashboard-refresh-button:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.dashboard-last-update {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-}
-
-.dashboard-auto-refresh {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    cursor: pointer;
-    color: var(--text-primary);
-}
-
-/* التبويبات */
-.dashboard-tabs {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
-    background: var(--secondary-bg);
-    padding: var(--spacing-xs);
-    border-radius: var(--radius-full);
-}
-
-.dashboard-tab,
-.dashboard-tab-active {
-    flex: 1;
-    padding: var(--spacing-sm);
-    border: none;
-    background: transparent;
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    transition: all var(--transition-medium);
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-}
-
-.dashboard-tab-active {
-    background: var(--primary-gradient);
-    color: white;
-}
-
-.dashboard-tab:hover:not(.dashboard-tab-active) {
-    background: var(--hover-bg);
-    color: var(--primary);
-}
-
-/* بطاقات الإحصائيات */
-.dashboard-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
-}
-
-.dashboard-stat-card {
-    background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-medium);
-}
-
-.dashboard-stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
-}
-
-.dashboard-stat-icon {
-    font-size: 2rem;
-}
-
-.dashboard-stat-info {
-    flex: 1;
-}
-
-.dashboard-stat-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.dashboard-stat-label {
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-}
-
-/* الأهداف */
-.dashboard-goals-section {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.dashboard-goals-section h3 {
-    margin: 0 0 var(--spacing-md) 0;
-    font-size: 1rem;
-    color: var(--text-primary);
-}
-
-.dashboard-goals-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-}
-
-.dashboard-goal-item {
-    width: 100%;
-}
-
-.dashboard-goal-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: var(--spacing-sm);
-    font-size: 0.85rem;
-    color: var(--text-primary);
-}
-
-.dashboard-progress-bar {
-    height: 8px;
-    background: var(--tertiary-bg);
-    border-radius: var(--radius-full);
-    overflow: hidden;
-}
-
-.dashboard-progress-fill {
-    height: 100%;
-    background: var(--primary-gradient);
-    border-radius: var(--radius-full);
-    transition: width var(--transition-medium);
-}
-
-.dashboard-goal-values {
-    display: flex;
-    justify-content: space-between;
-    margin-top: var(--spacing-sm);
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-}
-
-/* توزيع الوجبات */
-.dashboard-distribution-section {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.dashboard-distribution-section h4 {
-    margin: 0 0 var(--spacing-md) 0;
-    color: var(--text-primary);
-}
-
-.dashboard-distribution-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
-
-.dashboard-distribution-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    font-size: 0.85rem;
-    color: var(--text-primary);
-}
-
-.dashboard-distribution-bar {
-    flex: 1;
-    height: 6px;
-    background: var(--tertiary-bg);
-    border-radius: var(--radius-full);
-    overflow: hidden;
-}
-
-.dashboard-distribution-fill {
-    height: 100%;
-    background: var(--primary-gradient);
-    border-radius: var(--radius-full);
-}
-
-/* الوجبات الأخيرة */
-.dashboard-recent-meals {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.dashboard-recent-meals h3 {
-    margin: 0 0 var(--spacing-md) 0;
-    font-size: 1rem;
-    color: var(--text-primary);
-}
-
-.dashboard-meals-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
-
-.dashboard-meal-item {
-    padding: var(--spacing-sm);
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-fast);
-}
-
-.dashboard-meal-item:hover {
-    transform: translateX(5px);
-    border-color: var(--primary-light);
-}
-
-[dir="rtl"] .dashboard-meal-item:hover {
-    transform: translateX(-5px);
-}
-
-.dashboard-meal-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: var(--spacing-sm);
-}
-
-.dashboard-meal-type {
-    font-size: 0.85rem;
-    color: var(--text-primary);
-}
-
-.dashboard-meal-calories {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--primary);
-}
-
-.dashboard-meal-time {
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.dashboard-meal-ingredients {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-xs);
-}
-
-.dashboard-ingredient-badge {
-    background: var(--tertiary-bg);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-full);
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-}
-
-.dashboard-more-badge {
-    background: var(--tertiary-bg);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-full);
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-}
-
-/* التحليلات */
-.dashboard-insights-section {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.dashboard-insights-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
-}
-
-.dashboard-insight-card {
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    border: 1px solid var(--border-light);
-}
-
-.dashboard-insight-icon {
-    font-size: 1.8rem;
-}
-
-.dashboard-insight-info {
-    flex: 1;
-}
-
-.dashboard-insight-value {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.dashboard-insight-label {
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-}
-
-.dashboard-analysis-box {
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    border: 1px solid var(--border-light);
-}
-
-.dashboard-analysis-box h4 {
-    margin: 0 0 var(--spacing-sm) 0;
-    color: var(--text-primary);
-}
-
-.dashboard-analysis-items {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
-
-.dashboard-analysis-item {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.85rem;
-    color: var(--text-primary);
-}
-
-.dashboard-good {
-    color: var(--success);
-}
-
-.dashboard-warning {
-    color: var(--warning);
-}
-
-/* التوصيات */
-.dashboard-recommendations-section {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.dashboard-recommendations-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
-
-.dashboard-recommendation-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm);
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    border-right: 4px solid var(--primary);
-}
-
-[dir="rtl"] .dashboard-recommendation-item {
-    border-right: none;
-    border-left: 4px solid var(--primary);
-}
-
-.dashboard-rec-icon {
-    font-size: 1.2rem;
-}
-
-.dashboard-rec-text {
-    color: var(--text-primary);
-}
-
-/* التنبؤات */
-.dashboard-prediction-section {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.dashboard-prediction-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
-}
-
-.dashboard-prediction-header h3 {
-    margin: 0;
-    color: var(--text-primary);
-}
-
-.dashboard-prediction-card {
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    text-align: center;
-    border: 1px solid var(--border-light);
-}
-
-.dashboard-prediction-value {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: var(--spacing-sm);
-    background: var(--primary-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.dashboard-prediction-period {
-    color: var(--text-tertiary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.dashboard-prediction-confidence {
-    font-size: 0.85rem;
-    color: var(--text-tertiary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.dashboard-prediction-note {
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-}
-
-.dashboard-prediction-disclaimer {
-    margin-top: var(--spacing-md);
-    padding: var(--spacing-sm);
-    background: var(--warning-bg);
-    border-radius: var(--radius-lg);
-    font-size: 0.7rem;
-    text-align: center;
-    color: var(--warning);
-}
-
-/* حالات فارغة */
-.dashboard-empty-state {
-    text-align: center;
-    padding: var(--spacing-2xl);
-    color: var(--text-tertiary);
-}
-
-.dashboard-loading-state {
-    text-align: center;
-    padding: var(--spacing-2xl);
-}
-
-.dashboard-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--border-light);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto var(--spacing-md);
-}
-
-.dashboard-loading-container {
-    text-align: center;
-    padding: var(--spacing-2xl);
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-}
-
-.dashboard-loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 4px solid var(--border-light);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto var(--spacing-md);
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* استجابة */
-@media (max-width: 768px) {
-    .nutrition-dashboard-container {
-        padding: var(--spacing-md);
-    }
-    
-    .dashboard-stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .dashboard-insights-stats {
-        grid-template-columns: 1fr;
-    }
-    
-    .dashboard-tabs {
-        flex-wrap: wrap;
-    }
-    
-    .dashboard-tab,
-    .dashboard-tab-active {
-        flex: none;
-        width: calc(50% - 4px);
-    }
-}
-
-@media (max-width: 480px) {
-    .dashboard-stats-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .dashboard-control-bar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .dashboard-control-left {
-        justify-content: center;
-    }
-    
-    .dashboard-stat-card {
-        padding: var(--spacing-sm);
-    }
-    
-    .dashboard-stat-icon {
-        font-size: 1.5rem;
-    }
-    
-    .dashboard-stat-value {
-        font-size: 1.2rem;
-    }
-}
-
-/* دعم RTL */
-[dir="rtl"] .dashboard-meal-header {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .dashboard-distribution-item {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .dashboard-insight-card {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .dashboard-stat-card {
-    flex-direction: row-reverse;
-}
-
-/* دعم الحركة المخفضة */
-@media (prefers-reduced-motion: reduce) {
-    .dashboard-stat-card:hover,
-    .dashboard-meal-item:hover,
-    .dashboard-refresh-button:hover {
-        transform: none !important;
-    }
-    
-    .dashboard-progress-fill,
-    .dashboard-distribution-fill {
-        transition: none !important;
-    }
-}
-            `}</style>
+            {/* تذييل */}
+            <div className="analytics-footer">
+                <small>
+                    {t('nutrition.totalMeals', 'إجمالي الوجبات')}: {nutritionStats.totalMeals} | 
+                    {t('nutrition.totalCalories', 'إجمالي السعرات')}: {nutritionStats.totalCalories}
+                </small>
+            </div>
         </div>
     );
 }

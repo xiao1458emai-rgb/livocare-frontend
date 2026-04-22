@@ -1,118 +1,128 @@
 /* ===========================================
-   Analytics.css - متوافق مع ThemeManager
-   تمت إعادة الهيكلة لحل مشاكل المسافات والتكرار
+   Analytics.css - نسخة محسنة بالكامل
+   ✅ متوافق مع الثيمات (فاتح/داكن)
+   ✅ متجاوب مع جميع الشاشات (جوال - تابلت - ديسكتوب)
+   ✅ يدعم RTL (العربية) و LTR (الإنجليزية)
+   ✅ خالي من مشاكل التباين
    =========================================== */
 
-/* ===== استخدام متغيرات ThemeManager ===== */
-/* جميع المتغيرات مستوردة من global.css و ThemeManager */
+/* ===== إعادة تعيين بعض الأنماط الأساسية ===== */
+.analytics-container * {
+    /* ضمان أن جميع العناصر ترث الألوان من المتغيرات */
+    color-scheme: normal;
+}
 
-/* ===== أنماط خاصة بالتحليلات فقط ===== */
-
-/* الحاوية الرئيسية */
+/* ===== الحاوية الرئيسية ===== */
 .analytics-container {
     background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin: var(--spacing-md) 0;
-    box-shadow: var(--shadow-md);
-    transition: all var(--transition-medium);
+    border-radius: var(--radius-xl, 20px);
+    padding: clamp(1rem, 4vw, 1.5rem);  /* متجاوب: يقل على الجوال */
+    margin: 1rem 0;
+    box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.1));
+    transition: all var(--transition-medium, 0.3s ease);
     border: 1px solid var(--border-light);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .analytics-container:hover {
-    box-shadow: var(--shadow-xl);
+    box-shadow: var(--shadow-xl, 0 10px 30px rgba(0,0,0,0.15));
 }
 
-/* رأس التحليلات */
+/* ===== رأس التحليلات ===== */
 .analytics-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--spacing-lg);
-    padding-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
     border-bottom: 2px solid var(--border-light);
 }
 
 .analytics-header h2 {
     margin: 0;
-    color: var(--text-primary);
-    font-size: 1.5rem;
+    color: var(--text-primary);  /* ✅ يضمن تباين صحيح */
+    font-size: clamp(1.25rem, 5vw, 1.5rem);
     font-weight: 700;
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
+    gap: 0.5rem;
 }
 
-/* زر التحديث */
+/* ===== زر التحديث ===== */
 .refresh-btn {
-    background: none;
+    background: transparent;
     border: none;
     font-size: 1.2rem;
     cursor: pointer;
-    padding: var(--spacing-sm);
+    padding: 0.5rem;
     border-radius: 50%;
-    transition: all var(--transition-medium);
-    color: var(--text-secondary);
+    transition: all 0.3s ease;
+    color: var(--text-secondary);  /* ✅ يضمن التباين */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .refresh-btn:hover {
-    background: var(--hover-bg);
+    background: var(--hover-bg, rgba(0,0,0,0.05));
     transform: rotate(180deg);
-    color: var(--primary);
+    color: var(--primary, #3b82f6);
 }
 
-/* التبويبات */
+/* ===== التبويبات ===== */
 .analytics-tabs {
     display: flex;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
     flex-wrap: wrap;
     border-bottom: 1px solid var(--border-light);
-    padding-bottom: var(--spacing-sm);
+    padding-bottom: 0.75rem;
 }
 
 .analytics-tabs button {
-    padding: var(--spacing-sm) var(--spacing-lg);
-    border: none;
-    border-radius: var(--radius-full);
+    padding: 0.5rem 1.25rem;
+    border: 1px solid var(--border-light);
+    border-radius: 9999px;
     background: var(--secondary-bg);
-    color: var(--text-secondary);
+    color: var(--text-secondary);  /* ✅ تباين جيد */
     cursor: pointer;
-    transition: all var(--transition-medium);
+    transition: all 0.25s ease;
     font-size: 0.9rem;
     font-weight: 500;
-    border: 1px solid var(--border-light);
 }
 
 .analytics-tabs button:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     background: var(--hover-bg);
 }
 
 .analytics-tabs button.active {
-    background: var(--primary-gradient);
-    color: white;
+    background: var(--primary-gradient, linear-gradient(135deg, #3b82f6, #2563eb));
+    color: white;  /* ✅ النص أبيض فقط هنا - خلفية داكنة */
     border-color: transparent;
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 4px 12px rgba(59,130,246,0.3);
 }
 
-/* ===== إحصائيات التحليلات (مخصصة) ===== */
+/* ===== شبكة الإحصائيات - متجاوبة بالكامل ===== */
 .analytics-stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-xl);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
 }
 
 .analytics-stat-card {
     background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
+    border-radius: 16px;
+    padding: 1.25rem;
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
-    transition: all var(--transition-medium);
+    gap: 1rem;
+    transition: all 0.3s ease;
     border: 1px solid var(--border-light);
     position: relative;
     overflow: hidden;
@@ -125,23 +135,23 @@
     left: 0;
     right: 0;
     height: 3px;
-    background: var(--primary-gradient);
+    background: var(--primary-gradient, linear-gradient(90deg, #3b82f6, #8b5cf6));
 }
 
 .analytics-stat-card:hover {
     transform: translateY(-5px);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-lg, 0 10px 25px rgba(0,0,0,0.1));
 }
 
 .stat-icon {
-    font-size: 2rem;
+    font-size: 1.75rem;
     width: 50px;
     height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--hover-bg);
-    border-radius: var(--radius-md);
+    background: var(--hover-bg, rgba(0,0,0,0.04));
+    border-radius: 12px;
 }
 
 .stat-content {
@@ -149,615 +159,372 @@
 }
 
 .stat-label {
-    font-size: 0.85rem;
-    color: var(--text-tertiary);
+    font-size: 0.8rem;
+    color: var(--text-tertiary);  /* ✅ تباين مناسب */
     margin-bottom: 4px;
 }
 
 .stat-value {
-    font-size: 1.8rem;
+    font-size: clamp(1.4rem, 5vw, 1.8rem);
     font-weight: 700;
-    color: var(--text-primary);
+    color: var(--text-primary);  /* ✅ تباين تام */
     line-height: 1.2;
 }
 
 .stat-trend {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     margin-top: 4px;
     display: flex;
     align-items: center;
     gap: 4px;
 }
 
-.stat-trend.up { color: var(--success); }
-.stat-trend.down { color: var(--error); }
-.stat-trend.stable { color: var(--warning); }
+.stat-trend.up { color: var(--success, #10b981); }
+.stat-trend.down { color: var(--error, #ef4444); }
+.stat-trend.stable { color: var(--warning, #f59e0b); }
 
-/* ===== توصيات ذكية ===== */
+/* ===== التوصيات الذكية ===== */
 .recommendations-section {
     background: var(--tertiary-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin: var(--spacing-lg) 0;
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin: 1.5rem 0;
 }
 
 .recommendations-section h3,
 .recommendations-section h4 {
-    margin: 0 0 var(--spacing-md) 0;
+    margin: 0 0 1rem 0;
     color: var(--text-primary);
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
+    gap: 0.5rem;
 }
 
 .recommendations-list {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md);
+    gap: 1rem;
 }
 
 .recommendation-card {
     background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    transition: all var(--transition-medium);
-    border-right: 4px solid;
+    border-radius: 16px;
+    padding: 1.25rem;
+    transition: all 0.3s ease;
     position: relative;
 }
 
+/* دعم RTL/LTR للحدود الجانبية */
 [dir="ltr"] .recommendation-card {
+    border-left: none;
     border-right: 4px solid;
 }
 
 [dir="rtl"] .recommendation-card {
-    border-left: 4px solid;
     border-right: none;
+    border-left: 4px solid;
 }
 
 .recommendation-card:hover {
     transform: translateX(-5px);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 
 [dir="rtl"] .recommendation-card:hover {
     transform: translateX(5px);
 }
 
+/* ألوان الأولويات مع خلفيات شفافة (لا تؤثر على النص) */
 .recommendation-card.priority-high {
-    border-right-color: var(--error);
-    background: var(--error-bg);
+    border-right-color: var(--error, #ef4444);
+    background: rgba(239, 68, 68, 0.08);
 }
 
 .recommendation-card.priority-medium {
-    border-right-color: var(--warning);
-    background: var(--warning-bg);
+    border-right-color: var(--warning, #f59e0b);
+    background: rgba(245, 158, 11, 0.08);
 }
 
 .recommendation-card.priority-low {
-    border-right-color: var(--success);
-    background: var(--success-bg);
+    border-right-color: var(--success, #10b981);
+    background: rgba(16, 185, 129, 0.08);
 }
 
-[dir="rtl"] .recommendation-card.priority-high {
-    border-left-color: var(--error);
-    border-right-color: transparent;
-}
-
-[dir="rtl"] .recommendation-card.priority-medium {
-    border-left-color: var(--warning);
-    border-right-color: transparent;
-}
-
-[dir="rtl"] .recommendation-card.priority-low {
-    border-left-color: var(--success);
-    border-right-color: transparent;
-}
+[dir="rtl"] .recommendation-card.priority-high { border-left-color: var(--error); }
+[dir="rtl"] .recommendation-card.priority-medium { border-left-color: var(--warning); }
+[dir="rtl"] .recommendation-card.priority-low { border-left-color: var(--success); }
 
 .rec-header {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
     flex-wrap: wrap;
 }
 
-.rec-icon { font-size: 1.5rem; }
+.rec-icon { font-size: 1.25rem; }
 .rec-category {
     text-transform: capitalize;
     font-weight: 600;
-    color: var(--info);
+    color: var(--info, #3b82f6);
 }
 
 .rec-type {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     padding: 2px 8px;
-    border-radius: var(--radius-full);
+    border-radius: 9999px;
     font-weight: 500;
 }
 
 .rec-type.warning {
-    background: var(--error-bg);
-    color: var(--error);
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error, #ef4444);
 }
 
 .rec-type.tip {
-    background: var(--success-bg);
-    color: var(--success);
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success, #10b981);
 }
 
 .rec-type.motivation {
-    background: var(--warning-bg);
-    color: var(--warning);
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning, #f59e0b);
 }
 
 .rec-message {
     font-size: 1rem;
-    margin: var(--spacing-sm) 0;
+    margin: 0.5rem 0;
     font-weight: 500;
     color: var(--text-primary);
 }
 
 .rec-advice {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--text-secondary);
     background: var(--tertiary-bg);
-    padding: var(--spacing-sm);
-    border-radius: var(--radius-md);
-    margin-top: var(--spacing-sm);
+    padding: 0.75rem;
+    border-radius: 12px;
+    margin-top: 0.75rem;
 }
 
-/* ===== تحليلات متقدمة ===== */
-.advanced-insights { margin: var(--spacing-lg) 0; }
-
+/* ===== بطاقات التحليلات ===== */
 .insight-card {
     background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
     border: 1px solid var(--border-light);
     display: flex;
-    gap: var(--spacing-lg);
-    transition: all var(--transition-medium);
+    gap: 1.25rem;
+    transition: all 0.3s ease;
 }
 
 .insight-card:hover {
     transform: translateY(-3px);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
 }
 
-.insight-card.energy-critical {
+[dir="ltr"] .insight-card.energy-critical {
     border-left: 6px solid var(--warning);
-    background: var(--warning-bg);
 }
 
-.insight-card.pulse-critical {
+[dir="ltr"] .insight-card.pulse-critical {
     border-left: 6px solid var(--error);
-    background: var(--error-bg);
 }
 
 [dir="rtl"] .insight-card.energy-critical {
     border-right: 6px solid var(--warning);
-    border-left: none;
 }
 
 [dir="rtl"] .insight-card.pulse-critical {
     border-right: 6px solid var(--error);
-    border-left: none;
+}
+
+.insight-card.energy-critical,
+.insight-card.pulse-critical {
+    background: rgba(0, 0, 0, 0.02);
 }
 
 .insight-icon {
-    font-size: 2rem;
-    min-width: 55px;
-    height: 55px;
+    font-size: 1.75rem;
+    min-width: 50px;
+    height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--hover-bg);
-    border-radius: var(--radius-lg);
+    border-radius: 14px;
 }
 
-.insight-content { flex: 1; }
+.insight-content {
+    flex: 1;
+}
+
 .insight-content h3 {
-    margin: 0 0 var(--spacing-sm) 0;
+    margin: 0 0 0.5rem 0;
     color: var(--text-primary);
 }
-
-.energy-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-md);
-    padding: var(--spacing-md);
-    background: var(--tertiary-bg);
-    border-radius: var(--radius-md);
-}
-
-.energy-stats .stat { text-align: center; }
-.energy-stats .stat-value {
-    font-size: 1.3rem;
-    font-weight: 700;
-}
-
-.energy-stats .stat-value.deficit { color: var(--error); }
 
 /* ===== نقاط القوة والضعف ===== */
 .strengths-weaknesses {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-lg);
-    margin: var(--spacing-lg) 0;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.25rem;
+    margin: 1.5rem 0;
 }
 
 .strengths, .weaknesses {
-    padding: var(--spacing-lg);
-    border-radius: var(--radius-xl);
+    padding: 1.25rem;
+    border-radius: 20px;
     background: var(--tertiary-bg);
     border: 1px solid var(--border-light);
 }
 
 .strengths h4, .weaknesses h4 {
-    margin: 0 0 var(--spacing-md) 0;
+    margin: 0 0 1rem 0;
     color: var(--text-primary);
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.strengths ul, .weaknesses ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
+    gap: 0.5rem;
 }
 
 .strengths li, .weaknesses li {
-    padding: var(--spacing-sm) 0;
+    padding: 0.5rem 0;
     border-bottom: 1px solid var(--border-light);
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.strengths li:last-child, .weaknesses li:last-child {
-    border-bottom: none;
-}
-
-/* ===== الأنماط السلوكية ===== */
-.patterns-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-md);
-}
-
-.pattern-card {
-    background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-medium);
-}
-
-.pattern-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
-}
-
-.pattern-card h4 {
-    margin: 0 0 var(--spacing-sm) 0;
-    color: var(--info);
-}
-
-.pattern-desc {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin: var(--spacing-sm) 0;
-}
-
-.pattern-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-sm);
-    margin: var(--spacing-md) 0;
-    font-size: 0.85rem;
-}
-
-.pattern-frequency {
-    display: inline-block;
-    background: var(--hover-bg);
-    color: var(--info);
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
-    font-size: 0.8rem;
-}
-
-/* ===== التنبيهات ===== */
-.alerts-section {
-    background: var(--tertiary-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin: var(--spacing-lg) 0;
-}
-
-.alerts-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-md);
-}
-
-.alert-card {
-    padding: var(--spacing-md);
-    border-radius: var(--radius-lg);
-    transition: all var(--transition-medium);
-}
-
-.alert-card.high {
-    background: var(--error-bg);
-    border-left: 4px solid var(--error);
-}
-
-.alert-card.medium {
-    background: var(--warning-bg);
-    border-left: 4px solid var(--warning);
-}
-
-.alert-card.info {
-    background: var(--info-bg);
-    border-left: 4px solid var(--info);
-}
-
-[dir="rtl"] .alert-card.high { border-right: 4px solid var(--error); border-left: none; }
-[dir="rtl"] .alert-card.medium { border-right: 4px solid var(--warning); border-left: none; }
-[dir="rtl"] .alert-card.info { border-right: 4px solid var(--info); border-left: none; }
-
-.alert-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
-}
-
-.alert-title { font-weight: 600; color: var(--text-primary); }
-.alert-message { color: var(--text-secondary); margin-bottom: var(--spacing-sm); }
-
-.alert-recommendations {
-    background: var(--card-bg);
-    padding: var(--spacing-sm);
-    border-radius: var(--radius-md);
-    margin-top: var(--spacing-sm);
-}
-
-.alert-recommendations ul {
-    margin: var(--spacing-sm) 0 0 var(--spacing-lg);
+    gap: 0.5rem;
     color: var(--text-secondary);
 }
 
-/* ===== التنبؤات ===== */
-.prediction-section { margin: var(--spacing-lg) 0; }
-
+/* ===== التنبؤات - شريط متجاوب ===== */
 .prediction-chart {
     display: flex;
     align-items: flex-end;
-    justify-content: space-around;
-    gap: var(--spacing-md);
-    padding: var(--spacing-lg);
+    justify-content: center;
+    gap: clamp(0.5rem, 2vw, 1rem);
+    padding: 1.5rem;
     background: var(--tertiary-bg);
-    border-radius: var(--radius-xl);
+    border-radius: 20px;
     min-height: 250px;
+    flex-wrap: wrap;
+    overflow-x: auto;
 }
 
 .prediction-bar {
-    flex: 1;
+    flex: 0 1 auto;
+    width: clamp(45px, 8vw, 70px);
     background: var(--primary-gradient);
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border-radius: 8px 8px 0 0;
     min-width: 45px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
     position: relative;
-    transition: all var(--transition-medium);
+    transition: all 0.3s ease;
     cursor: pointer;
 }
 
-.prediction-bar:hover {
-    transform: scale(1.05);
-    filter: brightness(1.1);
-}
-
-.prediction-value {
-    position: absolute;
-    top: -25px;
-    font-size: 0.75rem;
-    font-weight: bold;
-    color: var(--text-primary);
-}
-
-.prediction-day {
-    position: absolute;
-    bottom: -25px;
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-}
-
-/* ===== أفضل العادات ===== */
-.top-habits-card {
-    background: var(--tertiary-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin: var(--spacing-lg) 0;
-}
-
-.top-habits-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-md);
-}
-
-.top-habit-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    padding: var(--spacing-sm);
-    background: var(--card-bg);
-    border-radius: var(--radius-md);
-    position: relative;
-    overflow: hidden;
-}
-
-.rank-badge {
-    width: 32px;
-    height: 32px;
-    background: var(--primary-gradient);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-}
-
-.habit-info {
-    flex: 1;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-}
-
-.habit-name { font-weight: 600; color: var(--text-primary); }
-.habit-stats { font-weight: bold; color: var(--success); }
-
-.progress-bar-small {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    height: 3px;
-    width: 100%;
-    background: var(--border-light);
-}
-
-[dir="rtl"] .progress-bar-small { left: auto; right: 0; }
-
-.progress-fill-small {
-    height: 100%;
-    background: var(--primary-gradient);
-    transition: width var(--transition-medium);
-}
-
-/* ===== نصائح العادات ===== */
-.habit-tips {
-    background: var(--tertiary-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin: var(--spacing-lg) 0;
-    border: 1px dashed var(--info);
-}
-
-.tips-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-md);
-}
-
-.tip-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm);
-    background: var(--card-bg);
-    border-radius: var(--radius-md);
-    transition: all var(--transition-fast);
-}
-
-.tip-item:hover {
-    transform: translateX(5px);
-    box-shadow: var(--shadow-sm);
-}
-
-[dir="rtl"] .tip-item:hover { transform: translateX(-5px); }
-
-.tip-icon { font-size: 1.5rem; }
-.tip-item p {
-    margin: 0;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
-
-/* ===== حالات التحميل والخطأ ===== */
+/* ===== حالات التحميل ===== */
 .analytics-loading, .analytics-error, .analytics-empty {
     text-align: center;
-    padding: var(--spacing-2xl);
+    padding: 3rem 1.5rem;
     background: var(--card-bg);
-    border-radius: var(--radius-xl);
+    border-radius: 20px;
 }
 
 .analytics-error {
-    background: var(--error-bg);
+    background: rgba(239, 68, 68, 0.1);
     color: var(--error);
     border: 1px solid var(--error);
 }
 
-.spinner {
-    border: 3px solid var(--border-light);
-    border-top: 3px solid var(--primary);
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
-    animation: spin 1s linear infinite;
-    margin: 0 auto var(--spacing-md);
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.retry-btn {
-    background: var(--primary-gradient);
-    color: white;
-    border: none;
-    padding: var(--spacing-sm) var(--spacing-lg);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    margin-top: var(--spacing-md);
-    transition: all var(--transition-medium);
-}
-
-.retry-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.empty-icon {
-    font-size: 4rem;
-    margin-bottom: var(--spacing-md);
-    opacity: 0.5;
-}
-
-/* ===== تحسينات متجاوبة ===== */
-@media (max-width: 768px) {
-    .analytics-container { padding: var(--spacing-md); }
-    .analytics-stats-grid { grid-template-columns: 1fr; }
-    .strengths-weaknesses { grid-template-columns: 1fr; }
-    .insight-card { flex-direction: column; }
-    .energy-stats { grid-template-columns: 1fr; }
-    .patterns-grid { grid-template-columns: 1fr; }
-    .tips-grid { grid-template-columns: 1fr; }
-    .prediction-chart { overflow-x: auto; justify-content: flex-start; }
-    .prediction-bar { min-width: 55px; }
-    .analytics-tabs button { flex: 1; text-align: center; font-size: 0.8rem; }
+/* ===== تحسينات الجوال (Mobile First) ===== */
+@media (max-width: 640px) {
+    .analytics-tabs {
+        gap: 0.35rem;
+    }
+    
+    .analytics-tabs button {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.75rem;
+        flex: 1;
+        text-align: center;
+    }
+    
+    .analytics-stat-card {
+        padding: 1rem;
+    }
+    
+    .stat-icon {
+        width: 42px;
+        height: 42px;
+        font-size: 1.25rem;
+    }
+    
+    .insight-card {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .rec-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .prediction-bar {
+        min-width: 40px;
+    }
+    
+    .prediction-value {
+        font-size: 0.65rem;
+        top: -20px;
+    }
+    
+    .prediction-day {
+        font-size: 0.6rem;
+        bottom: -22px;
+    }
 }
 
 @media (max-width: 480px) {
-    .analytics-header { flex-direction: column; gap: var(--spacing-md); align-items: flex-start; }
-    .analytics-stat-card { padding: var(--spacing-md); }
-    .stat-icon { width: 45px; height: 45px; font-size: 1.5rem; }
-    .stat-value { font-size: 1.4rem; }
-    .recommendation-card { padding: var(--spacing-md); }
-    .rec-header { flex-direction: column; align-items: flex-start; }
+    .analytics-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .strengths-weaknesses {
+        grid-template-columns: 1fr;
+    }
+    
+    .energy-stats {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .patterns-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .tips-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== شاشات كبيرة (تحسين العرض) ===== */
+@media (min-width: 1200px) {
+    .analytics-stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
+    .patterns-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .tips-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
 
 /* ===== دعم الحركة المخفضة ===== */
@@ -771,8 +538,7 @@
     
     .analytics-stat-card:hover,
     .recommendation-card:hover,
-    .pattern-card:hover,
-    .tip-item:hover {
+    .insight-card:hover {
         transform: none !important;
     }
 }
@@ -780,14 +546,37 @@
 /* ===== شريط التمرير المخصص ===== */
 .analytics-container::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
 }
 
 .analytics-container::-webkit-scrollbar-track {
     background: var(--border-light);
-    border-radius: var(--radius-full);
+    border-radius: 10px;
 }
 
 .analytics-container::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: var(--radius-full);
+    background: var(--primary, #3b82f6);
+    border-radius: 10px;
+}
+
+/* ===== ضمان عدم وجود نص أبيض على أبيض في أي ثيم ===== */
+/* هذا يضمن أن جميع النصوص تستخدم متغيرات التباين الصحيحة */
+.analytics-container,
+.analytics-container * {
+    color: var(--text-primary);
+}
+
+/* استثناء للعناصر التي يجب أن يكون لونها مختلف */
+.stat-label,
+.rec-advice,
+.pattern-desc,
+.alert-message {
+    color: var(--text-secondary);
+}
+
+/* النصوص المساعدة جداً */
+.text-tertiary,
+small,
+.helper-text {
+    color: var(--text-tertiary);
 }

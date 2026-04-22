@@ -15,51 +15,44 @@ function Login({ onLoginSuccess }) {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState('');
-    const [darkMode, setDarkMode] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
 
     // تحميل إعدادات الوضع المظلم واللغة المحفوظة
-// في Login.jsx، قم بتعديل useEffect الأول:
-
-useEffect(() => {
-    const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                         window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setDarkMode(savedDarkMode);
-    
-    const savedUsername = localStorage.getItem('saved_username');
-    if (savedUsername) {
-        setUsername(savedUsername);
-        setRememberMe(true);
-    }
-    
-    if (savedDarkMode) {
-        document.documentElement.classList.add('dark-mode');
-    }
-    
-    // ✅ إزالة التحقق التلقائي من التوكن هنا لأنه يتم في App.js
-    // فقط إذا كان المستخدم في صفحة login ولديه توكن صالح، نوجهه للداشبورد
-    const token = localStorage.getItem('access_token');
-    if (token && onLoginSuccess) {
-        // اختبر التوكن بسرعة
-        axiosInstance.get('/health_status/')
-            .then(() => {
-                console.log('✅ Token is valid, redirecting to dashboard');
-                onLoginSuccess();
-            })
-            .catch(() => {
-                console.log('❌ Token invalid, staying on login');
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-            });
-    }
-}, [onLoginSuccess]);
+    useEffect(() => {
+        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
+                             window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        const savedUsername = localStorage.getItem('saved_username');
+        if (savedUsername) {
+            setUsername(savedUsername);
+            setRememberMe(true);
+        }
+        
+        if (savedDarkMode) {
+            document.documentElement.classList.add('dark-mode');
+        }
+        
+        // التحقق من التوكن الحالي
+        const token = localStorage.getItem('access_token');
+        if (token && onLoginSuccess) {
+            axiosInstance.get('/health_status/')
+                .then(() => {
+                    console.log('✅ Token is valid, redirecting to dashboard');
+                    onLoginSuccess();
+                })
+                .catch(() => {
+                    console.log('❌ Token invalid, staying on login');
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                });
+        }
+    }, [onLoginSuccess]);
 
     // استمع لتغييرات الوضع المظلم
     useEffect(() => {
         const handleThemeChange = (e) => {
             const newDarkMode = e.detail?.darkMode ?? false;
-            setDarkMode(newDarkMode);
             
             if (newDarkMode) {
                 document.documentElement.classList.add('dark-mode');
@@ -76,8 +69,7 @@ useEffect(() => {
     }, []);
 
     const toggleDarkMode = () => {
-        const newDarkMode = !darkMode;
-        setDarkMode(newDarkMode);
+        const newDarkMode = !document.documentElement.classList.contains('dark-mode');
         
         if (newDarkMode) {
             document.documentElement.classList.add('dark-mode');
@@ -127,21 +119,16 @@ useEffect(() => {
 
             console.log('🔑 Login response:', response.data);
 
-            // ✅ تأكد من وجود access token
             if (!response.data || !response.data.access) {
                 throw new Error('No access token in response');
             }
 
             const { access, refresh } = response.data;
             
-            // ✅ حفظ التوكن
             localStorage.setItem('access_token', access);
             if (refresh) localStorage.setItem('refresh_token', refresh);
             
-            // ✅ التحقق من الحفظ
-            const savedToken = localStorage.getItem('access_token');
-            console.log('💾 Token saved:', !!savedToken);
-            console.log('💾 Token preview:', savedToken ? savedToken.substring(0, 50) + '...' : 'missing');
+            console.log('💾 Token saved:', !!localStorage.getItem('access_token'));
             
             if (rememberMe) {
                 localStorage.setItem('saved_username', username);
@@ -154,7 +141,6 @@ useEffect(() => {
             setMessage(t('login.success'));
             setMessageType('success');
             
-            // ✅ تأخير الانتقال لضمان حفظ التوكن
             setTimeout(() => {
                 console.log('🚀 Calling onLoginSuccess');
                 if (onLoginSuccess) {
@@ -166,7 +152,6 @@ useEffect(() => {
             
         } catch (error) {
             console.error('❌ Login error:', error);
-            console.error('❌ Response data:', error.response?.data);
             
             let errorMessage = t('login.failed');
             
@@ -198,7 +183,7 @@ useEffect(() => {
     };
 
     return (
-        <div className={`login-container ${darkMode ? 'dark-mode' : ''}`}>
+        <div className="login-container">
             {/* خلفية متحركة */}
             <div className="login-background">
                 <div className="bg-shape bg-shape-1"></div>
@@ -242,9 +227,9 @@ useEffect(() => {
                         <button 
                             className="theme-toggle"
                             onClick={toggleDarkMode}
-                            title={darkMode ? t('login.switchToLight') : t('login.switchToDark')}
+                            title={document.documentElement.classList.contains('dark-mode') ? t('login.switchToLight') : t('login.switchToDark')}
                         >
-                            {darkMode ? '☀️' : '🌙'}
+                            {document.documentElement.classList.contains('dark-mode') ? '☀️' : '🌙'}
                         </button>
                     </div>
                 </div>
@@ -261,14 +246,13 @@ useEffect(() => {
                     </div>
                     
                     <form onSubmit={handleSubmit} className="login-form">
-                        <div className="form-group">
-                            <label htmlFor="username">
-                                <span className="label-icon">👤</span>
+                        <div className="field-group">
+                            <label>
+                                <span className="field-icon">👤</span>
                                 {t('login.username')}
                             </label>
                             <div className="input-wrapper">
                                 <input
-                                    id="username"
                                     type="text"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
@@ -276,18 +260,18 @@ useEffect(() => {
                                     placeholder={t('login.usernamePlaceholder')}
                                     disabled={loading}
                                     autoComplete="username"
+                                    className="search-input"
                                 />
                             </div>
                         </div>
                         
-                        <div className="form-group">
-                            <label htmlFor="password">
-                                <span className="label-icon">🔑</span>
+                        <div className="field-group">
+                            <label>
+                                <span className="field-icon">🔑</span>
                                 {t('login.password')}
                             </label>
-                            <div className="input-wrapper password-wrapper">
+                            <div className="input-wrapper password-wrapper" style={{ position: 'relative' }}>
                                 <input
-                                    id="password"
                                     type={showPassword ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
@@ -295,11 +279,22 @@ useEffect(() => {
                                     placeholder={t('login.passwordPlaceholder')}
                                     disabled={loading}
                                     autoComplete="current-password"
+                                    className="search-input"
                                 />
                                 <button
                                     type="button"
                                     className="password-toggle"
                                     onClick={() => setShowPassword(!showPassword)}
+                                    style={{
+                                        position: 'absolute',
+                                        right: 'var(--spacing-md)',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: '1.2rem'
+                                    }}
                                     tabIndex="-1"
                                 >
                                     {showPassword ? '👁️' : '👁️‍🗨️'}
@@ -307,91 +302,99 @@ useEffect(() => {
                             </div>
                         </div>
 
-                        <div className="form-options">
-                            <label className="remember-me">
+                        <div className="form-options" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
+                            <label className="remember-me" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}>
                                 <input
                                     type="checkbox"
                                     checked={rememberMe}
                                     onChange={(e) => setRememberMe(e.target.checked)}
                                     disabled={loading}
                                 />
-                                <span className="checkbox-text">{t('login.rememberMe')}</span>
+                                <span>{t('login.rememberMe')}</span>
                             </label>
                         </div>
                         
-                        <div className="login-actions">
+                        <div className="form-actions" style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
                             <button 
                                 type="submit" 
-                                className="login-button"
+                                className="type-btn active"
                                 disabled={loading}
+                                style={{ flex: 2 }}
                             >
                                 {loading ? (
                                     <>
-                                        <span className="spinner"></span>
+                                        <span className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
                                         {t('login.loggingIn')}
                                     </>
                                 ) : (
-                                    <>
-                                        <span className="btn-icon">🔑</span>
-                                        {t('login.loginButton')}
-                                    </>
+                                    <>🔑 {t('login.loginButton')}</>
                                 )}
                             </button>
                             
                             <button 
                                 type="button" 
                                 onClick={resetForm}
-                                className="reset-button"
+                                className="type-btn"
                                 disabled={loading}
+                                style={{ flex: 1 }}
                             >
-                                <span className="btn-icon">🔄</span>
-                                {t('login.resetButton')}
+                                🔄 {t('login.resetButton')}
                             </button>
                         </div>
                         
                         {/* معلومات إضافية */}
-                        <div className="login-info">
-                            <div className="info-item">
+                        <div className="login-info" style={{ marginTop: 'var(--spacing-lg)' }}>
+                            <div className="info-item" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-md)', background: 'var(--info-bg)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--spacing-sm)' }}>
                                 <span className="info-icon">💡</span>
-                                <p>{t('login.tip')}</p>
+                                <p style={{ margin: 0, color: 'var(--info)', fontSize: '0.9rem' }}>{t('login.tip')}</p>
                             </div>
-                            <div className="info-item">
+                            <div className="info-item" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-md)', background: 'var(--info-bg)', borderRadius: 'var(--radius-md)' }}>
                                 <span className="info-icon">👤</span>
-                                <p>{t('login.demoInfo')}</p>
+                                <p style={{ margin: 0, color: 'var(--info)', fontSize: '0.9rem' }}>{t('login.demoInfo')}</p>
                             </div>
                         </div>
                     </form>
                     
                     {/* رسائل التغذية الراجعة */}
                     {message && (
-                        <div className={`message ${messageType}`}>
-                            <div className="message-content">
-                                <span className="message-icon">
+                        <div className={`notification-message ${messageType}`} style={{
+                            marginTop: 'var(--spacing-lg)',
+                            padding: 'var(--spacing-md)',
+                            borderRadius: 'var(--radius-lg)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: messageType === 'success' ? 'var(--success-bg)' : messageType === 'error' ? 'var(--error-bg)' : 'var(--info-bg)',
+                            color: messageType === 'success' ? 'var(--success)' : messageType === 'error' ? 'var(--error)' : 'var(--info)',
+                            border: `1px solid ${messageType === 'success' ? 'var(--success)' : messageType === 'error' ? 'var(--error)' : 'var(--info)'}`
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                                <span>
                                     {messageType === 'success' && '✅'}
                                     {messageType === 'error' && '❌'}
                                     {messageType === 'info' && 'ℹ️'}
                                 </span>
-                                <span className="message-text">{message}</span>
+                                <span>{message}</span>
                             </div>
                             <button 
                                 onClick={() => {
                                     setMessage('');
                                     setMessageType('');
                                 }}
-                                className="dismiss-message"
-                                aria-label={t('login.dismiss')}
+                                style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.1rem' }}
                             >
                                 ✕
                             </button>
                         </div>
                     )}
                     
-                    <div className="register-link">
-                        <p>
+                    <div className="register-link" style={{ marginTop: 'var(--spacing-lg)', paddingTop: 'var(--spacing-lg)', borderTop: '1px solid var(--border-light)', textAlign: 'center' }}>
+                        <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
                             {t('login.noAccount')} 
                             <Link 
                                 to="/register" 
                                 className="register-link-btn"
+                                style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none', marginLeft: 'var(--spacing-sm)' }}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                 }}
@@ -402,144 +405,41 @@ useEffect(() => {
                     </div>
                     
                     {/* معلومات التطبيق */}
-                    <div className="app-info">
-                        <div className="app-info-header">
-                            <h3>🌟 {t('login.featuresTitle')}</h3>
-                            <div className="header-decoration"></div>
+                    <div className="app-info" style={{ marginTop: 'var(--spacing-xl)', paddingTop: 'var(--spacing-xl)', borderTop: '1px solid var(--border-light)' }}>
+                        <div className="app-info-header" style={{ marginBottom: 'var(--spacing-lg)' }}>
+                            <h3 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--text-primary)' }}>🌟 {t('login.featuresTitle')}</h3>
+                            <div className="header-decoration" style={{ width: '50px', height: '4px', background: 'var(--primary-gradient)', borderRadius: '2px' }}></div>
                         </div>
                         
-                        <ul className="features-list">
-                            <li>
+                        <ul className="features-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                            <li style={{ padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
                                 <span className="feature-icon">📊</span>
-                                <span className="feature-text">{t('login.feature1')}</span>
+                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature1')}</span>
                             </li>
-                            <li>
+                            <li style={{ padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
                                 <span className="feature-icon">🥗</span>
-                                <span className="feature-text">{t('login.feature2')}</span>
+                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature2')}</span>
                             </li>
-                            <li>
+                            <li style={{ padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
                                 <span className="feature-icon">🌙</span>
-                                <span className="feature-text">{t('login.feature3')}</span>
+                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature3')}</span>
                             </li>
-                            <li>
+                            <li style={{ padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
                                 <span className="feature-icon">😊</span>
-                                <span className="feature-text">{t('login.feature4')}</span>
+                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature4')}</span>
                             </li>
-                            <li>
+                            <li style={{ padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
                                 <span className="feature-icon">💊</span>
-                                <span className="feature-text">{t('login.feature5')}</span>
+                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature5')}</span>
                             </li>
                         </ul>
-                        
-                        
                     </div>
                 </div>
             </div>
 
-        <style jsx>{`
-
-                /* ===========================================
-                   Login.css - النسخة المحسنة والمطورة
-                   تم التحسين لجميع أحجام الشاشات والوضع الليلي
-                   =========================================== */
-
-                /* ===== المتغيرات والثيمات ===== */
-                :root {
-                    /* الألوان الأساسية */
-                    --primary-bg: #f8fafc;
-                    --secondary-bg: #ffffff;
-                    --tertiary-bg: #f1f5f9;
-                    --card-bg: #ffffff;
-                    --hover-bg: rgba(0, 0, 0, 0.05);
-                    
-                    /* النصوص */
-                    --text-primary: #0f172a;
-                    --text-secondary: #475569;
-                    --text-tertiary: #64748b;
-                    
-                    /* الحدود */
-                    --border-light: #e2e8f0;
-                    --border-medium: #cbd5e1;
-                    
-                    /* الألوان الأساسية */
-                    --primary-color: #3b82f6;
-                    --primary-dark: #2563eb;
-                    --primary-light: #60a5fa;
-                    
-                    /* ألوان الحالات */
-                    --success-color: #10b981;
-                    --success-bg: #d1fae5;
-                    --warning-color: #f59e0b;
-                    --warning-bg: #fef3c7;
-                    --error-color: #ef4444;
-                    --error-bg: #fee2e2;
-                    --info-color: #3b82f6;
-                    --info-bg: #dbeafe;
-                    
-                    /* الظلال */
-                    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-                    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
-                    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
-                    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1);
-                    --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,0.25);
-                    
-                    /* التدرجات */
-                    --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-                    --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                    
-                    /* الانتقالات */
-                    --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                    --transition-medium: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                    --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-                    
-                    /* المسافات */
-                    --spacing-xs: 0.25rem;
-                    --spacing-sm: 0.5rem;
-                    --spacing-md: 1rem;
-                    --spacing-lg: 1.5rem;
-                    --spacing-xl: 2rem;
-                    --spacing-2xl: 3rem;
-                    
-                    /* الحواف */
-                    --radius-sm: 8px;
-                    --radius-md: 12px;
-                    --radius-lg: 16px;
-                    --radius-xl: 24px;
-                    --radius-2xl: 30px;
-                    --radius-full: 9999px;
-                }
-
-                /* الثيم المظلم - تحسين الألوان */
-                .dark-mode {
-                    --primary-bg: #0f172a;
-                    --secondary-bg: #1e293b;
-                    --tertiary-bg: #334155;
-                    --card-bg: #1e293b;
-                    --hover-bg: rgba(255, 255, 255, 0.1);
-                    --text-primary: #f8fafc;
-                    --text-secondary: #cbd5e1;
-                    --text-tertiary: #94a3b8;
-                    --border-light: #334155;
-                    --border-medium: #475569;
-                    --primary-color: #60a5fa;
-                    --primary-dark: #3b82f6;
-                    --primary-light: #93c5fd;
-                    --success-color: #4ade80;
-                    --success-bg: rgba(16, 185, 129, 0.2);
-                    --warning-color: #fbbf24;
-                    --warning-bg: rgba(245, 158, 11, 0.2);
-                    --error-color: #f87171;
-                    --error-bg: rgba(239, 68, 68, 0.2);
-                    --info-color: #60a5fa;
-                    --info-bg: rgba(59, 130, 246, 0.2);
-                    --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
-                    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.5);
-                    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5);
-                    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.5);
-                    --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,0.5);
-                }
-
-                /* ===== الأنماط الأساسية ===== */
+            {/* الأنماط الإضافية */}
+            <style>{`
+                /* أنماط صفحة تسجيل الدخول */
                 .login-container {
                     min-height: 100vh;
                     background: var(--primary-bg);
@@ -548,7 +448,7 @@ useEffect(() => {
                     overflow-x: hidden;
                 }
 
-                /* ===== خلفية متحركة مع دعم الحركة المخفضة ===== */
+                /* خلفية متحركة */
                 .login-background {
                     position: fixed;
                     top: 0;
@@ -601,19 +501,11 @@ useEffect(() => {
                     75% { transform: translate(-50px, 50px) rotate(-5deg); }
                 }
 
-                /* دعم الحركة المخفضة */
-                .reduce-motion .bg-shape,
-                .reduce-motion .logo-wrapper,
-                .reduce-motion .login-icon-wrapper,
-                .reduce-motion .status-dot {
-                    animation: none !important;
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
                 }
 
-                .reduce-motion .login-form-card:hover {
-                    transform: none !important;
-                }
-
-                /* ===== شريط التحكم ===== */
+                /* شريط التحكم */
                 .login-control-bar {
                     background: var(--card-bg);
                     border-bottom: 1px solid var(--border-light);
@@ -643,22 +535,12 @@ useEffect(() => {
                 .logo-wrapper {
                     width: 50px;
                     height: 50px;
-                    background: var(--gradient-primary);
+                    background: var(--primary-gradient);
                     border-radius: var(--radius-lg);
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    animation: pulse 2s infinite;
                     transition: transform var(--transition-fast);
-                }
-
-                .logo-wrapper:active {
-                    transform: scale(0.95);
-                }
-
-                @keyframes pulse {
-                    0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.05); }
                 }
 
                 .logo-icon {
@@ -671,7 +553,7 @@ useEffect(() => {
                     color: var(--text-primary);
                     font-size: 1.8rem;
                     font-weight: 700;
-                    background: var(--gradient-primary);
+                    background: var(--primary-gradient);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                     background-clip: text;
@@ -716,12 +598,8 @@ useEffect(() => {
                     transform: translateY(-1px);
                 }
 
-                .lang-btn:active {
-                    transform: translateY(0);
-                }
-
                 .lang-btn.active {
-                    background: var(--primary-color);
+                    background: var(--primary);
                     color: white;
                 }
 
@@ -750,15 +628,11 @@ useEffect(() => {
 
                 .theme-toggle:hover {
                     transform: rotate(15deg);
-                    background: var(--primary-color);
+                    background: var(--primary);
                     color: white;
                 }
 
-                .theme-toggle:active {
-                    transform: rotate(0deg) scale(0.95);
-                }
-
-                /* ===== المحتوى الرئيسي ===== */
+                /* المحتوى الرئيسي */
                 .login-content {
                     display: flex;
                     justify-content: center;
@@ -772,7 +646,7 @@ useEffect(() => {
                     z-index: 1;
                 }
 
-                /* ===== بطاقة تسجيل الدخول ===== */
+                /* بطاقة تسجيل الدخول */
                 .login-form-card {
                     background: var(--card-bg);
                     border-radius: var(--radius-2xl);
@@ -793,7 +667,7 @@ useEffect(() => {
                     left: 0;
                     right: 0;
                     height: 4px;
-                    background: var(--gradient-primary);
+                    background: var(--primary-gradient);
                 }
 
                 .login-form-card:hover {
@@ -809,23 +683,13 @@ useEffect(() => {
                 .login-icon-wrapper {
                     width: 80px;
                     height: 80px;
-                    background: var(--gradient-primary);
+                    background: var(--primary-gradient);
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     margin: 0 auto var(--spacing-lg);
-                    animation: bounce 2s infinite;
                     transition: transform var(--transition-fast);
-                }
-
-                .login-icon-wrapper:active {
-                    transform: scale(0.95);
-                }
-
-                @keyframes bounce {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-5px); }
                 }
 
                 .login-icon {
@@ -847,12 +711,12 @@ useEffect(() => {
                     line-height: 1.5;
                 }
 
-                /* ===== حقول النموذج ===== */
-                .form-group {
+                /* حقول النموذج */
+                .field-group {
                     margin-bottom: var(--spacing-lg);
                 }
 
-                .form-group label {
+                .field-group label {
                     display: flex;
                     align-items: center;
                     gap: var(--spacing-sm);
@@ -862,644 +726,38 @@ useEffect(() => {
                     font-size: 0.95rem;
                 }
 
-                .label-icon {
+                .field-icon {
                     font-size: 1.1rem;
-                }
-
-                .input-wrapper {
-                    position: relative;
-                }
-
-                .form-group input {
-                    width: 100%;
-                    padding: var(--spacing-md);
-                    background: var(--secondary-bg);
-                    color: var(--text-primary);
-                    border: 2px solid var(--border-light);
-                    border-radius: var(--radius-lg);
-                    font-size: 1rem;
-                    transition: all var(--transition-fast);
-                }
-
-                .form-group input:focus {
-                    outline: none;
-                    border-color: var(--primary-color);
-                    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
-                }
-
-                .form-group input:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-
-                .form-group input[aria-invalid="true"] {
-                    border-color: var(--error-color);
-                }
-
-                .password-wrapper {
-                    position: relative;
-                }
-
-                .password-toggle {
-                    position: absolute;
-                    right: var(--spacing-md);
-                    top: 50%;
-                    transform: translateY(-50%);
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                    font-size: 1.2rem;
-                    padding: var(--spacing-sm);
-                    color: var(--text-tertiary);
-                    transition: all var(--transition-fast);
-                    border-radius: var(--radius-full);
                 }
 
                 .password-toggle:hover {
-                    color: var(--primary-color);
+                    color: var(--primary);
                     background: var(--hover-bg);
-                }
-
-                .password-toggle:active {
-                    transform: translateY(-50%) scale(0.95);
-                }
-
-                /* ===== خيارات النموذج ===== */
-                .form-options {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: var(--spacing-lg);
-                }
-
-                .remember-me {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    cursor: pointer;
-                    color: var(--text-secondary);
-                    font-size: 0.9rem;
-                }
-
-                .remember-me input {
-                    width: 18px;
-                    height: 18px;
-                    cursor: pointer;
-                }
-
-                .checkbox-text {
-                    user-select: none;
-                }
-
-                .forgot-password {
-                    background: none;
-                    border: none;
-                    color: var(--primary-color);
-                    cursor: pointer;
-                    font-size: 0.9rem;
-                    transition: all var(--transition-fast);
-                    padding: var(--spacing-xs) var(--spacing-sm);
-                    border-radius: var(--radius-sm);
-                }
-
-                .forgot-password:hover {
-                    text-decoration: underline;
-                    background: var(--hover-bg);
-                }
-
-                /* ===== أزرار الإجراء ===== */
-                .login-actions {
-                    display: flex;
-                    gap: var(--spacing-md);
-                    margin-top: var(--spacing-2xl);
-                }
-
-                .login-button,
-                .reset-button {
-                    padding: var(--spacing-md);
-                    border-radius: var(--radius-lg);
-                    font-size: 1rem;
-                    font-weight: 600;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: var(--spacing-sm);
-                    transition: all var(--transition-medium);
-                    border: none;
-                }
-
-                .login-button {
-                    flex: 2;
-                    background: var(--gradient-primary);
-                    color: white;
-                }
-
-                .login-button:hover:not(:disabled) {
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-lg);
-                }
-
-                .login-button:active:not(:disabled) {
-                    transform: translateY(0);
-                }
-
-                .reset-button {
-                    flex: 1;
-                    background: var(--secondary-bg);
-                    color: var(--text-primary);
-                    border: 1px solid var(--border-light);
-                }
-
-                .reset-button:hover:not(:disabled) {
-                    background: var(--error-bg);
-                    color: var(--error-color);
-                    border-color: var(--error-color);
-                    transform: translateY(-2px);
-                }
-
-                .reset-button:active:not(:disabled) {
-                    transform: translateY(0);
-                }
-
-                button:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-
-                .spinner {
-                    width: 20px;
-                    height: 20px;
-                    border: 2px solid rgba(255, 255, 255, 0.3);
-                    border-top: 2px solid white;
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-
-                /* ===== معلومات إضافية ===== */
-                .login-info {
-                    margin-top: var(--spacing-lg);
-                }
-
-                .info-item {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-md);
-                    padding: var(--spacing-md);
-                    background: var(--info-bg);
-                    border-radius: var(--radius-md);
-                    margin-bottom: var(--spacing-sm);
-                }
-
-                .info-icon {
-                    font-size: 1.2rem;
-                }
-
-                .info-item p {
-                    margin: 0;
-                    color: var(--info-color);
-                    font-size: 0.9rem;
-                }
-
-                /* ===== الرسائل ===== */
-                .message {
-                    margin-top: var(--spacing-lg);
-                    padding: var(--spacing-md);
-                    border-radius: var(--radius-lg);
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    animation: slideIn 0.3s ease;
-                }
-
-                @keyframes slideIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(-10px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-
-                .message.success {
-                    background: var(--success-bg);
-                    color: var(--success-color);
-                    border: 1px solid var(--success-color);
-                }
-
-                .message.error {
-                    background: var(--error-bg);
-                    color: var(--error-color);
-                    border: 1px solid var(--error-color);
-                }
-
-                .message-content {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    flex: 1;
-                }
-
-                .message-icon {
-                    font-size: 1.1rem;
-                }
-
-                .dismiss-message {
-                    background: none;
-                    border: none;
-                    color: inherit;
-                    cursor: pointer;
-                    font-size: 1.1rem;
-                    padding: var(--spacing-xs);
                     border-radius: var(--radius-full);
-                    width: 30px;
-                    height: 30px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all var(--transition-fast);
                 }
 
-                .dismiss-message:hover {
-                    background: rgba(0, 0, 0, 0.1);
-                    transform: scale(1.1);
-                }
-
-                .dismiss-message:active {
-                    transform: scale(0.95);
-                }
-
-                /* ===== رابط التسجيل ===== */
-                .register-link {
-                    margin-top: var(--spacing-lg);
-                    padding-top: var(--spacing-lg);
-                    border-top: 1px solid var(--border-light);
-                    text-align: center;
-                }
-
-                .register-link p {
-                    margin: 0;
-                    color: var(--text-secondary);
-                    font-size: 0.95rem;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: var(--spacing-sm);
-                    flex-wrap: wrap;
-                }
-
-                .register-button {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    background: none;
-                    border: none;
-                    color: var(--primary-color);
-                    font-weight: 600;
-                    cursor: pointer;
-                    padding: var(--spacing-sm) var(--spacing-md);
-                    border-radius: var(--radius-md);
-                    font-size: 0.95rem;
-                    transition: all var(--transition-fast);
-                    border: 1px solid var(--primary-color);
-                }
-
-                .register-button:hover {
-                    background: var(--primary-color);
-                    color: white;
-                    transform: translateX(2px);
-                }
-
-                .register-button:active {
-                    transform: translateX(0);
-                }
-
-                .btn-arrow {
-                    transition: transform var(--transition-fast);
-                }
-
-                .register-button:hover .btn-arrow {
-                    transform: translateX(3px);
-                }
-
-                /* ===== معلومات التطبيق ===== */
-                .app-info {
-                    background: var(--card-bg);
-                    border-radius: var(--radius-2xl);
-                    padding: var(--spacing-2xl);
-                    box-shadow: var(--shadow-lg);
-                    border: 1px solid var(--border-light);
-                    width: 100%;
-                    max-width: 400px;
-                    transition: all var(--transition-medium);
-                }
-
-                .app-info:hover {
-                    transform: translateY(-5px);
-                    box-shadow: var(--shadow-xl);
-                }
-
-                .app-info-header {
-                    position: relative;
-                    margin-bottom: var(--spacing-2xl);
-                }
-
-                .app-info-header h3 {
-                    margin: 0 0 var(--spacing-sm) 0;
-                    color: var(--text-primary);
-                    font-size: 1.5rem;
-                }
-
-                .header-decoration {
-                    width: 50px;
-                    height: 4px;
-                    background: var(--gradient-primary);
-                    border-radius: 2px;
-                }
-
-                .features-list {
-                    list-style: none;
-                    padding: 0;
-                    margin: 0 0 var(--spacing-2xl) 0;
-                }
-
-                .features-list li {
-                    padding: var(--spacing-md) 0;
-                    color: var(--text-secondary);
-                    border-bottom: 1px solid var(--border-light);
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-md);
-                    transition: all var(--transition-fast);
-                }
-
-                .features-list li:hover {
-                    transform: translateX(5px);
-                    color: var(--primary-color);
-                }
-
-                .features-list li:last-child {
-                    border-bottom: none;
-                }
-
-                .feature-icon {
-                    font-size: 1.3rem;
-                }
-
-                .feature-text {
-                    color: var(--text-secondary);
-                }
-
-                .app-stats {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-around;
-                    padding: var(--spacing-md);
-                    background: var(--secondary-bg);
-                    border-radius: var(--radius-lg);
-                    margin-bottom: var(--spacing-lg);
-                }
-
-                .stat-item {
-                    text-align: center;
-                }
-
-                .stat-value {
-                    display: block;
-                    font-size: 1.5rem;
-                    font-weight: 700;
-                    color: var(--primary-color);
-                }
-
-                .stat-label {
-                    color: var(--text-tertiary);
-                    font-size: 0.85rem;
-                }
-
-                .stat-divider {
-                    width: 1px;
-                    height: 30px;
-                    background: var(--border-light);
-                }
-
-                .app-version {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding-top: var(--spacing-md);
-                    border-top: 1px solid var(--border-light);
-                }
-
-                .version-info {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    color: var(--text-tertiary);
-                    font-size: 0.9rem;
-                }
-
-                .version-icon {
-                    font-size: 1rem;
-                }
-
-                .app-status {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    color: var(--success-color);
-                    font-weight: 600;
-                }
-
-                .status-dot {
-                    width: 8px;
-                    height: 8px;
-                    background: var(--success-color);
-                    border-radius: 50%;
-                    animation: pulse 2s infinite;
-                }
-
-                /* ===== RTL دعم كامل ===== */
                 [dir="rtl"] .password-toggle {
                     right: auto;
                     left: var(--spacing-md);
                 }
 
-                [dir="rtl"] .btn-arrow {
-                    transform: rotate(180deg);
-                }
-
-                [dir="rtl"] .register-button:hover .btn-arrow {
-                    transform: rotate(180deg) translateX(3px);
-                }
-
-                [dir="rtl"] .features-list li:hover {
-                    transform: translateX(-5px);
-                }
-
-                [dir="rtl"] .features-list li {
-                    flex-direction: row-reverse;
-                }
-
-                [dir="rtl"] .header-decoration {
-                    margin-right: 0;
-                    margin-left: auto;
-                }
-
-                [dir="rtl"] .info-item {
-                    flex-direction: row-reverse;
-                }
-
-                /* ===== تصميم متجاوب - شاشات كبيرة (≥1024px) ===== */
-                @media (min-width: 1024px) {
-                    .login-content {
-                        gap: var(--spacing-2xl);
-                    }
-                    
-                    .login-form-card,
-                    .app-info {
-                        transition: all var(--transition-medium);
-                    }
-                }
-
-                /* ===== تصميم متجاوب - شاشات متوسطة (768px - 1023px) ===== */
-                @media (max-width: 1023px) and (min-width: 768px) {
-                    .login-content {
-                        flex-direction: column;
-                        gap: var(--spacing-xl);
-                        padding: var(--spacing-xl);
-                    }
-                    
-                    .login-form-card,
-                    .app-info {
-                        max-width: 550px;
-                        width: 100%;
-                    }
-                    
-                    .login-actions {
-                        flex-direction: column;
-                    }
-                    
-                    .login-button,
-                    .reset-button {
-                        width: 100%;
-                    }
-                    
-                    .control-bar-content {
-                        flex-direction: column;
-                        text-align: center;
-                    }
-                    
-                    .app-title {
-                        justify-content: center;
-                    }
-                }
-
-                /* ===== تصميم متجاوب - شاشات صغيرة (480px - 767px) ===== */
-                @media (max-width: 767px) and (min-width: 480px) {
+                @media (max-width: 768px) {
                     .login-control-bar {
-                        padding: var(--spacing-md) var(--spacing-lg);
-                    }
-                    
-                    .control-bar-content {
-                        flex-direction: column;
-                        gap: var(--spacing-md);
-                    }
-                    
-                    .app-title h1 {
-                        font-size: 1.5rem;
-                    }
-                    
-                    .login-content {
-                        padding: var(--spacing-lg);
-                        gap: var(--spacing-lg);
-                    }
-                    
-                    .login-form-card {
-                        padding: var(--spacing-lg);
-                    }
-                    
-                    .login-header h2 {
-                        font-size: 1.75rem;
-                    }
-                    
-                    .login-actions {
-                        flex-direction: column;
-                        gap: var(--spacing-sm);
-                    }
-                    
-                    .app-info {
-                        padding: var(--spacing-lg);
-                    }
-                    
-                    .app-info-header h3 {
-                        font-size: 1.3rem;
-                    }
-                    
-                    .language-switcher {
-                        justify-content: center;
-                    }
-                    
-                    .form-options {
-                        flex-direction: column;
-                        gap: var(--spacing-sm);
-                        align-items: flex-start;
-                    }
-                    
-                    .features-list li:hover {
-                        transform: none;
-                    }
-                }
-
-                /* ===== تصميم متجاوب - شاشات صغيرة جداً (<480px) ===== */
-                @media (max-width: 479px) {
-                    .login-control-bar {
-                        padding: var(--spacing-sm) var(--spacing-md);
-                    }
-                    
-                    .app-title {
-                        flex-direction: column;
-                        text-align: center;
-                    }
-                    
-                    .logo-wrapper {
-                        width: 40px;
-                        height: 40px;
-                    }
-                    
-                    .logo-icon {
-                        font-size: 1.5rem;
-                    }
-                    
-                    .title-text h1 {
-                        font-size: 1.3rem;
-                    }
-                    
-                    .app-subtitle {
-                        font-size: 0.8rem;
-                    }
-                    
-                    .login-controls {
-                        flex-wrap: wrap;
-                        justify-content: center;
-                    }
-                    
-                    .lang-text {
-                        display: none;
-                    }
-                    
-                    .lang-btn {
-                        padding: var(--spacing-sm);
-                    }
-                    
-                    .login-content {
                         padding: var(--spacing-md);
+                    }
+                    
+                    .control-bar-content {
+                        flex-direction: column;
                         gap: var(--spacing-md);
+                    }
+                    
+                    .app-title {
+                        justify-content: center;
+                    }
+                    
+                    .login-content {
+                        padding: var(--spacing-lg);
+                        flex-direction: column;
                     }
                     
                     .login-form-card {
@@ -1508,10 +766,6 @@ useEffect(() => {
                     
                     .login-header h2 {
                         font-size: 1.5rem;
-                    }
-                    
-                    .login-description {
-                        font-size: 0.85rem;
                     }
                     
                     .login-icon-wrapper {
@@ -1523,169 +777,43 @@ useEffect(() => {
                         font-size: 2rem;
                     }
                     
-                    .form-group input {
-                        padding: var(--spacing-sm);
-                        font-size: 0.9rem;
+                    .lang-text {
+                        display: none;
                     }
                     
-                    .login-actions {
+                    .lang-btn {
+                        padding: var(--spacing-sm);
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    .login-form-card {
+                        padding: var(--spacing-md);
+                    }
+                    
+                    .form-actions {
                         flex-direction: column;
-                        gap: var(--spacing-sm);
                     }
                     
-                    .login-button,
-                    .reset-button {
-                        padding: var(--spacing-sm);
-                        font-size: 0.9rem;
-                    }
-                    
-                    .app-info {
-                        padding: var(--spacing-lg);
-                    }
-                    
-                    .app-info-header h3 {
-                        font-size: 1.2rem;
+                    .type-btn {
+                        width: 100%;
                     }
                     
                     .features-list li {
-                        padding: var(--spacing-sm) 0;
                         font-size: 0.9rem;
-                    }
-                    
-                    .feature-icon {
-                        font-size: 1.1rem;
-                    }
-                    
-                    .app-stats {
-                        flex-direction: column;
-                        gap: var(--spacing-md);
-                    }
-                    
-                    .stat-divider {
-                        width: 100%;
-                        height: 1px;
-                    }
-                    
-                    .app-version {
-                        flex-direction: column;
-                        gap: var(--spacing-sm);
-                        text-align: center;
-                    }
-                    
-                    .info-item {
-                        padding: var(--spacing-sm);
-                    }
-                    
-                    .info-item p {
-                        font-size: 0.85rem;
-                    }
-                    
-                    .message {
-                        padding: var(--spacing-sm);
-                        font-size: 0.9rem;
-                    }
-                    
-                    .register-link p {
-                        flex-direction: column;
                     }
                 }
 
-                /* ===== وضع أفقي للشاشات العريضة ===== */
-                @media (max-width: 768px) and (orientation: landscape) {
-                    .login-content {
-                        min-height: auto;
-                        padding: var(--spacing-lg);
-                    }
-                    
-                    .login-form-card {
-                        max-height: 90vh;
-                        overflow-y: auto;
-                    }
-                    
-                    .app-info {
-                        max-height: 90vh;
-                        overflow-y: auto;
-                    }
-                    
-                    .login-control-bar {
-                        position: relative;
-                    }
-                }
-
-                /* ===== تحسينات الوصولية ===== */
                 @media (prefers-reduced-motion: reduce) {
-                    *,
-                    *::before,
-                    *::after {
-                        animation-duration: 0.01ms !important;
-                        animation-iteration-count: 1 !important;
-                        transition-duration: 0.01ms !important;
-                    }
-                }
-
-                /* ===== تحسينات للمستخدمين الذين يفضلون التباين العالي ===== */
-                @media (prefers-contrast: high) {
-                    .login-form-card,
-                    .app-info {
-                        border-width: 2px;
+                    .bg-shape,
+                    .login-form-card:hover {
+                        animation: none !important;
+                        transform: none !important;
                     }
                     
-                    .login-button,
-                    .reset-button,
-                    .lang-btn.active {
-                        border: 2px solid currentColor;
+                    .spinner {
+                        animation: none !important;
                     }
-                }
-
-                /* ===== تحسينات للمستخدمين الذين يفضلون وضع السكون ===== */
-                @media (prefers-color-scheme: dark) {
-                    .login-container:not(.dark-mode) {
-                        --primary-bg: #0f172a;
-                        --secondary-bg: #1e293b;
-                    }
-                }
-
-                /* ===== تأثيرات لمسية للأجهزة المحمولة ===== */
-                @media (hover: none) and (pointer: coarse) {
-                    .login-button:active,
-                    .reset-button:active,
-                    .lang-btn:active,
-                    .theme-toggle:active,
-                    .register-button:active,
-                    .forgot-password:active {
-                        transform: scale(0.98);
-                    }
-                    
-                    .features-list li:active {
-                        transform: translateX(5px);
-                    }
-                    
-                    [dir="rtl"] .features-list li:active {
-                        transform: translateX(-5px);
-                    }
-                }
-
-                /* ===== شريط التمرير المخصص ===== */
-                .login-form-card::-webkit-scrollbar,
-                .app-info::-webkit-scrollbar {
-                    width: 8px;
-                }
-
-                .login-form-card::-webkit-scrollbar-track,
-                .app-info::-webkit-scrollbar-track {
-                    background: var(--tertiary-bg);
-                    border-radius: var(--radius-full);
-                }
-
-                .login-form-card::-webkit-scrollbar-thumb,
-                .app-info::-webkit-scrollbar-thumb {
-                    background: var(--primary-color);
-                    border-radius: var(--radius-full);
-                }
-
-                .login-form-card::-webkit-scrollbar-thumb:hover,
-                .app-info::-webkit-scrollbar-thumb:hover {
-                    background: var(--primary-dark);
                 }
             `}</style>
         </div>

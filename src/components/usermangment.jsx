@@ -12,7 +12,6 @@ const extractDataSafely = (response) => {
     if (response.data.results && Array.isArray(response.data.results)) return response.data.results;
     if (response.data.data && Array.isArray(response.data.data)) return response.data.data;
     if (response.data.items && Array.isArray(response.data.items)) return response.data.items;
-    console.warn('Unexpected data format:', response.data);
     return [];
 };
 
@@ -180,7 +179,6 @@ function ProfileManager({ isAuthReady }) {
     const [settings, setSettings] = useState({
         autoUpdate: true,
         notifications: true,
-        darkMode: false,
         language: i18n.language,
         updateInterval: 30
     });
@@ -188,13 +186,10 @@ function ProfileManager({ isAuthReady }) {
     const [achievements, setAchievements] = useState([]);
     const [exporting, setExporting] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [darkMode, setDarkMode] = useState(false);
     const [lastBackup, setLastBackup] = useState(null);
     const [reducedMotion, setReducedMotion] = useState(false);
 
-    // ============================================
-    // حساب smartProfile أولاً (قبل استخدامه)
-    // ============================================
+    // حساب smartProfile
     const smartProfile = useMemo(() => {
         const weight = parseFloat(userData.initial_weight) || healthData.weight;
         const height = parseFloat(userData.height);
@@ -248,9 +243,7 @@ function ProfileManager({ isAuthReady }) {
         };
     }, [userData.initial_weight, userData.height, userData.date_of_birth, healthData, t]);
 
-    // ============================================
-    // توليد توصيات ذكية (بعد تعريف smartProfile)
-    // ============================================
+    // توليد توصيات ذكية
     const getPersonalizedRecommendations = useMemo(() => {
         const recommendations = [];
         const occupation = userData.occupation_status;
@@ -301,15 +294,8 @@ function ProfileManager({ isAuthReady }) {
         return { total, completed, inProgress, avgProgress };
     }, [healthGoals, healthData]);
 
-    // ============================================
     // Effects
-    // ============================================
     useEffect(() => {
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                             window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setDarkMode(savedDarkMode);
-        setSettings(prev => ({ ...prev, darkMode: savedDarkMode }));
-        
         const motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
         setReducedMotion(motionMediaQuery.matches);
         
@@ -335,9 +321,7 @@ function ProfileManager({ isAuthReady }) {
         }
     }, [healthData]);
 
-    // ============================================
     // API Functions
-    // ============================================
     const loadSavedSettings = () => {
         try {
             const savedSettings = localStorage.getItem('appSettings');
@@ -365,7 +349,7 @@ function ProfileManager({ isAuthReady }) {
             const activitiesData = extractDataSafely(activitiesRes);
             const mealsData = extractDataSafely(mealsRes);
             const moodData = extractDataSafely(moodRes);
-            const healthData = extractDataSafely(healthRes);
+            const healthDataRes = extractDataSafely(healthRes);
             const habitsData = extractDataSafely(habitsRes);
             
             let avgSleep = 0;
@@ -419,8 +403,8 @@ function ProfileManager({ isAuthReady }) {
             }
             
             let latestWeight = null;
-            if (healthData.length > 0) {
-                const sortedHealth = [...healthData].sort((a, b) => {
+            if (healthDataRes.length > 0) {
+                const sortedHealth = [...healthDataRes].sort((a, b) => {
                     const dateA = new Date(a.recorded_at || a.created_at);
                     const dateB = new Date(b.recorded_at || b.created_at);
                     return dateB - dateA;
@@ -439,40 +423,21 @@ function ProfileManager({ isAuthReady }) {
             
         } catch (error) {
             console.error('Error fetching health data:', error);
-            setHealthData({
-                weight: null,
-                sleep: 0,
-                activity: 0,
-                calories: 0,
-                mood: 0,
-                habit_completion: 0
-            });
         }
     };
 
-    // ✅ الدالة المعدلة - المشكلة الأساسية هنا
     const fetchUserData = async () => {
         setLoading(true);
         try {
             const response = await axiosInstance.get('/profile/');
             
-            console.log('📡 Profile API full response:', response);
-            console.log('📡 Response data:', response.data);
-            
-            // ✅ استخراج البيانات من response.data.data
             let userDataFromApi = {};
             
             if (response.data?.data) {
-                // التنسيق الصحيح: { success: true, data: { ... } }
                 userDataFromApi = response.data.data;
-                console.log('✅ Data extracted from response.data.data');
             } else if (response.data && typeof response.data === 'object') {
-                // تنسيق بديل: البيانات مباشرة
                 userDataFromApi = response.data;
-                console.log('✅ Data extracted directly from response');
             }
-            
-            console.log('📝 Processed user data:', userDataFromApi);
             
             setUserData({
                 username: userDataFromApi.username || '',
@@ -488,7 +453,7 @@ function ProfileManager({ isAuthReady }) {
             });
             
         } catch (error) {
-            console.error('❌ Error fetching user data:', error);
+            console.error('Error fetching user data:', error);
             setMessage(t('profile.error.fetchUser'));
             setMessageType('error');
         } finally {
@@ -600,8 +565,6 @@ function ProfileManager({ isAuthReady }) {
                     delete updateData[key];
                 }
             });
-            
-            console.log('📤 Updating profile with:', updateData);
             
             await axiosInstance.put('/profile/', updateData);
             setMessage(t('profile.profile.updated'));
@@ -786,14 +749,7 @@ function ProfileManager({ isAuthReady }) {
             }, 3000);
         } catch (error) {
             console.error('Error deleting account:', error);
-            
-            if (error.response?.status === 405) {
-                setMessage('الخدمة لا تدعم حذف الحساب حالياً. يرجى المحاولة لاحقاً.');
-            } else if (error.response?.status === 404) {
-                setMessage('خدمة حذف الحساب غير متاحة. تم تسجيل المشكلة.');
-            } else {
-                setMessage(t('profile.error.deleteAccount'));
-            }
+            setMessage(t('profile.error.deleteAccount'));
             setMessageType('error');
         } finally {
             setDeleting(false);
@@ -901,102 +857,94 @@ function ProfileManager({ isAuthReady }) {
 
     if (loading && !userData.username) {
         return (
-            <div className={`loading-container ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="spinner"></div>
-                <p>{t('common.loading')}</p>
+            <div className="analytics-container">
+                <div className="analytics-loading">
+                    <div className="spinner"></div>
+                    <p>{t('common.loading')}</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className={`profile-manager ${darkMode ? 'dark-mode' : ''} ${reducedMotion ? 'reduce-motion' : ''}`}>
-            <div className="profile-header">
-                <div className="header-icon-wrapper">
-                    <div className="header-icon">👤</div>
-                </div>
-                <div className="header-text">
-                    <h1>{t('profile.title')}</h1>
-                    <p>{t('profile.description')}</p>
-                </div>
+        <div className={`analytics-container ${reducedMotion ? 'reduce-motion' : ''}`}>
+            {/* رأس الصفحة */}
+            <div className="analytics-header">
+                <h2>
+                    <span>👤</span>
+                    {t('profile.title')}
+                </h2>
             </div>
 
+            {/* Smart Profile Card */}
             {smartProfile && (
-                <div className="smart-profile-card">
-                    <div className="smart-profile-header">
-                        <span className="smart-icon">🧠</span>
-                        <span className="smart-title">{t('profile.smartProfile.title')}</span>
-                    </div>
-                    
-                    <div className="smart-profile-content">
-                        <div className="profile-stats">
-                            <div className="stat">
-                                <span className="stat-label">{t('profile.smartProfile.bmi')}</span>
-                                <span className="stat-value" style={{ color: smartProfile.bmiCategory?.color }}>
-                                    {smartProfile.bmi}
-                                </span>
-                                <span className="stat-category">{smartProfile.bmiCategory?.category}</span>
+                <div className="insight-card" style={{ background: 'var(--primary-gradient)', color: 'white' }}>
+                    <div className="insight-icon">🧠</div>
+                    <div className="insight-content">
+                        <h3 style={{ color: 'white' }}>{t('profile.smartProfile.title')}</h3>
+                        <div className="analytics-stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                            <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
+                                <div className="stat-content">
+                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.smartProfile.bmi')}</div>
+                                    <div className="stat-value" style={{ color: smartProfile.bmiCategory?.color }}>{smartProfile.bmi}</div>
+                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>{smartProfile.bmiCategory?.category}</div>
+                                </div>
                             </div>
-                            <div className="stat">
-                                <span className="stat-label">{t('profile.smartProfile.age')}</span>
-                                <span className="stat-value">{smartProfile.age || '—'}</span>
+                            <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
+                                <div className="stat-content">
+                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.smartProfile.age')}</div>
+                                    <div className="stat-value" style={{ color: 'white' }}>{smartProfile.age || '—'}</div>
+                                </div>
                             </div>
-                            <div className="stat">
-                                <span className="stat-label">{t('profile.smartProfile.healthScore')}</span>
-                                <div className="score-container">
-                                    <div className="score-circle">
-                                        <span className="score-value">{smartProfile.healthScore}</span>
-                                    </div>
-                                    <div className="score-bar">
-                                        <div className="score-fill" style={{ width: `${smartProfile.healthScore}%` }} />
+                            <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
+                                <div className="stat-content">
+                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.smartProfile.healthScore')}</div>
+                                    <div className="stat-value" style={{ color: 'white' }}>{smartProfile.healthScore}</div>
+                                    <div className="progress-bar" style={{ marginTop: 'var(--spacing-xs)' }}>
+                                        <div className="progress-fill" style={{ width: `${smartProfile.healthScore}%` }}></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <div className="user-occupation-badge">
-                            <span className="occupation-icon">
-                                {userData.occupation_status === 'Student' && '📚'}
-                                {userData.occupation_status === 'Full-Time' && '💼'}
-                                {userData.occupation_status === 'Freelancer' && '🖥️'}
-                                {userData.occupation_status === 'Other' && '👤'}
-                                {!userData.occupation_status && '❓'}
-                            </span>
-                            <span className="occupation-text">
-                                {userData.occupation_status ? t(`profile.profile.${userData.occupation_status.toLowerCase()}`) : t('profile.profile.selectOccupation')}
-                            </span>
-                        </div>
-                        
                         {getPersonalizedRecommendations.length > 0 && (
-                            <div className="smart-recommendations">
-                                <strong>💡 {t('profile.smartProfile.recommendations')}:</strong>
-                                <ul>
+                            <div className="recommendations-section" style={{ background: 'rgba(255,255,255,0.1)', marginTop: 'var(--spacing-md)' }}>
+                                <div className="rec-header">
+                                    <span className="rec-icon">💡</span>
+                                    <span className="rec-category" style={{ color: 'white' }}>{t('profile.smartProfile.recommendations')}</span>
+                                </div>
+                                <div className="recommendations-list">
                                     {getPersonalizedRecommendations.map((rec, i) => (
-                                        <li key={i} className={`priority-${rec.priority}`}>
-                                            <span className="rec-icon">{rec.icon}</span>
-                                            <span>{rec.text}</span>
-                                        </li>
+                                        <div key={i} className={`recommendation-card priority-${rec.priority === 'high' ? 'high' : 'medium'}`} style={{ background: 'rgba(255,255,255,0.15)' }}>
+                                            <div className="rec-header">
+                                                <span className="rec-icon">{rec.icon}</span>
+                                                <span className="rec-category" style={{ color: 'white' }}>{rec.text}</span>
+                                            </div>
+                                        </div>
                                     ))}
-                                </ul>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             )}
 
-            <div className="tabs-navigation">
-                <button className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
-                    <span>📝</span><span>{t('profile.tabs.profile')}</span>
+            {/* التبويبات */}
+            <div className="analytics-tabs">
+                <button className={`type-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
+                    📝 {t('profile.tabs.profile')}
                 </button>
-                <button className={`tab-btn ${activeTab === 'goals' ? 'active' : ''}`} onClick={() => setActiveTab('goals')}>
-                    <span>🎯</span><span>{t('profile.tabs.goals')}</span>
+                <button className={`type-btn ${activeTab === 'goals' ? 'active' : ''}`} onClick={() => setActiveTab('goals')}>
+                    🎯 {t('profile.tabs.goals')}
                 </button>
-                <button className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
-                    <span>⚙️</span><span>{t('profile.tabs.settings')}</span>
+                <button className={`type-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+                    ⚙️ {t('profile.tabs.settings')}
                 </button>
             </div>
 
+            {/* الرسائل */}
             {message && (
-                <div className={`message ${messageType}`}>
+                <div className={`notification-message ${messageType}`} style={{ marginBottom: 'var(--spacing-lg)' }}>
                     <span>{messageType === 'success' ? '✅' : messageType === 'error' ? '❌' : 'ℹ️'}</span>
                     <span>{message}</span>
                     <button onClick={() => setMessage('')}>✕</button>
@@ -1006,41 +954,41 @@ function ProfileManager({ isAuthReady }) {
             <div className="tab-content">
                 {/* تبويب الملف الشخصي */}
                 {activeTab === 'profile' && (
-                    <form onSubmit={handleUserUpdate} className="profile-form">
-                        <div className="form-section">
+                    <form onSubmit={handleUserUpdate}>
+                        <div className="recommendations-section">
                             <h3>📋 {t('profile.profile.basicInfo')}</h3>
-                            <div className="form-grid">
-                                <div className="form-group">
-                                    <label>{t('profile.profile.username')}</label>
-                                    <input type="text" value={userData.username} disabled />
+                            <div className="strengths-weaknesses" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                                <div className="field-group">
+                                    <label className="stat-label">{t('profile.profile.username')}</label>
+                                    <input type="text" value={userData.username} disabled className="search-input" />
                                 </div>
-                                <div className="form-group">
-                                    <label>{t('profile.profile.email')}</label>
-                                    <input type="email" value={userData.email} onChange={(e) => setUserData({...userData, email: e.target.value})} />
+                                <div className="field-group">
+                                    <label className="stat-label">{t('profile.profile.email')}</label>
+                                    <input type="email" value={userData.email} onChange={(e) => setUserData({...userData, email: e.target.value})} className="search-input" />
                                 </div>
-                                <div className="form-group">
-                                    <label>{t('profile.profile.firstName')}</label>
-                                    <input type="text" value={userData.first_name} onChange={(e) => setUserData({...userData, first_name: e.target.value})} placeholder="الاسم الأول" />
+                                <div className="field-group">
+                                    <label className="stat-label">{t('profile.profile.firstName')}</label>
+                                    <input type="text" value={userData.first_name} onChange={(e) => setUserData({...userData, first_name: e.target.value})} className="search-input" />
                                 </div>
-                                <div className="form-group">
-                                    <label>{t('profile.profile.lastName')}</label>
-                                    <input type="text" value={userData.last_name} onChange={(e) => setUserData({...userData, last_name: e.target.value})} placeholder="الاسم الأخير" />
+                                <div className="field-group">
+                                    <label className="stat-label">{t('profile.profile.lastName')}</label>
+                                    <input type="text" value={userData.last_name} onChange={(e) => setUserData({...userData, last_name: e.target.value})} className="search-input" />
                                 </div>
-                                <div className="form-group">
-                                    <label>{t('profile.profile.birthDate')}</label>
-                                    <input type="date" value={userData.date_of_birth} onChange={(e) => setUserData({...userData, date_of_birth: e.target.value})} />
+                                <div className="field-group">
+                                    <label className="stat-label">{t('profile.profile.birthDate')}</label>
+                                    <input type="date" value={userData.date_of_birth} onChange={(e) => setUserData({...userData, date_of_birth: e.target.value})} className="search-input" />
                                 </div>
-                                <div className="form-group">
-                                    <label>{t('profile.profile.gender')}</label>
-                                    <select value={userData.gender} onChange={(e) => setUserData({...userData, gender: e.target.value})}>
+                                <div className="field-group">
+                                    <label className="stat-label">{t('profile.profile.gender')}</label>
+                                    <select value={userData.gender} onChange={(e) => setUserData({...userData, gender: e.target.value})} className="search-input">
                                         <option value="">{t('profile.profile.selectGender')}</option>
                                         <option value="M">{t('profile.profile.male')}</option>
                                         <option value="F">{t('profile.profile.female')}</option>
                                     </select>
                                 </div>
-                                <div className="form-group">
-                                    <label>{t('profile.profile.occupation')}</label>
-                                    <select value={userData.occupation_status} onChange={(e) => setUserData({...userData, occupation_status: e.target.value})}>
+                                <div className="field-group">
+                                    <label className="stat-label">{t('profile.profile.occupation')}</label>
+                                    <select value={userData.occupation_status} onChange={(e) => setUserData({...userData, occupation_status: e.target.value})} className="search-input">
                                         <option value="">{t('profile.profile.selectOccupation')}</option>
                                         <option value="Student">{t('profile.profile.student')}</option>
                                         <option value="Full-Time">{t('profile.profile.fullTime')}</option>
@@ -1051,31 +999,31 @@ function ProfileManager({ isAuthReady }) {
                             </div>
                         </div>
 
-                        <div className="form-section">
+                        <div className="recommendations-section">
                             <h3>❤️ {t('profile.profile.healthInfo')}</h3>
-                            <div className="form-grid">
-                                <div className="form-group">
-                                    <label>{t('profile.profile.initialWeight')}</label>
-                                    <div className="input-with-unit">
-                                        <input type="number" step="0.1" value={userData.initial_weight} onChange={(e) => setUserData({...userData, initial_weight: e.target.value})} />
-                                        <span className="unit">{t('profile.units.kg')}</span>
+                            <div className="strengths-weaknesses" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                                <div className="field-group">
+                                    <label className="stat-label">{t('profile.profile.initialWeight')}</label>
+                                    <div className="input-wrapper" style={{ position: 'relative' }}>
+                                        <input type="number" step="0.1" value={userData.initial_weight} onChange={(e) => setUserData({...userData, initial_weight: e.target.value})} className="search-input" />
+                                        <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)' }}>{t('profile.units.kg')}</span>
                                     </div>
                                 </div>
-                                <div className="form-group">
-                                    <label>{t('profile.profile.height')}</label>
-                                    <div className="input-with-unit">
-                                        <input type="number" step="0.1" value={userData.height} onChange={(e) => setUserData({...userData, height: e.target.value})} />
-                                        <span className="unit">{t('profile.units.cm')}</span>
+                                <div className="field-group">
+                                    <label className="stat-label">{t('profile.profile.height')}</label>
+                                    <div className="input-wrapper" style={{ position: 'relative' }}>
+                                        <input type="number" step="0.1" value={userData.height} onChange={(e) => setUserData({...userData, height: e.target.value})} className="search-input" />
+                                        <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)' }}>{t('profile.units.cm')}</span>
                                     </div>
                                 </div>
-                                <div className="form-group">
-                                    <label>{t('profile.profile.phone')}</label>
-                                    <input type="tel" value={userData.phone_number} onChange={(e) => setUserData({...userData, phone_number: e.target.value})} />
+                                <div className="field-group">
+                                    <label className="stat-label">{t('profile.profile.phone')}</label>
+                                    <input type="tel" value={userData.phone_number} onChange={(e) => setUserData({...userData, phone_number: e.target.value})} className="search-input" />
                                 </div>
                             </div>
                         </div>
 
-                        <button type="submit" disabled={saving} className="save-btn">
+                        <button type="submit" disabled={saving} className="type-btn active" style={{ width: '100%' }}>
                             {saving ? t('common.saving') : t('profile.profile.saveChanges')}
                         </button>
                     </form>
@@ -1084,147 +1032,148 @@ function ProfileManager({ isAuthReady }) {
                 {/* تبويب الأهداف الذكية */}
                 {activeTab === 'goals' && (
                     <div className="goals-container">
-                        <div className="add-goal-card">
-                            <h3>🎯 {t('profile.goals.addNew')}</h3>
-                            <form onSubmit={handleAddGoal} className="goal-form">
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label>{t('profile.goals.title')}</label>
-                                        <input type="text" value={newGoal.title} onChange={(e) => setNewGoal({...newGoal, title: e.target.value})} placeholder={t('profile.goals.titlePlaceholder')} required />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>{t('profile.goals.type')}</label>
-                                        <select value={newGoal.type} onChange={(e) => setNewGoal({...newGoal, type: e.target.value})}>
-                                            <option value="general">{t('profile.goals.types.general')}</option>
-                                            <option value="weight_loss">{t('profile.goals.types.weightLoss')}</option>
-                                            <option value="weight_gain">{t('profile.goals.types.weightGain')}</option>
-                                            <option value="sleep">{t('profile.goals.types.sleep')}</option>
-                                            <option value="activity">{t('profile.goals.types.activity')}</option>
-                                            <option value="calories">{t('profile.goals.types.calories')}</option>
-                                            <option value="habit">{t('profile.goals.types.habit')}</option>
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>{t('profile.goals.targetValue')}</label>
-                                        <div className="input-with-unit">
-                                            <input type="number" step="0.1" value={newGoal.target_value} onChange={(e) => setNewGoal({...newGoal, target_value: e.target.value})} required />
-                                            <select value={newGoal.unit} onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})} className="unit-select">
-                                                <option value="kg">kg</option>
-                                                <option value="cm">cm</option>
-                                                <option value="hours">{t('profile.units.hours')}</option>
-                                                <option value="minutes">{t('profile.units.minutes')}</option>
-                                                <option value="calories">{t('profile.units.calories')}</option>
-                                                <option value="percent">%</option>
+                        <div className="insight-card" style={{ background: 'var(--primary-gradient)', color: 'white' }}>
+                            <div className="insight-icon">🎯</div>
+                            <div className="insight-content">
+                                <h3 style={{ color: 'white' }}>{t('profile.goals.addNew')}</h3>
+                                <form onSubmit={handleAddGoal}>
+                                    <div className="strengths-weaknesses" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: 'var(--spacing-md)' }}>
+                                        <div className="field-group">
+                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.goals.title')}</label>
+                                            <input type="text" value={newGoal.title} onChange={(e) => setNewGoal({...newGoal, title: e.target.value})} className="search-input" style={{ background: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.3)', color: 'white' }} />
+                                        </div>
+                                        <div className="field-group">
+                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.goals.type')}</label>
+                                            <select value={newGoal.type} onChange={(e) => setNewGoal({...newGoal, type: e.target.value})} className="search-input" style={{ background: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.3)', color: 'white' }}>
+                                                <option value="general">{t('profile.goals.types.general')}</option>
+                                                <option value="weight_loss">{t('profile.goals.types.weightLoss')}</option>
+                                                <option value="weight_gain">{t('profile.goals.types.weightGain')}</option>
+                                                <option value="sleep">{t('profile.goals.types.sleep')}</option>
+                                                <option value="activity">{t('profile.goals.types.activity')}</option>
+                                                <option value="calories">{t('profile.goals.types.calories')}</option>
+                                                <option value="habit">{t('profile.goals.types.habit')}</option>
                                             </select>
                                         </div>
+                                        <div className="field-group">
+                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.goals.targetValue')}</label>
+                                            <div className="input-wrapper" style={{ position: 'relative' }}>
+                                                <input type="number" step="0.1" value={newGoal.target_value} onChange={(e) => setNewGoal({...newGoal, target_value: e.target.value})} className="search-input" style={{ background: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.3)', color: 'white' }} />
+                                                <select value={newGoal.unit} onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})} className="unit-select" style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', width: 'auto', background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white' }}>
+                                                    <option value="kg">kg</option>
+                                                    <option value="hours">{t('profile.units.hours')}</option>
+                                                    <option value="minutes">{t('profile.units.minutes')}</option>
+                                                    <option value="calories">{t('profile.units.calories')}</option>
+                                                    <option value="percent">%</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="field-group">
+                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.goals.targetDate')}</label>
+                                            <input type="date" value={newGoal.target_date} onChange={(e) => setNewGoal({...newGoal, target_date: e.target.value})} className="search-input" style={{ background: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.3)', color: 'white' }} />
+                                        </div>
                                     </div>
-                                    <div className="form-group">
-                                        <label>{t('profile.goals.targetDate')}</label>
-                                        <input type="date" value={newGoal.target_date} onChange={(e) => setNewGoal({...newGoal, target_date: e.target.value})} required />
-                                    </div>
+                                    <button type="submit" disabled={saving} className="type-btn active" style={{ width: '100%', background: 'white', color: 'var(--primary)' }}>
+                                        {saving ? t('common.saving') : t('profile.goals.addGoal')}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div className="analytics-stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                            <div className="analytics-stat-card">
+                                <div className="stat-content">
+                                    <div className="stat-value">{goalsStats.total}</div>
+                                    <div className="stat-label">{t('profile.goals.totalGoals')}</div>
                                 </div>
-                                <button type="submit" disabled={saving} className="add-goal-btn">
-                                    {saving ? t('common.saving') : t('profile.goals.addGoal')}
-                                </button>
-                            </form>
-                        </div>
-
-                        <div className="goals-stats">
-                            <div className="stat-card">
-                                <span className="stat-value">{goalsStats.total}</span>
-                                <span className="stat-label">{t('profile.goals.totalGoals')}</span>
                             </div>
-                            <div className="stat-card completed">
-                                <span className="stat-value">{goalsStats.completed}</span>
-                                <span className="stat-label">{t('profile.goals.completed')}</span>
+                            <div className="analytics-stat-card">
+                                <div className="stat-content">
+                                    <div className="stat-value">{goalsStats.completed}</div>
+                                    <div className="stat-label">{t('profile.goals.completed')}</div>
+                                </div>
                             </div>
-                            <div className="stat-card in-progress">
-                                <span className="stat-value">{goalsStats.inProgress}</span>
-                                <span className="stat-label">{t('profile.goals.inProgress')}</span>
+                            <div className="analytics-stat-card">
+                                <div className="stat-content">
+                                    <div className="stat-value">{goalsStats.inProgress}</div>
+                                    <div className="stat-label">{t('profile.goals.inProgress')}</div>
+                                </div>
                             </div>
-                            <div className="stat-card">
-                                <span className="stat-value">{goalsStats.avgProgress}%</span>
-                                <span className="stat-label">{t('profile.goals.avgProgress')}</span>
+                            <div className="analytics-stat-card">
+                                <div className="stat-content">
+                                    <div className="stat-value">{goalsStats.avgProgress}%</div>
+                                    <div className="stat-label">{t('profile.goals.avgProgress')}</div>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="goals-list">
+                        <div className="recommendations-section">
                             <h3>📋 {t('profile.goals.myGoals')}</h3>
                             {healthGoals.length > 0 ? (
-                                <div className="goals-grid">
+                                <div className="notifications-list">
                                     {healthGoals.map((goal) => {
                                         const progressData = calculateGoalProgress(goal, healthData);
                                         const isCompleted = goal.is_achieved || progressData.isAchieved;
                                         
                                         return (
-                                            <div key={goal.id} className={`goal-card ${isCompleted ? 'completed' : ''} ${progressData.status === 'on_track' ? 'on-track' : ''}`}>
-                                                <div className="goal-header">
-                                                    <div>
-                                                        <h4>{goal.title}</h4>
-                                                        <span className="goal-type">{t(`profile.goals.types.${goal.type}`)}</span>
-                                                        {goal.type === 'weight_loss' && <span className="goal-badge">⬇️ {t('profile.goals.lose')}</span>}
-                                                        {goal.type === 'weight_gain' && <span className="goal-badge">⬆️ {t('profile.goals.gain')}</span>}
+                                            <div key={goal.id} className={`notification-card ${isCompleted ? 'unread' : ''}`}>
+                                                <div className="notification-header">
+                                                    <div className="notification-title">
+                                                        <h4 style={{ margin: 0 }}>{goal.title}</h4>
+                                                        <span className="rec-type tip">{t(`profile.goals.types.${goal.type}`)}</span>
+                                                        {goal.type === 'weight_loss' && <span className="priority-badge priority-urgent">⬇️ {t('profile.goals.lose')}</span>}
+                                                        {goal.type === 'weight_gain' && <span className="priority-badge priority-high">⬆️ {t('profile.goals.gain')}</span>}
                                                     </div>
-                                                    <button onClick={() => deleteGoal(goal.id)} className="delete-btn" title={t('common.delete')}>🗑️</button>
+                                                    <button onClick={() => deleteGoal(goal.id)} className="notification-action-btn" title={t('common.delete')}>🗑️</button>
                                                 </div>
                                                 
-                                                <div className="goal-progress">
-                                                    <div className="progress-info">
-                                                        <span className="current">{progressData.currentValue || 0}</span>
-                                                        <span className="separator">/</span>
-                                                        <span className="target">{goal.target_value} {goal.unit}</span>
+                                                <div className="notification-content">
+                                                    <div className="habit-stats">
+                                                        <span className="stat-value">{progressData.currentValue || 0}</span>
+                                                        <span>/</span>
+                                                        <span className="stat-label">{goal.target_value} {goal.unit}</span>
                                                     </div>
-                                                    <div className="progress-bar-container">
-                                                        <div className="progress-bar">
-                                                            <div className="progress-fill" style={{ width: `${progressData.progress}%` }} />
-                                                        </div>
-                                                        <span className="progress-percent">{progressData.progress}%</span>
+                                                    <div className="progress-bar" style={{ marginTop: 'var(--spacing-sm)' }}>
+                                                        <div className="progress-fill" style={{ width: `${progressData.progress}%` }}></div>
                                                     </div>
+                                                    <div className="stat-label" style={{ marginTop: 'var(--spacing-xs)' }}>{progressData.progress}%</div>
                                                 </div>
                                                 
-                                                <div className="goal-dates">
-                                                    <div>📅 {t('profile.goals.start')}: {new Date(goal.start_date).toLocaleDateString()}</div>
-                                                    <div>🎯 {t('profile.goals.target')}: {new Date(goal.target_date).toLocaleDateString()}</div>
+                                                <div className="notification-meta">
+                                                    <span className="notification-time">📅 {t('profile.goals.start')}: {new Date(goal.start_date).toLocaleDateString()}</span>
+                                                    <span className="notification-time">🎯 {t('profile.goals.target')}: {new Date(goal.target_date).toLocaleDateString()}</span>
                                                     {progressData.daysLeft > 0 && !isCompleted && (
-                                                        <div>⏰ {t('profile.goals.daysLeft')}: {progressData.daysLeft} {t('profile.goals.days')}</div>
+                                                        <span className="notification-time">⏰ {t('profile.goals.daysLeft')}: {progressData.daysLeft} {t('profile.goals.days')}</span>
                                                     )}
                                                 </div>
                                                 
                                                 {progressData.dailyRate > 0 && !isCompleted && (
-                                                    <div className="goal-daily-rate">
+                                                    <div className="rec-advice" style={{ marginTop: 'var(--spacing-sm)' }}>
                                                         💡 {t('profile.goals.dailyRate')}: {progressData.dailyRate} {goal.unit}/{t('profile.goals.perDay')}
                                                     </div>
                                                 )}
                                                 
                                                 {progressData.status === 'on_track' && !isCompleted && (
-                                                    <div className="goal-status on-track">✅ {t('profile.goals.onTrack')}</div>
-                                                )}
-                                                {progressData.status === 'off_track' && !isCompleted && (
-                                                    <div className="goal-status off-track">⚠️ {t('profile.goals.offTrack')}</div>
-                                                )}
-                                                {isCompleted && (
-                                                    <div className="goal-status achieved">🏆 {t('profile.goals.achieved')}</div>
-                                                )}
-                                                
-                                                {!isCompleted && goal.type !== 'habit' && (
-                                                    <div className="goal-update">
-                                                        <input
-                                                            type="number"
-                                                            step="0.1"
-                                                            placeholder={t('profile.goals.updateProgress')}
-                                                            onKeyPress={(e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    updateGoalProgress(goal.id, parseFloat(e.target.value));
-                                                                    e.target.value = '';
-                                                                }
-                                                            }}
-                                                        />
-                                                        <small>{t('profile.goals.pressEnter')}</small>
+                                                    <div className="recommendation-card priority-low" style={{ marginTop: 'var(--spacing-sm)' }}>
+                                                        <div className="rec-header">
+                                                            <span className="rec-icon">✅</span>
+                                                            <span className="rec-category">{t('profile.goals.onTrack')}</span>
+                                                        </div>
                                                     </div>
                                                 )}
-                                                {!isCompleted && goal.type === 'habit' && (
-                                                    <div className="goal-habit-note">
-                                                        💡 {t('profile.goals.habitAutoTrack')}
+                                                {progressData.status === 'off_track' && !isCompleted && (
+                                                    <div className="recommendation-card priority-high" style={{ marginTop: 'var(--spacing-sm)' }}>
+                                                        <div className="rec-header">
+                                                            <span className="rec-icon">⚠️</span>
+                                                            <span className="rec-category">{t('profile.goals.offTrack')}</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {isCompleted && (
+                                                    <div className="recommendation-card priority-low" style={{ marginTop: 'var(--spacing-sm)' }}>
+                                                        <div className="rec-header">
+                                                            <span className="rec-icon">🏆</span>
+                                                            <span className="rec-category">{t('profile.goals.achieved')}</span>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
@@ -1232,7 +1181,7 @@ function ProfileManager({ isAuthReady }) {
                                     })}
                                 </div>
                             ) : (
-                                <div className="empty-goals">
+                                <div className="analytics-empty">
                                     <div className="empty-icon">🎯</div>
                                     <h4>{t('profile.goals.noGoals')}</h4>
                                     <p>{t('profile.goals.startAdding')}</p>
@@ -1245,113 +1194,93 @@ function ProfileManager({ isAuthReady }) {
                 {/* تبويب الإعدادات */}
                 {activeTab === 'settings' && (
                     <div className="settings-container">
-                        <div className="settings-card">
+                        <div className="recommendations-section">
                             <h3>⚙️ {t('profile.settings.title')}</h3>
                             
-                            <div className="setting-item">
+                            <div className="setting-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-lg)', marginBottom: 'var(--spacing-sm)' }}>
                                 <div>
-                                    <label>{t('profile.settings.darkMode')}</label>
-                                    <p>{t('profile.settings.darkModeDesc')}</p>
+                                    <label className="stat-label">{t('profile.settings.notifications')}</label>
+                                    <p className="stat-label" style={{ fontSize: '0.75rem' }}>{t('profile.settings.notificationsDesc')}</p>
                                 </div>
-                                <label className="toggle">
-                                    <input type="checkbox" checked={settings.darkMode} onChange={(e) => setSettings({...settings, darkMode: e.target.checked})} />
-                                    <span className="toggle-slider"></span>
-                                </label>
-                            </div>
-
-                            <div className="setting-item">
-                                <div>
-                                    <label>{t('profile.settings.notifications')}</label>
-                                    <p>{t('profile.settings.notificationsDesc')}</p>
-                                </div>
-                                <label className="toggle">
+                                <label className="toggle-switch">
                                     <input type="checkbox" checked={settings.notifications} onChange={(e) => setSettings({...settings, notifications: e.target.checked})} />
                                     <span className="toggle-slider"></span>
                                 </label>
                             </div>
 
-                            <div className="setting-item">
+                            <div className="setting-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-lg)', marginBottom: 'var(--spacing-sm)' }}>
                                 <div>
-                                    <label>{t('profile.settings.language')}</label>
-                                    <p>{t('profile.settings.languageDesc')}</p>
+                                    <label className="stat-label">{t('profile.settings.language')}</label>
+                                    <p className="stat-label" style={{ fontSize: '0.75rem' }}>{t('profile.settings.languageDesc')}</p>
                                 </div>
-                                <select value={settings.language} onChange={(e) => setSettings({...settings, language: e.target.value})}>
+                                <select value={settings.language} onChange={(e) => setSettings({...settings, language: e.target.value})} className="search-input" style={{ width: 'auto' }}>
                                     <option value="ar">🇸🇦 العربية</option>
                                     <option value="en">🇺🇸 English</option>
                                 </select>
                             </div>
 
-                            <button onClick={handleSaveSettings} disabled={saving} className="save-settings-btn">
+                            <button onClick={handleSaveSettings} disabled={saving} className="type-btn active" style={{ width: '100%' }}>
                                 {saving ? t('common.saving') : t('profile.settings.save')}
                             </button>
                         </div>
 
-                        <div className="password-card">
+                        <div className="recommendations-section">
                             <h3>🔐 {t('profile.password.title')}</h3>
-                            <form onSubmit={handleChangePassword} className="password-form">
-                                <div className="form-group">
-                                    <label>{t('profile.password.currentPassword')}</label>
-                                    <input 
-                                        type="password" 
-                                        value={passwordData.current_password}
-                                        onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})}
-                                        required
-                                    />
+                            <form onSubmit={handleChangePassword}>
+                                <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+                                    <label className="stat-label">{t('profile.password.currentPassword')}</label>
+                                    <input type="password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} required className="search-input" />
                                 </div>
-                                <div className="form-group">
-                                    <label>{t('profile.password.newPassword')}</label>
-                                    <input 
-                                        type="password" 
-                                        value={passwordData.new_password}
-                                        onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})}
-                                        required
-                                    />
-                                    <small>{t('profile.password.passwordHint')}</small>
+                                <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+                                    <label className="stat-label">{t('profile.password.newPassword')}</label>
+                                    <input type="password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} required className="search-input" />
+                                    <small className="stat-label">{t('profile.password.passwordHint')}</small>
                                 </div>
-                                <div className="form-group">
-                                    <label>{t('profile.password.confirmPassword')}</label>
-                                    <input 
-                                        type="password" 
-                                        value={passwordData.confirm_password}
-                                        onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})}
-                                        required
-                                    />
+                                <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+                                    <label className="stat-label">{t('profile.password.confirmPassword')}</label>
+                                    <input type="password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} required className="search-input" />
                                 </div>
-                                <button type="submit" disabled={changingPassword} className="change-password-btn">
+                                <button type="submit" disabled={changingPassword} className="type-btn active" style={{ width: '100%' }}>
                                     {changingPassword ? t('common.saving') : t('profile.password.change')}
                                 </button>
                             </form>
                         </div>
 
-                        <div className="backup-section">
+                        <div className="recommendations-section">
                             <h3>💾 {t('profile.backup.title')}</h3>
-                            <div className="backup-cards">
-                                <div className="backup-card full">
-                                    <div className="backup-icon">📦</div>
-                                    <h4>{t('profile.backup.fullBackup')}</h4>
-                                    <p>{t('profile.backup.fullBackupDesc')}</p>
-                                    <button onClick={handleFullBackup} disabled={exporting} className="backup-btn">
-                                        {exporting ? t('common.exporting') : t('profile.backup.download')}
-                                    </button>
+                            <div className="strengths-weaknesses" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                                <div className="insight-card" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+                                    <div className="insight-icon">📦</div>
+                                    <div className="insight-content">
+                                        <h4 style={{ color: 'white' }}>{t('profile.backup.fullBackup')}</h4>
+                                        <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.85rem' }}>{t('profile.backup.fullBackupDesc')}</p>
+                                        <button onClick={handleFullBackup} disabled={exporting} className="type-btn" style={{ background: 'white', color: '#667eea' }}>
+                                            {exporting ? t('common.exporting') : t('profile.backup.download')}
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="backup-card restore">
-                                    <div className="backup-icon">🔄</div>
-                                    <h4>{t('profile.restore.title')}</h4>
-                                    <p>{t('profile.restore.desc')}</p>
-                                    <input type="file" accept=".json" onChange={handleRestoreBackup} id="restore-file" style={{ display: 'none' }} />
-                                    <label htmlFor="restore-file" className="restore-btn">{t('profile.restore.select')}</label>
+                                <div className="insight-card" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white' }}>
+                                    <div className="insight-icon">🔄</div>
+                                    <div className="insight-content">
+                                        <h4 style={{ color: 'white' }}>{t('profile.restore.title')}</h4>
+                                        <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.85rem' }}>{t('profile.restore.desc')}</p>
+                                        <input type="file" accept=".json" onChange={handleRestoreBackup} id="restore-file" style={{ display: 'none' }} />
+                                        <label htmlFor="restore-file" className="type-btn" style={{ background: 'white', color: '#f5576c', cursor: 'pointer', display: 'inline-block', textAlign: 'center' }}>
+                                            {t('profile.restore.select')}
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="danger-zone">
-                            <h4>⚠️ {t('profile.danger.zone')}</h4>
-                            <p>{t('profile.danger.warning')}</p>
-                            <div className="danger-actions">
-                                <button onClick={handleExportData} disabled={exporting} className="danger-btn export">
+                        <div className="recommendations-section" style={{ border: '2px solid var(--error)', background: 'rgba(239, 68, 68, 0.05)' }}>
+                            <h4 style={{ color: 'var(--error)' }}>⚠️ {t('profile.danger.zone')}</h4>
+                            <p className="stat-label">{t('profile.danger.warning')}</p>
+                            <div className="type-filters" style={{ justifyContent: 'center' }}>
+                                <button onClick={handleExportData} disabled={exporting} className="type-btn" style={{ background: 'var(--warning)', color: 'white' }}>
                                     📥 {t('profile.danger.exportData')}
                                 </button>
-                                <button onClick={handleDeleteAccount} disabled={deleting} className="danger-btn delete">
+                                <button onClick={handleDeleteAccount} disabled={deleting} className="type-btn" style={{ background: 'var(--error)', color: 'white' }}>
                                     🗑️ {t('profile.danger.deleteAccount')}
                                 </button>
                             </div>
@@ -1360,954 +1289,55 @@ function ProfileManager({ isAuthReady }) {
                 )}
             </div>
 
-
-            <style jsx>{`
-/* ProfileManager.css - متوافق مع ThemeManager */
-
-.profile-manager {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: var(--spacing-lg);
-    background: var(--primary-bg);
-    min-height: 100vh;
-    transition: background var(--transition-medium);
-}
-
-/* ===== رأس الصفحة ===== */
-.profile-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
-    flex-wrap: wrap;
-}
-
-.header-icon-wrapper {
-    width: 80px;
-    height: 80px;
-    background: var(--primary-gradient);
-    border-radius: var(--radius-2xl);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow-lg);
-}
-
-.header-icon {
-    font-size: 2.5rem;
-}
-
-.header-text h1 {
-    margin: 0;
-    font-size: 1.8rem;
-    color: var(--text-primary);
-}
-
-.header-text p {
-    margin: var(--spacing-xs) 0 0;
-    color: var(--text-secondary);
-}
-
-/* ===== Smart Profile Card ===== */
-.smart-profile-card {
-    background: var(--primary-gradient);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    color: white;
-    box-shadow: var(--shadow-lg);
-}
-
-.smart-profile-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-md);
-}
-
-.smart-icon {
-    font-size: 1.5rem;
-}
-
-.smart-title {
-    font-weight: 700;
-}
-
-.profile-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-}
-
-.stat {
-    text-align: center;
-}
-
-.stat-label {
-    display: block;
-    font-size: 0.8rem;
-    opacity: 0.8;
-}
-
-.stat-value {
-    display: block;
-    font-size: 1.8rem;
-    font-weight: 700;
-}
-
-.stat-category {
-    font-size: 0.7rem;
-}
-
-.score-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.score-circle {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.score-value {
-    font-size: 1.2rem;
-    font-weight: 700;
-}
-
-.score-bar {
-    width: 100%;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: var(--radius-full);
-}
-
-.score-fill {
-    height: 100%;
-    background: white;
-    border-radius: var(--radius-full);
-    transition: width var(--transition-medium);
-}
-
-.smart-recommendations {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-sm);
-}
-
-.smart-recommendations strong {
-    display: block;
-    margin-bottom: var(--spacing-xs);
-}
-
-.smart-recommendations ul {
-    margin: 0;
-    padding-left: var(--spacing-lg);
-}
-
-.smart-recommendations li {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-xs);
-}
-
-.rec-icon {
-    font-size: 1rem;
-}
-
-/* ===== التبويبات ===== */
-.tabs-navigation {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
-    background: var(--secondary-bg);
-    padding: var(--spacing-xs);
-    border-radius: var(--radius-full);
-    border: 1px solid var(--border-light);
-}
-
-.tab-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: none;
-    background: transparent;
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    transition: all var(--transition-medium);
-    color: var(--text-secondary);
-}
-
-.tab-btn:hover:not(.active) {
-    background: var(--hover-bg);
-    color: var(--primary);
-}
-
-.tab-btn.active {
-    background: var(--primary-gradient);
-    color: white;
-}
-
-/* ===== الرسائل ===== */
-.message {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius-lg);
-    margin-bottom: var(--spacing-lg);
-    animation: slideIn 0.3s ease;
-}
-
-.message.success {
-    background: var(--success-bg);
-    border: 1px solid var(--success-border);
-    color: var(--success);
-}
-
-.message.error {
-    background: var(--error-bg);
-    border: 1px solid var(--error-border);
-    color: var(--error);
-}
-
-.message.info {
-    background: var(--info-bg);
-    border: 1px solid var(--info-border);
-    color: var(--info);
-}
-
-.message button {
-    margin-left: auto;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: inherit;
-    opacity: 0.7;
-    transition: opacity var(--transition-fast);
-}
-
-.message button:hover {
-    opacity: 1;
-}
-
-/* ===== النماذج ===== */
-.form-section {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.form-section h3 {
-    margin: 0 0 var(--spacing-lg) 0;
-    color: var(--text-primary);
-}
-
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--spacing-lg);
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
-
-.form-group label {
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.form-group input,
-.form-group select {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    font-size: 0.95rem;
-    transition: all var(--transition-fast);
-}
-
-.form-group input:focus,
-.form-group select:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
-}
-
-.form-group input:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.input-with-unit {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-.input-with-unit input {
-    flex: 1;
-}
-
-.unit,
-.unit-select {
-    padding: var(--spacing-sm);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-}
-
-.save-btn {
-    width: 100%;
-    padding: var(--spacing-sm) var(--spacing-md);
-    background: var(--primary-gradient);
-    color: white;
-    border: none;
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all var(--transition-medium);
-}
-
-.save-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.save-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* ===== الأهداف ===== */
-.add-goal-card {
-    background: var(--primary-gradient);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    color: white;
-}
-
-.add-goal-card h3 {
-    margin: 0 0 var(--spacing-lg) 0;
-}
-
-.goal-form .form-group label {
-    color: white;
-}
-
-.goal-form input,
-.goal-form select {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
-    color: white;
-}
-
-.goal-form input::placeholder {
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.goal-form option {
-    color: var(--text-primary);
-}
-
-.add-goal-btn {
-    width: 100%;
-    padding: var(--spacing-sm) var(--spacing-md);
-    background: white;
-    color: var(--primary);
-    border: none;
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all var(--transition-medium);
-}
-
-.add-goal-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.goals-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
-}
-
-.stat-card {
-    background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    text-align: center;
-    border: 1px solid var(--border-light);
-}
-
-.stat-card .stat-value {
-    display: block;
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: var(--primary);
-}
-
-.stat-card .stat-label {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
-
-/* ===== قائمة الأهداف ===== */
-.goals-list h3 {
-    margin: 0 0 var(--spacing-md) 0;
-    color: var(--text-primary);
-}
-
-.goals-grid {
-    display: grid;
-    gap: var(--spacing-md);
-}
-
-.goal-card {
-    background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-medium);
-}
-
-.goal-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.goal-card.completed {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-}
-
-.goal-card.completed .goal-header h4,
-.goal-card.completed .goal-dates {
-    color: white;
-}
-
-.goal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-sm);
-}
-
-.goal-header h4 {
-    margin: 0;
-}
-
-.goal-type {
-    font-size: 0.7rem;
-    opacity: 0.7;
-}
-
-.delete-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    opacity: 0.6;
-    transition: opacity var(--transition-fast);
-}
-
-.delete-btn:hover {
-    opacity: 1;
-}
-
-.goal-progress {
-    margin-bottom: var(--spacing-sm);
-}
-
-.progress-info {
-    display: flex;
-    align-items: baseline;
-    gap: var(--spacing-xs);
-    margin-bottom: var(--spacing-sm);
-}
-
-.current {
-    font-size: 1.2rem;
-    font-weight: 700;
-}
-
-.target {
-    color: var(--text-tertiary);
-}
-
-.goal-card.completed .target {
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.progress-bar-container {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.progress-bar {
-    flex: 1;
-    height: 6px;
-    background: var(--tertiary-bg);
-    border-radius: var(--radius-full);
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    background: var(--primary);
-    border-radius: var(--radius-full);
-    transition: width var(--transition-medium);
-}
-
-.goal-card.completed .progress-fill {
-    background: white;
-}
-
-.progress-percent {
-    font-size: 0.8rem;
-}
-
-.goal-dates {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-    margin-bottom: var(--spacing-sm);
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-}
-
-.goal-daily-rate {
-    background: var(--secondary-bg);
-    padding: var(--spacing-sm);
-    border-radius: var(--radius-md);
-    font-size: 0.8rem;
-    margin-bottom: var(--spacing-sm);
-    color: var(--text-secondary);
-}
-
-.goal-status {
-    padding: var(--spacing-sm);
-    border-radius: var(--radius-md);
-    text-align: center;
-    margin-bottom: var(--spacing-sm);
-}
-
-.goal-status.on-track {
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--success);
-}
-
-.goal-status.off-track {
-    background: rgba(239, 68, 68, 0.15);
-    color: var(--error);
-}
-
-.goal-status.achieved {
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--success);
-}
-
-.goal-update input {
-    width: 100%;
-    padding: var(--spacing-sm);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-md);
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    text-align: center;
-}
-
-.goal-update input:focus {
-    outline: none;
-    border-color: var(--primary);
-}
-
-.goal-update small {
-    display: block;
-    text-align: center;
-    font-size: 0.7rem;
-    margin-top: var(--spacing-xs);
-    color: var(--text-tertiary);
-}
-
-.empty-goals {
-    text-align: center;
-    padding: var(--spacing-2xl);
-    background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-light);
-}
-
-.empty-icon {
-    font-size: 3rem;
-    margin-bottom: var(--spacing-md);
-    opacity: 0.5;
-}
-
-/* ===== الإعدادات ===== */
-.settings-card {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.setting-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: var(--spacing-md);
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    margin-bottom: var(--spacing-sm);
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-}
-
-.setting-item label {
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.setting-item p {
-    margin: var(--spacing-xs) 0 0;
-    font-size: 0.8rem;
-    color: var(--text-tertiary);
-}
-
-.setting-item select {
-    padding: var(--spacing-sm);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    background: var(--card-bg);
-    color: var(--text-primary);
-}
-
-.toggle {
-    position: relative;
-    display: inline-block;
-    width: 50px;
-    height: 24px;
-}
-
-.toggle input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--border-medium);
-    border-radius: 24px;
-    transition: all var(--transition-fast);
-}
-
-.toggle-slider:before {
-    position: absolute;
-    content: "";
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
-    border-radius: 50%;
-    transition: all var(--transition-fast);
-}
-
-input:checked + .toggle-slider {
-    background-color: var(--primary);
-}
-
-input:checked + .toggle-slider:before {
-    transform: translateX(26px);
-}
-
-[dir="rtl"] input:checked + .toggle-slider:before {
-    transform: translateX(-26px);
-}
-
-.save-settings-btn {
-    width: 100%;
-    padding: var(--spacing-sm);
-    background: var(--primary-gradient);
-    color: white;
-    border: none;
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all var(--transition-medium);
-}
-
-.save-settings-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-/* ===== النسخ الاحتياطي ===== */
-.backup-section {
-    margin-bottom: var(--spacing-lg);
-}
-
-.backup-section h3 {
-    margin: 0 0 var(--spacing-md) 0;
-    color: var(--text-primary);
-}
-
-.backup-cards {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--spacing-md);
-}
-
-.backup-card {
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    color: white;
-    transition: all var(--transition-medium);
-}
-
-.backup-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-lg);
-}
-
-.backup-card.full {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.backup-card.restore {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.backup-icon {
-    font-size: 2rem;
-    margin-bottom: var(--spacing-sm);
-}
-
-.backup-card h4 {
-    margin: 0 0 var(--spacing-sm);
-}
-
-.backup-card p {
-    margin: 0 0 var(--spacing-md);
-    font-size: 0.85rem;
-    opacity: 0.9;
-}
-
-.backup-btn,
-.restore-btn {
-    width: 100%;
-    padding: var(--spacing-sm);
-    background: white;
-    border: none;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-weight: 600;
-    text-align: center;
-    display: block;
-    transition: all var(--transition-fast);
-}
-
-.backup-btn:hover,
-.restore-btn:hover {
-    transform: translateY(-2px);
-}
-
-.backup-btn {
-    color: #667eea;
-}
-
-.restore-btn {
-    color: #f5576c;
-}
-
-/* ===== منطقة الخطر ===== */
-.danger-zone {
-    border: 2px solid var(--error);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    background: rgba(239, 68, 68, 0.05);
-}
-
-.danger-zone h4 {
-    margin: 0 0 var(--spacing-sm);
-    color: var(--error);
-}
-
-.danger-zone p {
-    margin: 0 0 var(--spacing-md);
-    color: var(--text-secondary);
-}
-
-.danger-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-.danger-btn {
-    flex: 1;
-    padding: var(--spacing-sm);
-    border: none;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all var(--transition-medium);
-}
-
-.danger-btn.export {
-    background: var(--warning);
-    color: white;
-}
-
-.danger-btn.delete {
-    background: var(--error);
-    color: white;
-}
-
-.danger-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-/* ===== حالة التحميل ===== */
-.loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-}
-
-.spinner {
-    width: 50px;
-    height: 50px;
-    border: 4px solid var(--border-light);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: var(--spacing-md);
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* ===== استجابة ===== */
-@media (max-width: 768px) {
-    .profile-manager {
-        padding: var(--spacing-md);
-    }
-
-    .profile-header {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .profile-stats {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-md);
-    }
-
-    .goals-stats {
-        grid-template-columns: 1fr;
-    }
-
-    .backup-cards {
-        grid-template-columns: 1fr;
-    }
-
-    .danger-actions {
-        flex-direction: column;
-    }
-
-    .tabs-navigation {
-        flex-wrap: wrap;
-    }
-
-    .tab-btn {
-        flex: none;
-        width: calc(50% - 4px);
-    }
-}
-
-@media (max-width: 480px) {
-    .tab-btn {
-        width: 100%;
-    }
-
-    .goal-dates {
-        flex-direction: column;
-        gap: var(--spacing-xs);
-    }
-}
-
-/* ===== دعم RTL ===== */
-[dir="rtl"] .smart-recommendations ul {
-    padding-left: 0;
-    padding-right: var(--spacing-lg);
-}
-
-[dir="rtl"] .message button {
-    margin-left: 0;
-    margin-right: auto;
-}
-
-[dir="rtl"] .setting-item {
-    flex-direction: row-reverse;
-    text-align: right;
-}
-
-/* ===== دعم الحركة المخفضة ===== */
-.reduce-motion *,
-.reduce-motion *::before,
-.reduce-motion *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-}
-
-.reduce-motion .goal-card:hover,
-.reduce-motion .backup-card:hover,
-.reduce-motion .save-btn:hover {
-    transform: none !important;
-}
-
-.reduce-motion .spinner {
-    animation: none !important;
-}
+            {/* الأنماط الإضافية */}
+            <style>{`
+                .input-unit {
+                    color: var(--text-tertiary);
+                    font-size: 0.8rem;
+                }
+                
+                .setting-item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: var(--spacing-md);
+                    background: var(--secondary-bg);
+                    border-radius: var(--radius-lg);
+                    margin-bottom: var(--spacing-sm);
+                    flex-wrap: wrap;
+                    gap: var(--spacing-sm);
+                }
+                
+                [dir="rtl"] .input-unit {
+                    right: auto !important;
+                    left: 1rem !important;
+                }
+                
+                [dir="rtl"] .unit-select {
+                    right: auto !important;
+                    left: 0.5rem !important;
+                }
+                
+                @media (max-width: 768px) {
+                    .strengths-weaknesses {
+                        grid-template-columns: 1fr !important;
+                    }
+                    
+                    .analytics-stats-grid {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                    }
+                    
+                    .setting-item {
+                        flex-direction: column;
+                        text-align: center;
+                    }
+                }
+                
+                @media (max-width: 480px) {
+                    .analytics-stats-grid {
+                        grid-template-columns: 1fr !important;
+                    }
+                }
             `}</style>
         </div>
     );

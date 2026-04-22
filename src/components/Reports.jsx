@@ -474,47 +474,19 @@ const getDateRange = (type, customStart, customEnd) => {
     return { start, end };
 };
 
-// ✅ Fixed extractData function - handles all response types safely
 const extractData = (response) => {
-    // If response is null or undefined
     if (!response) return [];
-    
-    // If response has results property (Django REST framework paginated response)
-    if (response.results && Array.isArray(response.results)) {
-        return response.results;
-    }
-    
-    // If response is an array
-    if (Array.isArray(response)) {
-        return response;
-    }
-    
-    // If response has data property
-    if (response.data && Array.isArray(response.data)) {
-        return response.data;
-    }
-    
-    // If response has items property
-    if (response.items && Array.isArray(response.items)) {
-        return response.items;
-    }
-    
-    // If it's a single object, wrap it in an array
-    if (typeof response === 'object' && response !== null) {
-        // Check if it might be a single record
-        if (response.id !== undefined) {
-            return [response];
-        }
-    }
-    
-    // Log warning for unexpected format
+    if (response.results && Array.isArray(response.results)) return response.results;
+    if (Array.isArray(response)) return response;
+    if (response.data && Array.isArray(response.data)) return response.data;
+    if (response.items && Array.isArray(response.items)) return response.items;
+    if (typeof response === 'object' && response !== null && response.id !== undefined) return [response];
     console.warn('Unexpected response format in extractData:', response);
     return [];
 };
 
 const Reports = ({ isAuthReady }) => {
     const { t, i18n } = useTranslation();
-    const [darkMode, setDarkMode] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [reportType, setReportType] = useState('weekly');
@@ -530,15 +502,6 @@ const Reports = ({ isAuthReady }) => {
     const isFetchingRef = useRef(false);
     const abortControllersRef = useRef([]);
 
-    useEffect(() => {
-        const handleThemeChange = (e) => {
-            setDarkMode(e.detail?.darkMode ?? false);
-        };
-        window.addEventListener('themeChange', handleThemeChange);
-        return () => window.removeEventListener('themeChange', handleThemeChange);
-    }, []);
-
-    // ✅ Fixed fetchAllData function with better error handling
     const fetchAllData = useCallback(async (url, key) => {
         let allData = [];
         let nextUrl = url;
@@ -551,14 +514,10 @@ const Reports = ({ isAuthReady }) => {
                 const response = await axiosInstance.get(nextUrl, { signal: controller.signal });
                 const data = response.data;
                 
-                // ✅ Safely extract data using the improved extractData function
                 const items = extractData(data);
                 
-                // ✅ Ensure items is an array before spreading
                 if (Array.isArray(items)) {
                     allData = [...allData, ...items];
-                } else {
-                    console.warn(`Expected array for ${key}, got:`, typeof items);
                 }
                 
                 nextUrl = data.next || null;
@@ -574,7 +533,6 @@ const Reports = ({ isAuthReady }) => {
     }, []);
 
     const fetchDataInRange = useCallback(async (start, end) => {
-        // Abort previous requests
         abortControllersRef.current.forEach(controller => controller.abort());
         abortControllersRef.current = [];
         
@@ -673,77 +631,84 @@ const Reports = ({ isAuthReady }) => {
 
     if (loading) {
         return (
-            <div className={`reports-loading ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="spinner"></div>
-                <p>{t('reports.loading') || 'جاري تحميل التقارير...'}</p>
+            <div className="analytics-container">
+                <div className="analytics-loading">
+                    <div className="spinner"></div>
+                    <p>{t('reports.loading') || 'جاري تحميل التقارير...'}</p>
+                </div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className={`reports-error ${darkMode ? 'dark-mode' : ''}`}>
-                <p>❌ {error}</p>
-                <button onClick={fetchReports} className="retry-btn">
-                    🔄 {t('reports.retry') || 'إعادة المحاولة'}
-                </button>
+            <div className="analytics-container">
+                <div className="analytics-error">
+                    <p>❌ {error}</p>
+                    <button onClick={fetchReports} className="type-btn active">
+                        🔄 {t('reports.retry') || 'إعادة المحاولة'}
+                    </button>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className={`reports-container ${darkMode ? 'dark-mode' : ''}`}>
-            <div className="reports-header">
+        <div className="analytics-container">
+            <div className="analytics-header">
                 <h2>📊 {t('reports.title') || 'التقارير الصحية الشاملة'}</h2>
-                <div className="reports-controls">
-                    <select value={reportType} onChange={(e) => setReportType(e.target.value)} className="report-type-select">
+                <div className="reports-controls" style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <select value={reportType} onChange={(e) => setReportType(e.target.value)} className="search-input" style={{ width: 'auto' }}>
                         <option value="weekly">{t('reports.types.weekly') || 'تقرير أسبوعي'}</option>
                         <option value="monthly">{t('reports.types.monthly') || 'تقرير شهري'}</option>
                         <option value="quarterly">{t('reports.types.quarterly') || 'تقرير ربع سنوي'}</option>
                         <option value="custom">{t('reports.types.custom') || 'تقرير مخصص'}</option>
                     </select>
                     {reportType === 'custom' && (
-                        <div className="date-range">
-                            <input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} className="date-input" />
-                            <span>{t('reports.to') || 'إلى'}</span>
-                            <input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} className="date-input" />
+                        <div className="date-range" style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+                            <input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} className="search-input" style={{ width: 'auto' }} />
+                            <span className="stat-label">{t('reports.to') || 'إلى'}</span>
+                            <input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} className="search-input" style={{ width: 'auto' }} />
                         </div>
                     )}
-                    <button onClick={exportToPDF} className="export-btn pdf">📄 PDF</button>
-                    <button onClick={exportToCSV} className="export-btn csv">📊 CSV</button>
+                    <button onClick={exportToPDF} className="type-btn" style={{ background: '#ef4444', color: 'white' }}>📄 PDF</button>
+                    <button onClick={exportToCSV} className="type-btn" style={{ background: '#10b981', color: 'white' }}>📊 CSV</button>
                 </div>
             </div>
 
             {reports && (
                 <div className="reports-content">
                     {/* Health Score Card */}
-                    <div className="health-score-card">
-                        <div className="score-header">
-                            <span className="score-icon">🎯</span>
-                            <span className="score-title">{t('reports.healthScore') || 'درجة الصحة'}</span>
-                            <span className={`score-value score-${reports.summary.healthScore.grade}`}>
-                                {reports.summary.healthScore.score}/100
-                            </span>
-                            <span className="score-grade">{reports.summary.healthScore.grade}</span>
-                        </div>
-                        <div className="score-progress">
-                            <div className="progress-bar">
-                                <div className="progress-fill" style={{ width: `${reports.summary.healthScore.score}%` }} />
+                    <div className="insight-card">
+                        <div className="insight-icon">🎯</div>
+                        <div className="insight-content">
+                            <div className="notification-header" style={{ marginBottom: 0 }}>
+                                <div className="notification-title">
+                                    <span className="rec-category">{t('reports.healthScore') || 'درجة الصحة'}</span>
+                                    <span className={`priority-badge priority-${reports.summary.healthScore.grade === 'A' ? 'urgent' : reports.summary.healthScore.grade === 'B' ? 'high' : 'medium'}`}>
+                                        {reports.summary.healthScore.score}/100
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="progress-bar" style={{ marginTop: 'var(--spacing-md)' }}>
+                                <div className="progress-fill" style={{ width: `${reports.summary.healthScore.score}%` }}></div>
                             </div>
                         </div>
                     </div>
 
                     {/* Story Card */}
                     {reports.summary.story.length > 0 && (
-                        <div className="story-card">
+                        <div className="recommendations-section">
                             <h3>📖 {t('reports.story.title') || 'القصة الذكية لصحبتك'}</h3>
-                            <div className="story-events">
+                            <div className="recommendations-list">
                                 {reports.summary.story.map((event, i) => (
-                                    <div key={i} className={`story-event ${event.type}`}>
-                                        <span className="event-icon">
-                                            {event.type === 'improvement' ? '📈' : event.type === 'warning' ? '⚠️' : event.type === 'danger' ? '🔴' : 'ℹ️'}
-                                        </span>
-                                        <span className="event-text">{event.text}</span>
+                                    <div key={i} className={`recommendation-card priority-${event.type === 'improvement' ? 'low' : event.type === 'warning' ? 'medium' : 'high'}`}>
+                                        <div className="rec-header">
+                                            <span className="rec-icon">
+                                                {event.type === 'improvement' ? '📈' : event.type === 'warning' ? '⚠️' : event.type === 'danger' ? '🔴' : 'ℹ️'}
+                                            </span>
+                                            <span className="rec-category">{event.text}</span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -751,195 +716,182 @@ const Reports = ({ isAuthReady }) => {
                     )}
 
                     {/* Top Recommendation Card */}
-                    <div className="top-recommendation-card">
-                        <div className="rec-header">
-                            <span className="rec-icon">{reports.summary.topRecommendation.icon}</span>
-                            <span className="rec-title">{t('reports.topRecommendation') || 'التوصية الأولى'}</span>
+                    <div className="insight-card" style={{ background: 'var(--primary-gradient)', color: 'white' }}>
+                        <div className="insight-icon">{reports.summary.topRecommendation.icon}</div>
+                        <div className="insight-content">
+                            <div className="rec-header">
+                                <span className="rec-category" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('reports.topRecommendation') || 'التوصية الأولى'}</span>
+                            </div>
+                            <h4 style={{ color: 'white' }}>{reports.summary.topRecommendation.title}</h4>
+                            <p className="rec-message" style={{ color: 'rgba(255,255,255,0.95)' }}>{reports.summary.topRecommendation.advice}</p>
+                            <div className="rec-advice" style={{ background: 'rgba(255,255,255,0.2)', color: 'white' }}>💡 {reports.summary.topRecommendation.action}</div>
                         </div>
-                        <h4>{reports.summary.topRecommendation.title}</h4>
-                        <p className="rec-advice">{reports.summary.topRecommendation.advice}</p>
-                        <div className="rec-action">💡 {reports.summary.topRecommendation.action}</div>
                     </div>
 
                     {/* Tabs */}
-                    <div className="reports-tabs">
-                        <button className={`tab-btn ${activeTab === 'summary' ? 'active' : ''}`} onClick={() => setActiveTab('summary')}>📊 {t('reports.tabs.summary') || 'الملخص'}</button>
-                        <button className={`tab-btn ${activeTab === 'sleep' ? 'active' : ''}`} onClick={() => setActiveTab('sleep')}>🌙 {t('reports.tabs.sleep') || 'النوم'}</button>
-                        <button className={`tab-btn ${activeTab === 'nutrition' ? 'active' : ''}`} onClick={() => setActiveTab('nutrition')}>🥗 {t('reports.tabs.nutrition') || 'التغذية'}</button>
-                        <button className={`tab-btn ${activeTab === 'metrics' ? 'active' : ''}`} onClick={() => setActiveTab('metrics')}>📊 {t('reports.tabs.metrics') || 'القياسات الحيوية'}</button>
-                        <button className={`tab-btn ${activeTab === 'mood' ? 'active' : ''}`} onClick={() => setActiveTab('mood')}>😊 {t('reports.tabs.mood') || 'المزاج'}</button>
-                        <button className={`tab-btn ${activeTab === 'habits' ? 'active' : ''}`} onClick={() => setActiveTab('habits')}>💊 {t('reports.tabs.habits') || 'العادات'}</button>
+                    <div className="analytics-tabs">
+                        <button className={`type-btn ${activeTab === 'summary' ? 'active' : ''}`} onClick={() => setActiveTab('summary')}>📊 {t('reports.tabs.summary') || 'الملخص'}</button>
+                        <button className={`type-btn ${activeTab === 'sleep' ? 'active' : ''}`} onClick={() => setActiveTab('sleep')}>🌙 {t('reports.tabs.sleep') || 'النوم'}</button>
+                        <button className={`type-btn ${activeTab === 'nutrition' ? 'active' : ''}`} onClick={() => setActiveTab('nutrition')}>🥗 {t('reports.tabs.nutrition') || 'التغذية'}</button>
+                        <button className={`type-btn ${activeTab === 'metrics' ? 'active' : ''}`} onClick={() => setActiveTab('metrics')}>📊 {t('reports.tabs.metrics') || 'القياسات الحيوية'}</button>
+                        <button className={`type-btn ${activeTab === 'mood' ? 'active' : ''}`} onClick={() => setActiveTab('mood')}>😊 {t('reports.tabs.mood') || 'المزاج'}</button>
+                        <button className={`type-btn ${activeTab === 'habits' ? 'active' : ''}`} onClick={() => setActiveTab('habits')}>💊 {t('reports.tabs.habits') || 'العادات'}</button>
                     </div>
 
                     {/* Tab Content */}
                     <div className="tab-content">
                         {activeTab === 'summary' && (
-                            <div className="summary-grid">
-                                <div className="stat-card">
-                                    <div className="stat-header"><span>🌙</span><span>{t('reports.sleep.title') || 'النوم'}</span></div>
-                                    <div className="stat-value">{reports.sleep.hasData ? reports.sleep.avgHours : 0} {t('reports.sleep.hours') || 'ساعات'}</div>
+                            <div className="analytics-stats-grid">
+                                <div className="analytics-stat-card">
+                                    <div className="stat-icon">🌙</div>
+                                    <div className="stat-content">
+                                        <div className="stat-label">{t('reports.sleep.title') || 'النوم'}</div>
+                                        <div className="stat-value">{reports.sleep.hasData ? reports.sleep.avgHours : 0} {t('reports.sleep.hours') || 'ساعات'}</div>
+                                    </div>
                                 </div>
-                                <div className="stat-card">
-                                    <div className="stat-header"><span>🥗</span><span>{t('reports.nutrition.title') || 'التغذية'}</span></div>
-                                    <div className="stat-value">{reports.nutrition.hasData ? reports.nutrition.avgCaloriesPerDay : 0}</div>
+                                <div className="analytics-stat-card">
+                                    <div className="stat-icon">🥗</div>
+                                    <div className="stat-content">
+                                        <div className="stat-label">{t('reports.nutrition.title') || 'التغذية'}</div>
+                                        <div className="stat-value">{reports.nutrition.hasData ? reports.nutrition.avgCaloriesPerDay : 0}</div>
+                                    </div>
                                 </div>
-                                <div className="stat-card">
-                                    <div className="stat-header"><span>🏃</span><span>{t('reports.activity.title') || 'النشاط'}</span></div>
-                                    <div className="stat-value">{reports.activity.hasData ? reports.activity.avgMinutesPerDay : 0} {t('reports.minutes') || 'دقيقة'}</div>
+                                <div className="analytics-stat-card">
+                                    <div className="stat-icon">🏃</div>
+                                    <div className="stat-content">
+                                        <div className="stat-label">{t('reports.activity.title') || 'النشاط'}</div>
+                                        <div className="stat-value">{reports.activity.hasData ? reports.activity.avgMinutesPerDay : 0} {t('reports.minutes') || 'دقيقة'}</div>
+                                    </div>
                                 </div>
-                                <div className="stat-card">
-                                    <div className="stat-header"><span>❤️</span><span>{t('reports.healthMetrics.title') || 'القياسات الحيوية'}</span></div>
-                                    <div className="stat-value">{reports.healthMetrics.hasData ? `${reports.healthMetrics.avgSystolic}/${reports.healthMetrics.avgDiastolic}` : '—'}</div>
+                                <div className="analytics-stat-card">
+                                    <div className="stat-icon">❤️</div>
+                                    <div className="stat-content">
+                                        <div className="stat-label">{t('reports.healthMetrics.title') || 'القياسات الحيوية'}</div>
+                                        <div className="stat-value">{reports.healthMetrics.hasData ? `${reports.healthMetrics.avgSystolic}/${reports.healthMetrics.avgDiastolic}` : '—'}</div>
+                                    </div>
                                 </div>
-                                <div className="stat-card">
-                                    <div className="stat-header"><span>😊</span><span>{t('reports.mood.title') || 'المزاج'}</span></div>
-                                    <div className="stat-value">{reports.mood.hasData ? reports.mood.avgMood : 0}/5</div>
+                                <div className="analytics-stat-card">
+                                    <div className="stat-icon">😊</div>
+                                    <div className="stat-content">
+                                        <div className="stat-label">{t('reports.mood.title') || 'المزاج'}</div>
+                                        <div className="stat-value">{reports.mood.hasData ? reports.mood.avgMood : 0}/5</div>
+                                    </div>
                                 </div>
                             </div>
                         )}
                         
                         {activeTab === 'sleep' && (
-                            <div className="detail-card">
+                            <div className="recommendations-section">
                                 <h3>🌙 {t('reports.sleep.details') || 'تفاصيل النوم'}</h3>
                                 {reports.sleep.hasData ? (
-                                    <div className="detail-grid">
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.sleep.avgHours') || 'متوسط ساعات النوم'}</span>
-                                            <span className="detail-value">{reports.sleep.avgHours} {t('reports.sleep.hours') || 'ساعات'}</span>
-                                        </div>
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.sleep.totalNights') || 'عدد الليالي'}</span>
-                                            <span className="detail-value">{reports.sleep.totalNights}</span>
+                                    <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
+                                        <div className="strengths">
+                                            <div className="habit-stats">
+                                                <span>{t('reports.sleep.avgHours') || 'متوسط ساعات النوم'}: <strong>{reports.sleep.avgHours} {t('reports.sleep.hours') || 'ساعات'}</strong></span>
+                                                <span>{t('reports.sleep.totalNights') || 'عدد الليالي'}: <strong>{reports.sleep.totalNights}</strong></span>
+                                            </div>
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="no-data-message">😴 لا توجد بيانات نوم مسجلة</p>
+                                    <div className="analytics-empty">😴 لا توجد بيانات نوم مسجلة</div>
                                 )}
                             </div>
                         )}
                         
                         {activeTab === 'nutrition' && (
-                            <div className="detail-card">
+                            <div className="recommendations-section">
                                 <h3>🥗 {t('reports.nutrition.details') || 'تفاصيل التغذية'}</h3>
                                 {reports.nutrition.hasData ? (
-                                    <div className="detail-grid">
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.nutrition.avgCalories') || 'متوسط السعرات'}</span>
-                                            <span className="detail-value">{reports.nutrition.avgCaloriesPerDay} {t('reports.caloriesUnit') || 'سعرة'}</span>
-                                        </div>
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.nutrition.avgProtein') || 'متوسط البروتين'}</span>
-                                            <span className="detail-value">{reports.nutrition.avgProtein} جرام</span>
-                                        </div>
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.nutrition.avgCarbs') || 'متوسط الكربوهيدرات'}</span>
-                                            <span className="detail-value">{reports.nutrition.avgCarbs} جرام</span>
-                                        </div>
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.nutrition.avgFat') || 'متوسط الدهون'}</span>
-                                            <span className="detail-value">{reports.nutrition.avgFat} جرام</span>
-                                        </div>
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.nutrition.totalMeals') || 'إجمالي الوجبات'}</span>
-                                            <span className="detail-value">{reports.nutrition.totalMeals} وجبة</span>
+                                    <div className="strengths-weaknesses" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                                        <div className="strengths">
+                                            <div className="habit-stats">
+                                                <span>🥗 {t('reports.nutrition.avgCalories') || 'متوسط السعرات'}: <strong>{reports.nutrition.avgCaloriesPerDay} {t('reports.caloriesUnit') || 'سعرة'}</strong></span>
+                                                <span>💪 {t('reports.nutrition.avgProtein') || 'متوسط البروتين'}: <strong>{reports.nutrition.avgProtein} جرام</strong></span>
+                                                <span>🌾 {t('reports.nutrition.avgCarbs') || 'متوسط الكربوهيدرات'}: <strong>{reports.nutrition.avgCarbs} جرام</strong></span>
+                                                <span>🫒 {t('reports.nutrition.avgFat') || 'متوسط الدهون'}: <strong>{reports.nutrition.avgFat} جرام</strong></span>
+                                                <span>📝 {t('reports.nutrition.totalMeals') || 'إجمالي الوجبات'}: <strong>{reports.nutrition.totalMeals} وجبة</strong></span>
+                                            </div>
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="no-data-message">🥗 لا توجد بيانات تغذية مسجلة</p>
+                                    <div className="analytics-empty">🥗 لا توجد بيانات تغذية مسجلة</div>
                                 )}
                             </div>
                         )}
                         
                         {activeTab === 'metrics' && (
-                            <div className="detail-card">
+                            <div className="recommendations-section">
                                 <h3>📊 {t('reports.healthMetrics.title') || 'القياسات الحيوية'}</h3>
                                 
-                                <div className="sub-section">
+                                <div className="recommendations-section">
                                     <h4>🏃 {t('reports.activity.title') || 'النشاط البدني'}</h4>
                                     {reports.activity.hasData ? (
-                                        <div className="detail-grid">
-                                            <div className="detail-item">
-                                                <span className="detail-label">{t('reports.activity.totalMinutes') || 'إجمالي الدقائق'}</span>
-                                                <span className="detail-value">{reports.activity.totalMinutes} دقيقة</span>
-                                            </div>
-                                            <div className="detail-item">
-                                                <span className="detail-label">{t('reports.activity.avgMinutes') || 'متوسط النشاط اليومي'}</span>
-                                                <span className="detail-value">{reports.activity.avgMinutesPerDay} دقيقة/يوم</span>
-                                            </div>
-                                            <div className="detail-item">
-                                                <span className="detail-label">{t('reports.activity.records') || 'عدد الأنشطة'}</span>
-                                                <span className="detail-value">{reports.activity.records} نشاط</span>
+                                        <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
+                                            <div className="strengths">
+                                                <div className="habit-stats">
+                                                    <span>🏃 {t('reports.activity.totalMinutes') || 'إجمالي الدقائق'}: <strong>{reports.activity.totalMinutes} دقيقة</strong></span>
+                                                    <span>📊 {t('reports.activity.avgMinutes') || 'متوسط النشاط اليومي'}: <strong>{reports.activity.avgMinutesPerDay} دقيقة/يوم</strong></span>
+                                                    <span>📋 {t('reports.activity.records') || 'عدد الأنشطة'}: <strong>{reports.activity.records} نشاط</strong></span>
+                                                </div>
                                             </div>
                                         </div>
                                     ) : (
-                                        <p className="no-data-message">🏃 لا توجد بيانات نشاط بدني مسجلة</p>
+                                        <div className="analytics-empty">🏃 لا توجد بيانات نشاط بدني مسجلة</div>
                                     )}
                                 </div>
                                 
-                                <div className="sub-section">
+                                <div className="recommendations-section">
                                     <h4>❤️ القياسات الحيوية</h4>
                                     {reports.healthMetrics.hasData ? (
-                                        <div className="detail-grid">
-                                            <div className="detail-item">
-                                                <span className="detail-label">الوزن</span>
-                                                <span className="detail-value">{reports.healthMetrics.avgWeight} كجم</span>
-                                            </div>
-                                            <div className="detail-item">
-                                                <span className="detail-label">ضغط الدم</span>
-                                                <span className="detail-value">{reports.healthMetrics.avgSystolic}/{reports.healthMetrics.avgDiastolic} mmHg</span>
-                                            </div>
-                                            <div className="detail-item">
-                                                <span className="detail-label">السكر</span>
-                                                <span className="detail-value">{reports.healthMetrics.avgGlucose} mg/dL</span>
-                                            </div>
-                                            <div className="detail-item">
-                                                <span className="detail-label">عدد القراءات</span>
-                                                <span className="detail-value">{reports.healthMetrics.records} قراءة</span>
+                                        <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
+                                            <div className="strengths">
+                                                <div className="habit-stats">
+                                                    <span>⚖️ الوزن: <strong>{reports.healthMetrics.avgWeight} كجم</strong></span>
+                                                    <span>❤️ ضغط الدم: <strong>{reports.healthMetrics.avgSystolic}/{reports.healthMetrics.avgDiastolic} mmHg</strong></span>
+                                                    <span>🩸 السكر: <strong>{reports.healthMetrics.avgGlucose} mg/dL</strong></span>
+                                                    <span>📊 عدد القراءات: <strong>{reports.healthMetrics.records} قراءة</strong></span>
+                                                </div>
                                             </div>
                                         </div>
                                     ) : (
-                                        <p className="no-data-message">❤️ لا توجد بيانات قياسات حيوية مسجلة</p>
+                                        <div className="analytics-empty">❤️ لا توجد بيانات قياسات حيوية مسجلة</div>
                                     )}
                                 </div>
                             </div>
                         )}
                         
                         {activeTab === 'mood' && (
-                            <div className="detail-card">
+                            <div className="recommendations-section">
                                 <h3>😊 {t('reports.mood.details') || 'تفاصيل المزاج'}</h3>
                                 {reports.mood.hasData ? (
-                                    <div className="detail-grid">
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.mood.avgScore') || 'متوسط درجة المزاج'}</span>
-                                            <span className="detail-value">{reports.mood.avgMood}/5</span>
-                                        </div>
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.mood.totalDays') || 'عدد الأيام المسجلة'}</span>
-                                            <span className="detail-value">{reports.mood.totalDays} يوم</span>
+                                    <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
+                                        <div className="strengths">
+                                            <div className="habit-stats">
+                                                <span>😊 {t('reports.mood.avgScore') || 'متوسط درجة المزاج'}: <strong>{reports.mood.avgMood}/5</strong></span>
+                                                <span>📅 {t('reports.mood.totalDays') || 'عدد الأيام المسجلة'}: <strong>{reports.mood.totalDays} يوم</strong></span>
+                                            </div>
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="no-data-message">😊 لا توجد بيانات مزاج مسجلة</p>
+                                    <div className="analytics-empty">😊 لا توجد بيانات مزاج مسجلة</div>
                                 )}
                             </div>
                         )}
                         
                         {activeTab === 'habits' && (
-                            <div className="detail-card">
+                            <div className="recommendations-section">
                                 <h3>💊 {t('reports.habits.details') || 'تفاصيل العادات'}</h3>
                                 {reports.habits.hasData ? (
-                                    <div className="detail-grid">
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.habits.completionRate') || 'نسبة الالتزام'}</span>
-                                            <span className="detail-value">{reports.habits.completionRate}%</span>
-                                        </div>
-                                        <div className="detail-item">
-                                            <span className="detail-label">{t('reports.habits.completed') || 'العادات المنجزة'}</span>
-                                            <span className="detail-value">{reports.habits.completed}/{reports.habits.total}</span>
+                                    <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
+                                        <div className="strengths">
+                                            <div className="habit-stats">
+                                                <span>📊 {t('reports.habits.completionRate') || 'نسبة الالتزام'}: <strong>{reports.habits.completionRate}%</strong></span>
+                                                <span>✅ {t('reports.habits.completed') || 'العادات المنجزة'}: <strong>{reports.habits.completed}/{reports.habits.total}</strong></span>
+                                            </div>
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="no-data-message">💊 لا توجد بيانات عادات مسجلة</p>
+                                    <div className="analytics-empty">💊 لا توجد بيانات عادات مسجلة</div>
                                 )}
                             </div>
                         )}
@@ -947,596 +899,29 @@ const Reports = ({ isAuthReady }) => {
                 </div>
             )}
 
-
-            <style jsx>{`
-/* Reports.css - متوافق مع ThemeManager */
-
-.reports-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: var(--spacing-lg);
-    background: var(--primary-bg);
-    min-height: 100vh;
-    transition: background var(--transition-medium);
-}
-
-/* ===== رأس الصفحة ===== */
-.reports-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-    flex-wrap: wrap;
-    gap: var(--spacing-md);
-}
-
-.reports-header h2 {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    color: var(--text-primary);
-    font-size: 1.5rem;
-}
-
-.header-icon {
-    font-size: 1.8rem;
-}
-
-.reports-controls {
-    display: flex;
-    gap: var(--spacing-sm);
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.report-type-select {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-full);
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.report-type-select:focus {
-    outline: none;
-    border-color: var(--primary);
-}
-
-.date-range {
-    display: flex;
-    gap: var(--spacing-sm);
-    align-items: center;
-}
-
-.date-input {
-    padding: var(--spacing-sm);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    font-size: 0.85rem;
-}
-
-.date-input:focus {
-    outline: none;
-    border-color: var(--primary);
-}
-
-.export-btn {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: none;
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all var(--transition-medium);
-}
-
-.export-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.export-btn.pdf {
-    background: #ef4444;
-    color: white;
-}
-
-.export-btn.csv {
-    background: #10b981;
-    color: white;
-}
-
-/* ===== درجة الصحة ===== */
-.health-score-card {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-    box-shadow: var(--shadow-md);
-}
-
-.score-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
-    flex-wrap: wrap;
-}
-
-.score-icon {
-    font-size: 1.5rem;
-}
-
-.score-title {
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.score-value {
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin-left: auto;
-}
-
-[dir="rtl"] .score-value {
-    margin-left: 0;
-    margin-right: auto;
-}
-
-.score-value.score-A { color: var(--success); }
-.score-value.score-B { color: var(--info); }
-.score-value.score-C { color: var(--warning); }
-.score-value.score-D { color: #f97316; }
-.score-value.score-E { color: var(--error); }
-
-.score-grade {
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
-    font-weight: 700;
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-}
-
-.score-change {
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.score-change.positive {
-    background: rgba(16, 185, 129, 0.2);
-    color: var(--success);
-}
-
-.score-change.negative {
-    background: rgba(239, 68, 68, 0.2);
-    color: var(--error);
-}
-
-.score-progress {
-    width: 100%;
-}
-
-.progress-bar {
-    height: 10px;
-    background: var(--tertiary-bg);
-    border-radius: var(--radius-full);
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    background: var(--primary-gradient);
-    border-radius: var(--radius-full);
-    transition: width var(--transition-medium);
-}
-
-/* ===== القصة الذكية ===== */
-.story-card {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.story-card h3 {
-    margin: 0 0 var(--spacing-md) 0;
-    color: var(--text-primary);
-    font-size: 1.1rem;
-}
-
-.story-events {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
-
-.story-event {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm);
-    border-radius: var(--radius-lg);
-}
-
-.story-event.improvement {
-    background: rgba(16, 185, 129, 0.1);
-    border-right: 3px solid var(--success);
-}
-
-.story-event.warning {
-    background: rgba(245, 158, 11, 0.1);
-    border-right: 3px solid var(--warning);
-}
-
-.story-event.danger {
-    background: rgba(239, 68, 68, 0.1);
-    border-right: 3px solid var(--error);
-}
-
-[dir="rtl"] .story-event.improvement,
-[dir="rtl"] .story-event.warning,
-[dir="rtl"] .story-event.danger {
-    border-right: none;
-    border-left: 3px solid;
-}
-
-.event-icon {
-    font-size: 1.2rem;
-}
-
-.event-text {
-    color: var(--text-primary);
-    font-size: 0.9rem;
-}
-
-/* ===== أهم الأحداث ===== */
-.key-events-card {
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.key-events-card h3 {
-    margin: 0 0 var(--spacing-md) 0;
-    color: var(--text-primary);
-    font-size: 1.1rem;
-}
-
-.events-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
-
-.event-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm);
-    background: var(--secondary-bg);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-fast);
-}
-
-.event-item:hover {
-    transform: translateX(5px);
-    border-color: var(--primary);
-}
-
-[dir="rtl"] .event-item:hover {
-    transform: translateX(-5px);
-}
-
-/* ===== التوصية الذكية ===== */
-.top-recommendation-card {
-    background: var(--primary-gradient);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-    color: white;
-    box-shadow: var(--shadow-lg);
-}
-
-.rec-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
-}
-
-.rec-icon {
-    font-size: 1.8rem;
-}
-
-.rec-title {
-    font-weight: 700;
-    font-size: 1rem;
-    opacity: 0.9;
-}
-
-.top-recommendation-card h4 {
-    margin: 0 0 var(--spacing-sm) 0;
-    font-size: 1.2rem;
-}
-
-.rec-advice {
-    margin: 0 0 var(--spacing-md) 0;
-    opacity: 0.95;
-    font-size: 0.95rem;
-}
-
-.rec-action {
-    background: rgba(255, 255, 255, 0.2);
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius-lg);
-    display: inline-block;
-    font-size: 0.9rem;
-}
-
-/* ===== التبويبات ===== */
-.reports-tabs {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
-    flex-wrap: wrap;
-}
-
-.tab-btn {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: none;
-    border-radius: var(--radius-full);
-    background: var(--secondary-bg);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--transition-medium);
-    font-size: 0.9rem;
-}
-
-.tab-btn:hover:not(.active) {
-    background: var(--hover-bg);
-    color: var(--primary);
-}
-
-.tab-btn.active {
-    background: var(--primary-gradient);
-    color: white;
-}
-
-/* ===== الإحصائيات ===== */
-.summary-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
-}
-
-.stat-card {
-    background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-medium);
-}
-
-.stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
-}
-
-.stat-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-}
-
-.stat-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.stat-change {
-    font-size: 0.8rem;
-    margin-top: var(--spacing-xs);
-    font-weight: 600;
-}
-
-.stat-change.positive {
-    color: var(--success);
-}
-
-.stat-change.negative {
-    color: var(--error);
-}
-
-/* ===== بطاقات التفاصيل ===== */
-.detail-card {
-    background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    border: 1px solid var(--border-light);
-}
-
-.detail-card h3 {
-    margin: 0 0 var(--spacing-md) 0;
-    color: var(--text-primary);
-    font-size: 1.1rem;
-}
-
-.detail-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--spacing-md);
-}
-
-.detail-item {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-}
-
-.detail-label {
-    font-size: 0.8rem;
-    color: var(--text-tertiary);
-}
-
-.detail-value {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.detail-change {
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.detail-change.positive {
-    color: var(--success);
-}
-
-.detail-change.negative {
-    color: var(--error);
-}
-
-/* ===== حالات التحميل والخطأ ===== */
-.reports-loading,
-.reports-error {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    text-align: center;
-}
-
-.spinner {
-    width: 50px;
-    height: 50px;
-    border: 4px solid var(--border-light);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: var(--spacing-md);
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.retry-btn {
-    margin-top: var(--spacing-md);
-    padding: var(--spacing-sm) var(--spacing-lg);
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    transition: all var(--transition-medium);
-}
-
-.retry-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-/* ===== استجابة ===== */
-@media (max-width: 768px) {
-    .reports-container {
-        padding: var(--spacing-md);
-    }
-
-    .reports-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .reports-controls {
-        width: 100%;
-        flex-wrap: wrap;
-    }
-
-    .summary-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: var(--spacing-sm);
-    }
-
-    .date-range {
-        flex-wrap: wrap;
-    }
-
-    .reports-tabs {
-        justify-content: center;
-    }
-}
-
-@media (max-width: 480px) {
-    .summary-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .score-header {
-        flex-wrap: wrap;
-    }
-
-    .score-value {
-        margin-left: 0;
-    }
-
-    [dir="rtl"] .score-value {
-        margin-right: 0;
-    }
-
-    .detail-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* ===== دعم RTL ===== */
-[dir="rtl"] .reports-header h2 {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .stat-header {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .detail-item {
-    text-align: right;
-}
-
-/* ===== دعم الحركة المخفضة ===== */
-@media (prefers-reduced-motion: reduce) {
-    .stat-card:hover,
-    .event-item:hover,
-    .export-btn:hover,
-    .retry-btn:hover {
-        transform: none !important;
-    }
-
-    .spinner {
-        animation: none !important;
-    }
-
-    .progress-fill {
-        transition: none !important;
-    }
-}
+            {/* الأنماط الإضافية */}
+            <style>{`
+                .reports-controls select,
+                .reports-controls input {
+                    min-width: 120px;
+                }
+                
+                @media (max-width: 768px) {
+                    .reports-controls {
+                        width: 100%;
+                        flex-direction: column;
+                    }
+                    
+                    .reports-controls select,
+                    .reports-controls input,
+                    .reports-controls button {
+                        width: 100%;
+                    }
+                    
+                    .date-range {
+                        flex-wrap: wrap;
+                    }
+                }
             `}</style>
         </div>
     );

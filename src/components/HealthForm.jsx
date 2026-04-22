@@ -7,9 +7,8 @@ import '../index.css';
 
 function HealthForm({ onDataSubmitted }) {
     const { t, i18n } = useTranslation();
-    const [darkMode, setDarkMode] = useState(false);
     
-    // ✅ useRef لمنع التحديثات المتكررة
+    // useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
     
@@ -18,8 +17,8 @@ function HealthForm({ onDataSubmitted }) {
         systolic: '',
         diastolic: '',
         glucose: '',
-        heartRate: '',    // ✅ جديد: نبضات القلب
-        spo2: ''          // ✅ جديد: نسبة الأكسجين
+        heartRate: '',
+        spo2: ''
     });
     
     const [loading, setLoading] = useState(false);
@@ -29,24 +28,7 @@ function HealthForm({ onDataSubmitted }) {
     const [autoSave, setAutoSave] = useState(false);
     const [lastAutoSave, setLastAutoSave] = useState(null);
 
-    // تحميل إعدادات الوضع المظلم
-    useEffect(() => {
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
-                             window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setDarkMode(savedDarkMode);
-    }, []);
-
-    // استمع لتغييرات الوضع المظلم
-    useEffect(() => {
-        const handleThemeChange = (e) => {
-            setDarkMode(e.detail?.darkMode ?? false);
-        };
-        
-        window.addEventListener('themeChange', handleThemeChange);
-        return () => window.removeEventListener('themeChange', handleThemeChange);
-    }, []);
-
-    // حدود التحقق من الصحة - مع إضافة حدود القلب والأكسجين
+    // حدود التحقق من الصحة
     const VALIDATION_LIMITS = {
         weight: { min: 20, max: 300, normalMin: 50, normalMax: 100 },
         systolic: { min: 50, max: 250, normalMin: 90, normalMax: 140 },
@@ -94,12 +76,11 @@ function HealthForm({ onDataSubmitted }) {
         }
     }, [t]);
 
-    // ✅ دالة التحقق المعدلة - تدعم الحقول الاختيارية مع الحقول الجديدة
+    // دالة التحقق
     const validateForm = () => {
         let errors = {};
         let hasAnyData = false;
 
-        // التحقق من الوزن - اختياري
         if (formData.weight && formData.weight.trim() !== '') {
             hasAnyData = true;
             const weight = parseFloat(formData.weight);
@@ -110,7 +91,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // التحقق من الضغط الانقباضي - اختياري
         if (formData.systolic && formData.systolic.trim() !== '') {
             hasAnyData = true;
             const systolic = parseInt(formData.systolic);
@@ -121,7 +101,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // التحقق من الضغط الانبساطي - اختياري
         if (formData.diastolic && formData.diastolic.trim() !== '') {
             hasAnyData = true;
             const diastolic = parseInt(formData.diastolic);
@@ -130,7 +109,6 @@ function HealthForm({ onDataSubmitted }) {
             } else if (diastolic < VALIDATION_LIMITS.diastolic.min || diastolic > VALIDATION_LIMITS.diastolic.max) {
                 errors.diastolic = t('health.form.errors.range', VALIDATION_LIMITS.diastolic);
             }
-            // التحقق من أن الضغط الانقباضي أكبر من الانبساطي (إذا كان كلاهما موجود)
             if (formData.systolic && formData.systolic.trim() !== '') {
                 const systolic = parseInt(formData.systolic);
                 if (!isNaN(systolic) && !isNaN(diastolic) && systolic <= diastolic) {
@@ -139,7 +117,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // التحقق من الجلوكوز - اختياري
         if (formData.glucose && formData.glucose.trim() !== '') {
             hasAnyData = true;
             const glucose = parseFloat(formData.glucose);
@@ -150,7 +127,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // ✅ التحقق من نبضات القلب - اختياري
         if (formData.heartRate && formData.heartRate.trim() !== '') {
             hasAnyData = true;
             const heartRate = parseInt(formData.heartRate);
@@ -161,7 +137,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // ✅ التحقق من نسبة الأكسجين - اختياري
         if (formData.spo2 && formData.spo2.trim() !== '') {
             hasAnyData = true;
             const spo2 = parseInt(formData.spo2);
@@ -172,7 +147,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // ✅ السماح بالإرسال إذا كان هناك حقل واحد على الأقل مملوء
         if (!hasAnyData) {
             errors._general = t('health.form.errors.noData');
             return false;
@@ -195,7 +169,6 @@ function HealthForm({ onDataSubmitted }) {
         }
     }, [message]);
 
-    // معالجة تغيير الحقول
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         if (validationErrors[field]) {
@@ -203,7 +176,6 @@ function HealthForm({ onDataSubmitted }) {
         }
     };
 
-    // إعادة تعيين النموذج
     const resetForm = () => {
         setFormData({
             weight: '',
@@ -219,7 +191,6 @@ function HealthForm({ onDataSubmitted }) {
         setMessageType('info');
     };
 
-    // ✅ دالة الإرسال المعدلة - تدعم الحقول الاختيارية بما فيها القلب والأكسجين
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
@@ -236,7 +207,6 @@ function HealthForm({ onDataSubmitted }) {
         setMessage('');
         setMessageType('');
 
-        // ✅ بناء كائن البيانات ديناميكياً - فقط الحقول المملوءة
         const data = {};
         
         if (formData.weight && formData.weight.trim() !== '') {
@@ -255,7 +225,6 @@ function HealthForm({ onDataSubmitted }) {
             data.blood_glucose = parseFloat(formData.glucose);
         }
         
-        // ✅ حقول جديدة
         if (formData.heartRate && formData.heartRate.trim() !== '') {
             data.heart_rate = parseInt(formData.heartRate);
         }
@@ -264,7 +233,7 @@ function HealthForm({ onDataSubmitted }) {
             data.spo2 = parseInt(formData.spo2);
         }
 
-        console.log('📤 Sending health data to server (partial entry):', data);
+        console.log('📤 Sending health data:', data);
 
         try {
             const response = await axiosInstance.post('/health_status/', data);
@@ -278,12 +247,8 @@ function HealthForm({ onDataSubmitted }) {
                 resetForm();
                 localStorage.removeItem('healthForm_autoSave');
                 
-                console.log('📢 Calling onDataSubmitted...');
                 if (onDataSubmitted) {
                     onDataSubmitted();
-                    console.log('✅ onDataSubmitted called');
-                } else {
-                    console.warn('⚠️ onDataSubmitted is not defined');
                 }
             }
 
@@ -329,9 +294,8 @@ function HealthForm({ onDataSubmitted }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [formData, t, onDataSubmitted, validateForm]);
+    }, [formData, t, onDataSubmitted]);
 
-    // ✅ حساب مؤشرات الصحة - مع إضافة القلب والأكسجين
     const calculateHealthIndicators = () => {
         const indicators = [];
         
@@ -415,7 +379,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
         
-        // ✅ مؤشر نبضات القلب
         if (formData.heartRate) {
             const heartRate = parseInt(formData.heartRate);
             if (heartRate > VALIDATION_LIMITS.heartRate.normalMax) {
@@ -442,7 +405,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
         
-        // ✅ مؤشر نسبة الأكسجين
         if (formData.spo2) {
             const spo2 = parseInt(formData.spo2);
             if (spo2 < VALIDATION_LIMITS.spo2.normalMin) {
@@ -465,7 +427,6 @@ function HealthForm({ onDataSubmitted }) {
         return indicators;
     };
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -476,210 +437,216 @@ function HealthForm({ onDataSubmitted }) {
     const healthIndicators = calculateHealthIndicators();
 
     return (
-        <div className={`health-form-container ${darkMode ? 'dark-mode' : ''}`}>
+        <div className="analytics-container">
             {/* رأس النموذج */}
-            <div className="form-header">
-                <div className="header-icon-wrapper">
-                    <div className="header-icon">❤️</div>
-                </div>
-                <div className="header-content">
-                    <h3>{t('health.form.title')}</h3>
-                    <p className="header-subtitle">{t('health.form.subtitle')}</p>
-                    <div className="header-controls">
-                        <label className={`auto-save-toggle ${autoSave ? 'active' : ''}`}>
-                            <input
-                                type="checkbox"
-                                checked={autoSave}
-                                onChange={(e) => setAutoSave(e.target.checked)}
-                            />
-                            <span className="toggle-slider"></span>
-                            <span className="toggle-label">{t('health.form.autoSave')}</span>
-                        </label>
-                        {lastAutoSave && (
-                            <div className="last-save">
-                                <span className="save-icon">💾</span>
-                                <span className="save-time">
-                                    {lastAutoSave.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}
-                                </span>
-                            </div>
-                        )}
-                    </div>
+            <div className="analytics-header">
+                <h2>
+                    <span>❤️</span>
+                    {t('health.form.title')}
+                </h2>
+                <div className="header-controls" style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+                    <label className="auto-save-toggle" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}>
+                        <input
+                            type="checkbox"
+                            checked={autoSave}
+                            onChange={(e) => setAutoSave(e.target.checked)}
+                            style={{ display: 'none' }}
+                        />
+                        <span className="toggle-slider" style={{
+                            width: '40px',
+                            height: '20px',
+                            background: autoSave ? 'var(--success)' : 'var(--border-light)',
+                            borderRadius: '20px',
+                            position: 'relative',
+                            transition: 'all var(--transition-fast)'
+                        }}>
+                            <span style={{
+                                position: 'absolute',
+                                width: '16px',
+                                height: '16px',
+                                background: 'white',
+                                borderRadius: '50%',
+                                top: '2px',
+                                left: autoSave ? '22px' : '2px',
+                                transition: 'all var(--transition-fast)'
+                            }}></span>
+                        </span>
+                        <span className="stat-label">{t('health.form.autoSave')}</span>
+                    </label>
+                    {lastAutoSave && (
+                        <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+                            <span>💾</span>
+                            <span>{lastAutoSave.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}</span>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="health-form">
-                {/* ✅ شبكة حقول الإدخال */}
-                <div className="form-grid">
-                    {/* حقل الوزن */}
-                    <div className="input-group">
-                        <label htmlFor="weight">
-                            <span className="field-icon">⚖️</span>
-                            <span className="field-label">{t('health.form.weight')}</span>
-                        </label>
-                        <div className="input-wrapper">
+            <form onSubmit={handleSubmit}>
+                {/* شبكة حقول الإدخال */}
+                <div className="analytics-stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+                    {/* الوزن */}
+                    <div className="field-group">
+                        <label className="stat-label">⚖️ {t('health.form.weight')}</label>
+                        <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
-                                id="weight"
                                 type="number"
                                 step="0.1"
                                 value={formData.weight}
                                 onChange={(e) => handleInputChange('weight', e.target.value)}
                                 placeholder={t('health.form.weightPlaceholder')}
-                                className={validationErrors.weight ? 'error' : ''}
+                                className={`search-input ${validationErrors.weight ? 'error' : ''}`}
+                                style={validationErrors.weight ? { borderColor: 'var(--error)' } : {}}
                             />
-                            <span className="input-unit">{t('health.form.kg')}</span>
+                            <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
+                                {t('health.form.kg')}
+                            </span>
                         </div>
                         {validationErrors.weight && (
-                            <div className="error-message">
-                                <span className="error-icon">❌</span>
-                                <span className="error-text">{validationErrors.weight}</span>
+                            <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
+                                ❌ {validationErrors.weight}
                             </div>
                         )}
                     </div>
 
-                    {/* حقل الضغط الانقباضي */}
-                    <div className="input-group">
-                        <label htmlFor="systolic">
-                            <span className="field-icon">❤️</span>
-                            <span className="field-label">{t('health.form.systolic')}</span>
-                        </label>
-                        <div className="input-wrapper">
+                    {/* الضغط الانقباضي */}
+                    <div className="field-group">
+                        <label className="stat-label">❤️ {t('health.form.systolic')}</label>
+                        <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
-                                id="systolic"
                                 type="number"
                                 value={formData.systolic}
                                 onChange={(e) => handleInputChange('systolic', e.target.value)}
                                 placeholder={t('health.form.systolicPlaceholder')}
-                                className={validationErrors.systolic ? 'error' : ''}
+                                className={`search-input ${validationErrors.systolic ? 'error' : ''}`}
+                                style={validationErrors.systolic ? { borderColor: 'var(--error)' } : {}}
                             />
-                            <span className="input-unit">mmHg</span>
+                            <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
+                                mmHg
+                            </span>
                         </div>
                         {validationErrors.systolic && (
-                            <div className="error-message">
-                                <span className="error-icon">❌</span>
-                                <span className="error-text">{validationErrors.systolic}</span>
+                            <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
+                                ❌ {validationErrors.systolic}
                             </div>
                         )}
                     </div>
 
-                    {/* حقل الضغط الانبساطي */}
-                    <div className="input-group">
-                        <label htmlFor="diastolic">
-                            <span className="field-icon">💓</span>
-                            <span className="field-label">{t('health.form.diastolic')}</span>
-                        </label>
-                        <div className="input-wrapper">
+                    {/* الضغط الانبساطي */}
+                    <div className="field-group">
+                        <label className="stat-label">💓 {t('health.form.diastolic')}</label>
+                        <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
-                                id="diastolic"
                                 type="number"
                                 value={formData.diastolic}
                                 onChange={(e) => handleInputChange('diastolic', e.target.value)}
                                 placeholder={t('health.form.diastolicPlaceholder')}
-                                className={validationErrors.diastolic ? 'error' : ''}
+                                className={`search-input ${validationErrors.diastolic ? 'error' : ''}`}
+                                style={validationErrors.diastolic ? { borderColor: 'var(--error)' } : {}}
                             />
-                            <span className="input-unit">mmHg</span>
+                            <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
+                                mmHg
+                            </span>
                         </div>
                         {validationErrors.diastolic && (
-                            <div className="error-message">
-                                <span className="error-icon">❌</span>
-                                <span className="error-text">{validationErrors.diastolic}</span>
+                            <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
+                                ❌ {validationErrors.diastolic}
                             </div>
                         )}
                     </div>
 
-                    {/* حقل الجلوكوز */}
-                    <div className="input-group">
-                        <label htmlFor="glucose">
-                            <span className="field-icon">🩸</span>
-                            <span className="field-label">{t('health.form.glucose')}</span>
-                        </label>
-                        <div className="input-wrapper">
+                    {/* الجلوكوز */}
+                    <div className="field-group">
+                        <label className="stat-label">🩸 {t('health.form.glucose')}</label>
+                        <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
-                                id="glucose"
                                 type="number"
                                 step="0.1"
                                 value={formData.glucose}
                                 onChange={(e) => handleInputChange('glucose', e.target.value)}
                                 placeholder={t('health.form.glucosePlaceholder')}
-                                className={validationErrors.glucose ? 'error' : ''}
+                                className={`search-input ${validationErrors.glucose ? 'error' : ''}`}
+                                style={validationErrors.glucose ? { borderColor: 'var(--error)' } : {}}
                             />
-                            <span className="input-unit">{t('health.form.mgdl')}</span>
+                            <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
+                                mg/dL
+                            </span>
                         </div>
                         {validationErrors.glucose && (
-                            <div className="error-message">
-                                <span className="error-icon">❌</span>
-                                <span className="error-text">{validationErrors.glucose}</span>
+                            <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
+                                ❌ {validationErrors.glucose}
                             </div>
                         )}
                     </div>
 
-                    {/* ✅ حقل نبضات القلب - جديد */}
-                    <div className="input-group">
-                        <label htmlFor="heartRate">
-                            <span className="field-icon">❤️</span>
-                            <span className="field-label">{t('health.form.heartRate') || 'نبضات القلب'}</span>
-                        </label>
-                        <div className="input-wrapper">
+                    {/* نبضات القلب */}
+                    <div className="field-group">
+                        <label className="stat-label">❤️ {t('health.form.heartRate') || 'نبضات القلب'}</label>
+                        <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
-                                id="heartRate"
                                 type="number"
                                 value={formData.heartRate}
                                 onChange={(e) => handleInputChange('heartRate', e.target.value)}
                                 placeholder={t('health.form.heartRatePlaceholder') || '60-100 BPM'}
-                                className={validationErrors.heartRate ? 'error' : ''}
+                                className={`search-input ${validationErrors.heartRate ? 'error' : ''}`}
+                                style={validationErrors.heartRate ? { borderColor: 'var(--error)' } : {}}
                             />
-                            <span className="input-unit">BPM</span>
+                            <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
+                                BPM
+                            </span>
                         </div>
                         {validationErrors.heartRate && (
-                            <div className="error-message">
-                                <span className="error-icon">❌</span>
-                                <span className="error-text">{validationErrors.heartRate}</span>
+                            <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
+                                ❌ {validationErrors.heartRate}
                             </div>
                         )}
-                        <small className="field-hint">{t('health.form.heartRateHint') || 'المعدل الطبيعي: 60-100 نبضة في الدقيقة'}</small>
+                        <small className="field-hint" style={{ color: 'var(--text-tertiary)', fontSize: '0.7rem', marginTop: 'var(--spacing-xs)', display: 'block' }}>
+                            {t('health.form.heartRateHint') || 'المعدل الطبيعي: 60-100 نبضة في الدقيقة'}
+                        </small>
                     </div>
 
-                    {/* ✅ حقل نسبة الأكسجين - جديد */}
-                    <div className="input-group">
-                        <label htmlFor="spo2">
-                            <span className="field-icon">💨</span>
-                            <span className="field-label">{t('health.form.spo2') || 'نسبة الأكسجين'}</span>
-                        </label>
-                        <div className="input-wrapper">
+                    {/* نسبة الأكسجين */}
+                    <div className="field-group">
+                        <label className="stat-label">💨 {t('health.form.spo2') || 'نسبة الأكسجين'}</label>
+                        <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
-                                id="spo2"
                                 type="number"
                                 value={formData.spo2}
                                 onChange={(e) => handleInputChange('spo2', e.target.value)}
                                 placeholder={t('health.form.spo2Placeholder') || '95-100%'}
-                                className={validationErrors.spo2 ? 'error' : ''}
+                                className={`search-input ${validationErrors.spo2 ? 'error' : ''}`}
+                                style={validationErrors.spo2 ? { borderColor: 'var(--error)' } : {}}
                             />
-                            <span className="input-unit">%</span>
+                            <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
+                                %
+                            </span>
                         </div>
                         {validationErrors.spo2 && (
-                            <div className="error-message">
-                                <span className="error-icon">❌</span>
-                                <span className="error-text">{validationErrors.spo2}</span>
+                            <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
+                                ❌ {validationErrors.spo2}
                             </div>
                         )}
-                        <small className="field-hint">{t('health.form.spo2Hint') || 'المعدل الطبيعي: 95% - 100%'}</small>
+                        <small className="field-hint" style={{ color: 'var(--text-tertiary)', fontSize: '0.7rem', marginTop: 'var(--spacing-xs)', display: 'block' }}>
+                            {t('health.form.spo2Hint') || 'المعدل الطبيعي: 95% - 100%'}
+                        </small>
                     </div>
                 </div>
 
                 {/* مؤشرات الصحة */}
                 {healthIndicators.length > 0 && (
-                    <div className="health-indicators">
-                        <div className="indicators-header">
-                            <span className="indicators-icon">💡</span>
-                            <h4>{t('health.form.healthIndicators')}</h4>
+                    <div className="recommendations-section">
+                        <div className="rec-header">
+                            <span className="rec-icon">💡</span>
+                            <span className="rec-category">{t('health.form.healthIndicators')}</span>
                         </div>
-                        <div className="indicators-list">
+                        <div className="recommendations-list">
                             {healthIndicators.map((indicator, index) => (
-                                <div key={index} className={`indicator-item ${indicator.type}`}>
-                                    <div className="indicator-header">
-                                        <span className="indicator-icon">{indicator.icon}</span>
-                                        <span className="indicator-message">{indicator.message}</span>
+                                <div key={index} className={`recommendation-card priority-${indicator.type === 'warning' ? 'high' : 'low'}`}>
+                                    <div className="rec-header">
+                                        <span className="rec-icon">{indicator.icon}</span>
+                                        <span className="rec-category">{indicator.message}</span>
                                     </div>
-                                    <p className="indicator-advice">{indicator.advice}</p>
+                                    <div className="rec-advice">{indicator.advice}</div>
                                 </div>
                             ))}
                         </div>
@@ -687,31 +654,29 @@ function HealthForm({ onDataSubmitted }) {
                 )}
 
                 {/* أزرار الإجراء */}
-                <div className="form-actions">
+                <div className="form-actions" style={{ display: 'flex', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>
                     <button 
                         type="button" 
                         onClick={resetForm}
-                        className="reset-button"
+                        className="type-btn"
                         disabled={loading}
+                        style={{ flex: 1 }}
                     >
-                        <span className="button-icon">🔄</span>
-                        <span className="button-text">{t('health.form.reset')}</span>
+                        🔄 {t('health.form.reset')}
                     </button>
                     <button 
                         type="submit" 
                         disabled={loading}
-                        className="submit-button"
+                        className="type-btn active"
+                        style={{ flex: 1 }}
                     >
                         {loading ? (
                             <>
-                                <span className="spinner"></span>
-                                <span className="button-text">{t('health.form.saving')}</span>
+                                <span className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
+                                {t('health.form.saving')}
                             </>
                         ) : (
-                            <>
-                                <span className="button-icon">💾</span>
-                                <span className="button-text">{t('health.form.save')}</span>
-                            </>
+                            <>💾 {t('health.form.save')}</>
                         )}
                     </button>
                 </div>
@@ -719,840 +684,68 @@ function HealthForm({ onDataSubmitted }) {
 
             {/* رسائل التغذية الراجعة */}
             {message && (
-                <div className={`message ${messageType}`}>
-                    <div className="message-content">
-                        <span className="message-icon">
-                            {messageType === 'success' && '✅'}
-                            {messageType === 'error' && '❌'}
-                            {messageType === 'info' && 'ℹ️'}
-                        </span>
-                        <span className="message-text">{message}</span>
-                    </div>
-                    <button 
-                        onClick={() => {
-                            setMessage('');
-                            setMessageType('');
-                        }}
-                        className="dismiss-message"
-                        aria-label={t('common.close')}
-                    >
-                        ✕
-                    </button>
+                <div className={`notification-message ${messageType}`} style={{
+                    position: 'fixed',
+                    bottom: 'var(--spacing-lg)',
+                    right: 'var(--spacing-lg)',
+                    padding: 'var(--spacing-md) var(--spacing-lg)',
+                    borderRadius: 'var(--radius-lg)',
+                    background: messageType === 'success' ? 'var(--success)' : messageType === 'error' ? 'var(--error)' : 'var(--info)',
+                    color: 'white',
+                    zIndex: 1000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-md)'
+                }}>
+                    <span>
+                        {messageType === 'success' && '✅'}
+                        {messageType === 'error' && '❌'}
+                        {messageType === 'info' && 'ℹ️'}
+                    </span>
+                    <span>{message}</span>
+                    <button onClick={() => { setMessage(''); setMessageType(''); }} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>✕</button>
                 </div>
             )}
 
-            <style jsx>{`
- /* ===========================================
-   HealthForm.css - محسن للجوال والشاشات الكبيرة
-   =========================================== */
-
-/* الثيم الفاتح */
-:root {
-    --primary-bg: #ffffff;
-    --secondary-bg: #f8fafc;
-    --tertiary-bg: #f1f5f9;
-    --card-bg: #ffffff;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-tertiary: #64748b;
-    --border-light: #e2e8f0;
-    --border-medium: #cbd5e1;
-    --primary-color: #3b82f6;
-    --primary-dark: #2563eb;
-    --primary-light: #60a5fa;
-    --success-color: #10b981;
-    --success-bg: #d1fae5;
-    --success-border: #a7f3d0;
-    --warning-color: #f59e0b;
-    --warning-bg: #fef3c7;
-    --warning-border: #fde68a;
-    --error-color: #ef4444;
-    --error-bg: #fee2e2;
-    --error-border: #fecaca;
-    --info-color: #3b82f6;
-    --info-bg: #dbeafe;
-    --info-border: #bfdbfe;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
-    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1);
-    --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    --transition-fast: 0.2s ease;
-    --transition-medium: 0.3s ease;
-    --transition-slow: 0.5s ease;
-}
-
-/* الثيم المظلم */
-.dark-mode {
-    --primary-bg: #0f172a;
-    --secondary-bg: #1e293b;
-    --tertiary-bg: #334155;
-    --card-bg: #1e293b;
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-tertiary: #94a3b8;
-    --border-light: #334155;
-    --border-medium: #475569;
-    --primary-color: #60a5fa;
-    --primary-dark: #3b82f6;
-    --primary-light: #93c5fd;
-    --success-color: #4ade80;
-    --success-bg: rgba(16, 185, 129, 0.2);
-    --success-border: rgba(16, 185, 129, 0.3);
-    --warning-color: #fbbf24;
-    --warning-bg: rgba(245, 158, 11, 0.2);
-    --warning-border: rgba(245, 158, 11, 0.3);
-    --error-color: #f87171;
-    --error-bg: rgba(239, 68, 68, 0.2);
-    --error-border: rgba(239, 68, 68, 0.3);
-    --info-color: #60a5fa;
-    --info-bg: rgba(59, 130, 246, 0.2);
-    --info-border: rgba(59, 130, 246, 0.3);
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
-    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.5);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5);
-    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.5);
-}
-
-.health-form-container {
-    background: var(--card-bg);
-    border-radius: 28px;
-    padding: 2rem;
-    box-shadow: var(--shadow-xl);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-medium);
-    margin-bottom: 1.5rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.health-form-container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--gradient-primary);
-}
-
-/* ===========================================
-   رأس النموذج
-   =========================================== */
-.form-header {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 2px solid var(--border-light);
-    flex-wrap: wrap;
-}
-
-.header-icon-wrapper {
-    width: 70px;
-    height: 70px;
-    background: var(--gradient-primary);
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: float 3s infinite;
-}
-
-@keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-5px); }
-}
-
-.header-icon {
-    font-size: 2.5rem;
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));
-}
-
-.header-content {
-    flex: 1;
-}
-
-.header-content h3 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.6rem;
-    font-weight: 700;
-}
-
-.header-subtitle {
-    margin: 0.25rem 0 0 0;
-    color: var(--text-secondary);
-    font-size: 0.95rem;
-}
-
-.header-controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 1rem;
-    flex-wrap: wrap;
-}
-
-.auto-save-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    padding: 0.25rem;
-    transition: all var(--transition-fast);
-}
-
-.auto-save-toggle:active {
-    transform: scale(0.96);
-}
-
-.auto-save-toggle input {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.toggle-slider {
-    width: 40px;
-    height: 20px;
-    background: var(--border-light);
-    border-radius: 20px;
-    position: relative;
-    transition: all var(--transition-fast);
-}
-
-.toggle-slider::before {
-    content: '';
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    background: white;
-    border-radius: 50%;
-    top: 2px;
-    left: 2px;
-    transition: all var(--transition-fast);
-    box-shadow: var(--shadow-sm);
-}
-
-input:checked + .toggle-slider {
-    background: var(--success-color);
-}
-
-input:checked + .toggle-slider::before {
-    transform: translateX(20px);
-}
-
-.toggle-label {
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-}
-
-.last-save {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem 0.75rem;
-    background: var(--secondary-bg);
-    border-radius: 50px;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    border: 1px solid var(--border-light);
-}
-
-.save-icon {
-    font-size: 0.85rem;
-}
-
-/* ===========================================
-   شبكة الحقول
-   =========================================== */
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-.input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.input-group label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-secondary);
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-.field-icon {
-    font-size: 1.1rem;
-}
-
-.input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.input-wrapper input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    padding-right: 70px;
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    border: 2px solid var(--border-light);
-    border-radius: 12px;
-    font-size: 1rem;
-    transition: all var(--transition-fast);
-}
-
-.input-wrapper input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-
-.input-wrapper input.error {
-    border-color: var(--error-color);
-}
-
-.input-unit {
-    position: absolute;
-    right: 1rem;
-    color: var(--text-tertiary);
-    font-size: 0.85rem;
-    font-weight: 600;
-    background: var(--card-bg);
-    padding: 0.2rem 0.5rem;
-    border-radius: 6px;
-    border: 1px solid var(--border-light);
-}
-
-.field-hint {
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-    margin-top: 0.25rem;
-}
-
-.error-message {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-top: 0.25rem;
-    color: var(--error-color);
-    font-size: 0.8rem;
-    animation: slideIn 0.2s ease;
-}
-
-.error-icon {
-    font-size: 0.85rem;
-}
-
-/* ===========================================
-   مؤشرات الصحة
-   =========================================== */
-.health-indicators {
-    background: var(--secondary-bg);
-    border-radius: 18px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    border: 1px solid var(--border-light);
-}
-
-.indicators-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.indicators-icon {
-    font-size: 1.2rem;
-}
-
-.indicators-header h4 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.indicators-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.indicator-item {
-    padding: 0.75rem 1rem;
-    border-radius: 12px;
-    border-left: 4px solid;
-    transition: all var(--transition-fast);
-    background: var(--card-bg);
-}
-
-.indicator-item:active {
-    transform: scale(0.98);
-}
-
-.indicator-item:hover {
-    transform: translateX(5px);
-}
-
-.indicator-item.success {
-    border-left-color: var(--success-color);
-    background: var(--success-bg);
-}
-
-.indicator-item.warning {
-    border-left-color: var(--warning-color);
-    background: var(--warning-bg);
-}
-
-.indicator-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.indicator-icon {
-    font-size: 1rem;
-}
-
-.indicator-message {
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-.indicator-item.success .indicator-message {
-    color: var(--success-color);
-}
-
-.indicator-item.warning .indicator-message {
-    color: var(--warning-color);
-}
-
-.indicator-advice {
-    margin: 0;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    line-height: 1.4;
-}
-
-/* ===========================================
-   أزرار الإجراء
-   =========================================== */
-.form-actions {
-    display: flex;
-    gap: 1rem;
-}
-
-.reset-button, .submit-button {
-    flex: 1;
-    padding: 0.875rem;
-    border: none;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: all var(--transition-medium);
-}
-
-.reset-button:active, .submit-button:active {
-    transform: scale(0.96);
-}
-
-.reset-button {
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    border: 1px solid var(--border-light);
-}
-
-.reset-button:hover:not(:disabled) {
-    background: var(--error-bg);
-    color: var(--error-color);
-    transform: translateY(-2px);
-}
-
-.submit-button {
-    background: var(--gradient-primary);
-    color: white;
-}
-
-.submit-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-.reset-button:disabled, .submit-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.spinner {
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* ===========================================
-   الرسائل
-   =========================================== */
-.message {
-    margin-top: 1.5rem;
-    padding: 0.875rem;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    animation: slideIn 0.3s ease;
-}
-
-.message.success {
-    background: var(--success-bg);
-    color: var(--success-color);
-    border: 1px solid var(--success-border);
-}
-
-.message.error {
-    background: var(--error-bg);
-    color: var(--error-color);
-    border: 1px solid var(--error-border);
-}
-
-.message.info {
-    background: var(--info-bg);
-    color: var(--info-color);
-    border: 1px solid var(--info-border);
-}
-
-.message-content {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.message-icon {
-    font-size: 1rem;
-}
-
-.dismiss-message {
-    background: none;
-    border: none;
-    color: inherit;
-    cursor: pointer;
-    font-size: 1rem;
-    padding: 0.25rem;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--transition-fast);
-}
-
-.dismiss-message:active {
-    transform: scale(0.9);
-}
-
-.dismiss-message:hover {
-    background: rgba(0, 0, 0, 0.1);
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* ===========================================
-   RTL دعم
-   =========================================== */
-[dir="rtl"] .input-unit {
-    right: auto;
-    left: 1rem;
-}
-
-[dir="rtl"] .input-wrapper input {
-    padding-right: 1rem;
-    padding-left: 70px;
-}
-
-[dir="rtl"] .indicator-item {
-    border-left: none;
-    border-right: 4px solid;
-}
-
-[dir="rtl"] .indicator-item:hover {
-    transform: translateX(-5px);
-}
-
-[dir="rtl"] .header-icon-wrapper {
-    margin-left: 1rem;
-    margin-right: 0;
-}
-
-[dir="rtl"] .form-header {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .header-controls {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] input:checked + .toggle-slider::before {
-    transform: translateX(-20px);
-}
-
-[dir="rtl"] .message-content {
-    flex-direction: row-reverse;
-}
-
-/* ===========================================
-   تصميم متجاوب
-   =========================================== */
-@media (max-width: 768px) {
-    .health-form-container {
-        padding: 1.25rem;
-        border-radius: 20px;
-    }
-
-    .form-header {
-        flex-direction: column;
-        text-align: center;
-        gap: 1rem;
-    }
-
-    .header-icon-wrapper {
-        width: 60px;
-        height: 60px;
-    }
-
-    .header-icon {
-        font-size: 2rem;
-    }
-
-    .header-content h3 {
-        font-size: 1.3rem;
-    }
-
-    .form-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    .form-actions {
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-
-    .reset-button, .submit-button {
-        width: 100%;
-    }
-
-    .header-controls {
-        justify-content: center;
-    }
-
-    .health-indicators {
-        padding: 1rem;
-    }
-
-    .indicator-item {
-        padding: 0.6rem 0.8rem;
-    }
-
-    .indicator-message {
-        font-size: 0.85rem;
-    }
-
-    .indicator-advice {
-        font-size: 0.8rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .health-form-container {
-        padding: 1rem;
-        border-radius: 16px;
-    }
-
-    .header-icon-wrapper {
-        width: 50px;
-        height: 50px;
-    }
-
-    .header-icon {
-        font-size: 1.6rem;
-    }
-
-    .header-content h3 {
-        font-size: 1.2rem;
-    }
-
-    .header-subtitle {
-        font-size: 0.8rem;
-    }
-
-    .toggle-label {
-        font-size: 0.75rem;
-    }
-
-    .last-save {
-        font-size: 0.7rem;
-        padding: 0.2rem 0.5rem;
-    }
-
-    .input-wrapper input {
-        padding: 0.6rem 0.8rem;
-        padding-right: 65px;
-        font-size: 0.9rem;
-    }
-
-    .input-unit {
-        font-size: 0.75rem;
-        padding: 0.15rem 0.4rem;
-    }
-
-    .field-hint {
-        font-size: 0.65rem;
-    }
-
-    .indicator-item {
-        padding: 0.5rem 0.6rem;
-    }
-
-    .indicator-icon {
-        font-size: 0.9rem;
-    }
-
-    .indicator-message {
-        font-size: 0.8rem;
-    }
-
-    .indicator-advice {
-        font-size: 0.75rem;
-    }
-
-    .reset-button, .submit-button {
-        padding: 0.7rem;
-        font-size: 0.85rem;
-    }
-
-    .message {
-        padding: 0.7rem;
-        font-size: 0.85rem;
-    }
-}
-
-/* الوضع الأفقي (Landscape) */
-@media (max-height: 600px) and (orientation: landscape) {
-    .health-form-container {
-        padding: 1rem;
-    }
-
-    .form-header {
-        margin-bottom: 1rem;
-        padding-bottom: 1rem;
-    }
-
-    .header-icon-wrapper {
-        width: 50px;
-        height: 50px;
-    }
-
-    .header-icon {
-        font-size: 1.6rem;
-    }
-
-    .form-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .health-indicators {
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .indicators-list {
-        gap: 0.5rem;
-    }
-
-    .indicator-item {
-        padding: 0.5rem;
-    }
-}
-
-/* للمستخدمين الذين يفضلون الحركة المنخفضة */
-@media (prefers-reduced-motion: reduce) {
-    .health-form-container,
-    .header-icon-wrapper,
-    .auto-save-toggle,
-    .indicator-item,
-    .reset-button,
-    .submit-button,
-    .dismiss-message {
-        transition: none;
-    }
-    
-    .header-icon-wrapper {
-        animation: none;
-    }
-    
-    .spinner {
-        animation: none;
-    }
-    
-    .indicator-item:hover {
-        transform: none;
-    }
-    
-    .reset-button:hover:not(:disabled),
-    .submit-button:hover:not(:disabled) {
-        transform: none;
-    }
-}
-
-/* تحسينات اللمس للأجهزة المحمولة */
-@media (hover: none) and (pointer: coarse) {
-    .auto-save-toggle:active,
-    .reset-button:active,
-    .submit-button:active,
-    .dismiss-message:active {
-        transform: scale(0.96);
-    }
-    
-    .indicator-item:active {
-        transform: scale(0.98);
-    }
-}
+            {/* الأنماط الإضافية */}
+            <style>{`
+                .spinner {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    display: inline-block;
+                    animation: spin 0.8s linear infinite;
+                }
+
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+
+                [dir="rtl"] .input-unit {
+                    right: auto;
+                    left: 1rem;
+                }
+
+                @media (max-width: 768px) {
+                    .notification-message {
+                        left: var(--spacing-md);
+                        right: var(--spacing-md);
+                        bottom: var(--spacing-md);
+                    }
+                    
+                    [dir="rtl"] .notification-message {
+                        left: var(--spacing-md);
+                        right: var(--spacing-md);
+                    }
+                }
+
+                @media (prefers-reduced-motion: reduce) {
+                    .spinner {
+                        animation: none;
+                    }
+                }
             `}</style>
         </div>
     );
