@@ -388,16 +388,23 @@ const generateRecommendations = (analysis, t) => {
 
 const MoodAnalytics = ({ refreshTrigger }) => {
     const { t, i18n } = useTranslation();
+    const isMountedRef = useRef(true);
     const [darkMode, setDarkMode] = useState(false);
     const [analysis, setAnalysis] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true';
-        setDarkMode(savedDarkMode);
+        if (isMountedRef.current) {
+            fetchAllData();
+        }
+    }, [refreshTrigger]); // يعتمد على refreshTrigger فقط
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
     }, []);
-
     useEffect(() => {
         fetchAllData();
     }, [refreshTrigger]);
@@ -414,41 +421,15 @@ const fetchAllData = async () => {
             axiosInstance.get('/activities/').catch(() => ({ data: [] }))
         ]);
         
-        // ✅ معالجة بيانات المزاج - دعم results والمصفوفة
-        let moodDataRaw = [];
-        if (moodRes.data?.results) {
-            moodDataRaw = moodRes.data.results;
-        } else if (Array.isArray(moodRes.data)) {
-            moodDataRaw = moodRes.data;
-        } else {
-            moodDataRaw = [];
-        }
+        // 1. معالجة بيانات المزاج
+        let moodDataRaw = moodRes.data?.results || (Array.isArray(moodRes.data) ? moodRes.data : []);
+        // 2. معالجة بيانات النوم
+        let sleepDataRaw = sleepRes.data?.results || (Array.isArray(sleepRes.data) ? sleepRes.data : []);
+        // 3. معالجة بيانات النشاط
+        let activitiesDataRaw = activitiesRes.data?.results || (Array.isArray(activitiesRes.data) ? activitiesRes.data : []);
         
-        // ✅ معالجة بيانات النوم
-        let sleepDataRaw = [];
-        if (sleepRes.data?.results) {
-            sleepDataRaw = sleepRes.data.results;
-        } else if (Array.isArray(sleepRes.data)) {
-            sleepDataRaw = sleepRes.data;
-        } else {
-            sleepDataRaw = [];
-        }
-        
-        // ✅ معالجة بيانات النشاط
-        let activitiesDataRaw = [];
-        if (activitiesRes.data?.results) {
-            activitiesDataRaw = activitiesRes.data.results;
-        } else if (Array.isArray(activitiesRes.data)) {
-            activitiesDataRaw = activitiesRes.data;
-        } else {
-            activitiesDataRaw = [];
-        }
-        
-        console.log('😊 MoodAnalytics - Mood data:', moodDataRaw.length, 'records');
-        console.log('😊 MoodAnalytics - Sleep data:', sleepDataRaw.length, 'records');
-        console.log('😊 MoodAnalytics - Activities data:', activitiesDataRaw.length, 'records');
-        
-        const moodData = moodDataRaw.map(m => ({
+        // تحويل بيانات المزاج إلى الشكل المطلوب للتحليل
+        const moodRecords = moodDataRaw.map(m => ({
             date: new Date(m.entry_time || m.date),
             score: getMoodScore(m.mood),
             raw: m.mood,
@@ -456,16 +437,84 @@ const fetchAllData = async () => {
             notes: m.text_entry || ''
         })).sort((a, b) => a.date - b.date);
         
-        const sleepData = sleepDataRaw;
-        const activitiesData = activitiesDataRaw;
+        // تحويل بيانات النوم والنشاط (يمكنك إضافة المزيد من المعالجة حسب الحاجة)
+        const sleepRecords = sleepDataRaw;
+        const activities = activitiesDataRaw;
         
-        // ... باقي الكود كما هو ...
+        console.log('📊 Starting analysis...');
+        console.log(`Mood records: ${moodRecords.length}, Sleep: ${sleepRecords.length}, Activities: ${activities.length}`);
+        
+        // --- ✅ البدء بالتحليل باستخدام الدوال الموجودة ---
+        let analysisResult = null;
+        
+        if (moodRecords.length === 0) {
+            analysisResult = {
+                hasData: false,
+                message: t('analytics.mood.noData', 'لا توجد بيانات كافية للتحليل. قم بتسجيل مزاجك أولاً!'),
+                recommendations: generateRecommendations({}, t)
+            };
+        } else {
+            // تحليل الاتجاه
+            const trend = analyzeTrend(moodRecords, t);
+            // تحليل أنماط الأيام
+            const dayPattern = analyzeDayPatterns(moodRecords, t);
+            // تحليل أوقات اليوم
+            const timePattern = analyzeTimePatterns(moodRecords, t);
+            // تحليل تأثير النوم
+            const sleepImpact = analyzeSleepImpact(sleepRecords, moodRecords, t);
+            // تحليل تأثير النشاط
+            const activityImpact = analyzeActivityImpact(activities, moodRecords, t);
+            // كشف انخفاض المزاج
+            const declineAlert = detectMoodDecline(moodRecords, t);
+            
+            // حساب الإحصائيات السريعة
+            const scores = moodRecords.map(r => r.score);
+            const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+            
+            const moodFrequency = {};
+            moodRecords.forEach(r => { moodFrequency[r.raw] = (moodFrequency[r.raw] || 0) + 1; });
+            let mostFrequentMood = 'Neutral';
+            let maxCount = 0;
+            for (const [mood, count] of Object.entries(moodFrequency)) {
+                if (count > maxCount) { maxCount = count; mostFrequentMood = mood; }
+            }
+            
+            // تجميع كل التحليلات في كائن واحد
+            const fullAnalysis = {
+                trend, dayPattern, timePattern, sleepImpact, activityImpact, declineAlert,
+                summary: {
+                    avgMood: roundNumber(avgScore, 1),
+                    totalDays: moodRecords.length,
+                    mostFrequent: mostFrequentMood
+                },
+                // تحضير التنبؤ (بسيط)
+                prediction: moodRecords.length >= 3 ? {
+                    value: roundNumber(moodRecords.slice(-3).reduce((a,b)=>a+b.score,0)/3, 1),
+                    trend: trend ? (trend.type === 'improving' ? '📈' : '📉') : '➡️'
+                } : null,
+                // توليد التوصيات بناءً على التحليلات الموجودة
+                recommendations: generateRecommendations({ trend, sleepImpact, activityImpact, dayPattern, timePattern }, t)
+            };
+            
+            analysisResult = { hasData: true, ...fullAnalysis };
+        }
+        
+        // تحديث حالة التحليل
+        if (isMountedRef?.current) {
+            setAnalysis(analysisResult);
+        } else {
+            setAnalysis(analysisResult);
+        }
         
     } catch (err) {
-        console.error('Error in MoodAnalytics:', err);
-        setError(t('analytics.mood.error', 'حدث خطأ في تحليل المزاج'));
+        console.error('Error in MoodAnalytics fetchAllData:', err);
+        if (isMountedRef?.current) {
+            setError(t('analytics.mood.error', 'حدث خطأ في تحليل المزاج'));
+        }
     } finally {
-        setLoading(false);
+        if (isMountedRef?.current) {
+            setLoading(false);
+        }
     }
 };
 
