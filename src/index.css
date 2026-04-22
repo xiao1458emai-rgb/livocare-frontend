@@ -1628,3 +1628,112 @@ input:checked + .toggle-slider:before {
                 [dir="rtl"] .control-right {
                     flex-direction: row-reverse;
                 }
+/* أضف هذه الأنماط إلى نهاية ملف index.css */
+
+/* ===========================================
+   تخطيط الصفحة الرئيسية - دعم السايدبار
+   =========================================== */
+
+/* الحاوية الرئيسية للتطبيق */
+.app-container {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+    position: relative;
+}
+
+/* المحتوى الرئيسي */
+.main-content {
+    flex: 1;
+    overflow-x: auto;
+    transition: margin-left var(--transition-medium), margin-right var(--transition-medium);
+    width: 100%;
+}
+
+/* الوضع العادي (شاشات كبيرة) */
+[dir="ltr"] .main-content {
+    margin-left: 280px;
+}
+
+[dir="rtl"] .main-content {
+    margin-right: 280px;
+}
+
+/* السايدبار مصغر */
+[dir="ltr"] .sidebar.collapsed ~ .main-content {
+    margin-left: 80px;
+}
+
+[dir="rtl"] .sidebar.collapsed ~ .main-content {
+    margin-right: 80px;
+}
+
+/* ===========================================
+   استجابة للشاشات المتوسطة (تابلت)
+   =========================================== */
+@media (max-width: 1024px) and (min-width: 768px) {
+    [dir="ltr"] .main-content {
+        margin-left: 260px;
+    }
+    
+    [dir="rtl"] .main-content {
+        margin-right: 260px;
+    }
+}
+
+/* ===========================================
+   استجابة للشاشات الصغيرة (جوال)
+   =========================================== */
+@media (max-width: 767px) {
+    [dir="ltr"] .main-content,
+    [dir="rtl"] .main-content {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+}
+
+/* ===========================================
+   أنماط إضافية للمكونات
+   =========================================== */
+
+/* ضمان أن analytics-container لا يتجاوز العرض */
+.analytics-container {
+    max-width: 100%;
+    overflow-x: auto;
+    box-sizing: border-box;
+}
+
+/* تحسين عرض الجداول على الشاشات الصغيرة */
+@media (max-width: 768px) {
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .health-table {
+        min-width: 600px;
+    }
+}
+
+/* تحسين بطاقات الإحصائيات على التابلت */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .analytics-stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .strengths-weaknesses {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ضمان عدم تجاوز الصور والعناصر */
+img, video, iframe {
+    max-width: 100%;
+    height: auto;
+}
+
+/* تحسين التمرير الأفقي */
+.overflow-x-auto {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
