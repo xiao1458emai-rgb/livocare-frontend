@@ -10,7 +10,6 @@ import '../index.css';
 const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
     const { t, i18n } = useTranslation();
     
-    // useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
     const isFetchingRef = useRef(false);
@@ -421,11 +420,11 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 recorded_at: sensorData.lastUpdate ? new Date(sensorData.lastUpdate).toISOString() : new Date().toISOString()
             };
             
-            console.log('💾 Saving health record:', healthData);
+            console.log('Saving health record:', healthData);
             const response = await axiosInstance.post('/health_status/', healthData);
             
             if (isMountedRef.current) {
-                setMessage(t('watch.healthDataAdded') || '✅ تم حفظ القراءة الصحية');
+                setMessage(t('watch.healthDataAdded') || 'تم حفظ القراءة الصحية');
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
                 }, 3000);
@@ -435,7 +434,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
         } catch (err) {
             console.error('Error saving health data:', err);
             if (isMountedRef.current) {
-                setError(t('watch.healthDataAddError') || '❌ فشل حفظ القراءة الصحية');
+                setError(t('watch.healthDataAddError') || 'فشل حفظ القراءة الصحية');
                 setTimeout(() => setError(null), 3000);
             }
         } finally {
@@ -526,7 +525,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
 
     return (
         <div className="analytics-container">
-            {/* قسم ESP32 Monitor */}
+            {/* قسم ESP32 Monitor - بدون أيقونات مكررة */}
             <div className={`recommendations-section ${sensorStatus === 'connected' ? 'priority-high' : ''}`} style={{ 
                 background: sensorActive ? 'linear-gradient(135deg, #1e3a5f 0%, #0f2b3a 100%)' : 'var(--card-bg)',
                 color: sensorActive ? 'white' : 'inherit'
@@ -557,7 +556,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                     
                     {!sensorActive ? (
                         <button onClick={connectSensor} disabled={sensorConnecting} className="type-btn active" style={{ background: 'var(--success)', color: 'white' }}>
-                            {sensorConnecting ? '⏳ ' + (t('watch.connecting') || 'Connecting...') : '🫀 ' + (t('watch.connectAdb') || 'Connect ESP32')}
+                            {sensorConnecting ? '⏳ ' + (t('watch.connecting') || 'Connecting...') : '🔌 ' + (t('watch.connectAdb') || 'Connect ESP32')}
                         </button>
                     ) : (
                         <button onClick={disconnectSensor} className="type-btn" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
@@ -644,7 +643,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                     <h3>{isEditing ? t('activities.editActivityTitle') : t('activities.addActivityTitle')}</h3>
                     {isEditing && (
                         <button onClick={cancelEdit} className="type-btn" style={{ borderColor: 'var(--error)' }}>
-                            ❌ {t('common.cancel')}
+                            ✖ {t('common.cancel')}
                         </button>
                     )}
                 </div>
@@ -655,7 +654,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
 
                 <form onSubmit={handleSubmit}>
                     <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                        <label>🏃 {t('activities.activityType')}</label>
+                        <label>{t('activities.activityType')}</label>
                         <select name="activity_type" value={formData.activity_type} onChange={handleChange} required className="search-input">
                             <option value="">{t('activities.selectActivity')}</option>
                             {getActivityOptions().map(opt => (
@@ -666,12 +665,12 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
 
                     <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 'var(--spacing-md)' }}>
                         <div className="field-group">
-                            <label>⏱️ {t('activities.duration')}</label>
+                            <label>{t('activities.duration')}</label>
                             <input type="number" name="duration_minutes" value={formData.duration_minutes} onChange={handleChange} required min="1" max="180" placeholder={t('activities.durationPlaceholder')} className="search-input" />
                             <small className="stat-label" style={{ display: 'block', marginTop: 'var(--spacing-xs)' }}>{t('activities.durationHint')}</small>
                         </div>
                         <div className="field-group">
-                            <label>📅 {t('activities.startTime')}</label>
+                            <label>{t('activities.startTime')}</label>
                             <input type="datetime-local" name="start_time" value={formData.start_time} onChange={handleChange} required className="search-input" />
                         </div>
                     </div>
@@ -693,7 +692,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                     )}
 
                     <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                        <label>📝 {t('activities.notes')}</label>
+                        <label>{t('activities.notes')}</label>
                         <textarea name="notes" value={formData.notes} onChange={handleChange} rows="2" placeholder={t('activities.notesPlaceholder')} className="search-input" style={{ resize: 'vertical' }} />
                     </div>
                     
@@ -706,14 +705,14 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                         </button>
                         {isEditing && (
                             <button type="button" onClick={cancelEdit} className="type-btn" style={{ flex: 1 }}>
-                                ❌ {t('common.cancel')}
+                                ✖ {t('common.cancel')}
                             </button>
                         )}
                     </div>
                 </form>
             </div>
 
-            {/* قائمة الأنشطة */}
+            {/* قائمة الأنشطة - بدون أيقونات مكررة */}
             <div className="recommendations-section">
                 <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
                     <h3>{t('activities.history')}</h3>
@@ -751,19 +750,19 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                                         <span>{getActivityOptions().find(o => o.value === activity.activity_type)?.label || activity.activity_type}</span>
                                     </div>
                                     <div className="notification-meta">
-                                        <span className="notification-time">📅 {formatDate(activity.start_time)}</span>
+                                        <span className="notification-time">{formatDate(activity.start_time)}</span>
                                         <div className="notification-actions">
-                                            <button onClick={() => loadActivityForEdit(activity)} className="notification-action-btn" disabled={loading}>✏️</button>
-                                            <button onClick={() => deleteActivity(activity.id)} className="notification-action-btn" disabled={loading}>🗑️</button>
+                                            <button onClick={() => loadActivityForEdit(activity)} className="notification-action-btn" disabled={loading} aria-label={t('common.edit')}>✏️</button>
+                                            <button onClick={() => deleteActivity(activity.id)} className="notification-action-btn" disabled={loading} aria-label={t('common.delete')}>🗑️</button>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="notification-content">
                                     <div className="habit-stats">
-                                        <span>⏱️ {t('activities.duration')}: {safeValue(activity.duration_minutes)} {t('common.minutes')}</span>
-                                        <span>🔥 {t('activities.calories')}: {safeValue(activity.calories_burned)} {t('common.calories')}</span>
+                                        <span>{t('activities.duration')}: {safeValue(activity.duration_minutes)} {t('common.minutes')}</span>
+                                        <span>{t('activities.calories')}: {safeValue(activity.calories_burned)} {t('common.calories')}</span>
                                     </div>
-                                    {activity.notes && <div className="rec-advice" style={{ marginTop: 'var(--spacing-sm)' }}>📝 {activity.notes}</div>}
+                                    {activity.notes && <div className="rec-advice" style={{ marginTop: 'var(--spacing-sm)' }}>{activity.notes}</div>}
                                 </div>
                             </div>
                         ))}
@@ -771,7 +770,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange }) => {
                 )}
             </div>
 
-            {/* إضافة الأنيميشن المفقودة */}
             <style>{`
                 @keyframes pulse {
                     0% { transform: scale(0.95); opacity: 1; }

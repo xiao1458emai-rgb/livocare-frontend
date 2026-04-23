@@ -1,5 +1,5 @@
 // src/components/Analytics/MoodAnalytics.jsx
-import React, { useState, useEffect, useCallback, useRef } from 'react'; // ✅ أضف useRef هنا
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import './Analytics.css';
@@ -38,8 +38,8 @@ const getMoodText = (mood, t) => {
     return map[mood] || mood;
 };
 
-// دالة لتحليل أيام الأسبوع
-const analyzeDayPatterns = (moodRecords, t) => {
+// دالة لتحليل أيام الأسبوع - ✅ تم إصلاح i18n
+const analyzeDayPatterns = (moodRecords, t, isArabic) => {
     if (moodRecords.length < 7) return null;
 
     const dayScores = {
@@ -55,11 +55,18 @@ const analyzeDayPatterns = (moodRecords, t) => {
     let bestScore = 0, worstScore = 5;
     let bestCount = 0, worstCount = 0;
     
-    const dayNames = [
-        t('mood.days.sunday'), t('mood.days.monday'), t('mood.days.tuesday'),
-        t('mood.days.wednesday'), t('mood.days.thursday'), t('mood.days.friday'),
-        t('mood.days.saturday')
-    ];
+    // ✅ أيام الأسبوع بالعربية والإنجليزية
+    const dayNamesAr = {
+        0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء',
+        3: 'الأربعاء', 4: 'الخميس', 5: 'الجمعة', 6: 'السبت'
+    };
+    
+    const dayNamesEn = {
+        0: 'Sunday', 1: 'Monday', 2: 'Tuesday',
+        3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday'
+    };
+    
+    const dayNames = isArabic ? dayNamesAr : dayNamesEn;
     
     Object.entries(dayScores).forEach(([day, scores]) => {
         if (scores.length >= 2) {
@@ -95,14 +102,14 @@ const analyzeDayPatterns = (moodRecords, t) => {
 };
 
 // دالة لتحليل أوقات اليوم
-const analyzeTimePatterns = (moodRecords, t) => {
+const analyzeTimePatterns = (moodRecords, t, isArabic) => {
     if (moodRecords.length < 5) return null;
     
     const timeSlots = {
-        morning: { scores: [], label: t('mood.time.morning', 'الصباح'), hours: [5, 12] },
-        afternoon: { scores: [], label: t('mood.time.afternoon', 'الظهيرة'), hours: [12, 17] },
-        evening: { scores: [], label: t('mood.time.evening', 'المساء'), hours: [17, 21] },
-        night: { scores: [], label: t('mood.time.night', 'الليل'), hours: [21, 5] }
+        morning: { scores: [], label: isArabic ? 'الصباح' : 'Morning', hours: [5, 12] },
+        afternoon: { scores: [], label: isArabic ? 'الظهيرة' : 'Afternoon', hours: [12, 17] },
+        evening: { scores: [], label: isArabic ? 'المساء' : 'Evening', hours: [17, 21] },
+        night: { scores: [], label: isArabic ? 'الليل' : 'Night', hours: [21, 5] }
     };
     
     moodRecords.forEach(record => {
@@ -229,7 +236,7 @@ const analyzeActivityImpact = (activities, moodRecords, t) => {
     
     const activityByDay = {};
     activities.forEach(activity => {
-        const date = new Date(activity.date || activity.created_at).toDateString();
+        const date = new Date(activity.date || activity.created_at || activity.start_time).toDateString();
         const duration = activity.duration_minutes || 0;
         if (!activityByDay[date]) activityByDay[date] = 0;
         activityByDay[date] += duration;
@@ -289,7 +296,7 @@ const detectMoodDecline = (moodRecords, t) => {
             type: 'decline_alert',
             icon: '⚠️',
             title: t('analytics.mood.alerts.decline', 'انخفاض مستمر في المزاج'),
-            message: t('analytics.mood.alerts.declineMessage', { days: consecutiveLow }),
+            message: t('analytics.mood.alerts.declineMessage', `انخفض مزاجك لمدة ${consecutiveLow} أيام متتالية`),
             severity: consecutiveLow >= 5 ? 'high' : 'medium',
             days: consecutiveLow
         };
@@ -345,10 +352,7 @@ const generateRecommendations = (analysis, t) => {
         recommendations.push({
             icon: '📅',
             title: t('analytics.mood.recommendations.dayPattern.title', 'استغل أيامك الجيدة'),
-            advice: t('analytics.mood.recommendations.dayPattern.advice', {
-                day: analysis.dayPattern.bestDay,
-                defaultValue: `أيام ${analysis.dayPattern.bestDay} هي الأفضل لك`
-            }),
+            advice: `أيام ${analysis.dayPattern.bestDay} هي الأفضل لك`,
             tips: [
                 t('analytics.mood.recommendations.dayPattern.tip1', 'خطط لأنشطتك المهمة في أيامك الجيدة'),
                 t('analytics.mood.recommendations.dayPattern.tip2', 'كن لطيفاً مع نفسك في الأيام الأخرى')
@@ -360,10 +364,7 @@ const generateRecommendations = (analysis, t) => {
         recommendations.push({
             icon: '⏰',
             title: t('analytics.mood.recommendations.timePattern.title', 'أفضل وقت لمزاجك'),
-            advice: t('analytics.mood.recommendations.timePattern.advice', {
-                time: analysis.timePattern.bestTime,
-                defaultValue: `وقت ${analysis.timePattern.bestTime} هو الأفضل لمزاجك`
-            }),
+            advice: `وقت ${analysis.timePattern.bestTime} هو الأفضل لمزاجك`,
             tips: [
                 t('analytics.mood.recommendations.timePattern.tip1', 'استغل هذا الوقت للإبداع'),
                 t('analytics.mood.recommendations.timePattern.tip2', 'خطط لمهامك المهمة في هذا الوقت')
@@ -371,7 +372,7 @@ const generateRecommendations = (analysis, t) => {
         });
     }
     
-    if (recommendations.length === 0) {
+    if (recommendations.length === 0 && analysis.hasData) {
         recommendations.push({
             icon: '🌟',
             title: t('analytics.mood.recommendations.default.title', 'استمر على ما أنت عليه'),
@@ -388,20 +389,19 @@ const generateRecommendations = (analysis, t) => {
 
 // ======================== المكون الرئيسي ========================
 const MoodAnalytics = ({ refreshTrigger }) => {
-    const { t } = useTranslation();
-    const isMountedRef = useRef(true); // ✅ تعريف useRef
+    const { t, i18n } = useTranslation();
+    const isMountedRef = useRef(true);
+    const isArabic = i18n.language === 'ar';
     const [darkMode, setDarkMode] = useState(false);
     const [analysis, setAnalysis] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // ✅ تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true';
         setDarkMode(savedDarkMode);
     }, []);
 
-    // ✅ دالة جلب البيانات وتحليلها (تعريفها قبل استخدامها في useEffect)
     const fetchAllData = useCallback(async () => {
         if (!isMountedRef.current) return;
         
@@ -417,14 +417,10 @@ const MoodAnalytics = ({ refreshTrigger }) => {
             
             if (!isMountedRef.current) return;
             
-            // 1. معالجة بيانات المزاج
             let moodDataRaw = moodRes.data?.results || (Array.isArray(moodRes.data) ? moodRes.data : []);
-            // 2. معالجة بيانات النوم
             let sleepDataRaw = sleepRes.data?.results || (Array.isArray(sleepRes.data) ? sleepRes.data : []);
-            // 3. معالجة بيانات النشاط
             let activitiesDataRaw = activitiesRes.data?.results || (Array.isArray(activitiesRes.data) ? activitiesRes.data : []);
             
-            // تحويل بيانات المزاج إلى الشكل المطلوب للتحليل
             const moodRecords = moodDataRaw.map(m => ({
                 date: new Date(m.entry_time || m.date),
                 score: getMoodScore(m.mood),
@@ -445,23 +441,16 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                 analysisResult = {
                     hasData: false,
                     message: t('analytics.mood.noData', 'لا توجد بيانات كافية للتحليل. قم بتسجيل مزاجك أولاً!'),
-                    recommendations: generateRecommendations({}, t)
+                    recommendations: generateRecommendations({ hasData: false }, t)
                 };
             } else {
-                // تحليل الاتجاه
                 const trend = analyzeTrend(moodRecords, t);
-                // تحليل أنماط الأيام
-                const dayPattern = analyzeDayPatterns(moodRecords, t);
-                // تحليل أوقات اليوم
-                const timePattern = analyzeTimePatterns(moodRecords, t);
-                // تحليل تأثير النوم
+                const dayPattern = analyzeDayPatterns(moodRecords, t, isArabic);
+                const timePattern = analyzeTimePatterns(moodRecords, t, isArabic);
                 const sleepImpact = analyzeSleepImpact(sleepRecords, moodRecords, t);
-                // تحليل تأثير النشاط
                 const activityImpact = analyzeActivityImpact(activities, moodRecords, t);
-                // كشف انخفاض المزاج
                 const declineAlert = detectMoodDecline(moodRecords, t);
                 
-                // حساب الإحصائيات السريعة
                 const scores = moodRecords.map(r => r.score);
                 const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
                 
@@ -473,22 +462,31 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                     if (count > maxCount) { maxCount = count; mostFrequentMood = mood; }
                 }
                 
-                // تجميع كل التحليلات في كائن واحد
+                let predictionValue = null;
+                let predictionTrend = '➡️';
+                if (moodRecords.length >= 3) {
+                    predictionValue = roundNumber(moodRecords.slice(-3).reduce((a, b) => a + b.score, 0) / 3, 1);
+                    predictionTrend = trend ? (trend.type === 'improving' ? '📈' : '📉') : '➡️';
+                }
+                
                 const fullAnalysis = {
+                    hasData: true,
                     trend, dayPattern, timePattern, sleepImpact, activityImpact, declineAlert,
                     summary: {
                         avgMood: roundNumber(avgScore, 1),
                         totalDays: moodRecords.length,
-                        mostFrequent: mostFrequentMood
+                        mostFrequent: mostFrequentMood,
+                        mostFrequentEmoji: getMoodEmoji(mostFrequentMood),
+                        mostFrequentText: getMoodText(mostFrequentMood, t)
                     },
-                    prediction: moodRecords.length >= 3 ? {
-                        value: roundNumber(moodRecords.slice(-3).reduce((a,b)=>a+b.score,0)/3, 1),
-                        trend: trend ? (trend.type === 'improving' ? '📈' : '📉') : '➡️'
+                    prediction: predictionValue ? {
+                        value: predictionValue,
+                        trend: predictionTrend
                     } : null,
-                    recommendations: generateRecommendations({ trend, sleepImpact, activityImpact, dayPattern, timePattern }, t)
+                    recommendations: generateRecommendations({ trend, sleepImpact, activityImpact, dayPattern, timePattern, hasData: true }, t)
                 };
                 
-                analysisResult = { hasData: true, ...fullAnalysis };
+                analysisResult = fullAnalysis;
             }
             
             if (isMountedRef.current) {
@@ -505,14 +503,12 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                 setLoading(false);
             }
         }
-    }, [t]);
+    }, [t, isArabic]);
 
-    // ✅ useEffect لجلب البيانات عند التحميل وعند تغيير refreshTrigger
     useEffect(() => {
         fetchAllData();
     }, [fetchAllData, refreshTrigger]);
 
-    // ✅ useEffect للتنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -520,7 +516,6 @@ const MoodAnalytics = ({ refreshTrigger }) => {
         };
     }, []);
 
-    // ✅ حالة التحميل
     if (loading) {
         return (
             <div className={`analytics-loading ${darkMode ? 'dark-mode' : ''}`}>
@@ -530,7 +525,6 @@ const MoodAnalytics = ({ refreshTrigger }) => {
         );
     }
 
-    // ✅ حالة الخطأ
     if (error) {
         return (
             <div className={`analytics-error ${darkMode ? 'dark-mode' : ''}`}>
@@ -542,11 +536,10 @@ const MoodAnalytics = ({ refreshTrigger }) => {
         );
     }
 
-    // ✅ العرض الرئيسي
     return (
         <div className={`analytics-container mood-analytics ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
-                <h2>📊 {t('analytics.mood.title', 'تحليل المزاج')}</h2>
+                <h2>{t('analytics.mood.title', 'تحليل المزاج')}</h2>
                 <button onClick={fetchAllData} className="refresh-btn" title={t('common.refresh')}>
                     🔄
                 </button>
@@ -558,7 +551,7 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                         <div className="no-data-message">
                             <div className="message-icon">📝</div>
                             <p>{analysis.message}</p>
-                            {analysis.recommendations.map((rec, i) => (
+                            {analysis.recommendations?.map((rec, i) => (
                                 <div key={i} className="start-tip">
                                     <span>{rec.icon}</span>
                                     <div>
@@ -570,7 +563,7 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                         </div>
                     ) : (
                         <>
-                            {/* الإحصائيات السريعة */}
+                            {/* ✅ الإحصائيات السريعة - تم إصلاح i18n */}
                             <div className="quick-stats">
                                 <div className="stat-box">
                                     <div className="stat-value">{analysis.summary.avgMood}</div>
@@ -578,17 +571,17 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                                 </div>
                                 <div className="stat-box">
                                     <div className="stat-value">{analysis.summary.totalDays}</div>
-                                    <div className="stat-label">{t('analytics.mood.days', 'أيام مسجلة')}</div>
+                                    <div className="stat-label">{t('analytics.mood.daysCount', 'أيام مسجلة')}</div>
                                 </div>
                                 <div className="stat-box">
                                     <div className="stat-value">
-                                        {getMoodEmoji(analysis.summary.mostFrequent)} {getMoodText(analysis.summary.mostFrequent, t)}
+                                        {analysis.summary.mostFrequentEmoji} {analysis.summary.mostFrequentText}
                                     </div>
                                     <div className="stat-label">{t('analytics.mood.mostFrequent', 'الأكثر تكراراً')}</div>
                                 </div>
                             </div>
 
-                            {/* التنبؤ */}
+                            {/* ✅ التنبؤ - تم إصلاح placeholders */}
                             {analysis.prediction && (
                                 <div className="prediction-box">
                                     <span className="prediction-icon">🔮</span>
@@ -600,7 +593,6 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                                 </div>
                             )}
 
-                            {/* تنبيه انخفاض المزاج */}
                             {analysis.declineAlert && (
                                 <div className={`alert-card ${analysis.declineAlert.severity}`}>
                                     <div className="alert-header">
@@ -611,7 +603,6 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                                 </div>
                             )}
 
-                            {/* الاتجاه */}
                             {analysis.trend && (
                                 <div className="trend-card">
                                     <div className="trend-header">
@@ -622,7 +613,7 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                                 </div>
                             )}
 
-                            {/* أنماط الأيام */}
+                            {/* ✅ أنماط الأيام - تم إصلاح i18n */}
                             {analysis.dayPattern && (
                                 <div className="pattern-card">
                                     <div className="pattern-header">
@@ -632,14 +623,13 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                                     <div className="pattern-content">
                                         <p>
                                             <span className="good">👍 {analysis.dayPattern.bestDay}</span>
-                                            <span className="separator">|</span>
+                                            <span className="separator"> | </span>
                                             <span className="bad">👎 {analysis.dayPattern.worstDay}</span>
                                         </p>
                                     </div>
                                 </div>
                             )}
 
-                            {/* أفضل وقت */}
                             {analysis.timePattern && (
                                 <div className="pattern-card">
                                     <div className="pattern-header">
@@ -652,7 +642,6 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                                 </div>
                             )}
 
-                            {/* تأثير النوم */}
                             {analysis.sleepImpact && (
                                 <div className="impact-card">
                                     <div className="impact-header">
@@ -663,7 +652,6 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                                 </div>
                             )}
 
-                            {/* تأثير النشاط */}
                             {analysis.activityImpact && (
                                 <div className="impact-card">
                                     <div className="impact-header">
@@ -677,7 +665,7 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                             {/* التوصيات */}
                             <div className="recommendations-section">
                                 <h3>💡 {t('analytics.mood.recommendations.title', 'توصيات مخصصة')}</h3>
-                                {analysis.recommendations.map((rec, i) => (
+                                {analysis.recommendations?.map((rec, i) => (
                                     <div key={i} className="recommendation-card">
                                         <div className="rec-header">
                                             <span className="rec-icon">{rec.icon}</span>
@@ -685,7 +673,7 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                                         </div>
                                         <p className="rec-advice">{rec.advice}</p>
                                         <ul className="rec-tips">
-                                            {rec.tips.map((tip, j) => (
+                                            {rec.tips?.map((tip, j) => (
                                                 <li key={j}>{tip}</li>
                                             ))}
                                         </ul>

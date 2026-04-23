@@ -182,6 +182,14 @@ function Login({ onLoginSuccess }) {
         setRememberMe(false);
     };
 
+    // تجربة بيانات دخول سريعة
+    const fillDemoCredentials = () => {
+        setUsername('test');
+        setPassword('test');
+        setMessage('');
+        setMessageType('');
+    };
+
     return (
         <div className="login-container">
             {/* خلفية متحركة */}
@@ -285,6 +293,7 @@ function Login({ onLoginSuccess }) {
                                     type="button"
                                     className="password-toggle"
                                     onClick={() => setShowPassword(!showPassword)}
+                                    aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
                                     style={{
                                         position: 'absolute',
                                         right: 'var(--spacing-md)',
@@ -293,7 +302,10 @@ function Login({ onLoginSuccess }) {
                                         background: 'none',
                                         border: 'none',
                                         cursor: 'pointer',
-                                        fontSize: '1.2rem'
+                                        fontSize: '1.2rem',
+                                        padding: 'var(--spacing-xs)',
+                                        borderRadius: 'var(--radius-full)',
+                                        transition: 'all var(--transition-fast)'
                                     }}
                                     tabIndex="-1"
                                 >
@@ -302,6 +314,7 @@ function Login({ onLoginSuccess }) {
                             </div>
                         </div>
 
+                        {/* خيار تذكرني */}
                         <div className="form-options" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
                             <label className="remember-me" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}>
                                 <input
@@ -312,9 +325,11 @@ function Login({ onLoginSuccess }) {
                                 />
                                 <span>{t('login.rememberMe')}</span>
                             </label>
+                            
                         </div>
                         
-                        <div className="form-actions" style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+                        {/* أزرار الإجراء */}
+                        <div className="form-actions" style={{ display: 'flex', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
                             <button 
                                 type="submit" 
                                 className="type-btn active"
@@ -327,7 +342,7 @@ function Login({ onLoginSuccess }) {
                                         {t('login.loggingIn')}
                                     </>
                                 ) : (
-                                    <>🔑 {t('login.loginButton')}</>
+                                    <>🔐 {t('login.loginButton')}</>
                                 )}
                             </button>
                             
@@ -342,15 +357,45 @@ function Login({ onLoginSuccess }) {
                             </button>
                         </div>
                         
-                        {/* معلومات إضافية */}
-                        <div className="login-info" style={{ marginTop: 'var(--spacing-lg)' }}>
-                            <div className="info-item" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-md)', background: 'var(--info-bg)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--spacing-sm)' }}>
-                                <span className="info-icon">💡</span>
-                                <p style={{ margin: 0, color: 'var(--info)', fontSize: '0.9rem' }}>{t('login.tip')}</p>
+                        {/* بيانات تجريبية منسقة */}
+                        <div className="demo-credentials" style={{ 
+                            marginBottom: 'var(--spacing-lg)', 
+                            padding: 'var(--spacing-md)', 
+                            background: 'var(--secondary-bg)', 
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--border-light)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-sm)' }}>
+                                <span style={{ fontSize: '1.1rem' }}>💡</span>
+                                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{t('login.demoCredentials')}</span>
                             </div>
-                            <div className="info-item" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-md)', background: 'var(--info-bg)', borderRadius: 'var(--radius-md)' }}>
-                                <span className="info-icon">👤</span>
-                                <p style={{ margin: 0, color: 'var(--info)', fontSize: '0.9rem' }}>{t('login.demoInfo')}</p>
+                            <div style={{ display: 'flex', gap: 'var(--spacing-lg)', flexWrap: 'wrap', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                <div><span style={{ fontWeight: 500 }}>{t('login.username')}:</span> test</div>
+                                <div><span style={{ fontWeight: 500 }}>{t('login.password')}:</span> test</div>
+                                <button 
+                                    type="button"
+                                    onClick={fillDemoCredentials}
+                                    style={{
+                                        background: 'none',
+                                        border: '1px solid var(--primary)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        padding: '2px var(--spacing-sm)',
+                                        color: 'var(--primary)',
+                                        cursor: 'pointer',
+                                        fontSize: '0.8rem',
+                                        transition: 'all var(--transition-fast)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.target.style.background = 'var(--primary)';
+                                        e.target.style.color = 'white';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.target.style.background = 'none';
+                                        e.target.style.color = 'var(--primary)';
+                                    }}
+                                >
+                                    {t('login.fillCredentials')}
+                                </button>
                             </div>
                         </div>
                     </form>
@@ -358,7 +403,7 @@ function Login({ onLoginSuccess }) {
                     {/* رسائل التغذية الراجعة */}
                     {message && (
                         <div className={`notification-message ${messageType}`} style={{
-                            marginTop: 'var(--spacing-lg)',
+                            marginBottom: 'var(--spacing-lg)',
                             padding: 'var(--spacing-md)',
                             borderRadius: 'var(--radius-lg)',
                             display: 'flex',
@@ -382,54 +427,58 @@ function Login({ onLoginSuccess }) {
                                     setMessageType('');
                                 }}
                                 style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.1rem' }}
+                                aria-label="إغلاق"
                             >
                                 ✕
                             </button>
                         </div>
                     )}
                     
-                    <div className="register-link" style={{ marginTop: 'var(--spacing-lg)', paddingTop: 'var(--spacing-lg)', borderTop: '1px solid var(--border-light)', textAlign: 'center' }}>
+                    {/* رابط إنشاء حساب */}
+                    <div className="register-link" style={{ 
+                        marginTop: 'var(--spacing-lg)', 
+                        paddingTop: 'var(--spacing-lg)', 
+                        borderTop: '1px solid var(--border-light)', 
+                        textAlign: 'center' 
+                    }}>
                         <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                            {t('login.noAccount')} 
+                            {t('login.noAccount')}{' '}
                             <Link 
                                 to="/register" 
                                 className="register-link-btn"
-                                style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none', marginLeft: 'var(--spacing-sm)' }}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                }}
+                                style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}
                             >
                                 {t('login.register')}
                             </Link>
                         </p>
                     </div>
                     
-                    {/* معلومات التطبيق */}
+                    {/* ميزات LivoCare (بدون إيموجي زائد) */}
                     <div className="app-info" style={{ marginTop: 'var(--spacing-xl)', paddingTop: 'var(--spacing-xl)', borderTop: '1px solid var(--border-light)' }}>
                         <div className="app-info-header" style={{ marginBottom: 'var(--spacing-lg)' }}>
-                            <h3 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--text-primary)' }}>🌟 {t('login.featuresTitle')}</h3>
-                            <div className="header-decoration" style={{ width: '50px', height: '4px', background: 'var(--primary-gradient)', borderRadius: '2px' }}></div>
+                            <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>{t('login.featuresTitle')}</h3>
+                            <div className="header-decoration" style={{ width: '50px', height: '3px', background: 'var(--primary-gradient)', borderRadius: '2px', marginTop: 'var(--spacing-sm)' }}></div>
                         </div>
                         
-                        <ul className="features-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                            <li style={{ padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                                <span className="feature-icon">📊</span>
+                        <ul className="features-list" style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-sm)' }}>
+                            <li style={{ padding: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-md)' }}>
+                                <span className="feature-icon" style={{ fontSize: '1.2rem' }}>📊</span>
                                 <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature1')}</span>
                             </li>
-                            <li style={{ padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                                <span className="feature-icon">🥗</span>
+                            <li style={{ padding: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-md)' }}>
+                                <span className="feature-icon" style={{ fontSize: '1.2rem' }}>🥗</span>
                                 <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature2')}</span>
                             </li>
-                            <li style={{ padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                                <span className="feature-icon">🌙</span>
+                            <li style={{ padding: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-md)' }}>
+                                <span className="feature-icon" style={{ fontSize: '1.2rem' }}>😴</span>
                                 <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature3')}</span>
                             </li>
-                            <li style={{ padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                                <span className="feature-icon">😊</span>
+                            <li style={{ padding: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-md)' }}>
+                                <span className="feature-icon" style={{ fontSize: '1.2rem' }}>😊</span>
                                 <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature4')}</span>
                             </li>
-                            <li style={{ padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                                <span className="feature-icon">💊</span>
+                            <li style={{ padding: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-md)' }}>
+                                <span className="feature-icon" style={{ fontSize: '1.2rem' }}>💊</span>
                                 <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature5')}</span>
                             </li>
                         </ul>
@@ -437,382 +486,23 @@ function Login({ onLoginSuccess }) {
                 </div>
             </div>
 
-            {/* الأنماط الإضافية */}
             <style>{`
-                /* أنماط صفحة تسجيل الدخول */
-                .login-container {
-                    min-height: 100vh;
-                    background: var(--primary-bg);
-                    transition: background var(--transition-slow);
-                    position: relative;
-                    overflow-x: hidden;
-                }
-
-                /* خلفية متحركة */
-                .login-background {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    overflow: hidden;
-                    z-index: 0;
-                }
-
-                .bg-shape {
-                    position: absolute;
-                    border-radius: 50%;
-                    filter: blur(60px);
-                    animation: float 20s infinite;
-                }
-
-                .bg-shape-1 {
-                    top: -100px;
-                    left: -100px;
-                    width: 400px;
-                    height: 400px;
-                    background: rgba(59, 130, 246, 0.1);
-                    animation-delay: 0s;
-                }
-
-                .bg-shape-2 {
-                    bottom: -100px;
-                    right: -100px;
-                    width: 500px;
-                    height: 500px;
-                    background: rgba(16, 185, 129, 0.1);
-                    animation-delay: -5s;
-                }
-
-                .bg-shape-3 {
-                    top: 50%;
-                    left: 50%;
-                    width: 600px;
-                    height: 600px;
-                    background: rgba(239, 68, 68, 0.05);
-                    transform: translate(-50%, -50%);
-                    animation-delay: -10s;
-                }
-
-                @keyframes float {
-                    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-                    25% { transform: translate(50px, 50px) rotate(5deg); }
-                    50% { transform: translate(0, 100px) rotate(0deg); }
-                    75% { transform: translate(-50px, 50px) rotate(-5deg); }
-                }
-
                 @keyframes spin {
                     to { transform: rotate(360deg); }
                 }
-
-                /* شريط التحكم */
-                .login-control-bar {
-                    background: var(--card-bg);
-                    border-bottom: 1px solid var(--border-light);
-                    padding: var(--spacing-md) var(--spacing-xl);
-                    position: sticky;
-                    top: 0;
-                    z-index: 100;
-                    backdrop-filter: blur(10px);
-                    transition: all var(--transition-medium);
-                }
-
-                .control-bar-content {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    max-width: 1400px;
-                    margin: 0 auto;
-                    gap: var(--spacing-md);
-                }
-
-                .app-title {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-md);
-                }
-
-                .logo-wrapper {
-                    width: 50px;
-                    height: 50px;
-                    background: var(--primary-gradient);
-                    border-radius: var(--radius-lg);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: transform var(--transition-fast);
-                }
-
-                .logo-icon {
-                    font-size: 2rem;
-                    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-                }
-
-                .title-text h1 {
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1.8rem;
-                    font-weight: 700;
-                    background: var(--primary-gradient);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                }
-
-                .app-subtitle {
-                    color: var(--text-secondary);
-                    font-size: 0.9rem;
-                }
-
-                .login-controls {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-md);
-                }
-
-                .language-switcher {
-                    display: flex;
-                    gap: var(--spacing-xs);
-                    background: var(--secondary-bg);
-                    padding: var(--spacing-xs);
-                    border-radius: var(--radius-full);
-                    border: 1px solid var(--border-light);
-                }
-
-                .lang-btn {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    padding: var(--spacing-sm) var(--spacing-md);
-                    background: transparent;
-                    color: var(--text-secondary);
-                    border: none;
-                    border-radius: var(--radius-full);
-                    cursor: pointer;
-                    transition: all var(--transition-fast);
-                    font-size: 0.9rem;
-                }
-
-                .lang-btn:hover {
-                    background: var(--hover-bg);
-                    transform: translateY(-1px);
-                }
-
-                .lang-btn.active {
-                    background: var(--primary);
-                    color: white;
-                }
-
-                .lang-flag {
-                    font-size: 1.1rem;
-                }
-
-                .lang-text {
-                    font-size: 0.9rem;
-                }
-
-                .theme-toggle {
-                    width: 40px;
-                    height: 40px;
-                    border: none;
-                    border-radius: var(--radius-md);
-                    background: var(--secondary-bg);
-                    color: var(--text-primary);
-                    font-size: 1.2rem;
-                    cursor: pointer;
-                    transition: all var(--transition-fast);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .theme-toggle:hover {
-                    transform: rotate(15deg);
-                    background: var(--primary);
-                    color: white;
-                }
-
-                /* المحتوى الرئيسي */
-                .login-content {
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    min-height: calc(100vh - 80px);
-                    padding: var(--spacing-2xl);
-                    gap: var(--spacing-2xl);
-                    max-width: 1400px;
-                    margin: 0 auto;
-                    position: relative;
-                    z-index: 1;
-                }
-
-                /* بطاقة تسجيل الدخول */
-                .login-form-card {
-                    background: var(--card-bg);
-                    border-radius: var(--radius-2xl);
-                    padding: var(--spacing-2xl);
-                    box-shadow: var(--shadow-xl);
-                    border: 1px solid var(--border-light);
-                    width: 100%;
-                    max-width: 450px;
-                    transition: all var(--transition-medium);
-                    position: relative;
-                    overflow: hidden;
-                }
-
-                .login-form-card::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: 4px;
-                    background: var(--primary-gradient);
-                }
-
-                .login-form-card:hover {
-                    transform: translateY(-5px);
-                    box-shadow: var(--shadow-2xl);
-                }
-
-                .login-header {
-                    text-align: center;
-                    margin-bottom: var(--spacing-2xl);
-                }
-
-                .login-icon-wrapper {
-                    width: 80px;
-                    height: 80px;
-                    background: var(--primary-gradient);
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin: 0 auto var(--spacing-lg);
-                    transition: transform var(--transition-fast);
-                }
-
-                .login-icon {
-                    font-size: 3rem;
-                    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));
-                }
-
-                .login-header h2 {
-                    margin: 0 0 var(--spacing-sm) 0;
-                    color: var(--text-primary);
-                    font-size: 2rem;
-                    font-weight: 700;
-                }
-
-                .login-description {
-                    margin: 0;
-                    color: var(--text-secondary);
-                    font-size: 0.95rem;
-                    line-height: 1.5;
-                }
-
-                /* حقول النموذج */
-                .field-group {
-                    margin-bottom: var(--spacing-lg);
-                }
-
-                .field-group label {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    margin-bottom: var(--spacing-sm);
-                    font-weight: 600;
-                    color: var(--text-secondary);
-                    font-size: 0.95rem;
-                }
-
-                .field-icon {
-                    font-size: 1.1rem;
-                }
-
+                
                 .password-toggle:hover {
-                    color: var(--primary);
                     background: var(--hover-bg);
-                    border-radius: var(--radius-full);
                 }
-
+                
                 [dir="rtl"] .password-toggle {
                     right: auto;
                     left: var(--spacing-md);
                 }
-
+                
                 @media (max-width: 768px) {
-                    .login-control-bar {
-                        padding: var(--spacing-md);
-                    }
-                    
-                    .control-bar-content {
-                        flex-direction: column;
-                        gap: var(--spacing-md);
-                    }
-                    
-                    .app-title {
-                        justify-content: center;
-                    }
-                    
-                    .login-content {
-                        padding: var(--spacing-lg);
-                        flex-direction: column;
-                    }
-                    
-                    .login-form-card {
-                        padding: var(--spacing-lg);
-                    }
-                    
-                    .login-header h2 {
-                        font-size: 1.5rem;
-                    }
-                    
-                    .login-icon-wrapper {
-                        width: 60px;
-                        height: 60px;
-                    }
-                    
-                    .login-icon {
-                        font-size: 2rem;
-                    }
-                    
-                    .lang-text {
-                        display: none;
-                    }
-                    
-                    .lang-btn {
-                        padding: var(--spacing-sm);
-                    }
-                }
-
-                @media (max-width: 480px) {
-                    .login-form-card {
-                        padding: var(--spacing-md);
-                    }
-                    
-                    .form-actions {
-                        flex-direction: column;
-                    }
-                    
-                    .type-btn {
-                        width: 100%;
-                    }
-                    
-                    .features-list li {
-                        font-size: 0.9rem;
-                    }
-                }
-
-                @media (prefers-reduced-motion: reduce) {
-                    .bg-shape,
-                    .login-form-card:hover {
-                        animation: none !important;
-                        transform: none !important;
-                    }
-                    
-                    .spinner {
-                        animation: none !important;
+                    .features-list {
+                        grid-template-columns: 1fr !important;
                     }
                 }
             `}</style>

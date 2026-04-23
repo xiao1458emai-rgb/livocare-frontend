@@ -14,15 +14,17 @@ const roundNumber = (num, decimals = 1) => {
     return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 };
 
-// دالة لحساب النقاط
-const calculatePoints = (habitName, isCompleted) => {
+// دالة لحساب النقاط للعادات فقط (بدون أدوية)
+const calculatePoints = (habitName, isCompleted, habitType) => {
     if (!isCompleted) return 0;
+    
+    // الأدوية لا تحصل على نقاط تشجيع (مختلفة عن العادات)
+    if (habitType === 'medication') return 0;
     
     const pointsMap = {
         'sleep': 15,
         'water': 10,
         'exercise': 20,
-        'medication': 10,
         'reading': 10,
         'meditation': 15,
         'walk': 15,
@@ -37,8 +39,25 @@ const calculatePoints = (habitName, isCompleted) => {
     return 5;
 };
 
+// ✅ تحديد نوع العادة
+const detectHabitType = (habitName, habitDescription = '') => {
+    const text = (habitName + ' ' + habitDescription).toLowerCase();
+    
+    const medicationKeywords = ['دواء', 'medication', 'حبة', 'pill', 'علاج', 'treatment'];
+    const waterKeywords = ['ماء', 'water', 'ترطيب', 'hydration'];
+    const exerciseKeywords = ['رياضة', 'exercise', 'مشي', 'walk', 'جري', 'run'];
+    const sleepKeywords = ['نوم', 'sleep', 'استرخاء', 'relax'];
+    
+    if (medicationKeywords.some(k => text.includes(k))) return 'medication';
+    if (waterKeywords.some(k => text.includes(k))) return 'water';
+    if (exerciseKeywords.some(k => text.includes(k))) return 'exercise';
+    if (sleepKeywords.some(k => text.includes(k))) return 'sleep';
+    return 'habit';
+};
+
 function HabitTracker({ isAuthReady }) {
     const { t, i18n } = useTranslation();
+    const isArabic = i18n.language === 'ar';
     
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
@@ -57,7 +76,7 @@ function HabitTracker({ isAuthReady }) {
     const [streakDays, setStreakDays] = useState(0);
     const [todayLogs, setTodayLogs] = useState([]);
     
-    // State للبحث عن الأدوية
+    // State للبحث عن الأدوية (منفصل)
     const [drugSearchQuery, setDrugSearchQuery] = useState('');
     const [drugSearchResults, setDrugSearchResults] = useState([]);
     const [searchingDrug, setSearchingDrug] = useState(false);
@@ -99,7 +118,7 @@ function HabitTracker({ isAuthReady }) {
                 todayData = todayResponse.data;
             }
             
-            console.log('💊 Habit definitions loaded:', definitionsData.length);
+            console.log('📋 Habits loaded:', definitionsData.length);
             
             setDefinitions(definitionsData);
             setLogs(logsData);
@@ -128,7 +147,7 @@ function HabitTracker({ isAuthReady }) {
         }
     }, [isAuthReady, fetchHabitDefinitions]);
 
-    // حساب النقاط والسلسلة المتتالية
+    // ✅ حساب النقاط (للعادات فقط)
     useEffect(() => {
         if (logs.length === 0) return;
         
@@ -136,7 +155,8 @@ function HabitTracker({ isAuthReady }) {
             if (log.is_completed) {
                 const habit = definitions.find(d => d.id === (log.habit?.id || log.habit));
                 if (habit) {
-                    return sum + calculatePoints(habit.name, true);
+                    const habitType = detectHabitType(habit.name, habit.description);
+                    return sum + calculatePoints(habit.name, true, habitType);
                 }
             }
             return sum;
@@ -150,7 +170,8 @@ function HabitTracker({ isAuthReady }) {
             if (logDate >= weekAgo && log.is_completed) {
                 const habit = definitions.find(d => d.id === (log.habit?.id || log.habit));
                 if (habit) {
-                    return sum + calculatePoints(habit.name, true);
+                    const habitType = detectHabitType(habit.name, habit.description);
+                    return sum + calculatePoints(habit.name, true, habitType);
                 }
             }
             return sum;
@@ -187,10 +208,10 @@ function HabitTracker({ isAuthReady }) {
         };
     }, []);
 
-    // البحث في FDA
+    // ✅ البحث في FDA للأدوية فقط
     const searchDrugInFDA = async (query, searchType = 'name') => {
         if (!query || query.trim() === '') {
-            setMessage('⚠️ الرجاء إدخال اسم الدواء أو رمز NDC');
+            setMessage(isArabic ? 'الرجاء إدخال اسم الدواء أو رمز NDC' : 'Please enter drug name or NDC code');
             setIsError(true);
             setTimeout(() => setMessage(''), 3000);
             return;
@@ -215,8 +236,6 @@ function HabitTracker({ isAuthReady }) {
                     searchParam = `search=product_ndc:"${cleanNDC}"&limit=5`;
                 }
             }
-            
-            console.log(`🔍 Searching FDA: ${endpoint}?${searchParam}`);
             
             const response = await axios.get(
                 `https://api.fda.gov/${endpoint}?${searchParam}`,
@@ -250,16 +269,16 @@ function HabitTracker({ isAuthReady }) {
                 }
                 
                 setDrugSearchResults(uniqueResults.slice(0, 10));
-                setMessage(`✅ تم العثور على ${uniqueResults.length} دواء`);
+                setMessage(isArabic ? `تم العثور على ${uniqueResults.length} دواء` : `Found ${uniqueResults.length} medications`);
                 setIsError(false);
             } else {
                 setDrugSearchResults([]);
-                setMessage(`⚠️ لم يتم العثور على دواء: ${query}`);
+                setMessage(isArabic ? `لم يتم العثور على دواء: ${query}` : `No medication found: ${query}`);
                 setIsError(true);
             }
         } catch (error) {
             console.error('Error searching FDA:', error);
-            setMessage(`❌ خطأ في الاتصال بـ FDA: ${error.message}`);
+            setMessage(isArabic ? 'خطأ في الاتصال بقاعدة البيانات' : 'Error connecting to database');
             setIsError(true);
         } finally {
             setSearchingDrug(false);
@@ -267,90 +286,24 @@ function HabitTracker({ isAuthReady }) {
         }
     };
 
-    // اختيار دواء من نتائج البحث
+    // ✅ اختيار دواء من نتائج البحث
     const selectDrug = (drug) => {
         setNewHabitName(drug.brand_name || drug.generic_name);
         
         const descriptionParts = [];
-        if (drug.generic_name) descriptionParts.push(`💊 الاسم العلمي: ${drug.generic_name}`);
-        if (drug.manufacturer) descriptionParts.push(`🏭 الشركة: ${drug.manufacturer}`);
-        if (drug.route) descriptionParts.push(`💉 طريقة الاستخدام: ${drug.route}`);
-        if (drug.dosage_form) descriptionParts.push(`📦 الشكل الصيدلاني: ${drug.dosage_form}`);
-        if (drug.product_ndc) descriptionParts.push(`🔢 الرمز: ${drug.product_ndc}`);
+        if (drug.generic_name) descriptionParts.push(`💊 ${drug.generic_name}`);
+        if (drug.manufacturer) descriptionParts.push(`🏭 ${drug.manufacturer}`);
+        if (drug.route) descriptionParts.push(`💉 ${drug.route}`);
+        if (drug.dosage_form) descriptionParts.push(`📦 ${drug.dosage_form}`);
+        if (drug.product_ndc) descriptionParts.push(`🔢 ${drug.product_ndc}`);
         
         setNewHabitDescription(descriptionParts.join(' | '));
-        setMessage(`✅ تم اختيار الدواء: ${drug.brand_name || drug.generic_name}`);
+        setMessage(isArabic ? `تم اختيار الدواء: ${drug.brand_name || drug.generic_name}` : `Selected: ${drug.brand_name || drug.generic_name}`);
         setIsError(false);
         setDrugSearchResults([]);
         setDrugSearchQuery('');
         
         setTimeout(() => setMessage(''), 3000);
-    };
-
-    // معالجة الباركود
-    const handleProductFound = async (result) => {
-        console.log('📦 Barcode result:', result);
-        
-        if (typeof result === 'string' && result.length > 0) {
-            const barcode = result;
-            setLoading(true);
-            
-            try {
-                let cleanBarcode = barcode.replace(/-/g, '');
-                
-                if (cleanBarcode.length === 13) {
-                    cleanBarcode = cleanBarcode.slice(0, 10);
-                }
-                
-                if (cleanBarcode.length === 10 || cleanBarcode.length === 11) {
-                    const formattedNDC = `${cleanBarcode.slice(0, 2)}-${cleanBarcode.slice(2, 5)}-${cleanBarcode.slice(5, 9)}`;
-                    
-                    const response = await axios.get(
-                        `https://api.fda.gov/drug/ndc.json?search=product_ndc:"${formattedNDC}"`,
-                        { timeout: 10000 }
-                    );
-                    
-                    if (response.data && response.data.results && response.data.results.length > 0) {
-                        const drug = response.data.results[0];
-                        const openfda = drug.openfda || {};
-                        
-                        setNewHabitName(openfda.brand_name?.[0] || openfda.generic_name?.[0] || `دواء (${barcode.slice(-8)})`);
-                        setNewHabitDescription(`🔢 الرمز: ${formattedNDC}\n💊 ${openfda.generic_name?.[0] || ''}\n🏭 ${openfda.manufacturer_name?.[0] || ''}`);
-                        setMessage(`✅ تم العثور على الدواء: ${openfda.brand_name?.[0] || 'دواء'}`);
-                        setIsError(false);
-                    } else {
-                        setNewHabitName(`دواء جديد (${barcode.slice(-8)})`);
-                        setNewHabitDescription(`🔢 الرمز: ${barcode}\n⚠️ لم يتم العثور على هذا الرمز في قاعدة بيانات FDA.`);
-                        setMessage(`⚠️ الرمز ${barcode} غير موجود`);
-                        setIsError(true);
-                    }
-                } else {
-                    setNewHabitName(`دواء جديد (${barcode.slice(-8)})`);
-                    setNewHabitDescription(`🔢 الرمز: ${barcode}\n⚠️ هذا الرمز ليس بتنسيق NDC صالح.`);
-                    setMessage(`⚠️ الرمز ${barcode} ليس بتنسيق NDC صالح`);
-                    setIsError(true);
-                }
-            } catch (error) {
-                console.error('Error searching FDA:', error);
-                setNewHabitName(`دواء جديد (${barcode.slice(-8)})`);
-                setNewHabitDescription(`🔢 الرمز: ${barcode}\n❌ خطأ في الاتصال بقاعدة البيانات.`);
-                setMessage('⚠️ حدث خطأ في البحث');
-                setIsError(true);
-            } finally {
-                setLoading(false);
-                setTimeout(() => setShowScanner(false), 3000);
-            }
-            return;
-        }
-        
-        if (result && typeof result === 'object') {
-            const medicineName = result.name || `دواء جديد`;
-            setNewHabitName(medicineName);
-            setNewHabitDescription(result.description || '');
-            setMessage(`✅ تم إضافة: ${medicineName}`);
-            setIsError(false);
-            setTimeout(() => setShowScanner(false), 2000);
-        }
     };
 
     const handleAddDefinition = async (e) => {
@@ -428,8 +381,13 @@ function HabitTracker({ isAuthReady }) {
                     notes: ''
                 });
                 
-                const points = calculatePoints(habit?.name || '', true);
-                setMessage(t('habits.logAdded', { name: habit?.name || '', points }));
+                const habitType = detectHabitType(habit?.name || '', habit?.description || '');
+                const points = calculatePoints(habit?.name || '', true, habitType);
+                if (points > 0) {
+                    setMessage(t('habits.logAdded', { name: habit?.name || '', points }));
+                } else {
+                    setMessage(t('habits.logAddedNoPoints', { name: habit?.name || '' }));
+                }
             }
             await fetchHabitDefinitions();
             setRefreshAnalytics(prev => prev + 1);
@@ -443,10 +401,17 @@ function HabitTracker({ isAuthReady }) {
         }
     };
 
+    // ✅ فصل الأدوية عن العادات
     const safeDefinitions = Array.isArray(definitions) ? definitions : [];
+    const medications = safeDefinitions.filter(h => detectHabitType(h.name, h.description) === 'medication');
+    const regularHabits = safeDefinitions.filter(h => detectHabitType(h.name, h.description) !== 'medication');
+    
     const completedToday = todayLogs.filter(log => log.is_completed).length;
-    const completionPercentage = safeDefinitions.length > 0 
-        ? Math.round((completedToday / safeDefinitions.length) * 100) 
+    const completionPercentage = regularHabits.length > 0 
+        ? Math.round((todayLogs.filter(log => {
+            const habit = safeDefinitions.find(d => d.id === (log.habit?.id || log.habit));
+            return log.is_completed && habit && detectHabitType(habit.name, habit.description) !== 'medication';
+        }).length / regularHabits.length) * 100) 
         : 0;
 
     return (
@@ -459,7 +424,15 @@ function HabitTracker({ isAuthReady }) {
                             <h3>{t('habits.scanBarcode')}</h3>
                             <button className="close-btn" onClick={() => setShowScanner(false)}>✕</button>
                         </div>
-                        <BarcodeScanner onScan={handleProductFound} onClose={() => setShowScanner(false)} />
+                        <BarcodeScanner 
+                            onScan={(result) => {
+                                if (result) {
+                                    searchDrugInFDA(result, 'ndc');
+                                    setShowScanner(false);
+                                }
+                            }} 
+                            onClose={() => setShowScanner(false)} 
+                        />
                         <div className="scanner-footer">
                             <p>{t('habits.scanInstructions')}</p>
                             <button className="cancel-btn" onClick={() => setShowScanner(false)}>{t('common.cancel')}</button>
@@ -468,14 +441,11 @@ function HabitTracker({ isAuthReady }) {
                 </div>
             )}
 
-            {/* رأس الصفحة */}
+            {/* رأس الصفحة - ✅ بدون أيقونة مكررة */}
             <div className="analytics-header">
-                <h2>
-                    <span>💊</span>
-                    {t('habits.title')}
-                </h2>
+                <h2>{t('habits.title')}</h2>
                 <div className="stat-label">
-                    {new Date().toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US', {
+                    {new Date().toLocaleDateString(isArabic ? 'ar-EG' : 'en-US', {
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
@@ -484,11 +454,11 @@ function HabitTracker({ isAuthReady }) {
                 </div>
             </div>
 
-            {/* قسم البحث عن الأدوية في FDA */}
+            {/* ✅ قسم البحث عن الأدوية (منفصل) */}
             <div className="recommendations-section">
                 <div className="rec-header">
                     <span className="rec-icon">💊</span>
-                    <span className="rec-category">البحث عن دواء في قاعدة بيانات FDA</span>
+                    <span className="rec-category">{isArabic ? 'البحث عن دواء' : 'Search Medications'}</span>
                 </div>
                 <div className="filter-row" style={{ marginBottom: 0 }}>
                     <input
@@ -496,7 +466,7 @@ function HabitTracker({ isAuthReady }) {
                         value={drugSearchQuery}
                         onChange={(e) => setDrugSearchQuery(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && searchDrugInFDA(drugSearchQuery, 'name')}
-                        placeholder="أدخل اسم الدواء (مثل: Acetaminophen, Tylenol) أو رمز NDC"
+                        placeholder={isArabic ? 'أدخل اسم الدواء أو رمز NDC' : 'Enter drug name or NDC code'}
                         className="search-input"
                     />
                     <div className="type-filters" style={{ marginBottom: 0 }}>
@@ -505,23 +475,29 @@ function HabitTracker({ isAuthReady }) {
                             disabled={searchingDrug || !drugSearchQuery}
                             className="type-btn"
                         >
-                            {searchingDrug ? '⏳' : '🔍'} اسم
+                            {searchingDrug ? '⏳' : '🔍'} {isArabic ? 'اسم' : 'Name'}
                         </button>
                         <button 
                             onClick={() => searchDrugInFDA(drugSearchQuery, 'ndc')}
                             disabled={searchingDrug || !drugSearchQuery}
                             className="type-btn"
                         >
-                            {searchingDrug ? '⏳' : '#️⃣'} رمز NDC
+                            {searchingDrug ? '⏳' : '#️⃣'} NDC
+                        </button>
+                        <button 
+                            onClick={() => setShowScanner(true)}
+                            className="type-btn"
+                            style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white' }}
+                        >
+                            📷 {isArabic ? 'مسح باركود' : 'Scan Barcode'}
                         </button>
                     </div>
                 </div>
                 
-                {/* نتائج البحث عن الأدوية */}
                 {drugSearchResults.length > 0 && (
                     <div className="notifications-list" style={{ marginTop: 'var(--spacing-md)' }}>
                         <div className="stat-label" style={{ marginBottom: 'var(--spacing-sm)' }}>
-                            📋 نتائج البحث ({drugSearchResults.length})
+                            📋 {isArabic ? `نتائج البحث (${drugSearchResults.length})` : `Search Results (${drugSearchResults.length})`}
                         </div>
                         {drugSearchResults.map((drug, idx) => (
                             <div key={idx} className="notification-card" onClick={() => selectDrug(drug)} style={{ cursor: 'pointer' }}>
@@ -534,8 +510,6 @@ function HabitTracker({ isAuthReady }) {
                                 <div className="notification-meta">
                                     {drug.manufacturer && <span>🏭 {drug.manufacturer}</span>}
                                     {drug.route && <span>💉 {drug.route}</span>}
-                                    {drug.dosage_form && <span>📦 {drug.dosage_form}</span>}
-                                    {drug.product_ndc && <span>🔢 {drug.product_ndc}</span>}
                                 </div>
                             </div>
                         ))}
@@ -543,7 +517,7 @@ function HabitTracker({ isAuthReady }) {
                 )}
             </div>
 
-            {/* نقاط المستخدم */}
+            {/* ✅ نقاط المستخدم (للعادات فقط) */}
             {(userPoints > 0 || weeklyPoints > 0 || streakDays > 0) && (
                 <div className="insight-card" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)', color: 'white' }}>
                     <div className="insight-icon">🏆</div>
@@ -553,19 +527,19 @@ function HabitTracker({ isAuthReady }) {
                             <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
                                 <div className="stat-content">
                                     <div className="stat-value" style={{ color: 'white' }}>{userPoints}</div>
-                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('habits.points.today', 'نقاط اليوم')}</div>
+                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'نقاط اليوم' : 'Today\'s Points'}</div>
                                 </div>
                             </div>
                             <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
                                 <div className="stat-content">
                                     <div className="stat-value" style={{ color: 'white' }}>{weeklyPoints}</div>
-                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('habits.points.week', 'نقاط الأسبوع')}</div>
+                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'نقاط الأسبوع' : 'Week\'s Points'}</div>
                                 </div>
                             </div>
                             <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
                                 <div className="stat-content">
                                     <div className="stat-value" style={{ color: 'white' }}>{streakDays}</div>
-                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('habits.points.streak', 'أيام متتالية')}</div>
+                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'أيام متتالية' : 'Day Streak'}</div>
                                 </div>
                             </div>
                         </div>
@@ -582,14 +556,17 @@ function HabitTracker({ isAuthReady }) {
                 </div>
             )}
 
-            {/* بطاقة الإحصائيات */}
-            {isAuthReady && safeDefinitions.length > 0 && (
+            {/* ✅ بطاقة إحصائيات العادات اليومية (بدون أدوية) */}
+            {isAuthReady && regularHabits.length > 0 && (
                 <div className="insight-card" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)', color: 'white' }}>
                     <div className="insight-icon">📊</div>
                     <div className="insight-content">
-                        <h3 style={{ color: 'white' }}>{t('habits.todayStats')}</h3>
+                        <h3 style={{ color: 'white' }}>{isArabic ? 'تقدم العادات اليومية' : 'Daily Habits Progress'}</h3>
                         <div className="stat-value" style={{ fontSize: '1.5rem', color: 'white' }}>
-                            {completedToday}/{safeDefinitions.length} {t('habits.completed')}
+                            {todayLogs.filter(log => {
+                                const habit = safeDefinitions.find(d => d.id === (log.habit?.id || log.habit));
+                                return log.is_completed && habit && detectHabitType(habit.name, habit.description) !== 'medication';
+                            }).length}/{regularHabits.length} {isArabic ? 'تم' : 'completed'}
                         </div>
                         <div className="progress-bar" style={{ marginTop: 'var(--spacing-sm)' }}>
                             <div className="progress-fill" style={{ width: `${completionPercentage}%` }}></div>
@@ -598,7 +575,7 @@ function HabitTracker({ isAuthReady }) {
                 </div>
             )}
 
-            {/* إضافة عادة جديدة */}
+            {/* ✅ إضافة عادة جديدة (بدون خلط مع الأدوية) */}
             <div className="recommendations-section">
                 <div className="rec-header">
                     <span className="rec-icon">➕</span>
@@ -607,7 +584,7 @@ function HabitTracker({ isAuthReady }) {
                 
                 <form onSubmit={handleAddDefinition}>
                     <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                        <label className="stat-label">{t('habits.habitName')}:</label>
+                        <label className="stat-label">{t('habits.habitName')}</label>
                         <input
                             type="text"
                             value={newHabitName}
@@ -620,7 +597,7 @@ function HabitTracker({ isAuthReady }) {
                     </div>
                     
                     <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                        <label className="stat-label">{t('habits.habitDescription')}:</label>
+                        <label className="stat-label">{t('habits.habitDescription')}</label>
                         <textarea
                             value={newHabitDescription}
                             onChange={(e) => setNewHabitDescription(e.target.value)}
@@ -644,16 +621,16 @@ function HabitTracker({ isAuthReady }) {
                 </form>
             </div>
 
-            {/* قائمة العادات */}
+            {/* ✅ قائمة العادات اليومية (منفصلة عن الأدوية) */}
             <div className="recommendations-section">
                 <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
                     <div className="rec-header">
-                        <span className="rec-icon">📝</span>
-                        <span className="rec-category">{t('habits.todayTracking')}</span>
+                        <span className="rec-icon">✅</span>
+                        <span className="rec-category">{isArabic ? 'عادات اليوم' : 'Today\'s Habits'}</span>
                     </div>
-                    {safeDefinitions.length > 0 && (
+                    {regularHabits.length > 0 && (
                         <div className="stat-label">
-                            <span className="stat-value" style={{ fontSize: '1rem' }}>{safeDefinitions.length}</span> {t('habits.habits')}
+                            <span className="stat-value" style={{ fontSize: '1rem' }}>{regularHabits.length}</span> {isArabic ? 'عادة' : 'habits'}
                         </div>
                     )}
                 </div>
@@ -665,25 +642,31 @@ function HabitTracker({ isAuthReady }) {
                     </div>
                 )}
                 
-                {isAuthReady && safeDefinitions.length === 0 && !loading ? (
+                {isAuthReady && regularHabits.length === 0 && !loading ? (
                     <div className="analytics-empty">
-                        <div className="empty-icon">📋</div>
-                        <h4>{t('habits.noHabits')}</h4>
-                        <p>{t('habits.addFirstHabit')}</p>
+                        <div className="empty-icon">✅</div>
+                        <h4>{isArabic ? 'لا توجد عادات' : 'No habits'}</h4>
+                        <p>{isArabic ? 'أضف عاداتك اليومية أعلاه' : 'Add your daily habits above'}</p>
                     </div>
                 ) : (
                     <div className="notifications-list">
-                        {safeDefinitions.map((habit) => {
+                        {regularHabits.map((habit) => {
                             const todayLog = todayLogs.find(log => (log.habit?.id || log.habit) === habit.id);
                             const isCompleted = todayLog?.is_completed || false;
-                            const points = calculatePoints(habit.name, isCompleted);
+                            const habitType = detectHabitType(habit.name, habit.description);
+                            const points = calculatePoints(habit.name, isCompleted, habitType);
                             
                             return (
                                 <div key={habit.id} className={`notification-card ${isCompleted ? 'unread' : ''}`}>
                                     <div className="notification-header">
                                         <div className="notification-title">
-                                            <span>{habit.name}</span>
-                                            {isCompleted && <span className="priority-badge priority-urgent">✅ +{points}</span>}
+                                            <span>
+                                                {habitType === 'water' ? '💧 ' : 
+                                                 habitType === 'exercise' ? '🏃 ' :
+                                                 habitType === 'sleep' ? '😴 ' : '📋 '}
+                                                {habit.name}
+                                            </span>
+                                            {isCompleted && points > 0 && <span className="priority-badge priority-urgent">✅ +{points}</span>}
                                         </div>
                                         <div className="notification-actions">
                                             <button 
@@ -691,7 +674,7 @@ function HabitTracker({ isAuthReady }) {
                                                 disabled={loading || !isAuthReady}
                                                 className={`notification-action-btn ${isCompleted ? '' : 'active'}`}
                                             >
-                                                {isCompleted ? '↩️ ' + t('habits.undo') : '✅ ' + t('habits.complete')}
+                                                {isCompleted ? '↩️ ' + (isArabic ? 'تراجع' : 'Undo') : '✅ ' + (isArabic ? 'تم' : 'Complete')}
                                             </button>
                                         </div>
                                     </div>
@@ -707,12 +690,58 @@ function HabitTracker({ isAuthReady }) {
                 )}
             </div>
 
+            {/* ✅ قائمة الأدوية (منفصلة تماماً) */}
+            {medications.length > 0 && (
+                <div className="recommendations-section">
+                    <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
+                        <div className="rec-header">
+                            <span className="rec-icon">💊</span>
+                            <span className="rec-category">{isArabic ? 'الأدوية' : 'Medications'}</span>
+                        </div>
+                        <div className="stat-label">
+                            <span className="stat-value" style={{ fontSize: '1rem' }}>{medications.length}</span> {isArabic ? 'دواء' : 'medications'}
+                        </div>
+                    </div>
+                    
+                    <div className="notifications-list">
+                        {medications.map((med) => {
+                            const todayLog = todayLogs.find(log => (log.habit?.id || log.habit) === med.id);
+                            const isCompleted = todayLog?.is_completed || false;
+                            
+                            return (
+                                <div key={med.id} className={`notification-card ${isCompleted ? 'unread' : ''}`}>
+                                    <div className="notification-header">
+                                        <div className="notification-title">
+                                            <span>💊 {med.name}</span>
+                                            {isCompleted && <span className="priority-badge priority-urgent">✅ {isArabic ? 'تم' : 'Taken'}</span>}
+                                        </div>
+                                        <div className="notification-actions">
+                                            <button 
+                                                onClick={() => handleToggleLog(med.id)}
+                                                disabled={loading || !isAuthReady}
+                                                className={`notification-action-btn ${isCompleted ? '' : 'active'}`}
+                                            >
+                                                {isCompleted ? '↩️ ' + (isArabic ? 'تراجع' : 'Undo') : '✅ ' + (isArabic ? 'تم' : 'Taken')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {med.description && (
+                                        <div className="notification-content">
+                                            {med.description}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* تحليلات العادات */}
             <div className="analytics-wrapper" style={{ marginTop: 'var(--spacing-lg)' }}>
                 <HabitAnalytics refreshTrigger={refreshAnalytics} />
             </div>
 
-            {/* الأنماط الإضافية */}
             <style>{`
                 .scanner-modal {
                     position: fixed;

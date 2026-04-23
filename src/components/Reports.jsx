@@ -5,7 +5,7 @@ import axiosInstance from '../services/api';
 import '../index.css';
 
 // ===========================================
-// دوال التحليل - المعدلة بالكامل
+// دوال التحليل - نسخة معدلة بالكامل
 // ===========================================
 
 const roundNumber = (num, decimals = 1) => {
@@ -14,10 +14,8 @@ const roundNumber = (num, decimals = 1) => {
 };
 
 const analyzeSleepData = (sleepData) => {
-    console.log('📊 analyzeSleepData input:', sleepData?.length || 0, 'records');
-    
     if (!sleepData || sleepData.length === 0) { 
-        return { avgHours: 0, totalNights: 0, hasData: false }; 
+        return { avgHours: 0, totalNights: 0, hasData: false, status: 'no_data' }; 
     }
     
     let totalHours = 0;
@@ -39,16 +37,35 @@ const analyzeSleepData = (sleepData) => {
         }
     });
     
+    const avgHours = validCount > 0 ? roundNumber(totalHours / validCount, 1) : 0;
+    
+    // ✅ تحديد الحالة (بدون أحكام قاسية)
+    let status = 'unknown';
+    let message = '';
+    if (avgHours >= 7 && avgHours <= 8) {
+        status = 'ideal';
+        message = 'في النطاق الموصى به';
+    } else if (avgHours >= 6) {
+        status = 'acceptable';
+        message = 'أقل بقليل من الموصى به';
+    } else if (avgHours >= 5) {
+        status = 'low';
+        message = 'أقل من المستوى الموصى به';
+    } else if (avgHours > 0) {
+        status = 'very_low';
+        message = 'منخفض جداً';
+    }
+    
     return {
-        avgHours: validCount > 0 ? roundNumber(totalHours / validCount, 1) : 0,
+        avgHours,
         totalNights: validCount,
-        hasData: validCount > 0
+        hasData: validCount > 0,
+        status,
+        message
     };
 };
 
 const analyzeNutritionData = (mealsData) => {
-    console.log('📊 analyzeNutritionData input:', mealsData?.length || 0, 'records');
-    
     if (!mealsData || mealsData.length === 0) { 
         return { 
             avgCaloriesPerDay: 0, 
@@ -56,7 +73,8 @@ const analyzeNutritionData = (mealsData) => {
             avgCarbs: 0, 
             avgFat: 0,
             totalMeals: 0, 
-            hasData: false 
+            hasData: false,
+            status: 'no_data'
         }; 
     }
     
@@ -84,22 +102,40 @@ const analyzeNutritionData = (mealsData) => {
     
     const daysCount = uniqueDays.size || mealsData.length;
     const mealCount = mealsData.length;
+    const avgCaloriesPerDay = daysCount > 0 ? Math.round(totalCalories / daysCount) : 0;
+    
+    // ✅ تحديد الحالة
+    let status = 'unknown';
+    let message = '';
+    if (avgCaloriesPerDay >= 1800 && avgCaloriesPerDay <= 2200) {
+        status = 'ideal';
+        message = 'متوازن';
+    } else if (avgCaloriesPerDay >= 1500) {
+        status = 'acceptable';
+        message = 'أقل من المستوى المتوسط';
+    } else if (avgCaloriesPerDay > 2200 && avgCaloriesPerDay <= 2500) {
+        status = 'acceptable';
+        message = 'أعلى من المستوى المتوسط';
+    } else if (avgCaloriesPerDay > 0) {
+        status = 'needs_attention';
+        message = 'يحتاج تحسيناً';
+    }
     
     return {
-        avgCaloriesPerDay: daysCount > 0 ? Math.round(totalCalories / daysCount) : 0,
+        avgCaloriesPerDay,
         avgProtein: mealCount > 0 ? roundNumber(totalProtein / mealCount, 1) : 0,
         avgCarbs: mealCount > 0 ? roundNumber(totalCarbs / mealCount, 1) : 0,
         avgFat: mealCount > 0 ? roundNumber(totalFat / mealCount, 1) : 0,
         totalMeals: mealCount,
-        hasData: mealCount > 0
+        hasData: mealCount > 0,
+        status,
+        message
     };
 };
 
 const analyzeActivityData = (activityData) => {
-    console.log('📊 analyzeActivityData input:', activityData?.length || 0, 'records');
-    
     if (!activityData || activityData.length === 0) { 
-        return { totalMinutes: 0, avgMinutesPerDay: 0, records: 0, hasData: false }; 
+        return { totalMinutes: 0, avgMinutesPerDay: 0, records: 0, hasData: false, status: 'no_data' }; 
     }
     
     let totalMinutes = 0;
@@ -116,17 +152,36 @@ const analyzeActivityData = (activityData) => {
     });
     
     const daysCount = uniqueDays.size || activityData.length;
+    const avgMinutesPerDay = daysCount > 0 ? Math.round(totalMinutes / daysCount) : 0;
+    
+    // ✅ تحديد الحالة
+    let status = 'unknown';
+    let message = '';
+    if (avgMinutesPerDay >= 30) {
+        status = 'ideal';
+        message = 'ممتاز';
+    } else if (avgMinutesPerDay >= 20) {
+        status = 'acceptable';
+        message = 'جيد';
+    } else if (avgMinutesPerDay >= 10) {
+        status = 'low';
+        message = 'أقل من الموصى به';
+    } else if (avgMinutesPerDay > 0) {
+        status = 'very_low';
+        message = 'قليل جداً';
+    }
+    
     return {
-        totalMinutes: totalMinutes,
-        avgMinutesPerDay: daysCount > 0 ? Math.round(totalMinutes / daysCount) : 0,
+        totalMinutes,
+        avgMinutesPerDay,
         records: activityData.length,
-        hasData: activityData.length > 0
+        hasData: activityData.length > 0,
+        status,
+        message
     };
 };
 
 const analyzeHealthMetricsData = (healthData) => {
-    console.log('📊 analyzeHealthMetricsData input:', healthData?.length || 0, 'records');
-    
     if (!healthData || healthData.length === 0) { 
         return { 
             avgWeight: 0, 
@@ -162,21 +217,40 @@ const analyzeHealthMetricsData = (healthData) => {
         }
     });
     
+    const avgSystolic = bpCount > 0 ? Math.round(totalSystolic / bpCount) : 0;
+    
+    // ✅ تحديد حالة ضغط الدم (دون حكم قطعي)
+    let bpStatus = 'unknown';
+    let bpMessage = '';
+    if (avgSystolic >= 90 && avgSystolic <= 120) {
+        bpStatus = 'ideal';
+        bpMessage = 'ضمن النطاق المقبول';
+    } else if (avgSystolic >= 121 && avgSystolic <= 140) {
+        bpStatus = 'borderline';
+        bpMessage = 'قريب من الحد الأعلى';
+    } else if (avgSystolic > 140) {
+        bpStatus = 'high';
+        bpMessage = 'أعلى من النطاق المقبول';
+    } else if (avgSystolic < 90 && avgSystolic > 0) {
+        bpStatus = 'low';
+        bpMessage = 'أقل من النطاق المقبول';
+    }
+    
     return {
         avgWeight: weightCount > 0 ? roundNumber(totalWeight / weightCount, 1) : 0,
-        avgSystolic: bpCount > 0 ? Math.round(totalSystolic / bpCount) : 0,
+        avgSystolic,
         avgDiastolic: bpCount > 0 ? Math.round(totalDiastolic / bpCount) : 0,
         avgGlucose: glucoseCount > 0 ? Math.round(totalGlucose / glucoseCount) : 0,
         records: healthData.length,
-        hasData: healthData.length > 0
+        hasData: healthData.length > 0,
+        bpStatus,
+        bpMessage
     };
 };
 
 const analyzeMoodData = (moodData) => {
-    console.log('📊 analyzeMoodData input:', moodData?.length || 0, 'records');
-    
     if (!moodData || moodData.length === 0) { 
-        return { avgMood: 0, totalDays: 0, hasData: false }; 
+        return { avgMood: 0, totalDays: 0, hasData: false, status: 'no_data' }; 
     }
     
     const moodMap = { 
@@ -201,230 +275,350 @@ const analyzeMoodData = (moodData) => {
         }
     });
     
+    const avgMood = moodData.length > 0 ? roundNumber(totalMood / moodData.length, 1) : 0;
+    
+    // ✅ تحديد الحالة
+    let status = 'unknown';
+    let message = '';
+    if (avgMood >= 4) {
+        status = 'excellent';
+        message = 'إيجابي';
+    } else if (avgMood >= 3) {
+        status = 'good';
+        message = 'جيد';
+    } else if (avgMood >= 2) {
+        status = 'fair';
+        message = 'متوسط';
+    } else if (avgMood > 0) {
+        status = 'low';
+        message = 'منخفض';
+    }
+    
     return {
-        avgMood: moodData.length > 0 ? roundNumber(totalMood / moodData.length, 1) : 0,
+        avgMood,
         totalDays: uniqueDays.size,
-        hasData: moodData.length > 0
+        hasData: moodData.length > 0,
+        status,
+        message
     };
 };
 
 const analyzeHabitsData = (habitLogs, habitDefinitions) => {
-    console.log('📊 analyzeHabitsData input:', habitLogs?.length || 0, 'logs,', habitDefinitions?.length || 0, 'definitions');
-    
     if (!habitLogs || habitLogs.length === 0) { 
         return { completionRate: 0, completed: 0, total: 0, hasData: false }; 
     }
     
     const completed = habitLogs.filter(h => h.is_completed === true).length;
     const total = habitLogs.length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    // ✅ تحديد الحالة
+    let status = 'unknown';
+    let message = '';
+    if (completionRate >= 80) {
+        status = 'excellent';
+        message = 'التزام ممتاز';
+    } else if (completionRate >= 60) {
+        status = 'good';
+        message = 'التزام جيد';
+    } else if (completionRate >= 40) {
+        status = 'fair';
+        message = 'التزام متوسط';
+    } else if (completionRate > 0) {
+        status = 'low';
+        message = 'يمكن تحسين الالتزام';
+    }
     
     return {
-        completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
-        completed: completed,
-        total: total,
-        hasData: habitLogs.length > 0
+        completionRate,
+        completed,
+        total,
+        hasData: habitLogs.length > 0,
+        status,
+        message
     };
 };
 
 const calculateHealthScore = (sleep, nutrition, activity, healthMetrics, mood, habits) => {
     let score = 0;
+    let maxScore = 100;
+    let details = [];
     
+    // النوم (25 نقطة)
     if (sleep.hasData && sleep.avgHours > 0) {
-        if (sleep.avgHours >= 7 && sleep.avgHours <= 8) score += 30;
-        else if (sleep.avgHours >= 6) score += 20;
-        else if (sleep.avgHours >= 5) score += 15;
-        else score += 10;
-    } else {
-        score += 15;
-    }
-    
-    if (nutrition.hasData && nutrition.avgCaloriesPerDay > 0) {
-        if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) score += 25;
-        else if (nutrition.avgCaloriesPerDay >= 1500) score += 18;
-        else if (nutrition.avgCaloriesPerDay > 2200 && nutrition.avgCaloriesPerDay <= 2500) score += 15;
-        else score += 10;
+        if (sleep.avgHours >= 7 && sleep.avgHours <= 8) {
+            score += 25;
+            details.push({ category: 'sleep', points: 25, message: 'نوم مثالي' });
+        } else if (sleep.avgHours >= 6) {
+            score += 18;
+            details.push({ category: 'sleep', points: 18, message: 'نوم جيد' });
+        } else if (sleep.avgHours >= 5) {
+            score += 10;
+            details.push({ category: 'sleep', points: 10, message: 'نوم مقبول' });
+        } else {
+            score += 5;
+            details.push({ category: 'sleep', points: 5, message: 'نوم يحتاج تحسين' });
+        }
     } else {
         score += 12;
+        details.push({ category: 'sleep', points: 12, message: 'لم يتم تسجيل بيانات كافية' });
     }
     
-    if (activity.hasData && activity.avgMinutesPerDay > 0) {
-        if (activity.avgMinutesPerDay >= 30) score += 10;
-        else if (activity.avgMinutesPerDay >= 20) score += 7;
-        else if (activity.avgMinutesPerDay >= 10) score += 5;
-        else score += 3;
+    // التغذية (25 نقطة)
+    if (nutrition.hasData && nutrition.avgCaloriesPerDay > 0) {
+        if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) {
+            score += 25;
+            details.push({ category: 'nutrition', points: 25, message: 'تغذية متوازنة' });
+        } else if (nutrition.avgCaloriesPerDay >= 1500) {
+            score += 18;
+            details.push({ category: 'nutrition', points: 18, message: 'تغذية جيدة' });
+        } else {
+            score += 10;
+            details.push({ category: 'nutrition', points: 10, message: 'تغذية تحتاج تحسين' });
+        }
     } else {
-        score += 5;
+        score += 12;
+        details.push({ category: 'nutrition', points: 12, message: 'لم يتم تسجيل بيانات كافية' });
     }
     
+    // النشاط (20 نقطة)
+    if (activity.hasData && activity.avgMinutesPerDay > 0) {
+        if (activity.avgMinutesPerDay >= 30) {
+            score += 20;
+            details.push({ category: 'activity', points: 20, message: 'نشاط ممتاز' });
+        } else if (activity.avgMinutesPerDay >= 20) {
+            score += 14;
+            details.push({ category: 'activity', points: 14, message: 'نشاط جيد' });
+        } else if (activity.avgMinutesPerDay >= 10) {
+            score += 8;
+            details.push({ category: 'activity', points: 8, message: 'نشاط مقبول' });
+        } else {
+            score += 4;
+            details.push({ category: 'activity', points: 4, message: 'نشاط قليل' });
+        }
+    } else {
+        score += 10;
+        details.push({ category: 'activity', points: 10, message: 'لم يتم تسجيل بيانات كافية' });
+    }
+    
+    // القياسات الحيوية (15 نقطة)
     if (healthMetrics.hasData) {
         let metricsScore = 0;
-        if (healthMetrics.avgWeight >= 50 && healthMetrics.avgWeight <= 100) metricsScore += 3;
-        if (healthMetrics.avgSystolic >= 90 && healthMetrics.avgSystolic <= 140) metricsScore += 4;
-        if (healthMetrics.avgGlucose >= 70 && healthMetrics.avgGlucose <= 140) metricsScore += 3;
+        if (healthMetrics.avgWeight >= 50 && healthMetrics.avgWeight <= 100) metricsScore += 5;
+        if (healthMetrics.avgSystolic >= 90 && healthMetrics.avgSystolic <= 140) metricsScore += 5;
+        if (healthMetrics.avgGlucose >= 70 && healthMetrics.avgGlucose <= 140) metricsScore += 5;
         score += metricsScore;
-    } else {
-        score += 5;
-    }
-    
-    if (mood.hasData && mood.avgMood > 0) {
-        if (mood.avgMood >= 4) score += 15;
-        else if (mood.avgMood >= 3) score += 10;
-        else if (mood.avgMood >= 2) score += 5;
-        else score += 2;
+        details.push({ category: 'healthMetrics', points: metricsScore, message: 'القياسات ضمن النطاق المقبول' });
     } else {
         score += 7;
+        details.push({ category: 'healthMetrics', points: 7, message: 'لم يتم تسجيل بيانات كافية' });
+    }
+    
+    // المزاج والعادات (15 نقطة)
+    if (mood.hasData && mood.avgMood > 0) {
+        if (mood.avgMood >= 4) score += 8;
+        else if (mood.avgMood >= 3) score += 5;
+        else score += 2;
+    } else {
+        score += 4;
     }
     
     if (habits.hasData && habits.completionRate > 0) {
-        if (habits.completionRate >= 80) score += 10;
-        else if (habits.completionRate >= 60) score += 7;
-        else if (habits.completionRate >= 40) score += 4;
+        if (habits.completionRate >= 80) score += 7;
+        else if (habits.completionRate >= 60) score += 4;
         else score += 2;
     } else {
-        score += 5;
+        score += 3;
     }
     
-    const finalScore = Math.min(100, Math.max(0, Math.round(score)));
-    let grade = '';
-    if (finalScore >= 90) grade = 'A+';
-    else if (finalScore >= 80) grade = 'A';
-    else if (finalScore >= 70) grade = 'B';
-    else if (finalScore >= 60) grade = 'C';
-    else if (finalScore >= 50) grade = 'D';
-    else grade = 'F';
+    const finalScore = Math.min(maxScore, Math.max(0, Math.round(score)));
     
-    return { score: finalScore, grade };
+    // ✅ تقييم درجة الصحة (بدون أحكام قاسية)
+    let grade = '';
+    let statusText = '';
+    if (finalScore >= 80) {
+        grade = 'A';
+        statusText = 'ممتازة';
+    } else if (finalScore >= 65) {
+        grade = 'B';
+        statusText = 'جيدة';
+    } else if (finalScore >= 50) {
+        grade = 'C';
+        statusText = 'متوسطة';
+    } else {
+        grade = 'D';
+        statusText = 'في مستوى يحتاج تحسيناً';
+    }
+    
+    return { score: finalScore, maxScore, grade, statusText, details };
 };
 
-const generateTopRecommendation = (sleep, nutrition, activity, healthMetrics, mood, habits, t) => {
+// ✅ توليد القصة الذكية (أسلوب لطيف وإرشادي)
+const generateSmartStory = (sleep, nutrition, activity, healthMetrics, mood, habits, isArabic) => {
+    const paragraphs = [];
+    
+    // مقدمة
+    paragraphs.push(isArabic 
+        ? 'خلال الفترة التي قمت بتحليلها، نلاحظ الأنماط التالية في بياناتك الصحية:'
+        : 'During the analyzed period, we observe the following patterns in your health data:');
+    
+    // قصة النوم
+    if (sleep.hasData && sleep.avgHours > 0) {
+        if (sleep.avgHours >= 7 && sleep.avgHours <= 8) {
+            paragraphs.push(isArabic 
+                ? `🌙 نومك كان في المستوى الموصى به (${sleep.avgHours} ساعات يومياً)، مما يساهم في تحسين طاقتك وتركيزك.`
+                : `🌙 Your sleep was at the recommended level (${sleep.avgHours} hours per day), which may contribute to better energy and focus.`);
+        } else if (sleep.avgHours >= 6) {
+            paragraphs.push(isArabic 
+                ? `🌙 نومك كان ${sleep.avgHours} ساعات في المتوسط - جيد، لكن الحصول على 7-8 ساعات قد يحسن شعورك بالنشاط.`
+                : `🌙 Your average sleep was ${sleep.avgHours} hours - good, but getting 7-8 hours might improve your energy levels.`);
+        } else {
+            paragraphs.push(isArabic 
+                ? `🌙 نومك كان ${sleep.avgHours} ساعات - أقل من المستوى الموصى به. تحسين نومك قد ينعكس إيجاباً على صحتك العامة.`
+                : `🌙 Your sleep averaged ${sleep.avgHours} hours - below the recommended level. Improving your sleep may positively affect your overall health.`);
+        }
+    }
+    
+    // قصة التغذية
+    if (nutrition.hasData && nutrition.avgCaloriesPerDay > 0) {
+        if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) {
+            paragraphs.push(isArabic 
+                ? `🥗 نظامك الغذائي كان متوازناً (${nutrition.avgCaloriesPerDay} سعرة يومياً)، مما يدعم احتياجات جسمك.`
+                : `🥗 Your diet was balanced (${nutrition.avgCaloriesPerDay} calories per day), which supports your body's needs.`);
+        } else if (nutrition.avgCaloriesPerDay < 1500) {
+            paragraphs.push(isArabic 
+                ? `🥗 تناولت ${nutrition.avgCaloriesPerDay} سعرة في المتوسط - قد يكون أقل من احتياجات جسمك. إضافة وجبات صحية قد يساعد في تحسين طاقتك.`
+                : `🥗 You consumed an average of ${nutrition.avgCaloriesPerDay} calories - this may be below your body's needs. Adding healthy meals might help improve your energy.`);
+        } else {
+            paragraphs.push(isArabic 
+                ? `🥗 استهلاكك اليومي من السعرات كان ${nutrition.avgCaloriesPerDay} - ضمن نطاق مقبول، ويمكنك تحسينه بتوزيع أفضل للوجبات.`
+                : `🥗 Your daily calorie intake was ${nutrition.avgCaloriesPerDay} - within an acceptable range, and you can improve it with better meal distribution.`);
+        }
+    }
+    
+    // قصة النشاط والضغط
+    if (healthMetrics.hasData && healthMetrics.avgSystolic > 0) {
+        if (healthMetrics.bpStatus === 'ideal') {
+            paragraphs.push(isArabic 
+                ? `❤️ ضغط دمك كان ${healthMetrics.avgSystolic}/${healthMetrics.avgDiastolic} mmHg - ضمن النطاق المقبول، مما يعكس حالة جيدة.`
+                : `❤️ Your blood pressure was ${healthMetrics.avgSystolic}/${healthMetrics.avgDiastolic} mmHg - within the acceptable range, reflecting good health.`);
+        } else {
+            paragraphs.push(isArabic 
+                ? `❤️ ضغط دمك سجل ${healthMetrics.avgSystolic}/${healthMetrics.avgDiastolic} mmHg - ${healthMetrics.bpMessage}. متابعة نمط حياة صحي قد تساهم في تحسينه.`
+                : `❤️ Your blood pressure was ${healthMetrics.avgSystolic}/${healthMetrics.avgDiastolic} mmHg - ${healthMetrics.bpMessage}. Maintaining a healthy lifestyle may help improve it.`);
+        }
+    }
+    
+    // قصة النشاط البدني
+    if (activity.hasData && activity.avgMinutesPerDay > 0) {
+        if (activity.avgMinutesPerDay >= 30) {
+            paragraphs.push(isArabic 
+                ? `🏃 نشاطك البدني كان ممتازاً (${activity.avgMinutesPerDay} دقيقة يومياً) - استمر في هذا المستوى للحفاظ على لياقتك.`
+                : `🏃 Your physical activity was excellent (${activity.avgMinutesPerDay} minutes daily) - maintain this level to stay fit.`);
+        } else {
+            paragraphs.push(isArabic 
+                ? `🏃 نشاطك البدني كان ${activity.avgMinutesPerDay} دقيقة يومياً - ${activity.message}. زيادة تدريجية قد تساعد في تحسين صحتك.`
+                : `🏃 Your physical activity was ${activity.avgMinutesPerDay} minutes daily - ${activity.message}. Gradual increases may help improve your health.`);
+        }
+    }
+    
+    // قصة المزاج
+    if (mood.hasData && mood.avgMood > 0) {
+        if (mood.avgMood >= 4) {
+            paragraphs.push(isArabic 
+                ? `😊 حالتك المزاجية كانت إيجابية (${mood.avgMood}/5) - استمر في العادات التي تساعدك على الشعور بهذا الاستقرار.`
+                : `😊 Your mood was positive (${mood.avgMood}/5) - continue the habits that help you maintain this stability.`);
+        } else if (mood.avgMood >= 3) {
+            paragraphs.push(isArabic 
+                ? `😊 مزاجك كان ${mood.avgMood}/5 - طبيعي، ويمكن تحسينه بأنشطة تساعد على الاسترخاء مثل المشي أو التأمل.`
+                : `😊 Your mood was ${mood.avgMood}/5 - normal, and can be improved with relaxing activities like walking or meditation.`);
+        } else {
+            paragraphs.push(isArabic 
+                ? `😊 نلاحظ أن حالتك المزاجية كانت منخفضة نسبياً (${mood.avgMood}/5). الاهتمام بجودة النوم والنشاط قد يساعد في تحسينها.`
+                : `😊 We notice your mood was relatively low (${mood.avgMood}/5). Paying attention to sleep quality and activity may help improve it.`);
+        }
+    }
+    
+    if (paragraphs.length === 1) {
+        paragraphs.push(isArabic 
+            ? 'سجل المزيد من البيانات الصحية للحصول على تحليل أكثر دقة وتوصيات مخصصة.'
+            : 'Log more health data to get more accurate analysis and personalized recommendations.');
+    }
+    
+    return paragraphs;
+};
+
+// ✅ توليد توصية رئيسية (أسلوب لطيف)
+const generateTopRecommendation = (sleep, nutrition, activity, healthMetrics, mood, habits, isArabic) => {
     const hasAnyData = sleep.hasData || nutrition.hasData || activity.hasData || healthMetrics.hasData || mood.hasData || habits.hasData;
     
     if (!hasAnyData) {
         return {
             icon: '📝',
-            title: t('reports.recommendations.start.title') || 'ابدأ بتسجيل بياناتك',
-            advice: t('reports.recommendations.start.advice') || 'كلما سجلت المزيد من البيانات، حصلت على توصيات أكثر دقة',
-            action: t('reports.recommendations.start.action') || 'سجل أول قراءة صحية اليوم'
+            title: isArabic ? 'ابدأ بتسجيل بياناتك' : 'Start logging your data',
+            advice: isArabic 
+                ? 'كلما سجلت المزيد من البيانات، حصلت على توصيات أكثر دقة تناسب حالتك'
+                : 'The more data you log, the more accurate recommendations you\'ll get',
+            action: isArabic 
+                ? 'سجل أول قراءة صحية اليوم من لوحة التحكم'
+                : 'Log your first health reading today from the dashboard'
         };
     }
     
-    if (sleep.hasData && sleep.avgHours > 0 && sleep.avgHours < 7) {
+    // الأولوية للنوم
+    if (sleep.hasData && sleep.avgHours > 0 && sleep.avgHours < 6) {
         return {
             icon: '🌙',
-            title: t('reports.recommendations.sleepMore.title') || 'حسّن نومك',
-            advice: t('reports.recommendations.sleepMore.advice', { hours: sleep.avgHours }) || `تنام في المتوسط ${sleep.avgHours} ساعة فقط`,
-            action: t('reports.recommendations.sleepMore.action') || 'حاول النوم 7-8 ساعات يومياً'
+            title: isArabic ? 'تحسين جودة النوم' : 'Improve sleep quality',
+            advice: isArabic 
+                ? `تنام في المتوسط ${sleep.avgHours} ساعات يومياً`
+                : `You sleep an average of ${sleep.avgHours} hours per day`,
+            action: isArabic 
+                ? 'محاولة النوم مبكراً بساعة قد يساعد في تحسين طاقتك وتركيزك'
+                : 'Try going to bed an hour earlier to improve your energy and focus'
         };
     }
     
+    // ثم التغذية
     if (nutrition.hasData && nutrition.avgCaloriesPerDay > 0 && nutrition.avgCaloriesPerDay < 1500) {
         return {
             icon: '🥗',
-            title: t('reports.recommendations.increaseCalories.title') || 'زد سعراتك',
-            advice: t('reports.recommendations.increaseCalories.advice', { calories: nutrition.avgCaloriesPerDay }) || `تتناول ${nutrition.avgCaloriesPerDay} سعرة فقط في اليوم`,
-            action: t('reports.recommendations.increaseCalories.action') || 'أضف وجبات صحية غنية بالبروتين'
+            title: isArabic ? 'توازن السعرات الحرارية' : 'Calorie balance',
+            advice: isArabic 
+                ? `تتناول ${nutrition.avgCaloriesPerDay} سعرة في المتوسط`
+                : `You consume an average of ${nutrition.avgCaloriesPerDay} calories`,
+            action: isArabic 
+                ? 'إضافة وجبات خفيفة صحية قد يساعد في تلبية احتياجات جسمك'
+                : 'Adding healthy snacks may help meet your body\'s needs'
         };
     }
     
-    if (healthMetrics.hasData && healthMetrics.avgSystolic > 140) {
-        return {
-            icon: '❤️',
-            title: t('reports.recommendations.lowerBloodPressure.title') || 'حسّن ضغط دمك',
-            advice: t('reports.recommendations.lowerBloodPressure.advice', { systolic: healthMetrics.avgSystolic }) || `ضغطك ${healthMetrics.avgSystolic} مرتفع`,
-            action: t('reports.recommendations.lowerBloodPressure.action') || 'قلل الملح ومارس المشي'
-        };
-    }
-    
-    if (activity.hasData && activity.avgMinutesPerDay > 0 && activity.avgMinutesPerDay < 30) {
-        return {
-            icon: '🏃',
-            title: t('reports.recommendations.increaseActivity.title') || 'زد نشاطك',
-            advice: t('reports.recommendations.increaseActivity.advice', { minutes: activity.avgMinutesPerDay }) || `تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة فقط يومياً`,
-            action: t('reports.recommendations.increaseActivity.action') || 'المشي 30 دقيقة يومياً يحسن صحتك'
-        };
-    }
-    
-    if (mood.hasData && mood.avgMood > 0 && mood.avgMood < 3) {
-        return {
-            icon: '😊',
-            title: t('reports.recommendations.improveMood.title') || 'حسّن مزاجك',
-            advice: t('reports.recommendations.improveMood.advice', { mood: mood.avgMood }) || `مزاجك في المتوسط ${mood.avgMood}/5`,
-            action: t('reports.recommendations.improveMood.action') || 'جرب التأمل أو تمارين التنفس العميق'
-        };
-    }
-    
+// ثم النشاط
+if (activity.hasData && activity.avgMinutesPerDay > 0 && activity.avgMinutesPerDay < 20) {
     return {
-        icon: '🌟',
-        title: t('reports.recommendations.excellent.title') || 'أحسنت!',
-        advice: t('reports.recommendations.excellent.advice') || 'جميع مؤشراتك الصحية جيدة',
-        action: t('reports.recommendations.excellent.action') || 'استمر في هذا النمط الصحي الرائع'
+        icon: '🏃',
+        title: isArabic ? 'زيادة النشاط البدني' : 'Increase physical activity',
+        advice: isArabic 
+            ? `تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة يومياً`
+            : `You exercise ${activity.avgMinutesPerDay} minutes per day`,
+        action: isArabic 
+            ? 'المشي لمدة 20 دقيقة يومياً قد يحسن لياقتك وصحتك العامة'
+            : 'Walking 20 minutes daily may improve your fitness and overall health'
     };
-};
+}
 
-const generateSmartStory = (sleep, nutrition, activity, healthMetrics, mood, habits, t) => {
-    const events = [];
-    
-    if (sleep.hasData && sleep.avgHours > 0) {
-        if (sleep.avgHours >= 7 && sleep.avgHours <= 8) {
-            events.push({ type: 'improvement', text: t('reports.story.sleepIdeal', { hours: sleep.avgHours }) || `🌙 تنام ${sleep.avgHours} ساعات في المتوسط - مثالي!` });
-        } else if (sleep.avgHours >= 6) {
-            events.push({ type: 'warning', text: t('reports.story.sleepLow', { hours: sleep.avgHours }) || `🌙 تنام ${sleep.avgHours} ساعات - حاول زيادة نومك قليلاً` });
-        } else {
-            events.push({ type: 'danger', text: t('reports.story.sleepVeryLow', { hours: sleep.avgHours }) || `🌙 تنام فقط ${sleep.avgHours} ساعات - هذا قليل جداً` });
-        }
-    }
-    
-    if (nutrition.hasData && nutrition.avgCaloriesPerDay > 0) {
-        if (nutrition.avgCaloriesPerDay >= 1800 && nutrition.avgCaloriesPerDay <= 2200) {
-            events.push({ type: 'improvement', text: t('reports.story.nutritionIdeal', { calories: nutrition.avgCaloriesPerDay }) || `🥗 تتناول ${nutrition.avgCaloriesPerDay} سعرة يومياً - نظام غذائي متوازن` });
-        } else {
-            events.push({ type: 'warning', text: t('reports.story.nutritionWarning', { calories: nutrition.avgCaloriesPerDay }) || `🥗 تتناول ${nutrition.avgCaloriesPerDay} سعرة - حاول تحسين نظامك الغذائي` });
-        }
-    }
-    
-    if (healthMetrics.hasData && healthMetrics.avgSystolic > 0) {
-        if (healthMetrics.avgSystolic >= 90 && healthMetrics.avgSystolic <= 140) {
-            events.push({ type: 'improvement', text: `❤️ ضغط دمك طبيعي (${healthMetrics.avgSystolic}/${healthMetrics.avgDiastolic})` });
-        } else {
-            events.push({ type: 'warning', text: `⚠️ ضغط دمك مرتفع (${healthMetrics.avgSystolic}/${healthMetrics.avgDiastolic})` });
-        }
-    }
-    
-    if (activity.hasData && activity.avgMinutesPerDay > 0) {
-        if (activity.avgMinutesPerDay >= 30) {
-            events.push({ type: 'improvement', text: t('reports.story.activityIdeal', { minutes: activity.avgMinutesPerDay }) || `🏃 تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة يومياً - ممتاز!` });
-        } else {
-            events.push({ type: 'warning', text: t('reports.story.activityLow', { minutes: activity.avgMinutesPerDay }) || `🏃 تمارس الرياضة ${activity.avgMinutesPerDay} دقيقة فقط - زد نشاطك` });
-        }
-    }
-    
-    if (mood.hasData && mood.avgMood > 0) {
-        if (mood.avgMood >= 4) {
-            events.push({ type: 'improvement', text: t('reports.story.moodExcellent', { mood: mood.avgMood }) || `😊 مزاجك ممتاز (${mood.avgMood}/5)` });
-        } else if (mood.avgMood >= 3) {
-            events.push({ type: 'warning', text: t('reports.story.moodGood', { mood: mood.avgMood }) || `😊 مزاجك جيد (${mood.avgMood}/5) - يمكن تحسينه` });
-        } else {
-            events.push({ type: 'danger', text: t('reports.story.moodLow', { mood: mood.avgMood }) || `😊 مزاجك منخفض (${mood.avgMood}/5) - اهتم بصحتك النفسية` });
-        }
-    }
-    
-    if (events.length === 0) {
-        events.push({ type: 'info', text: t('reports.story.noData') || 'سجل المزيد من البيانات للحصول على تحليل أفضل' });
-    }
-    
-    return events;
-};
+return {
+    icon: '🌟',
+    title: isArabic ? 'أحسنتَ! استمر على هذا المنوال' : 'Great job! Keep it up',
+    advice: isArabic 
+        ? 'جميع مؤشراتك الصحية ضمن نطاق جيد'
+        : 'All your health indicators are in a good range',
+    action: isArabic 
+        ? 'استمر في تسجيل بياناتك للحفاظ على هذا المستوى'
+        : 'Continue logging your data to maintain this level'
+};}
 
-const generateSmartReports = (currentData, previousData, range, t) => {
-    console.log('🔄 Generating reports with current data:', {
-        sleep: currentData.sleep?.length,
-        meals: currentData.meals?.length,
-        activities: currentData.activities?.length,
-        health: currentData.health?.length,
-        mood: currentData.mood?.length,
-        habits: currentData.habits?.length
-    });
-    
+const generateSmartReports = (currentData, range, isArabic) => {
     const sleep = analyzeSleepData(currentData.sleep);
     const nutrition = analyzeNutritionData(currentData.meals);
     const activity = analyzeActivityData(currentData.activities);
@@ -433,27 +627,28 @@ const generateSmartReports = (currentData, previousData, range, t) => {
     const habits = analyzeHabitsData(currentData.habits, currentData.habitDefinitions);
     
     const healthScore = calculateHealthScore(sleep, nutrition, activity, healthMetrics, mood, habits);
-    const story = generateSmartStory(sleep, nutrition, activity, healthMetrics, mood, habits, t);
-    const topRecommendation = generateTopRecommendation(sleep, nutrition, activity, healthMetrics, mood, habits, t);
+    const story = generateSmartStory(sleep, nutrition, activity, healthMetrics, mood, habits, isArabic);
+    const topRecommendation = generateTopRecommendation(sleep, nutrition, activity, healthMetrics, mood, habits, isArabic);
     
     return {
         summary: {
             healthScore: {
                 score: healthScore.score,
+                maxScore: healthScore.maxScore,
                 grade: healthScore.grade,
-                change: 0
+                statusText: healthScore.statusText,
+                details: healthScore.details
             },
             story,
-            keyEvents: [],
             topRecommendation,
             period: { start: range.start, end: range.end }
         },
-        sleep: { ...sleep, comparison: null },
-        nutrition: { ...nutrition, comparison: null },
-        activity: { ...activity, comparison: null },
-        healthMetrics: { ...healthMetrics, comparison: null },
-        mood: { ...mood, comparison: null },
-        habits: { ...habits, comparison: null }
+        sleep,
+        nutrition,
+        activity,
+        healthMetrics,
+        mood,
+        habits
     };
 };
 
@@ -481,7 +676,6 @@ const extractData = (response) => {
     if (response.data && Array.isArray(response.data)) return response.data;
     if (response.items && Array.isArray(response.items)) return response.items;
     if (typeof response === 'object' && response !== null && response.id !== undefined) return [response];
-    console.warn('Unexpected response format in extractData:', response);
     return [];
 };
 
@@ -528,7 +722,6 @@ const Reports = ({ isAuthReady }) => {
             }
         }
         
-        console.log(`✅ ${key}: ${allData.length} records`);
         return allData;
     }, []);
 
@@ -538,8 +731,6 @@ const Reports = ({ isAuthReady }) => {
         
         const startStr = start.toISOString();
         const endStr = end.toISOString();
-        
-        console.log('📡 Fetching data from:', startStr, 'to:', endStr);
         
         try {
             const [
@@ -585,20 +776,17 @@ const Reports = ({ isAuthReady }) => {
         try {
             const { start, end } = getDateRange(reportType, dateRange.start, dateRange.end);
             
-            console.log('📅 Fetching data for period:', { start, end });
-            
             const currentData = await fetchDataInRange(start, end);
             
             if (!isMountedRef.current) return;
             
-            const reportData = generateSmartReports(currentData, {}, { start, end }, t);
-            console.log('📊 Final report generated successfully');
+            const reportData = generateSmartReports(currentData, { start, end }, isArabic);
             setReports(reportData);
         } catch (err) {
             if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
             console.error('Error fetching reports:', err);
             if (isMountedRef.current) {
-                setError(t('reports.error') || 'حدث خطأ في جلب التقارير');
+                setError(isArabic ? 'حدث خطأ في جلب التقارير' : 'Error fetching reports');
             }
         } finally {
             if (isMountedRef.current) {
@@ -606,7 +794,7 @@ const Reports = ({ isAuthReady }) => {
             }
             isFetchingRef.current = false;
         }
-    }, [reportType, dateRange, t, fetchDataInRange]);
+    }, [reportType, dateRange, isArabic, fetchDataInRange]);
 
     useEffect(() => {
         if (isAuthReady) {
@@ -626,284 +814,408 @@ const Reports = ({ isAuthReady }) => {
         };
     }, []);
 
-    const exportToPDF = () => alert(t('reports.export.pdfComingSoon') || 'سيتم إضافة ميزة تصدير PDF قريباً');
-    const exportToCSV = () => alert(t('reports.export.csvComingSoon') || 'سيتم إضافة ميزة تصدير CSV قريباً');
+    const exportToPDF = () => alert(isArabic ? 'سيتم إضافة ميزة تصدير PDF قريباً' : 'PDF export feature coming soon');
+    const exportToCSV = () => alert(isArabic ? 'سيتم إضافة ميزة تصدير CSV قريباً' : 'CSV export feature coming soon');
 
+    // عرض حالة التحميل
     if (loading) {
         return (
             <div className="analytics-container">
                 <div className="analytics-loading">
                     <div className="spinner"></div>
-                    <p>{t('reports.loading') || 'جاري تحميل التقارير...'}</p>
+                    <p>{isArabic ? 'جاري تحليل تقريرك الصحي...' : 'Analyzing your health report...'}</p>
                 </div>
             </div>
         );
     }
 
+    // عرض حالة الخطأ
     if (error) {
         return (
             <div className="analytics-container">
                 <div className="analytics-error">
-                    <p>❌ {error}</p>
+                    <p>⚠️ {error}</p>
                     <button onClick={fetchReports} className="type-btn active">
-                        🔄 {t('reports.retry') || 'إعادة المحاولة'}
+                        🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                     </button>
                 </div>
             </div>
         );
     }
 
+    if (!reports) return null;
+
     return (
         <div className="analytics-container">
+            {/* رأس الصفحة - ✅ بدون أيقونات مكررة */}
             <div className="analytics-header">
-                <h2>📊 {t('reports.title') || 'التقارير الصحية الشاملة'}</h2>
+                <h2>{isArabic ? 'التقارير الصحية' : 'Health Reports'}</h2>
                 <div className="reports-controls" style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
                     <select value={reportType} onChange={(e) => setReportType(e.target.value)} className="search-input" style={{ width: 'auto' }}>
-                        <option value="weekly">{t('reports.types.weekly') || 'تقرير أسبوعي'}</option>
-                        <option value="monthly">{t('reports.types.monthly') || 'تقرير شهري'}</option>
-                        <option value="quarterly">{t('reports.types.quarterly') || 'تقرير ربع سنوي'}</option>
-                        <option value="custom">{t('reports.types.custom') || 'تقرير مخصص'}</option>
+                        <option value="weekly">{isArabic ? 'تقرير أسبوعي' : 'Weekly Report'}</option>
+                        <option value="monthly">{isArabic ? 'تقرير شهري' : 'Monthly Report'}</option>
+                        <option value="quarterly">{isArabic ? 'تقرير ربع سنوي' : 'Quarterly Report'}</option>
+                        <option value="custom">{isArabic ? 'تقرير مخصص' : 'Custom Report'}</option>
                     </select>
                     {reportType === 'custom' && (
                         <div className="date-range" style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
-                            <input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} className="search-input" style={{ width: 'auto' }} />
-                            <span className="stat-label">{t('reports.to') || 'إلى'}</span>
-                            <input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} className="search-input" style={{ width: 'auto' }} />
+                            <input 
+                                type="date" 
+                                value={dateRange.start} 
+                                onChange={(e) => setDateRange({...dateRange, start: e.target.value})} 
+                                className="search-input" 
+                                style={{ width: 'auto' }} 
+                            />
+                            <span className="stat-label">{isArabic ? 'إلى' : 'to'}</span>
+                            <input 
+                                type="date" 
+                                value={dateRange.end} 
+                                onChange={(e) => setDateRange({...dateRange, end: e.target.value})} 
+                                className="search-input" 
+                                style={{ width: 'auto' }} 
+                            />
                         </div>
                     )}
-                    <button onClick={exportToPDF} className="type-btn" style={{ background: '#ef4444', color: 'white' }}>📄 PDF</button>
-                    <button onClick={exportToCSV} className="type-btn" style={{ background: '#10b981', color: 'white' }}>📊 CSV</button>
+                    <button onClick={exportToPDF} className="type-btn" style={{ background: '#ef4444', color: 'white' }}>
+                        📄 {isArabic ? 'PDF تحميل' : 'Export PDF'}
+                    </button>
+                    <button onClick={exportToCSV} className="type-btn" style={{ background: '#10b981', color: 'white' }}>
+                        📊 {isArabic ? 'CSV تحميل' : 'Export CSV'}
+                    </button>
                 </div>
             </div>
 
-            {reports && (
-                <div className="reports-content">
-                    {/* Health Score Card */}
-                    <div className="insight-card">
-                        <div className="insight-icon">🎯</div>
-                        <div className="insight-content">
-                            <div className="notification-header" style={{ marginBottom: 0 }}>
-                                <div className="notification-title">
-                                    <span className="rec-category">{t('reports.healthScore') || 'درجة الصحة'}</span>
-                                    <span className={`priority-badge priority-${reports.summary.healthScore.grade === 'A' ? 'urgent' : reports.summary.healthScore.grade === 'B' ? 'high' : 'medium'}`}>
-                                        {reports.summary.healthScore.score}/100
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="progress-bar" style={{ marginTop: 'var(--spacing-md)' }}>
-                                <div className="progress-fill" style={{ width: `${reports.summary.healthScore.score}%` }}></div>
+            <div className="reports-content">
+                {/* ✅ بطاقة درجة الصحة مع شرح */}
+                <div className="insight-card">
+                    <div className="insight-icon">🎯</div>
+                    <div className="insight-content">
+                        <div className="notification-header" style={{ marginBottom: 0 }}>
+                            <div className="notification-title">
+                                <span className="rec-category">{isArabic ? 'درجة الصحة' : 'Health Score'}</span>
+                                <span className={`priority-badge ${reports.summary.healthScore.score >= 80 ? 'priority-urgent' : reports.summary.healthScore.score >= 60 ? 'priority-high' : 'priority-medium'}`}>
+                                    {reports.summary.healthScore.score}/{reports.summary.healthScore.maxScore}
+                                </span>
+                                <span className="stat-label" style={{ marginLeft: 'var(--spacing-sm)' }}>
+                                    {reports.summary.healthScore.statusText}
+                                </span>
                             </div>
                         </div>
+                        <div className="progress-bar" style={{ marginTop: 'var(--spacing-md)' }}>
+                            <div className="progress-fill" style={{ width: `${reports.summary.healthScore.score}%` }}></div>
+                        </div>
+                        
+                        {/* ✅ شرح طريقة حساب الدرجة */}
+                        <details style={{ marginTop: 'var(--spacing-md)' }}>
+                            <summary style={{ cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                                📖 {isArabic ? 'كيف تم حساب هذه الدرجة؟' : 'How is this score calculated?'}
+                            </summary>
+                            <div style={{ marginTop: 'var(--spacing-sm)', padding: 'var(--spacing-sm)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-md)' }}>
+                                <p style={{ fontSize: '0.8rem', marginBottom: 'var(--spacing-sm)' }}>
+                                    {isArabic 
+                                        ? 'تعتمد الدرجة على عدة عوامل مجموعها 100 نقطة:'
+                                        : 'The score is based on several factors totaling 100 points:'}
+                                </p>
+                                <ul style={{ fontSize: '0.75rem', margin: 0, paddingLeft: 'var(--spacing-lg)' }}>
+                                    <li>{isArabic ? '😴 جودة النوم: 25 نقطة' : '😴 Sleep quality: 25 points'}</li>
+                                    <li>{isArabic ? '🥗 التغذية: 25 نقطة' : '🥗 Nutrition: 25 points'}</li>
+                                    <li>{isArabic ? '🏃 النشاط البدني: 20 نقطة' : '🏃 Physical activity: 20 points'}</li>
+                                    <li>{isArabic ? '❤️ القياسات الحيوية: 15 نقطة' : '❤️ Vital signs: 15 points'}</li>
+                                    <li>{isArabic ? '😊 المزاج والعادات: 15 نقطة' : '😊 Mood & habits: 15 points'}</li>
+                                </ul>
+                            </div>
+                        </details>
                     </div>
+                </div>
 
-                    {/* Story Card */}
-                    {reports.summary.story.length > 0 && (
-                        <div className="recommendations-section">
-                            <h3>📖 {t('reports.story.title') || 'القصة الذكية لصحبتك'}</h3>
-                            <div className="recommendations-list">
-                                {reports.summary.story.map((event, i) => (
-                                    <div key={i} className={`recommendation-card priority-${event.type === 'improvement' ? 'low' : event.type === 'warning' ? 'medium' : 'high'}`}>
-                                        <div className="rec-header">
-                                            <span className="rec-icon">
-                                                {event.type === 'improvement' ? '📈' : event.type === 'warning' ? '⚠️' : event.type === 'danger' ? '🔴' : 'ℹ️'}
-                                            </span>
-                                            <span className="rec-category">{event.text}</span>
-                                        </div>
+                {/* ✅ القصة الذكية (أسلوب لطيف وإرشادي) */}
+                {reports.summary.story.length > 0 && (
+                    <div className="recommendations-section">
+                        <div className="rec-header">
+                            <span className="rec-icon">📖</span>
+                            <span className="rec-category">{isArabic ? 'القصة الذكية لصحتك' : 'Your Health Story'}</span>
+                        </div>
+                        <div className="recommendations-list">
+                            {reports.summary.story.map((paragraph, i) => (
+                                <div key={i} className="recommendation-card">
+                                    <p className="rec-message" style={{ lineHeight: 1.6 }}>{paragraph}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ✅ التوصية الأولى */}
+                <div className="insight-card" style={{ background: 'var(--primary-gradient)', color: 'white' }}>
+                    <div className="insight-icon">{reports.summary.topRecommendation.icon}</div>
+                    <div className="insight-content">
+                        <div className="rec-header">
+                            <span className="rec-category" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                                {isArabic ? 'التوصية المقترحة' : 'Suggested Recommendation'}
+                            </span>
+                        </div>
+                        <h4 style={{ color: 'white', marginBottom: 'var(--spacing-sm)' }}>
+                            {reports.summary.topRecommendation.title}
+                        </h4>
+                        <p className="rec-message" style={{ color: 'rgba(255,255,255,0.95)', marginBottom: 'var(--spacing-sm)' }}>
+                            {reports.summary.topRecommendation.advice}
+                        </p>
+                        <div className="rec-advice" style={{ background: 'rgba(255,255,255,0.2)', color: 'white' }}>
+                            💡 {reports.summary.topRecommendation.action}
+                        </div>
+                    </div>
+                </div>
+
+                {/* ✅ تبويبات منظمة */}
+                <div className="analytics-tabs">
+                    <button className={`type-btn ${activeTab === 'summary' ? 'active' : ''}`} onClick={() => setActiveTab('summary')}>
+                        📊 {isArabic ? 'الملخص' : 'Summary'}
+                    </button>
+                    <button className={`type-btn ${activeTab === 'sleep' ? 'active' : ''}`} onClick={() => setActiveTab('sleep')}>
+                        🌙 {isArabic ? 'النوم' : 'Sleep'}
+                    </button>
+                    <button className={`type-btn ${activeTab === 'nutrition' ? 'active' : ''}`} onClick={() => setActiveTab('nutrition')}>
+                        🥗 {isArabic ? 'التغذية' : 'Nutrition'}
+                    </button>
+                    <button className={`type-btn ${activeTab === 'metrics' ? 'active' : ''}`} onClick={() => setActiveTab('metrics')}>
+                        ❤️ {isArabic ? 'القياسات' : 'Metrics'}
+                    </button>
+                    <button className={`type-btn ${activeTab === 'mood' ? 'active' : ''}`} onClick={() => setActiveTab('mood')}>
+                        😊 {isArabic ? 'المزاج' : 'Mood'}
+                    </button>
+                </div>
+
+                {/* محتوى التبويبات */}
+                <div className="tab-content">
+                    {/* تبويب الملخص */}
+                    {activeTab === 'summary' && (
+                        <div className="analytics-stats-grid">
+                            <div className="analytics-stat-card">
+                                <div className="stat-icon">🌙</div>
+                                <div className="stat-content">
+                                    <div className="stat-label">{isArabic ? 'النوم' : 'Sleep'}</div>
+                                    <div className="stat-value">
+                                        {reports.sleep.hasData ? reports.sleep.avgHours : 0} 
+                                        <span className="stat-label">{isArabic ? 'ساعات' : 'hrs'}</span>
                                     </div>
-                                ))}
+                                    {reports.sleep.hasData && reports.sleep.message && (
+                                        <div className="stat-label" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
+                                            {reports.sleep.message}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="analytics-stat-card">
+                                <div className="stat-icon">🥗</div>
+                                <div className="stat-content">
+                                    <div className="stat-label">{isArabic ? 'السعرات' : 'Calories'}</div>
+                                    <div className="stat-value">
+                                        {reports.nutrition.hasData ? reports.nutrition.avgCaloriesPerDay : 0}
+                                    </div>
+                                    {reports.nutrition.hasData && reports.nutrition.message && (
+                                        <div className="stat-label" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
+                                            {reports.nutrition.message}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="analytics-stat-card">
+                                <div className="stat-icon">🏃</div>
+                                <div className="stat-content">
+                                    <div className="stat-label">{isArabic ? 'النشاط' : 'Activity'}</div>
+                                    <div className="stat-value">
+                                        {reports.activity.hasData ? reports.activity.avgMinutesPerDay : 0}
+                                        <span className="stat-label">{isArabic ? 'دقيقة' : 'min'}</span>
+                                    </div>
+                                    {reports.activity.hasData && reports.activity.message && (
+                                        <div className="stat-label" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
+                                            {reports.activity.message}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="analytics-stat-card">
+                                <div className="stat-icon">❤️</div>
+                                <div className="stat-content">
+                                    <div className="stat-label">{isArabic ? 'ضغط الدم' : 'Blood Pressure'}</div>
+                                    <div className="stat-value">
+                                        {reports.healthMetrics.hasData 
+                                            ? `${reports.healthMetrics.avgSystolic}/${reports.healthMetrics.avgDiastolic}`
+                                            : '—'}
+                                    </div>
+                                    {reports.healthMetrics.hasData && reports.healthMetrics.bpMessage && (
+                                        <div className="stat-label" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
+                                            {reports.healthMetrics.bpMessage}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="analytics-stat-card">
+                                <div className="stat-icon">😊</div>
+                                <div className="stat-content">
+                                    <div className="stat-label">{isArabic ? 'المزاج' : 'Mood'}</div>
+                                    <div className="stat-value">
+                                        {reports.mood.hasData ? reports.mood.avgMood : 0}/5
+                                    </div>
+                                    {reports.mood.hasData && reports.mood.message && (
+                                        <div className="stat-label" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
+                                            {reports.mood.message}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
-
-                    {/* Top Recommendation Card */}
-                    <div className="insight-card" style={{ background: 'var(--primary-gradient)', color: 'white' }}>
-                        <div className="insight-icon">{reports.summary.topRecommendation.icon}</div>
-                        <div className="insight-content">
-                            <div className="rec-header">
-                                <span className="rec-category" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('reports.topRecommendation') || 'التوصية الأولى'}</span>
-                            </div>
-                            <h4 style={{ color: 'white' }}>{reports.summary.topRecommendation.title}</h4>
-                            <p className="rec-message" style={{ color: 'rgba(255,255,255,0.95)' }}>{reports.summary.topRecommendation.advice}</p>
-                            <div className="rec-advice" style={{ background: 'rgba(255,255,255,0.2)', color: 'white' }}>💡 {reports.summary.topRecommendation.action}</div>
+                    
+                    {/* تبويب النوم */}
+                    {activeTab === 'sleep' && (
+                        <div className="recommendations-section">
+                            <h3>{isArabic ? 'تفاصيل النوم' : 'Sleep Details'}</h3>
+                            {reports.sleep.hasData ? (
+                                <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
+                                    <div className="strengths">
+                                        <div className="habit-stats">
+                                            <span>{isArabic ? 'متوسط ساعات النوم' : 'Average sleep'}: <strong>{reports.sleep.avgHours} {isArabic ? 'ساعات' : 'hours'}</strong></span>
+                                            <span>{isArabic ? 'عدد الليالي المسجلة' : 'Nights recorded'}: <strong>{reports.sleep.totalNights}</strong></span>
+                                        </div>
+                                        <p className="stat-label" style={{ marginTop: 'var(--spacing-md)' }}>
+                                            {isArabic 
+                                                ? 'الحصول على 7-8 ساعات نوم يومياً قد يساهم في تحسين التركيز والطاقة.'
+                                                : 'Getting 7-8 hours of sleep per day may contribute to better focus and energy.'}
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="analytics-empty">
+                                    <p>{isArabic ? 'لا توجد بيانات نوم مسجلة' : 'No sleep data recorded'}</p>
+                                </div>
+                            )}
                         </div>
-                    </div>
-
-                    {/* Tabs */}
-                    <div className="analytics-tabs">
-                        <button className={`type-btn ${activeTab === 'summary' ? 'active' : ''}`} onClick={() => setActiveTab('summary')}>📊 {t('reports.tabs.summary') || 'الملخص'}</button>
-                        <button className={`type-btn ${activeTab === 'sleep' ? 'active' : ''}`} onClick={() => setActiveTab('sleep')}>🌙 {t('reports.tabs.sleep') || 'النوم'}</button>
-                        <button className={`type-btn ${activeTab === 'nutrition' ? 'active' : ''}`} onClick={() => setActiveTab('nutrition')}>🥗 {t('reports.tabs.nutrition') || 'التغذية'}</button>
-                        <button className={`type-btn ${activeTab === 'metrics' ? 'active' : ''}`} onClick={() => setActiveTab('metrics')}>📊 {t('reports.tabs.metrics') || 'القياسات الحيوية'}</button>
-                        <button className={`type-btn ${activeTab === 'mood' ? 'active' : ''}`} onClick={() => setActiveTab('mood')}>😊 {t('reports.tabs.mood') || 'المزاج'}</button>
-                        <button className={`type-btn ${activeTab === 'habits' ? 'active' : ''}`} onClick={() => setActiveTab('habits')}>💊 {t('reports.tabs.habits') || 'العادات'}</button>
-                    </div>
-
-                    {/* Tab Content */}
-                    <div className="tab-content">
-                        {activeTab === 'summary' && (
-                            <div className="analytics-stats-grid">
-                                <div className="analytics-stat-card">
-                                    <div className="stat-icon">🌙</div>
-                                    <div className="stat-content">
-                                        <div className="stat-label">{t('reports.sleep.title') || 'النوم'}</div>
-                                        <div className="stat-value">{reports.sleep.hasData ? reports.sleep.avgHours : 0} {t('reports.sleep.hours') || 'ساعات'}</div>
+                    )}
+                    
+                    {/* تبويب التغذية */}
+                    {activeTab === 'nutrition' && (
+                        <div className="recommendations-section">
+                            <h3>{isArabic ? 'تفاصيل التغذية' : 'Nutrition Details'}</h3>
+                            {reports.nutrition.hasData ? (
+                                <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
+                                    <div className="strengths">
+                                        <div className="habit-stats">
+                                            <span>{isArabic ? 'متوسط السعرات اليومية' : 'Daily calories'}: <strong>{reports.nutrition.avgCaloriesPerDay}</strong></span>
+                                            <span>{isArabic ? 'عدد الوجبات المسجلة' : 'Meals recorded'}: <strong>{reports.nutrition.totalMeals}</strong></span>
+                                        </div>
+                                        {reports.nutrition.avgProtein > 0 && (
+                                            <div className="habit-stats" style={{ marginTop: 'var(--spacing-sm)' }}>
+                                                <span>{isArabic ? 'البروتين' : 'Protein'}: <strong>{reports.nutrition.avgProtein}g</strong></span>
+                                                <span>{isArabic ? 'الكربوهيدرات' : 'Carbs'}: <strong>{reports.nutrition.avgCarbs}g</strong></span>
+                                                <span>{isArabic ? 'الدهون' : 'Fat'}: <strong>{reports.nutrition.avgFat}g</strong></span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="analytics-stat-card">
-                                    <div className="stat-icon">🥗</div>
-                                    <div className="stat-content">
-                                        <div className="stat-label">{t('reports.nutrition.title') || 'التغذية'}</div>
-                                        <div className="stat-value">{reports.nutrition.hasData ? reports.nutrition.avgCaloriesPerDay : 0}</div>
-                                    </div>
+                            ) : (
+                                <div className="analytics-empty">
+                                    <p>{isArabic ? 'لا توجد بيانات تغذية مسجلة' : 'No nutrition data recorded'}</p>
                                 </div>
-                                <div className="analytics-stat-card">
-                                    <div className="stat-icon">🏃</div>
-                                    <div className="stat-content">
-                                        <div className="stat-label">{t('reports.activity.title') || 'النشاط'}</div>
-                                        <div className="stat-value">{reports.activity.hasData ? reports.activity.avgMinutesPerDay : 0} {t('reports.minutes') || 'دقيقة'}</div>
-                                    </div>
-                                </div>
-                                <div className="analytics-stat-card">
-                                    <div className="stat-icon">❤️</div>
-                                    <div className="stat-content">
-                                        <div className="stat-label">{t('reports.healthMetrics.title') || 'القياسات الحيوية'}</div>
-                                        <div className="stat-value">{reports.healthMetrics.hasData ? `${reports.healthMetrics.avgSystolic}/${reports.healthMetrics.avgDiastolic}` : '—'}</div>
-                                    </div>
-                                </div>
-                                <div className="analytics-stat-card">
-                                    <div className="stat-icon">😊</div>
-                                    <div className="stat-content">
-                                        <div className="stat-label">{t('reports.mood.title') || 'المزاج'}</div>
-                                        <div className="stat-value">{reports.mood.hasData ? reports.mood.avgMood : 0}/5</div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        
-                        {activeTab === 'sleep' && (
+                            )}
+                        </div>
+                    )}
+                    
+                    {/* تبويب القياسات */}
+                    {activeTab === 'metrics' && (
+                        <div className="recommendations-section">
+                            <h3>{isArabic ? 'تفاصيل القياسات الحيوية' : 'Health Metrics Details'}</h3>
+                            
+                            {/* النشاط البدني */}
                             <div className="recommendations-section">
-                                <h3>🌙 {t('reports.sleep.details') || 'تفاصيل النوم'}</h3>
-                                {reports.sleep.hasData ? (
+                                <h4>{isArabic ? 'النشاط البدني' : 'Physical Activity'}</h4>
+                                {reports.activity.hasData ? (
                                     <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
                                         <div className="strengths">
                                             <div className="habit-stats">
-                                                <span>{t('reports.sleep.avgHours') || 'متوسط ساعات النوم'}: <strong>{reports.sleep.avgHours} {t('reports.sleep.hours') || 'ساعات'}</strong></span>
-                                                <span>{t('reports.sleep.totalNights') || 'عدد الليالي'}: <strong>{reports.sleep.totalNights}</strong></span>
+                                                <span>{isArabic ? 'إجمالي الدقائق' : 'Total minutes'}: <strong>{reports.activity.totalMinutes} {isArabic ? 'دقيقة' : 'minutes'}</strong></span>
+                                                <span>{isArabic ? 'المتوسط اليومي' : 'Daily average'}: <strong>{reports.activity.avgMinutesPerDay} {isArabic ? 'دقيقة' : 'min'}</strong></span>
                                             </div>
+                                            <p className="stat-label" style={{ marginTop: 'var(--spacing-md)' }}>
+                                                {isArabic 
+                                                    ? 'ممارسة 30 دقيقة من النشاط المعتدل يومياً قد تساعد في تحسين اللياقة.'
+                                                    : '30 minutes of moderate activity daily may help improve fitness.'}
+                                            </p>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="analytics-empty">😴 لا توجد بيانات نوم مسجلة</div>
-                                )}
-                            </div>
-                        )}
-                        
-                        {activeTab === 'nutrition' && (
-                            <div className="recommendations-section">
-                                <h3>🥗 {t('reports.nutrition.details') || 'تفاصيل التغذية'}</h3>
-                                {reports.nutrition.hasData ? (
-                                    <div className="strengths-weaknesses" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                                        <div className="strengths">
-                                            <div className="habit-stats">
-                                                <span>🥗 {t('reports.nutrition.avgCalories') || 'متوسط السعرات'}: <strong>{reports.nutrition.avgCaloriesPerDay} {t('reports.caloriesUnit') || 'سعرة'}</strong></span>
-                                                <span>💪 {t('reports.nutrition.avgProtein') || 'متوسط البروتين'}: <strong>{reports.nutrition.avgProtein} جرام</strong></span>
-                                                <span>🌾 {t('reports.nutrition.avgCarbs') || 'متوسط الكربوهيدرات'}: <strong>{reports.nutrition.avgCarbs} جرام</strong></span>
-                                                <span>🫒 {t('reports.nutrition.avgFat') || 'متوسط الدهون'}: <strong>{reports.nutrition.avgFat} جرام</strong></span>
-                                                <span>📝 {t('reports.nutrition.totalMeals') || 'إجمالي الوجبات'}: <strong>{reports.nutrition.totalMeals} وجبة</strong></span>
-                                            </div>
-                                        </div>
+                                    <div className="analytics-empty">
+                                        <p>{isArabic ? 'لا توجد بيانات نشاط بدني مسجلة' : 'No activity data recorded'}</p>
                                     </div>
-                                ) : (
-                                    <div className="analytics-empty">🥗 لا توجد بيانات تغذية مسجلة</div>
                                 )}
                             </div>
-                        )}
-                        
-                        {activeTab === 'metrics' && (
+                            
+                            {/* القياسات الحيوية */}
                             <div className="recommendations-section">
-                                <h3>📊 {t('reports.healthMetrics.title') || 'القياسات الحيوية'}</h3>
-                                
-                                <div className="recommendations-section">
-                                    <h4>🏃 {t('reports.activity.title') || 'النشاط البدني'}</h4>
-                                    {reports.activity.hasData ? (
-                                        <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
-                                            <div className="strengths">
-                                                <div className="habit-stats">
-                                                    <span>🏃 {t('reports.activity.totalMinutes') || 'إجمالي الدقائق'}: <strong>{reports.activity.totalMinutes} دقيقة</strong></span>
-                                                    <span>📊 {t('reports.activity.avgMinutes') || 'متوسط النشاط اليومي'}: <strong>{reports.activity.avgMinutesPerDay} دقيقة/يوم</strong></span>
-                                                    <span>📋 {t('reports.activity.records') || 'عدد الأنشطة'}: <strong>{reports.activity.records} نشاط</strong></span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="analytics-empty">🏃 لا توجد بيانات نشاط بدني مسجلة</div>
-                                    )}
-                                </div>
-                                
-                                <div className="recommendations-section">
-                                    <h4>❤️ القياسات الحيوية</h4>
-                                    {reports.healthMetrics.hasData ? (
-                                        <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
-                                            <div className="strengths">
-                                                <div className="habit-stats">
-                                                    <span>⚖️ الوزن: <strong>{reports.healthMetrics.avgWeight} كجم</strong></span>
-                                                    <span>❤️ ضغط الدم: <strong>{reports.healthMetrics.avgSystolic}/{reports.healthMetrics.avgDiastolic} mmHg</strong></span>
-                                                    <span>🩸 السكر: <strong>{reports.healthMetrics.avgGlucose} mg/dL</strong></span>
-                                                    <span>📊 عدد القراءات: <strong>{reports.healthMetrics.records} قراءة</strong></span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="analytics-empty">❤️ لا توجد بيانات قياسات حيوية مسجلة</div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                        
-                        {activeTab === 'mood' && (
-                            <div className="recommendations-section">
-                                <h3>😊 {t('reports.mood.details') || 'تفاصيل المزاج'}</h3>
-                                {reports.mood.hasData ? (
+                                <h4>{isArabic ? 'القياسات الحيوية' : 'Vital Signs'}</h4>
+                                {reports.healthMetrics.hasData ? (
                                     <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
                                         <div className="strengths">
                                             <div className="habit-stats">
-                                                <span>😊 {t('reports.mood.avgScore') || 'متوسط درجة المزاج'}: <strong>{reports.mood.avgMood}/5</strong></span>
-                                                <span>📅 {t('reports.mood.totalDays') || 'عدد الأيام المسجلة'}: <strong>{reports.mood.totalDays} يوم</strong></span>
+                                                {reports.healthMetrics.avgWeight > 0 && (
+                                                    <span>{isArabic ? 'الوزن' : 'Weight'}: <strong>{reports.healthMetrics.avgWeight} {isArabic ? 'كجم' : 'kg'}</strong></span>
+                                                )}
+                                                <span>{isArabic ? 'ضغط الدم' : 'Blood Pressure'}: <strong>{reports.healthMetrics.avgSystolic}/{reports.healthMetrics.avgDiastolic} mmHg</strong></span>
+                                                {reports.healthMetrics.avgGlucose > 0 && (
+                                                    <span>{isArabic ? 'السكر' : 'Glucose'}: <strong>{reports.healthMetrics.avgGlucose} mg/dL</strong></span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="analytics-empty">😊 لا توجد بيانات مزاج مسجلة</div>
-                                )}
-                            </div>
-                        )}
-                        
-                        {activeTab === 'habits' && (
-                            <div className="recommendations-section">
-                                <h3>💊 {t('reports.habits.details') || 'تفاصيل العادات'}</h3>
-                                {reports.habits.hasData ? (
-                                    <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
-                                        <div className="strengths">
-                                            <div className="habit-stats">
-                                                <span>📊 {t('reports.habits.completionRate') || 'نسبة الالتزام'}: <strong>{reports.habits.completionRate}%</strong></span>
-                                                <span>✅ {t('reports.habits.completed') || 'العادات المنجزة'}: <strong>{reports.habits.completed}/{reports.habits.total}</strong></span>
-                                            </div>
-                                        </div>
+                                    <div className="analytics-empty">
+                                        <p>{isArabic ? 'لا توجد بيانات قياسات حيوية مسجلة' : 'No vital signs data recorded'}</p>
                                     </div>
-                                ) : (
-                                    <div className="analytics-empty">💊 لا توجد بيانات عادات مسجلة</div>
                                 )}
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
+                    
+                    {/* تبويب المزاج */}
+                    {activeTab === 'mood' && (
+                        <div className="recommendations-section">
+                            <h3>{isArabic ? 'تفاصيل المزاج' : 'Mood Details'}</h3>
+                            {reports.mood.hasData ? (
+                                <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr' }}>
+                                    <div className="strengths">
+                                        <div className="habit-stats">
+                                            <span>{isArabic ? 'متوسط درجة المزاج' : 'Average mood'}: <strong>{reports.mood.avgMood}/5</strong></span>
+                                            <span>{isArabic ? 'عدد الأيام المسجلة' : 'Days recorded'}: <strong>{reports.mood.totalDays}</strong></span>
+                                        </div>
+                                        <p className="stat-label" style={{ marginTop: 'var(--spacing-md)' }}>
+                                            {isArabic 
+                                                ? 'الاهتمام بجودة النوم وممارسة النشاط البدني قد يساعد في تحسين الحالة المزاجية.'
+                                                : 'Paying attention to sleep quality and physical activity may help improve mood.'}
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="analytics-empty">
+                                    <p>{isArabic ? 'لا توجد بيانات مزاج مسجلة' : 'No mood data recorded'}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
 
-            {/* الأنماط الإضافية */}
             <style>{`
                 .reports-controls select,
                 .reports-controls input {
                     min-width: 120px;
+                }
+                
+                .reports-content details summary {
+                    list-style: none;
+                }
+                
+                .reports-content details summary::-webkit-details-marker {
+                    display: none;
                 }
                 
                 @media (max-width: 768px) {

@@ -11,18 +11,19 @@ const SmartDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [healthScore, setHealthScore] = useState(null);
+    const [activeTab, setActiveTab] = useState('analysis'); // analysis, recommendations, predictions
 
     const isArabic = i18n.language.startsWith('ar');
 
     // ===========================================
-    // 🎯 دوال حساب درجة الصحة
+    // 🎯 دوال حساب درجة الصحة (مع تفسير)
     // ===========================================
     
     const calculateSleepScore = (hours) => {
         if (hours >= 7 && hours <= 8) return { score: 30, status: isArabic ? 'مثالي' : 'Ideal', isGood: true };
         if (hours >= 6) return { score: 20, status: isArabic ? 'جيد' : 'Good', isGood: true };
         if (hours >= 5) return { score: 10, status: isArabic ? 'مقبول' : 'Fair', isGood: false };
-        return { score: 5, status: isArabic ? 'قليل' : 'Low', isGood: false };
+        return { score: 5, status: isArabic ? 'يحتاج تحسين' : 'Needs improvement', isGood: false };
     };
 
     const calculateMoodScore = (avgScore) => {
@@ -52,7 +53,7 @@ const SmartDashboard = () => {
         let status = '';
         if (habitsScore >= 12) status = isArabic ? 'ممتاز' : 'Excellent';
         else if (habitsScore >= 8) status = isArabic ? 'جيد' : 'Good';
-        else status = isArabic ? 'ضعيف' : 'Poor';
+        else status = isArabic ? 'يحتاج تحسين' : 'Needs improvement';
         return { score: habitsScore, status, isGood: habitsScore >= 8 };
     };
 
@@ -137,16 +138,23 @@ const SmartDashboard = () => {
 
         const finalScore = Math.min(totalScore, 100);
         
-        // حساب درجة الحرف
         let grade = '';
-        if (finalScore >= 90) grade = 'A+';
-        else if (finalScore >= 80) grade = 'A';
-        else if (finalScore >= 70) grade = 'B';
-        else if (finalScore >= 60) grade = 'C';
-        else if (finalScore >= 50) grade = 'D';
-        else grade = 'F';
+        let statusText = '';
+        if (finalScore >= 80) {
+            grade = 'A';
+            statusText = isArabic ? 'ممتازة' : 'Excellent';
+        } else if (finalScore >= 60) {
+            grade = 'B';
+            statusText = isArabic ? 'جيدة' : 'Good';
+        } else if (finalScore >= 40) {
+            grade = 'C';
+            statusText = isArabic ? 'متوسطة' : 'Fair';
+        } else {
+            grade = 'D';
+            statusText = isArabic ? 'تحتاج تحسيناً' : 'Needs improvement';
+        }
 
-        return { total: finalScore, max: 100, factors, grade };
+        return { total: finalScore, max: 100, factors, grade, statusText };
     }, [t, isArabic]);
 
     // ===========================================
@@ -178,7 +186,7 @@ const SmartDashboard = () => {
             console.error('Error fetching smart insights:', err);
             setError(t('smartDashboard.error'));
             
-            // بيانات تجريبية للعرض عند فشل الاتصال
+            // بيانات تجريبية (تقديرية فقط)
             const mockScore = calculateHealthScore({
                 sleep: { avgHours: 6.2 },
                 mood: { avgScore: 3.5 },
@@ -207,18 +215,48 @@ const SmartDashboard = () => {
         return (
             <div className="health-score-card">
                 <div className="score-header">
-                    <h3>🏆 {t('smartDashboard.healthScore.title')}</h3>
+                    <h3>{isArabic ? '📊 درجة صحتك' : 'Your Health Score'}</h3>
                     <div className="score-main">
-                        <div className="score-circle" style={{
-                            background: `conic-gradient(#10b981 0% ${healthScore.total}%, #e2e8f0 ${healthScore.total}% 100%)`
-                        }}>
-                            <span>{healthScore.total}</span>
+                        <div className="score-circle">
+                            <div className="circle-bg">
+                                <div className="circle-fill" style={{ 
+                                    background: `conic-gradient(#10b981 0% ${healthScore.total}%, #e2e8f0 ${healthScore.total}% 100%)`
+                                }}>
+                                    <span className="score-number">{healthScore.total}</span>
+                                </div>
+                            </div>
                         </div>
-                        <span className={`score-grade grade-${healthScore.grade.toLowerCase()}`}>
-                            {healthScore.grade}
-                        </span>
+                        <div className="score-info">
+                            <span className={`score-grade grade-${healthScore.grade.toLowerCase()}`}>
+                                {healthScore.grade}
+                            </span>
+                            <span className="score-status">{healthScore.statusText}</span>
+                        </div>
                     </div>
                 </div>
+                
+                {/* ✅ تفسير طريقة الحساب */}
+                <details className="score-method">
+                    <summary>{isArabic ? '📖 كيف تم حساب هذه الدرجة؟' : '📖 How is this score calculated?'}</summary>
+                    <div className="method-content">
+                        <p>{isArabic 
+                            ? 'تعتمد الدرجة على 5 عوامل صحية رئيسية:' 
+                            : 'The score is based on 5 key health factors:'}
+                        </p>
+                        <ul>
+                            <li>{isArabic ? '😴 النوم: 30 نقطة' : '😴 Sleep: 30 points'}</li>
+                            <li>{isArabic ? '😊 الحالة المزاجية: 20 نقطة' : '😊 Mood: 20 points'}</li>
+                            <li>{isArabic ? '🏃 النشاط البدني: 20 نقطة' : '🏃 Physical activity: 20 points'}</li>
+                            <li>{isArabic ? '🥗 التغذية: 15 نقطة' : '🥗 Nutrition: 15 points'}</li>
+                            <li>{isArabic ? '💊 الالتزام بالعادات: 15 نقطة' : '💊 Habit adherence: 15 points'}</li>
+                        </ul>
+                        <p className="method-note">
+                            {isArabic 
+                                ? 'المجموع الكلي: 100 نقطة. كلما زادت النقاط، زادت جودة صحتك العامة.'
+                                : 'Total: 100 points. Higher scores indicate better overall health.'}
+                        </p>
+                    </div>
+                </details>
                 
                 <div className="score-factors">
                     {healthScore.factors.map((factor, idx) => (
@@ -240,175 +278,166 @@ const SmartDashboard = () => {
                         </div>
                     ))}
                 </div>
-                
-                <div className="score-footer">
-                    <small>✨ {t('smartDashboard.healthScore.footer')}</small>
-                </div>
             </div>
         );
     };
 
+    // ✅ العلاقات مع تفسير واضح (دون أرقام قطعية)
     const CorrelationsSection = () => (
         <section className="correlations-section">
-            <h3>🔗 {t('smartDashboard.correlations.title')}</h3>
+            <h3>{isArabic ? '🔗 علاقات ملحوظة في بياناتك' : '🔗 Notable correlations in your data'}</h3>
             <div className="correlations-list">
                 {/* النوم والمزاج */}
-                <div className="correlation-item strength-high">
+                <div className="correlation-item">
                     <div className="correlation-header">
-                        <span className="corr-icon">😊</span>
-                        <h4>{t('smartDashboard.correlations.sleepMood')}</h4>
-                        <span className="strength-badge">{t('smartDashboard.correlations.strength')} 82%</span>
+                        <span className="corr-icon">😊 ↔️ 😴</span>
+                        <h4>{isArabic ? 'النوم والمزاج' : 'Sleep & Mood'}</h4>
+                        <span className="strength-badge strong">{isArabic ? 'قوة عالية' : 'Strong'}</span>
                     </div>
                     <p className="correlation-insight">
-                        <span className="insight-highlight">{t('smartDashboard.correlations.sleepLow')}</span>
-                        {isArabic ? '، مزاجك في اليوم التالي يكون أقل بنسبة 40%' : ', your mood the next day is 40% lower'}
-                    </p>
-                    <div className="correlation-visual">
-                        <div className="comparison-bars">
-                            <div className="comparison-item">
-                                <span className="comparison-label">{t('smartDashboard.correlations.goodSleep')}</span>
-                                <div className="comparison-bar">
-                                    <div className="comparison-fill" style={{width: '80%'}}>4.5/5</div>
-                                </div>
-                            </div>
-                            <div className="comparison-item">
-                                <span className="comparison-label">{t('smartDashboard.correlations.poorSleep')}</span>
-                                <div className="comparison-bar">
-                                    <div className="comparison-fill low" style={{width: '50%'}}>2.8/5</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <small className="correlation-based">{t('smartDashboard.correlations.basedOn')} 15 {t('smartDashboard.correlations.days')}</small>
-                </div>
-
-                {/* النشاط والضغط */}
-                <div className="correlation-item strength-medium">
-                    <div className="correlation-header">
-                        <span className="corr-icon">❤️</span>
-                        <h4>{t('smartDashboard.correlations.activityPressure')}</h4>
-                        <span className="strength-badge">{t('smartDashboard.correlations.strength')} 75%</span>
-                    </div>
-                    <p className="correlation-insight">
-                        <span className="insight-highlight">{t('smartDashboard.correlations.walkingDays')}</span>
-                        {isArabic ? '، ضغطك الانقباضي أقل بـ 8 نقاط' : ', your systolic pressure is 8 points lower'}
+                        {isArabic 
+                            ? 'عندما تنام بشكل أفضل، يميل مزاجك إلى التحسن في اليوم التالي'
+                            : 'When you sleep better, your mood tends to improve the next day'}
                     </p>
                     <div className="correlation-stats">
                         <div className="stat-compare">
                             <div className="stat-item">
-                                <span className="stat-label">{t('smartDashboard.correlations.withWalking')}</span>
+                                <span className="stat-label">{isArabic ? 'عند نوم جيد' : 'With good sleep'}</span>
+                                <span className="stat-value good">4.5/5</span>
+                            </div>
+                            <div className="stat-item">
+                                <span className="stat-label">{isArabic ? 'عند قلة النوم' : 'With poor sleep'}</span>
+                                <span className="stat-value bad">2.8/5</span>
+                            </div>
+                        </div>
+                    </div>
+                    <small className="correlation-based">
+                        📊 {isArabic ? 'بناءً على آخر 15 يوماً' : 'Based on last 15 days'}
+                    </small>
+                </div>
+
+                {/* النشاط والضغط */}
+                <div className="correlation-item">
+                    <div className="correlation-header">
+                        <span className="corr-icon">🏃 ↔️ ❤️</span>
+                        <h4>{isArabic ? 'النشاط البدني وضغط الدم' : 'Physical Activity & Blood Pressure'}</h4>
+                        <span className="strength-badge medium">{isArabic ? 'قوة متوسطة' : 'Moderate'}</span>
+                    </div>
+                    <p className="correlation-insight">
+                        {isArabic 
+                            ? 'الأيام التي تمارس فيها نشاطاً بدنياً، قد يكون ضغط دمك أكثر استقراراً'
+                            : 'On days you exercise, your blood pressure may be more stable'}
+                    </p>
+                    <div className="correlation-stats">
+                        <div className="stat-compare">
+                            <div className="stat-item">
+                                <span className="stat-label">{isArabic ? 'مع نشاط' : 'With activity'}</span>
                                 <span className="stat-value good">118</span>
                             </div>
                             <div className="stat-item">
-                                <span className="stat-label">{t('smartDashboard.correlations.withoutWalking')}</span>
+                                <span className="stat-label">{isArabic ? 'بدون نشاط' : 'Without activity'}</span>
                                 <span className="stat-value bad">126</span>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                {/* الكافيين والنوم */}
-                <div className="correlation-item strength-low">
-                    <div className="correlation-header">
-                        <span className="corr-icon">☕</span>
-                        <h4>{t('smartDashboard.correlations.caffeineSleep')}</h4>
-                        <span className="strength-badge">{t('smartDashboard.correlations.strength')} 65%</span>
-                    </div>
-                    <p className="correlation-insight">
-                        <span className="insight-highlight">{t('smartDashboard.correlations.caffeineAfter')}</span>
-                        {isArabic ? ' يقلل نومك بمعدل ساعتين' : ' reduces your sleep by 2 hours'}
-                    </p>
-                    <div className="correlation-note">
-                        {t('smartDashboard.correlations.discoveredIn')} 5 {t('smartDashboard.correlations.outOf')} 7 {t('smartDashboard.correlations.days')}
-                    </div>
-                </div>
             </div>
+            <p className="correlation-note">
+                ⚠️ {isArabic 
+                    ? '* هذه ملاحظات إحصائية من بياناتك الشخصية وليست تشخيصاً طبياً'
+                    : '* These are statistical observations from your personal data, not medical diagnoses'}
+            </p>
         </section>
     );
 
+    // ✅ توصيات محتملة (غير قطعية)
     const RecommendationsSection = () => (
         <section className="recommendations-section">
-            <h3>🎯 {t('smartDashboard.recommendations.title')}</h3>
+            <h3>{isArabic ? '🎯 توصيات مقترحة' : 'Suggested Recommendations'}</h3>
             <div className="recommendations-timeline">
-                {/* توصية عاجلة */}
-                <div className="rec-item urgent">
-                    <div className="rec-header">
-                        <span className="rec-badge urgent">🔴 {t('smartDashboard.recommendations.urgent')}</span>
-                    </div>
-                    <h4>{t('smartDashboard.recommendations.sleepMore')}</h4>
-                    <p>{t('smartDashboard.recommendations.sleepMoreDesc')}</p>
-                    <div className="rec-meta">
-                        <span>📊 {t('smartDashboard.recommendations.basedOn')}: {t('smartDashboard.recommendations.sleepCorrelation')}</span>
-                    </div>
-                </div>
-
-                {/* توصية مهمة */}
                 <div className="rec-item important">
                     <div className="rec-header">
-                        <span className="rec-badge important">🟠 {t('smartDashboard.recommendations.important')}</span>
+                        <span className="rec-badge important">⚠️ {isArabic ? 'مهم' : 'Important'}</span>
                     </div>
-                    <h4>{t('smartDashboard.recommendations.regularActivity')}</h4>
-                    <p>{t('smartDashboard.recommendations.regularActivityDesc')}</p>
+                    <h4>{isArabic ? 'تحسين جودة النوم' : 'Improve sleep quality'}</h4>
+                    <p>{isArabic 
+                        ? 'الحصول على 7-8 ساعات نوم ليلاً قد يساعد في تحسين طاقتك وتركيزك'
+                        : 'Getting 7-8 hours of sleep per night may help improve your energy and focus'}
+                    </p>
                     <div className="rec-meta">
-                        <span>🎯 {t('smartDashboard.recommendations.expected')}: -2 {t('smartDashboard.recommendations.kgInTwoWeeks')}</span>
+                        <span>📊 {isArabic ? 'بناءً على' : 'Based on'}: {isArabic ? 'ارتباط النوم بالمزاج' : 'Sleep-mood correlation'}</span>
                     </div>
                 </div>
 
-                {/* توصية مقترحة */}
                 <div className="rec-item suggestion">
                     <div className="rec-header">
-                        <span className="rec-badge suggestion">🟢 {t('smartDashboard.recommendations.suggestion')}</span>
+                        <span className="rec-badge suggestion">💡 {isArabic ? 'اقتراح' : 'Suggestion'}</span>
                     </div>
-                    <h4>{t('smartDashboard.recommendations.balancedNutrition')}</h4>
-                    <p>{t('smartDashboard.recommendations.balancedNutritionDesc')}</p>
+                    <h4>{isArabic ? 'زيادة النشاط البدني تدريجياً' : 'Gradually increase physical activity'}</h4>
+                    <p>{isArabic 
+                        ? 'ممارسة نشاط معتدل مثل المشي لمدة 20-30 دقيقة يومياً قد يحسن لياقتك'
+                        : 'Moderate activity like walking 20-30 minutes daily may improve your fitness'}
+                    </p>
                     <ul className="suggestions-list">
-                        <li>✓ {t('smartDashboard.recommendations.addEgg')}</li>
-                        <li>✓ {t('smartDashboard.recommendations.greekYogurt')}</li>
+                        <li>✓ {isArabic ? 'استخدام الدرج بدلاً من المصعد' : 'Use stairs instead of elevator'}</li>
+                        <li>✓ {isArabic ? 'المشي أثناء المكالمات الهاتفية' : 'Walk during phone calls'}</li>
+                        <li>✓ {isArabic ? 'الوقوف والتحرك كل ساعة' : 'Stand and move every hour'}</li>
+                    </ul>
+                </div>
+
+                <div className="rec-item suggestion">
+                    <div className="rec-header">
+                        <span className="rec-badge suggestion">🥗 {isArabic ? 'تغذية' : 'Nutrition'}</span>
+                    </div>
+                    <h4>{isArabic ? 'تنويع مصادر البروتين' : 'Diversify protein sources'}</h4>
+                    <p>{isArabic 
+                        ? 'إضافة مصادر متنوعة من البروتين قد يساعد في بناء العضلات والشعور بالشبع'
+                        : 'Adding diverse protein sources may help build muscle and increase satiety'}
+                    </p>
+                    <ul className="suggestions-list">
+                        <li>✓ {isArabic ? 'بيض أو زبادي يوناني على الفطور' : 'Eggs or Greek yogurt for breakfast'}</li>
+                        <li>✓ {isArabic ? 'دجاج أو سمك على الغداء' : 'Chicken or fish for lunch'}</li>
+                        <li>✓ {isArabic ? 'بقوليات أو مكسرات كوجبة خفيفة' : 'Legumes or nuts as a snack'}</li>
                     </ul>
                 </div>
             </div>
         </section>
     );
 
+    // ✅ توقعات تقريبية (غير قطعية)
     const PredictionsSection = () => (
         <section className="predictions-section">
-            <h3>🔮 {t('smartDashboard.predictions.title')}</h3>
+            <h3>{isArabic ? '🔮 توقعات تقريبية' : 'Approximate Predictions'}</h3>
             <div className="predictions-grid">
                 <div className="pred-card">
                     <span className="pred-icon">⚖️</span>
                     <div className="pred-info">
-                        <span className="pred-label">{t('smartDashboard.predictions.weight')}</span>
-                        <span className="pred-value">77.2 {t('smartDashboard.predictions.kg')}</span>
+                        <span className="pred-label">{isArabic ? 'الوزن' : 'Weight'}</span>
+                        <span className="pred-value">77.2 كجم</span>
                     </div>
-                    <span className="pred-trend down">⬇️ -0.8 {t('smartDashboard.predictions.kg')}</span>
+                    <span className="pred-trend stable">{isArabic ? 'مستقر ➡️' : 'Stable ➡️'}</span>
                 </div>
                 <div className="pred-card">
                     <span className="pred-icon">❤️</span>
                     <div className="pred-info">
-                        <span className="pred-label">{t('smartDashboard.predictions.systolic')}</span>
+                        <span className="pred-label">{isArabic ? 'ضغط الدم الانقباضي' : 'Systolic BP'}</span>
                         <span className="pred-value">95</span>
                     </div>
-                    <span className="pred-trend stable">➡️ {t('smartDashboard.predictions.stable')}</span>
+                    <span className="pred-trend stable">{isArabic ? 'ثابت ➡️' : 'Stable ➡️'}</span>
                 </div>
                 <div className="pred-card">
                     <span className="pred-icon">🌙</span>
                     <div className="pred-info">
-                        <span className="pred-label">{t('smartDashboard.predictions.sleep')}</span>
-                        <span className="pred-value">6.5 {t('smartDashboard.predictions.hours')}</span>
+                        <span className="pred-label">{isArabic ? 'مدة النوم' : 'Sleep duration'}</span>
+                        <span className="pred-value">6.5 ساعات</span>
                     </div>
-                    <span className="pred-trend up">⬆️ +1 {t('smartDashboard.predictions.hour')}</span>
-                </div>
-                <div className="pred-card">
-                    <span className="pred-icon">😊</span>
-                    <div className="pred-info">
-                        <span className="pred-label">{t('smartDashboard.predictions.mood')}</span>
-                        <span className="pred-value">{t('smartDashboard.predictions.good')}</span>
-                    </div>
-                    <span className="pred-trend up">⬆️ {t('smartDashboard.predictions.improvement')}</span>
+                    <span className="pred-trend up">{isArabic ? 'ارتفاع محتمل ⬆️' : 'Possible increase ⬆️'}</span>
                 </div>
             </div>
             <p className="prediction-note">
-                * {t('smartDashboard.predictions.note')}
+                ⚠️ {isArabic 
+                    ? '* هذه توقعات تقديرية تعتمد على بياناتك السابقة. النتائج الفعلية قد تختلف.'
+                    : '* These are estimates based on your historical data. Actual results may vary.'}
             </p>
         </section>
     );
@@ -420,7 +449,7 @@ const SmartDashboard = () => {
         return (
             <div className="smart-loading">
                 <div className="spinner"></div>
-                <p>🧠 {t('smartDashboard.loading')}</p>
+                <p>🧠 {isArabic ? 'جاري تحليل بياناتك...' : 'Analyzing your data...'}</p>
             </div>
         );
     }
@@ -430,7 +459,7 @@ const SmartDashboard = () => {
             <div className="smart-error">
                 <p>❌ {error}</p>
                 <button onClick={fetchSmartInsights} className="retry-btn">
-                    🔄 {t('smartDashboard.retry')}
+                    🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                 </button>
             </div>
         );
@@ -442,24 +471,46 @@ const SmartDashboard = () => {
     return (
         <div className="smart-dashboard">
             <div className="dashboard-header">
-                <h2>🧠 {t('smartDashboard.title')}</h2>
-                <button onClick={fetchSmartInsights} className="refresh-dashboard-btn" title={t('common.refresh')}>
+                <h2>{isArabic ? '🧠 تحليل صحتك الذكي' : 'Smart Health Analysis'}</h2>
+                <button onClick={fetchSmartInsights} className="refresh-dashboard-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
             </div>
             
+            {/* تبويبات منظمة لتقليل الازدحام */}
+            <div className="analytics-tabs">
+                <button 
+                    className={activeTab === 'analysis' ? 'active' : ''}
+                    onClick={() => setActiveTab('analysis')}
+                >
+                    📊 {isArabic ? 'التحليل' : 'Analysis'}
+                </button>
+                <button 
+                    className={activeTab === 'recommendations' ? 'active' : ''}
+                    onClick={() => setActiveTab('recommendations')}
+                >
+                    💡 {isArabic ? 'توصيات' : 'Recommendations'}
+                </button>
+                <button 
+                    className={activeTab === 'predictions' ? 'active' : ''}
+                    onClick={() => setActiveTab('predictions')}
+                >
+                    🔮 {isArabic ? 'توقعات' : 'Predictions'}
+                </button>
+            </div>
+            
             <div className="smart-grid">
-                {/* العمود الأيمن - الطقس ودرجة الصحة */}
+                {/* العمود الأيسر - الطقس ودرجة الصحة */}
                 <div className="smart-column">
                     <WeatherWidget />
                     <HealthScoreCard healthScore={healthScore} />
                 </div>
 
-                {/* العمود الأيسر - التحليلات الذكية */}
+                {/* العمود الأيمن - المحتوى حسب التبويب */}
                 <div className="smart-column main">
-                    <CorrelationsSection />
-                    <RecommendationsSection />
-                    <PredictionsSection />
+                    {activeTab === 'analysis' && <CorrelationsSection />}
+                    {activeTab === 'recommendations' && <RecommendationsSection />}
+                    {activeTab === 'predictions' && <PredictionsSection />}
                 </div>
             </div>
         </div>

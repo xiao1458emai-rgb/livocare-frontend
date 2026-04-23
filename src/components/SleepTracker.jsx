@@ -53,18 +53,6 @@ const formatDateTime = (dateString, language) => {
     }
 };
 
-// دالة للحصول على نص جودة النوم
-const getQualityText = (rating, t) => {
-    const texts = {
-        1: t('sleep.quality.bad'),
-        2: t('sleep.quality.poor'),
-        3: t('sleep.quality.average'),
-        4: t('sleep.quality.good'),
-        5: t('sleep.quality.excellent')
-    };
-    return texts[rating] || t('sleep.quality.unknown');
-};
-
 // دالة للحصول على لون الجودة
 const getQualityColor = (rating) => {
     const colors = {
@@ -79,6 +67,7 @@ const getQualityColor = (rating) => {
 
 function SleepTracker({ onDataSubmitted }) {
     const { t, i18n } = useTranslation();
+    const isArabic = i18n.language === 'ar';
     const [refreshAnalytics, setRefreshAnalytics] = useState(0);
     const [sleepData, setSleepData] = useState({
         start_time: '',
@@ -381,12 +370,9 @@ function SleepTracker({ onDataSubmitted }) {
 
     return (
         <div className={`analytics-container ${reducedMotion ? 'reduce-motion' : ''}`}>
-            {/* شريط التحكم */}
+            {/* شريط التحكم - بدون أيقونة مكررة */}
             <div className="analytics-header">
-                <h2>
-                    <span>🌙</span>
-                    {t('sleep.title')}
-                </h2>
+                <h2>{t('sleep.title')}</h2>
                 <div className="sleep-controls" style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
                     <label className="auto-refresh-toggle" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}>
                         <input
@@ -418,17 +404,17 @@ function SleepTracker({ onDataSubmitted }) {
                     </label>
                     {lastUpdate && (
                         <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
-                            🕒 {t('sleep.lastUpdate')}: {lastUpdate.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}
+                            🕒 {t('sleep.lastUpdate')}: {lastUpdate.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* نموذج إضافة النوم */}
+            {/* نموذج إضافة النوم - بدون أيقونات مكررة */}
             <form onSubmit={handleSubmit} className="recommendations-section">
                 <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 'var(--spacing-md)' }}>
                     <div className="field-group">
-                        <label className="stat-label">⏰ {t('sleep.startTime')}</label>
+                        <label className="stat-label">{t('sleep.startTime')}</label>
                         <input
                             type="datetime-local"
                             name="start_time"
@@ -440,7 +426,7 @@ function SleepTracker({ onDataSubmitted }) {
                     </div>
 
                     <div className="field-group">
-                        <label className="stat-label">⏰ {t('sleep.endTime')}</label>
+                        <label className="stat-label">{t('sleep.endTime')}</label>
                         <input
                             type="datetime-local"
                             name="end_time"
@@ -462,7 +448,7 @@ function SleepTracker({ onDataSubmitted }) {
                 )}
 
                 <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                    <label className="stat-label">⭐ {t('sleep.quality')}</label>
+                    <label className="stat-label">{t('sleep.quality')}</label>
                     <div className="rating-selector">
                         <select
                             value={sleepData.quality_rating}
@@ -470,17 +456,17 @@ function SleepTracker({ onDataSubmitted }) {
                             className="search-input"
                             style={{ borderLeft: `4px solid ${getQualityColor(sleepData.quality_rating)}` }}
                         >
-                            <option value={5}>5 - {t('sleep.quality.excellent')} 😊</option>
-                            <option value={4}>4 - {t('sleep.quality.good')} 🙂</option>
-                            <option value={3}>3 - {t('sleep.quality.average')} 😐</option>
-                            <option value={2}>2 - {t('sleep.quality.poor')} 😞</option>
-                            <option value={1}>1 - {t('sleep.quality.bad')} 😢</option>
+                            <option value={5}>5 - {t('sleep.quality.excellent')}</option>
+                            <option value={4}>4 - {t('sleep.quality.good')}</option>
+                            <option value={3}>3 - {t('sleep.quality.average')}</option>
+                            <option value={2}>2 - {t('sleep.quality.poor')}</option>
+                            <option value={1}>1 - {t('sleep.quality.bad')}</option>
                         </select>
                     </div>
                 </div>
 
                 <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                    <label className="stat-label">📝 {t('sleep.notes')} ({t('sleep.optional')})</label>
+                    <label className="stat-label">{t('sleep.notes')} ({t('sleep.optional')})</label>
                     <textarea
                         rows="2"
                         value={sleepData.notes}
@@ -499,12 +485,12 @@ function SleepTracker({ onDataSubmitted }) {
                                 {t('sleep.submitting')}
                             </>
                         ) : (
-                            <>💾 {t('sleep.submit')}</>
+                            <>{t('sleep.submit')}</>
                         )}
                     </button>
                     
                     <button type="button" onClick={resetForm} className="type-btn" disabled={loading} style={{ flex: 1 }}>
-                        🔄 {t('sleep.reset')}
+                        {t('sleep.reset')}
                     </button>
                 </div>
 
@@ -556,13 +542,10 @@ function SleepTracker({ onDataSubmitted }) {
                 </div>
             </div>
 
-            {/* سجل النوم */}
+            {/* سجل النوم - بدون أيقونات مكررة */}
             <div className="recommendations-section">
                 <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
-                    <div className="rec-header">
-                        <span className="rec-icon">📋</span>
-                        <span className="rec-category">{t('sleep.history')}</span>
-                    </div>
+                    <h3>{t('sleep.history')}</h3>
                     <button onClick={fetchSleepHistory} className="refresh-btn" disabled={fetchingHistory}>
                         {fetchingHistory ? '⏳' : '🔄'}
                     </button>
@@ -591,7 +574,7 @@ function SleepTracker({ onDataSubmitted }) {
                                 <div key={sleep.id} className="notification-card" style={{ borderTop: `3px solid ${getQualityColor(quality)}` }}>
                                     <div className="notification-header">
                                         <div className="notification-title">
-                                            <span className="notification-time">📅 {formatDateTime(startTime, i18n.language)}</span>
+                                            <span className="notification-time">{formatDateTime(startTime, isArabic ? 'ar' : 'en')}</span>
                                         </div>
                                         <div className="notification-actions">
                                             <button 
@@ -633,7 +616,7 @@ function SleepTracker({ onDataSubmitted }) {
                                     
                                     {sleep.notes && (
                                         <div className="rec-advice" style={{ marginTop: 'var(--spacing-sm)' }}>
-                                            📝 {sleep.notes}
+                                            {sleep.notes}
                                         </div>
                                     )}
                                 </div>
@@ -648,7 +631,6 @@ function SleepTracker({ onDataSubmitted }) {
                 <SleepAnalytics refreshTrigger={refreshAnalytics} />
             </div>
 
-            {/* الأنماط الإضافية */}
             <style>{`
                 @keyframes spin {
                     to { transform: rotate(360deg); }

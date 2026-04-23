@@ -94,7 +94,7 @@ const getActivitySuggestion = (mood, t) => {
     return suggestions[mood] || { icon: '💡', text: t('mood.suggestions.default', 'اهتم بنفسك اليوم') };
 };
 
-// دالة للكشف عن الاكتئاب
+// دالة للكشف عن الاكتئاب - ✅ تم إصلاح i18n
 const detectDepressionRisk = (moodData, t) => {
     if (moodData.length < 5) return null;
     
@@ -138,8 +138,8 @@ const detectDepressionRisk = (moodData, t) => {
 
 function MoodTracker({ isAuthReady }) {
     const { t, i18n } = useTranslation();
+    const isArabic = i18n.language === 'ar';
     
-    // useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
     const isSubmittingRef = useRef(false);
@@ -161,7 +161,6 @@ function MoodTracker({ isAuthReady }) {
     });
     const [reducedMotion, setReducedMotion] = useState(false);
 
-    // تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
         setReducedMotion(motionMediaQuery.matches);
@@ -172,7 +171,6 @@ function MoodTracker({ isAuthReady }) {
         return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
     }, []);
 
-    // جلب بيانات المزاج
     const fetchMoodData = useCallback(async () => {
         if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
         
@@ -231,7 +229,6 @@ function MoodTracker({ isAuthReady }) {
         fetchMoodData();
     }, [fetchMoodData]);
 
-    // التحديث التلقائي
     useEffect(() => {
         if (!autoRefresh || !isAuthReady) {
             if (intervalRef.current) {
@@ -265,7 +262,6 @@ function MoodTracker({ isAuthReady }) {
         };
     }, []);
 
-    // ربط المزاج بالنوم
     const sleepMoodCorrelation = useMemo(() => {
         if (moodData.length < 5 || sleepData.length < 5) return null;
         
@@ -285,7 +281,7 @@ function MoodTracker({ isAuthReady }) {
             return {
                 hasCorrelation: true,
                 message: t('mood.correlations.sleepImpact', 'نلاحظ أن مزاجك أسوأ عندما تنام أقل من 6 ساعات'),
-                details: t('mood.correlations.sleepImpactDetails', { days: overlap.length, percentage: Math.round(percentage) }),
+                details: t('mood.correlations.sleepImpactDetails', `في ${overlap.length} من ${lowSleepDays.length} يوم`),
                 suggestion: t('mood.correlations.sleepSuggestion', 'حاول النوم 7-8 ساعات لتحسين مزاجك')
             };
         }
@@ -293,7 +289,6 @@ function MoodTracker({ isAuthReady }) {
         return null;
     }, [moodData, sleepData, t]);
 
-    // إحصائيات المزاج
     const moodStats = useMemo(() => {
         const stats = {};
         moodData.forEach(entry => {
@@ -302,12 +297,10 @@ function MoodTracker({ isAuthReady }) {
         return stats;
     }, [moodData]);
 
-    // كشف الاكتئاب
     const depressionRisk = useMemo(() => {
         return detectDepressionRisk(moodData, t);
     }, [moodData, t]);
 
-    // إضافة مزاج جديد
     const handleAddMood = useCallback(async (e) => {
         e.preventDefault();
         
@@ -343,7 +336,6 @@ function MoodTracker({ isAuthReady }) {
         }
     }, [newMood, t, fetchMoodData]);
 
-    // حذف مزاج
     const handleDeleteMood = useCallback(async (id) => {
         if (!window.confirm(t('mood.deleteConfirm'))) return;
         
@@ -384,13 +376,10 @@ function MoodTracker({ isAuthReady }) {
 
     return (
         <div className={`analytics-container ${reducedMotion ? 'reduce-motion' : ''}`}>
-            {/* رأس الصفحة */}
+            {/* رأس الصفحة - ✅ بدون أيقونة مكررة */}
             <div className="analytics-header">
                 <div className="title-wrapper" style={{ flex: 1 }}>
-                    <h2>
-                        <span>😊</span>
-                        {t('mood.title')}
-                    </h2>
+                    <h2>{t('mood.title')}</h2>
                     <div className="type-filters" style={{ marginBottom: 0 }}>
                         <span className="type-btn">📊 {moodData.length} {t('mood.entries')}</span>
                         {Object.entries(moodStats).slice(0, 3).map(([mood, count]) => (
@@ -447,11 +436,10 @@ function MoodTracker({ isAuthReady }) {
 
             {lastUpdate && (
                 <div className="stat-label" style={{ marginBottom: 'var(--spacing-md)', textAlign: 'right' }}>
-                    🕒 {t('mood.lastUpdate')}: {lastUpdate.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}
+                    🕒 {t('mood.lastUpdate')}: {lastUpdate.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
                 </div>
             )}
 
-            {/* تحذير الاكتئاب */}
             {depressionRisk && (
                 <div className={`recommendations-section priority-${depressionRisk.risk === 'high' ? 'high' : 'medium'}`} style={{ marginBottom: 'var(--spacing-lg)' }}>
                     <div className="rec-header">
@@ -459,13 +447,12 @@ function MoodTracker({ isAuthReady }) {
                         <span className="rec-category">{depressionRisk.message}</span>
                     </div>
                     <p className="rec-message">
-                        {t('mood.depressionRisk.details', 'لاحظنا انخفاضاً في مزاجك لـ {days} أيام متتالية', { days: depressionRisk.days })}
+                        {t('mood.depressionRisk.details', `لاحظنا انخفاضاً في مزاجك لـ ${depressionRisk.days} أيام متتالية`)}
                     </p>
                     <div className="rec-advice">{depressionRisk.suggestion}</div>
                 </div>
             )}
 
-            {/* بطاقة مزاج اليوم */}
             {todayMood && (
                 <div className="insight-card" style={{ borderLeft: `5px solid ${getMoodColor(todayMood.mood)}` }}>
                     <div className="insight-icon" style={{ background: getMoodGradient(todayMood.mood) }}>
@@ -486,20 +473,19 @@ function MoodTracker({ isAuthReady }) {
                         
                         {todayMood.factors && (
                             <div className="notification-content" style={{ marginTop: 'var(--spacing-sm)' }}>
-                                <strong>💭 {t('mood.factors')}:</strong> {todayMood.factors}
+                                <strong>{t('mood.factors')}:</strong> {todayMood.factors}
                             </div>
                         )}
                         {todayMood.text_entry && (
                             <div className="notification-content">
-                                <strong>📝 {t('mood.notes')}:</strong> {todayMood.text_entry}
+                                <strong>{t('mood.notes')}:</strong> {todayMood.text_entry}
                             </div>
                         )}
                         
                         <div className="notification-meta" style={{ marginTop: 'var(--spacing-sm)' }}>
-                            <span className="notification-time">⏰ {t('mood.recordedAt')}: {new Date(todayMood.entry_time).toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}</span>
+                            <span className="notification-time">{t('mood.recordedAt')}: {new Date(todayMood.entry_time).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}</span>
                         </div>
                         
-                        {/* اقتراح نشاط حسب المزاج */}
                         <div className="recommendation-card priority-low" style={{ marginTop: 'var(--spacing-md)' }}>
                             <div className="rec-header">
                                 <span className="rec-icon">{getActivitySuggestion(todayMood.mood, t).icon}</span>
@@ -510,7 +496,6 @@ function MoodTracker({ isAuthReady }) {
                 </div>
             )}
 
-            {/* نموذج إضافة مزاج */}
             {showForm && (
                 <div className="recommendations-section">
                     <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
@@ -520,7 +505,7 @@ function MoodTracker({ isAuthReady }) {
                     
                     <form onSubmit={handleAddMood}>
                         <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                            <label className="stat-label">{t('mood.chooseMood')}:</label>
+                            <label className="stat-label">{t('mood.chooseMood')}</label>
                             <div className="type-filters" style={{ marginTop: 'var(--spacing-sm)' }}>
                                 {['Excellent', 'Good', 'Neutral', 'Stressed', 'Anxious', 'Sad'].map(mood => (
                                     <label key={mood} className="type-btn" style={{
@@ -544,7 +529,7 @@ function MoodTracker({ isAuthReady }) {
                         </div>
 
                         <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                            <label className="stat-label">💭 {t('mood.factors')} ({t('common.optional')}):</label>
+                            <label className="stat-label">{t('mood.factors')} ({t('common.optional')})</label>
                             <input 
                                 type="text"
                                 value={newMood.factors}
@@ -555,7 +540,7 @@ function MoodTracker({ isAuthReady }) {
                         </div>
 
                         <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                            <label className="stat-label">📝 {t('mood.notes')} ({t('common.optional')}):</label>
+                            <label className="stat-label">{t('mood.notes')} ({t('common.optional')})</label>
                             <textarea 
                                 value={newMood.text_entry}
                                 onChange={(e) => setNewMood({...newMood, text_entry: e.target.value})}
@@ -574,7 +559,7 @@ function MoodTracker({ isAuthReady }) {
                                         {t('common.saving')}
                                     </>
                                 ) : (
-                                    <>💾 {t('mood.saveMood')}</>
+                                    <>{t('mood.saveMood')}</>
                                 )}
                             </button>
                             <button type="button" onClick={() => setShowForm(false)} className="type-btn" style={{ flex: 1 }}>
@@ -585,7 +570,6 @@ function MoodTracker({ isAuthReady }) {
                 </div>
             )}
 
-            {/* رسائل الخطأ */}
             {error && (
                 <div className="notification-message error" style={{ marginBottom: 'var(--spacing-lg)' }}>
                     <span>⚠️</span>
@@ -594,7 +578,6 @@ function MoodTracker({ isAuthReady }) {
                 </div>
             )}
 
-            {/* ربط المزاج بالنوم */}
             {sleepMoodCorrelation && (
                 <div className="insight-card">
                     <div className="insight-icon">🧠</div>
@@ -607,7 +590,7 @@ function MoodTracker({ isAuthReady }) {
                 </div>
             )}
 
-            {/* السجل التاريخي */}
+            {/* السجل التاريخي - ✅ بدون أيقونات مكررة */}
             <div className="recommendations-section">
                 <div className="rec-header">
                     <span className="rec-icon">📋</span>
@@ -635,23 +618,27 @@ function MoodTracker({ isAuthReady }) {
                                 
                                 <div className="notification-content">
                                     <div className="notification-meta">
-                                        <span className="notification-time">📅 {new Date(entry.entry_time).toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US', {
-                                            weekday: 'long',
-                                            year: 'numeric',
-                                            month: 'long',
-                                            day: 'numeric'
-                                        })}</span>
-                                        <span className="notification-time">⏰ {new Date(entry.entry_time).toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}</span>
+                                        <span className="notification-time">
+                                            {new Date(entry.entry_time).toLocaleDateString(isArabic ? 'ar-EG' : 'en-US', {
+                                                weekday: 'long',
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}
+                                        </span>
+                                        <span className="notification-time">
+                                            {new Date(entry.entry_time).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
+                                        </span>
                                     </div>
                                     
                                     {entry.factors && (
                                         <div style={{ marginTop: 'var(--spacing-sm)' }}>
-                                            <strong>💭 {t('mood.factors')}:</strong> {entry.factors}
+                                            <strong>{t('mood.factors')}:</strong> {entry.factors}
                                         </div>
                                     )}
                                     {entry.text_entry && (
                                         <div style={{ marginTop: 'var(--spacing-sm)' }}>
-                                            <strong>📝 {t('mood.notes')}:</strong> {entry.text_entry}
+                                            <strong>{t('mood.notes')}:</strong> {entry.text_entry}
                                         </div>
                                     )}
                                 </div>
@@ -670,7 +657,6 @@ function MoodTracker({ isAuthReady }) {
                 )}
             </div>
 
-            {/* التحليلات */}
             {moodData.length >= 7 && (
                 <div className="analytics-wrapper" style={{ marginTop: 'var(--spacing-lg)' }}>
                     <MoodAnalytics refreshTrigger={refreshAnalytics} />
@@ -682,13 +668,12 @@ function MoodTracker({ isAuthReady }) {
                     <div className="rec-header">
                         <span className="rec-icon">ℹ️</span>
                         <span className="rec-category">
-                            {t('mood.needMoreData', 'سجل {remaining} يوم إضافي للحصول على تحليلات دقيقة', { remaining: 7 - moodData.length })}
+                            {t('mood.needMoreData', `سجل ${7 - moodData.length} يوم إضافي للحصول على تحليلات دقيقة`)}
                         </span>
                     </div>
                 </div>
             )}
 
-            {/* الأنماط الإضافية */}
             <style>{`
                 @keyframes spin {
                     to { transform: rotate(360deg); }

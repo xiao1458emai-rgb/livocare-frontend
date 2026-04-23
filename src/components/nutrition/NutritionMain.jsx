@@ -15,7 +15,6 @@ function NutritionMain({ isAuthReady }) {
     const [lastUpdate, setLastUpdate] = useState(null);
     const [error, setError] = useState(null);
     
-    // useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const autoRefreshRef = useRef(autoRefresh);
     const intervalRef = useRef(null);
@@ -157,12 +156,9 @@ function NutritionMain({ isAuthReady }) {
                 </div>
             )}
 
-            {/* رأس الصفحة */}
+            {/* رأس الصفحة - بدون أيقونة مكررة */}
             <div className="analytics-header" style={{ borderBottom: 'none', marginBottom: 0 }}>
-                <h2>
-                    <span>🥗</span>
-                    {t('nutrition.title', 'التغذية')}
-                </h2>
+                <h2>{t('nutrition.title', 'التغذية')}</h2>
                 <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center', flexWrap: 'wrap' }}>
                     {/* آخر تحديث */}
                     <div style={{
@@ -243,19 +239,19 @@ function NutritionMain({ isAuthReady }) {
                 </div>
             )}
 
-            {/* أزرار التبويب */}
+            {/* أزرار التبويب - بدون أيقونات مكررة */}
             <div className="analytics-tabs">
                 <button 
                     className={activeTab === 'form' ? 'active' : ''}
                     onClick={() => setActiveTab('form')}
                 >
-                    🥗 {t('nutrition.newMeal', 'وجبة جديدة')}
+                    {t('nutrition.newMeal', 'وجبة جديدة')}
                 </button>
                 <button 
                     className={activeTab === 'dashboard' ? 'active' : ''}
                     onClick={() => setActiveTab('dashboard')}
                 >
-                    📊 {t('nutrition.dashboard', 'لوحة التحكم')}
+                    {t('nutrition.dashboard', 'لوحة التحكم')}
                 </button>
             </div>
 
@@ -275,7 +271,6 @@ function NutritionMain({ isAuthReady }) {
                 )}
             </div>
 
-            {/* إضافة أنيميشن للتحميل */}
             <style>{`
                 @keyframes loading {
                     0% { width: 0%; }

@@ -7,8 +7,8 @@ import '../index.css';
 
 function HealthForm({ onDataSubmitted }) {
     const { t, i18n } = useTranslation();
+    const isArabic = i18n.language === 'ar';
     
-    // useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
     
@@ -43,11 +43,10 @@ function HealthForm({ onDataSubmitted }) {
         if (!autoSave) return;
 
         const autoSaveForm = () => {
-            const hasData = Object.values(formData).some(value => value.trim() !== '');
+            const hasData = Object.values(formData).some(value => value && value.trim !== undefined ? value.trim() !== '' : value !== '');
             if (hasData && isMountedRef.current) {
                 localStorage.setItem('healthForm_autoSave', JSON.stringify(formData));
                 setLastAutoSave(new Date());
-                console.log('💾 Auto-saved health form');
             }
         };
 
@@ -87,7 +86,7 @@ function HealthForm({ onDataSubmitted }) {
             if (isNaN(weight)) {
                 errors.weight = t('health.form.errors.invalidNumber');
             } else if (weight < VALIDATION_LIMITS.weight.min || weight > VALIDATION_LIMITS.weight.max) {
-                errors.weight = t('health.form.errors.range', VALIDATION_LIMITS.weight);
+                errors.weight = `${VALIDATION_LIMITS.weight.min} - ${VALIDATION_LIMITS.weight.max} ${t('health.form.kg')}`;
             }
         }
 
@@ -97,7 +96,7 @@ function HealthForm({ onDataSubmitted }) {
             if (isNaN(systolic)) {
                 errors.systolic = t('health.form.errors.invalidNumber');
             } else if (systolic < VALIDATION_LIMITS.systolic.min || systolic > VALIDATION_LIMITS.systolic.max) {
-                errors.systolic = t('health.form.errors.range', VALIDATION_LIMITS.systolic);
+                errors.systolic = `${VALIDATION_LIMITS.systolic.min} - ${VALIDATION_LIMITS.systolic.max} mmHg`;
             }
         }
 
@@ -107,7 +106,7 @@ function HealthForm({ onDataSubmitted }) {
             if (isNaN(diastolic)) {
                 errors.diastolic = t('health.form.errors.invalidNumber');
             } else if (diastolic < VALIDATION_LIMITS.diastolic.min || diastolic > VALIDATION_LIMITS.diastolic.max) {
-                errors.diastolic = t('health.form.errors.range', VALIDATION_LIMITS.diastolic);
+                errors.diastolic = `${VALIDATION_LIMITS.diastolic.min} - ${VALIDATION_LIMITS.diastolic.max} mmHg`;
             }
             if (formData.systolic && formData.systolic.trim() !== '') {
                 const systolic = parseInt(formData.systolic);
@@ -123,7 +122,7 @@ function HealthForm({ onDataSubmitted }) {
             if (isNaN(glucose)) {
                 errors.glucose = t('health.form.errors.invalidNumber');
             } else if (glucose < VALIDATION_LIMITS.glucose.min || glucose > VALIDATION_LIMITS.glucose.max) {
-                errors.glucose = t('health.form.errors.range', VALIDATION_LIMITS.glucose);
+                errors.glucose = `${VALIDATION_LIMITS.glucose.min} - ${VALIDATION_LIMITS.glucose.max} mg/dL`;
             }
         }
 
@@ -133,7 +132,7 @@ function HealthForm({ onDataSubmitted }) {
             if (isNaN(heartRate)) {
                 errors.heartRate = t('health.form.errors.invalidNumber');
             } else if (heartRate < VALIDATION_LIMITS.heartRate.min || heartRate > VALIDATION_LIMITS.heartRate.max) {
-                errors.heartRate = t('health.form.errors.range', VALIDATION_LIMITS.heartRate);
+                errors.heartRate = `${VALIDATION_LIMITS.heartRate.min} - ${VALIDATION_LIMITS.heartRate.max} BPM`;
             }
         }
 
@@ -143,7 +142,7 @@ function HealthForm({ onDataSubmitted }) {
             if (isNaN(spo2)) {
                 errors.spo2 = t('health.form.errors.invalidNumber');
             } else if (spo2 < VALIDATION_LIMITS.spo2.min || spo2 > VALIDATION_LIMITS.spo2.max) {
-                errors.spo2 = t('health.form.errors.range', VALIDATION_LIMITS.spo2);
+                errors.spo2 = `${VALIDATION_LIMITS.spo2.min} - ${VALIDATION_LIMITS.spo2.max}%`;
             }
         }
 
@@ -233,12 +232,8 @@ function HealthForm({ onDataSubmitted }) {
             data.spo2 = parseInt(formData.spo2);
         }
 
-        console.log('📤 Sending health data:', data);
-
         try {
             const response = await axiosInstance.post('/health_status/', data);
-            
-            console.log('✅ Server response:', response.data);
             
             if (isMountedRef.current) {
                 setMessage(t('health.form.submissionSuccess'));
@@ -275,15 +270,13 @@ function HealthForm({ onDataSubmitted }) {
                     errorMessage = Array.isArray(errorData.spo2) ? errorData.spo2[0] : errorData.spo2;
                 } else if (typeof errorData === 'string') {
                     errorMessage = errorData;
-                } else {
-                    errorMessage = JSON.stringify(errorData);
                 }
             } else if (err.response?.status === 401) {
                 errorMessage = t('health.form.sessionExpired');
             } else if (err.response?.status === 500) {
                 errorMessage = t('health.form.serverError');
             } else if (err.code === 'ERR_NETWORK') {
-                errorMessage = '❌ Network error: Cannot connect to server';
+                errorMessage = isArabic ? 'خطأ في الاتصال بالخادم' : 'Network error';
             }
             
             setMessage(errorMessage);
@@ -294,132 +287,132 @@ function HealthForm({ onDataSubmitted }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [formData, t, onDataSubmitted]);
+    }, [formData, t, onDataSubmitted, isArabic]);
 
     const calculateHealthIndicators = () => {
         const indicators = [];
         
-        if (formData.weight) {
+        if (formData.weight && formData.weight.trim() !== '') {
             const weight = parseFloat(formData.weight);
             if (weight > VALIDATION_LIMITS.weight.normalMax) {
                 indicators.push({
                     type: 'warning',
                     icon: '⚠️',
-                    message: t('health.form.indicators.weightHigh'),
-                    advice: t('health.form.advice.weightHigh')
+                    message: isArabic ? 'الوزن مرتفع' : 'High weight',
+                    advice: isArabic ? 'حاول تقليل السعرات الحرارية وزيادة النشاط البدني' : 'Try to reduce calories and increase physical activity'
                 });
             } else if (weight < VALIDATION_LIMITS.weight.normalMin) {
                 indicators.push({
                     type: 'warning',
-                    icon: '⚡',
-                    message: t('health.form.indicators.weightLow'),
-                    advice: t('health.form.advice.weightLow')
+                    icon: '⚠️',
+                    message: isArabic ? 'الوزن منخفض' : 'Low weight',
+                    advice: isArabic ? 'حاول زيادة السعرات الحرارية بطريقة صحية' : 'Try to increase calories in a healthy way'
                 });
-            } else {
+            } else if (weight >= VALIDATION_LIMITS.weight.normalMin && weight <= VALIDATION_LIMITS.weight.normalMax) {
                 indicators.push({
                     type: 'success',
                     icon: '✅',
-                    message: t('health.form.indicators.weightNormal'),
-                    advice: t('health.form.advice.weightNormal')
+                    message: isArabic ? 'وزن طبيعي' : 'Normal weight',
+                    advice: isArabic ? 'حافظ على وزنك الصحي' : 'Maintain your healthy weight'
                 });
             }
         }
         
-        if (formData.systolic && formData.diastolic) {
+        if (formData.systolic && formData.diastolic && formData.systolic.trim() !== '' && formData.diastolic.trim() !== '') {
             const systolic = parseInt(formData.systolic);
             const diastolic = parseInt(formData.diastolic);
             
             if (systolic > VALIDATION_LIMITS.systolic.normalMax || diastolic > VALIDATION_LIMITS.diastolic.normalMax) {
                 indicators.push({
                     type: 'warning',
-                    icon: '❤️',
-                    message: t('health.form.indicators.bpHigh'),
-                    advice: t('health.form.advice.bpHigh')
+                    icon: '⚠️',
+                    message: isArabic ? 'ضغط الدم مرتفع' : 'High blood pressure',
+                    advice: isArabic ? 'قلل الملح، مارس الرياضة، واستشر طبيبك' : 'Reduce salt, exercise, and consult your doctor'
                 });
             } else if (systolic < VALIDATION_LIMITS.systolic.normalMin || diastolic < VALIDATION_LIMITS.diastolic.normalMin) {
                 indicators.push({
                     type: 'warning',
-                    icon: '💓',
-                    message: t('health.form.indicators.bpLow'),
-                    advice: t('health.form.advice.bpLow')
+                    icon: '⚠️',
+                    message: isArabic ? 'ضغط الدم منخفض' : 'Low blood pressure',
+                    advice: isArabic ? 'اشرب كمية كافية من الماء، واستشر طبيبك' : 'Drink enough water and consult your doctor'
                 });
             } else {
                 indicators.push({
                     type: 'success',
                     icon: '✅',
-                    message: t('health.form.indicators.bpNormal'),
-                    advice: t('health.form.advice.bpNormal')
+                    message: isArabic ? 'ضغط دم طبيعي' : 'Normal blood pressure',
+                    advice: isArabic ? 'حافظ على نمط حياة صحي' : 'Maintain a healthy lifestyle'
                 });
             }
         }
         
-        if (formData.glucose) {
+        if (formData.glucose && formData.glucose.trim() !== '') {
             const glucose = parseFloat(formData.glucose);
             if (glucose > VALIDATION_LIMITS.glucose.normalMax) {
                 indicators.push({
                     type: 'warning',
-                    icon: '🩸',
-                    message: t('health.form.indicators.glucoseHigh'),
-                    advice: t('health.form.advice.glucoseHigh')
+                    icon: '⚠️',
+                    message: isArabic ? 'سكر الدم مرتفع' : 'High blood sugar',
+                    advice: isArabic ? 'قلل السكريات، زد الألياف، واستشر طبيبك' : 'Reduce sugar, increase fiber, and consult your doctor'
                 });
             } else if (glucose < VALIDATION_LIMITS.glucose.normalMin) {
                 indicators.push({
                     type: 'warning',
-                    icon: '⚡',
-                    message: t('health.form.indicators.glucoseLow'),
-                    advice: t('health.form.advice.glucoseLow')
+                    icon: '⚠️',
+                    message: isArabic ? 'سكر الدم منخفض' : 'Low blood sugar',
+                    advice: isArabic ? 'تناول وجبة خفيفة تحتوي على سكر سريع' : 'Eat a quick sugar snack'
                 });
             } else {
                 indicators.push({
                     type: 'success',
                     icon: '✅',
-                    message: t('health.form.indicators.glucoseNormal'),
-                    advice: t('health.form.advice.glucoseNormal')
+                    message: isArabic ? 'سكر دم طبيعي' : 'Normal blood sugar',
+                    advice: isArabic ? 'حافظ على نظام غذائي متوازن' : 'Maintain a balanced diet'
                 });
             }
         }
         
-        if (formData.heartRate) {
+        if (formData.heartRate && formData.heartRate.trim() !== '') {
             const heartRate = parseInt(formData.heartRate);
             if (heartRate > VALIDATION_LIMITS.heartRate.normalMax) {
                 indicators.push({
                     type: 'warning',
-                    icon: '❤️',
-                    message: t('health.form.indicators.heartRateHigh') || '⚠️ نبضات قلب مرتفعة',
-                    advice: t('health.form.advice.heartRateHigh') || 'استشر طبيبك إذا كان النبض مرتفعاً باستمرار'
+                    icon: '⚠️',
+                    message: isArabic ? 'نبضات قلب مرتفعة' : 'High heart rate',
+                    advice: isArabic ? 'استشر طبيبك إذا كان النبض مرتفعاً باستمرار' : 'Consult your doctor if heart rate remains high'
                 });
             } else if (heartRate < VALIDATION_LIMITS.heartRate.normalMin) {
                 indicators.push({
                     type: 'warning',
-                    icon: '💓',
-                    message: t('health.form.indicators.heartRateLow') || '⚠️ نبضات قلب منخفضة',
-                    advice: t('health.form.advice.heartRateLow') || 'استشر طبيبك إذا كان النبض منخفضاً باستمرار'
+                    icon: '⚠️',
+                    message: isArabic ? 'نبضات قلب منخفضة' : 'Low heart rate',
+                    advice: isArabic ? 'استشر طبيبك إذا كان النبض منخفضاً باستمرار' : 'Consult your doctor if heart rate remains low'
                 });
             } else {
                 indicators.push({
                     type: 'success',
                     icon: '✅',
-                    message: t('health.form.indicators.heartRateNormal') || '✅ نبضات قلب طبيعية',
-                    advice: t('health.form.advice.heartRateNormal') || 'حافظ على نشاطك البدني المنتظم'
+                    message: isArabic ? 'نبضات قلب طبيعية' : 'Normal heart rate',
+                    advice: isArabic ? 'حافظ على نشاطك البدني المنتظم' : 'Maintain regular physical activity'
                 });
             }
         }
         
-        if (formData.spo2) {
+        if (formData.spo2 && formData.spo2.trim() !== '') {
             const spo2 = parseInt(formData.spo2);
             if (spo2 < VALIDATION_LIMITS.spo2.normalMin) {
                 indicators.push({
                     type: 'warning',
-                    icon: '💨',
-                    message: t('health.form.indicators.spo2Low') || '⚠️ نسبة أكسجين منخفضة',
-                    advice: t('health.form.advice.spo2Low') || 'استشر طبيبك فوراً إذا كانت النسبة أقل من 90%'
+                    icon: '⚠️',
+                    message: isArabic ? 'نسبة أكسجين منخفضة' : 'Low oxygen level',
+                    advice: isArabic ? 'استشر طبيبك فوراً إذا كانت النسبة أقل من 90%' : 'Consult your doctor immediately if below 90%'
                 });
             } else {
                 indicators.push({
                     type: 'success',
                     icon: '✅',
-                    message: t('health.form.indicators.spo2Normal') || '✅ نسبة أكسجين طبيعية',
-                    advice: t('health.form.advice.spo2Normal') || 'حافظ على تهوية جيدة ومارس تمارين التنفس'
+                    message: isArabic ? 'نسبة أكسجين طبيعية' : 'Normal oxygen level',
+                    advice: isArabic ? 'حافظ على تهوية جيدة ومارس تمارين التنفس' : 'Maintain good ventilation and practice breathing exercises'
                 });
             }
         }
@@ -438,12 +431,9 @@ function HealthForm({ onDataSubmitted }) {
 
     return (
         <div className="analytics-container">
-            {/* رأس النموذج */}
+            {/* رأس النموذج - ✅ بدون أيقونة مكررة */}
             <div className="analytics-header">
-                <h2>
-                    <span>❤️</span>
-                    {t('health.form.title')}
-                </h2>
+                <h2>{t('health.form.title')}</h2>
                 <div className="header-controls" style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
                     <label className="auto-save-toggle" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}>
                         <input
@@ -476,18 +466,19 @@ function HealthForm({ onDataSubmitted }) {
                     {lastAutoSave && (
                         <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
                             <span>💾</span>
-                            <span>{lastAutoSave.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}</span>
+                            <span>{lastAutoSave.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}</span>
                         </div>
                     )}
                 </div>
             </div>
 
             <form onSubmit={handleSubmit}>
-                {/* شبكة حقول الإدخال */}
+                {/* شبكة حقول الإدخال - ✅ بدون أيقونات مكررة في labels */}
                 <div className="analytics-stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+                    
                     {/* الوزن */}
                     <div className="field-group">
-                        <label className="stat-label">⚖️ {t('health.form.weight')}</label>
+                        <label className="stat-label">{t('health.form.weight')}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
@@ -496,7 +487,6 @@ function HealthForm({ onDataSubmitted }) {
                                 onChange={(e) => handleInputChange('weight', e.target.value)}
                                 placeholder={t('health.form.weightPlaceholder')}
                                 className={`search-input ${validationErrors.weight ? 'error' : ''}`}
-                                style={validationErrors.weight ? { borderColor: 'var(--error)' } : {}}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
                                 {t('health.form.kg')}
@@ -504,14 +494,14 @@ function HealthForm({ onDataSubmitted }) {
                         </div>
                         {validationErrors.weight && (
                             <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
-                                ❌ {validationErrors.weight}
+                                ⚠️ {validationErrors.weight}
                             </div>
                         )}
                     </div>
 
                     {/* الضغط الانقباضي */}
                     <div className="field-group">
-                        <label className="stat-label">❤️ {t('health.form.systolic')}</label>
+                        <label className="stat-label">{t('health.form.systolic')}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
@@ -519,7 +509,6 @@ function HealthForm({ onDataSubmitted }) {
                                 onChange={(e) => handleInputChange('systolic', e.target.value)}
                                 placeholder={t('health.form.systolicPlaceholder')}
                                 className={`search-input ${validationErrors.systolic ? 'error' : ''}`}
-                                style={validationErrors.systolic ? { borderColor: 'var(--error)' } : {}}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
                                 mmHg
@@ -527,14 +516,14 @@ function HealthForm({ onDataSubmitted }) {
                         </div>
                         {validationErrors.systolic && (
                             <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
-                                ❌ {validationErrors.systolic}
+                                ⚠️ {validationErrors.systolic}
                             </div>
                         )}
                     </div>
 
                     {/* الضغط الانبساطي */}
                     <div className="field-group">
-                        <label className="stat-label">💓 {t('health.form.diastolic')}</label>
+                        <label className="stat-label">{t('health.form.diastolic')}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
@@ -542,7 +531,6 @@ function HealthForm({ onDataSubmitted }) {
                                 onChange={(e) => handleInputChange('diastolic', e.target.value)}
                                 placeholder={t('health.form.diastolicPlaceholder')}
                                 className={`search-input ${validationErrors.diastolic ? 'error' : ''}`}
-                                style={validationErrors.diastolic ? { borderColor: 'var(--error)' } : {}}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
                                 mmHg
@@ -550,14 +538,14 @@ function HealthForm({ onDataSubmitted }) {
                         </div>
                         {validationErrors.diastolic && (
                             <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
-                                ❌ {validationErrors.diastolic}
+                                ⚠️ {validationErrors.diastolic}
                             </div>
                         )}
                     </div>
 
                     {/* الجلوكوز */}
                     <div className="field-group">
-                        <label className="stat-label">🩸 {t('health.form.glucose')}</label>
+                        <label className="stat-label">{t('health.form.glucose')}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
@@ -566,7 +554,6 @@ function HealthForm({ onDataSubmitted }) {
                                 onChange={(e) => handleInputChange('glucose', e.target.value)}
                                 placeholder={t('health.form.glucosePlaceholder')}
                                 className={`search-input ${validationErrors.glucose ? 'error' : ''}`}
-                                style={validationErrors.glucose ? { borderColor: 'var(--error)' } : {}}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
                                 mg/dL
@@ -574,14 +561,14 @@ function HealthForm({ onDataSubmitted }) {
                         </div>
                         {validationErrors.glucose && (
                             <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
-                                ❌ {validationErrors.glucose}
+                                ⚠️ {validationErrors.glucose}
                             </div>
                         )}
                     </div>
 
                     {/* نبضات القلب */}
                     <div className="field-group">
-                        <label className="stat-label">❤️ {t('health.form.heartRate') || 'نبضات القلب'}</label>
+                        <label className="stat-label">{t('health.form.heartRate') || 'Heart Rate'}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
@@ -589,7 +576,6 @@ function HealthForm({ onDataSubmitted }) {
                                 onChange={(e) => handleInputChange('heartRate', e.target.value)}
                                 placeholder={t('health.form.heartRatePlaceholder') || '60-100 BPM'}
                                 className={`search-input ${validationErrors.heartRate ? 'error' : ''}`}
-                                style={validationErrors.heartRate ? { borderColor: 'var(--error)' } : {}}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
                                 BPM
@@ -597,17 +583,17 @@ function HealthForm({ onDataSubmitted }) {
                         </div>
                         {validationErrors.heartRate && (
                             <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
-                                ❌ {validationErrors.heartRate}
+                                ⚠️ {validationErrors.heartRate}
                             </div>
                         )}
                         <small className="field-hint" style={{ color: 'var(--text-tertiary)', fontSize: '0.7rem', marginTop: 'var(--spacing-xs)', display: 'block' }}>
-                            {t('health.form.heartRateHint') || 'المعدل الطبيعي: 60-100 نبضة في الدقيقة'}
+                            {isArabic ? 'المعدل الطبيعي: 60-100 نبضة في الدقيقة' : 'Normal range: 60-100 BPM'}
                         </small>
                     </div>
 
                     {/* نسبة الأكسجين */}
                     <div className="field-group">
-                        <label className="stat-label">💨 {t('health.form.spo2') || 'نسبة الأكسجين'}</label>
+                        <label className="stat-label">{t('health.form.spo2') || 'Oxygen Level'}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
@@ -615,7 +601,6 @@ function HealthForm({ onDataSubmitted }) {
                                 onChange={(e) => handleInputChange('spo2', e.target.value)}
                                 placeholder={t('health.form.spo2Placeholder') || '95-100%'}
                                 className={`search-input ${validationErrors.spo2 ? 'error' : ''}`}
-                                style={validationErrors.spo2 ? { borderColor: 'var(--error)' } : {}}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
                                 %
@@ -623,11 +608,11 @@ function HealthForm({ onDataSubmitted }) {
                         </div>
                         {validationErrors.spo2 && (
                             <div className="error-message" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
-                                ❌ {validationErrors.spo2}
+                                ⚠️ {validationErrors.spo2}
                             </div>
                         )}
                         <small className="field-hint" style={{ color: 'var(--text-tertiary)', fontSize: '0.7rem', marginTop: 'var(--spacing-xs)', display: 'block' }}>
-                            {t('health.form.spo2Hint') || 'المعدل الطبيعي: 95% - 100%'}
+                            {isArabic ? 'المعدل الطبيعي: 95% - 100%' : 'Normal range: 95% - 100%'}
                         </small>
                     </div>
                 </div>
@@ -653,7 +638,7 @@ function HealthForm({ onDataSubmitted }) {
                     </div>
                 )}
 
-                {/* أزرار الإجراء */}
+                {/* أزرار الإجراء - ✅ بدون أيقونات مكررة */}
                 <div className="form-actions" style={{ display: 'flex', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>
                     <button 
                         type="button" 
@@ -662,7 +647,7 @@ function HealthForm({ onDataSubmitted }) {
                         disabled={loading}
                         style={{ flex: 1 }}
                     >
-                        🔄 {t('health.form.reset')}
+                        {t('health.form.reset')}
                     </button>
                     <button 
                         type="submit" 
@@ -672,11 +657,11 @@ function HealthForm({ onDataSubmitted }) {
                     >
                         {loading ? (
                             <>
-                                <span className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
+                                <span className="spinner"></span>
                                 {t('health.form.saving')}
                             </>
                         ) : (
-                            <>💾 {t('health.form.save')}</>
+                            <>{t('health.form.save')}</>
                         )}
                     </button>
                 </div>
@@ -707,7 +692,6 @@ function HealthForm({ onDataSubmitted }) {
                 </div>
             )}
 
-            {/* الأنماط الإضافية */}
             <style>{`
                 .spinner {
                     width: 16px;
@@ -717,6 +701,7 @@ function HealthForm({ onDataSubmitted }) {
                     border-radius: 50%;
                     display: inline-block;
                     animation: spin 0.8s linear infinite;
+                    margin-right: var(--spacing-sm);
                 }
 
                 @keyframes spin {
@@ -733,11 +718,6 @@ function HealthForm({ onDataSubmitted }) {
                         left: var(--spacing-md);
                         right: var(--spacing-md);
                         bottom: var(--spacing-md);
-                    }
-                    
-                    [dir="rtl"] .notification-message {
-                        left: var(--spacing-md);
-                        right: var(--spacing-md);
                     }
                 }
 

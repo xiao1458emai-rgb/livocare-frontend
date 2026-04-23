@@ -5,7 +5,6 @@ import axiosInstance from '../../services/api';
 import NutritionAnalytics from '../Analytics/NutritionAnalytics';
 import '../../index.css';
 
-
 // دالة لتقريب الأرقام
 const roundNumber = (num, decimals = 1) => {
     if (isNaN(num)) return 0;
@@ -48,9 +47,9 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
     
     const [nutritionGoals] = useState({
         dailyCalories: 2000,
-        dailyProtein: 50,
+        dailyProtein: 80,
         dailyCarbs: 250,
-        dailyFat: 70
+        dailyFat: 55
     });
     
     const autoRefreshRef = useRef(autoRefresh);
@@ -162,9 +161,9 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         const stats = meals.reduce((acc, meal) => {
             const isToday = new Date(meal.meal_time).toDateString() === new Date().toDateString();
             const ingredients = meal.ingredients || [];
-            const mealProtein = ingredients.reduce((sum, item) => sum + (item.protein || 0), 0);
-            const mealCarbs = ingredients.reduce((sum, item) => sum + (item.carbs || 0), 0);
-            const mealFat = ingredients.reduce((sum, item) => sum + (item.fat || 0), 0);
+            const mealProtein = ingredients.reduce((sum, item) => sum + (item.protein_g || item.protein || 0), 0);
+            const mealCarbs = ingredients.reduce((sum, item) => sum + (item.carbs_g || item.carbs || 0), 0);
+            const mealFat = ingredients.reduce((sum, item) => sum + (item.fat_g || item.fat || 0), 0);
             
             return {
                 totalCalories: acc.totalCalories + (meal.total_calories || 0),
@@ -172,9 +171,13 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
                 totalCarbs: acc.totalCarbs + mealCarbs,
                 totalFat: acc.totalFat + mealFat,
                 todayCalories: acc.todayCalories + (isToday ? (meal.total_calories || 0) : 0),
+                todayProtein: acc.todayProtein + (isToday ? mealProtein : 0),
                 count: acc.count + 1
             };
-        }, { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0, todayCalories: 0, count: 0 });
+        }, { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0, todayCalories: 0, todayProtein: 0, count: 0 });
+
+        // ✅ حساب التقدم بشكل صحيح
+        const proteinProgress = stats.todayProtein > 0 ? Math.min(100, Math.round((stats.todayProtein / nutritionGoals.dailyProtein) * 100)) : 0;
 
         return {
             totalCalories: stats.totalCalories,
@@ -182,12 +185,14 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
             avgCarbs: stats.count > 0 ? roundNumber(stats.totalCarbs / stats.count, 1) : 0,
             avgFat: stats.count > 0 ? roundNumber(stats.totalFat / stats.count, 1) : 0,
             todayCalories: stats.todayCalories,
+            todayProtein: roundNumber(stats.todayProtein, 1),
             totalProtein: roundNumber(stats.totalProtein, 1),
             totalCarbs: roundNumber(stats.totalCarbs, 1),
             totalFat: roundNumber(stats.totalFat, 1),
-            totalMeals: stats.count
+            totalMeals: stats.count,
+            proteinProgress
         };
-    }, [meals]);
+    }, [meals, nutritionGoals]);
 
     // التقدم نحو الأهداف
     const goalProgress = useMemo(() => {
@@ -196,17 +201,17 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
             const ingredients = meal.ingredients || [];
             return {
                 calories: acc.calories + (meal.total_calories || 0),
-                protein: acc.protein + ingredients.reduce((sum, item) => sum + (item.protein || 0), 0),
-                carbs: acc.carbs + ingredients.reduce((sum, item) => sum + (item.carbs || 0), 0),
-                fat: acc.fat + ingredients.reduce((sum, item) => sum + (item.fat || 0), 0)
+                protein: acc.protein + ingredients.reduce((sum, item) => sum + (item.protein_g || item.protein || 0), 0),
+                carbs: acc.carbs + ingredients.reduce((sum, item) => sum + (item.carbs_g || item.carbs || 0), 0),
+                fat: acc.fat + ingredients.reduce((sum, item) => sum + (item.fat_g || item.fat || 0), 0)
             };
         }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
 
         return {
-            calories: Math.min(Math.round((todayNutrition.calories / nutritionGoals.dailyCalories) * 100), 100),
-            protein: Math.min(Math.round((todayNutrition.protein / nutritionGoals.dailyProtein) * 100), 100),
-            carbs: Math.min(Math.round((todayNutrition.carbs / nutritionGoals.dailyCarbs) * 100), 100),
-            fat: Math.min(Math.round((todayNutrition.fat / nutritionGoals.dailyFat) * 100), 100)
+            calories: nutritionGoals.dailyCalories > 0 ? Math.min(100, Math.round((todayNutrition.calories / nutritionGoals.dailyCalories) * 100)) : 0,
+            protein: nutritionGoals.dailyProtein > 0 ? Math.min(100, Math.round((todayNutrition.protein / nutritionGoals.dailyProtein) * 100)) : 0,
+            carbs: nutritionGoals.dailyCarbs > 0 ? Math.min(100, Math.round((todayNutrition.carbs / nutritionGoals.dailyCarbs) * 100)) : 0,
+            fat: nutritionGoals.dailyFat > 0 ? Math.min(100, Math.round((todayNutrition.fat / nutritionGoals.dailyFat) * 100)) : 0
         };
     }, [meals, nutritionGoals]);
 
@@ -237,30 +242,138 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         }
     };
 
+    // ✅ توصيات ذكية محسنة
     const getRecommendations = () => {
         const recs = [];
         const todayMeals = meals?.filter(meal => new Date(meal.meal_time).toDateString() === new Date().toDateString()) || [];
+        const calorieDiff = nutritionStats.todayCalories - nutritionGoals.dailyCalories;
         
-        if (nutritionStats.totalMeals === 0) recs.push('📝 ' + (t('nutrition.startFirstMeal', 'ابدأ بتسجيل أول وجبة لك')));
-        if (goalProgress.calories >= 80) recs.push('🎯 ' + (t('nutrition.closeToGoal', 'ممتاز! أنت قريب من هدف السعرات اليومي')));
-        if (nutritionStats.avgProtein < 50 && nutritionStats.avgProtein > 0) recs.push('💪 ' + (t('nutrition.increaseProtein', 'زد من تناول البروتين (دجاج، بيض، بقوليات)')));
-        if (nutritionStats.avgCarbs > 300) recs.push('🌾 ' + (t('nutrition.reduceCarbs', 'قلل من الكربوهيدرات (خبز، أرز، مكرونة)')));
-        if (todayMeals.filter(m => m.meal_type === 'Breakfast').length === 0 && todayMeals.length > 0) recs.push('🌅 ' + (t('nutrition.dontSkipBreakfast', 'لا تنسَ وجبة الفطور لبدء يومك بنشاط')));
+        // توصيات مبنية على السعرات
+        if (nutritionStats.todayCalories === 0 && nutritionStats.totalMeals > 0) {
+            recs.push({
+                icon: '📝',
+                text: t('nutrition.todayNoMeals', 'لم تسجل وجبات اليوم، سجل وجباتك للحصول على تحليل دقيق'),
+                priority: 'high'
+            });
+        } else if (calorieDiff > 300) {
+            recs.push({
+                icon: '🔥',
+                text: t('nutrition.caloriesExceed', `تجاوزت هدف السعرات بـ ${calorieDiff} سعرة، قلل الكربوهيدرات في الوجبة القادمة`),
+                priority: 'high'
+            });
+        } else if (calorieDiff < -300 && nutritionStats.todayCalories > 0) {
+            recs.push({
+                icon: '⚠️',
+                text: t('nutrition.caloriesDeficit', `سعراتك أقل من الهدف بـ ${Math.abs(calorieDiff)}، أضف وجبة خفيفة صحية`),
+                priority: 'medium'
+            });
+        } else if (goalProgress.calories >= 80 && goalProgress.calories <= 110) {
+            recs.push({
+                icon: '✅',
+                text: t('nutrition.caloriesGood', 'ممتاز! سعراتك قريبة من الهدف الموصى به'),
+                priority: 'low'
+            });
+        }
         
-        return recs.length ? recs : ['✅ ' + (t('nutrition.balancedDiet', 'نظامك الغذائي متوازن، استمر!'))];
+        // توصيات مبنية على البروتين
+        const proteinDeficit = nutritionGoals.dailyProtein - nutritionStats.todayProtein;
+        if (proteinDeficit > 20 && nutritionStats.todayProtein > 0) {
+            recs.push({
+                icon: '💪',
+                text: t('nutrition.proteinDeficit', `تحتاج ${Math.round(proteinDeficit)}g بروتين إضافية (بيضتين 12g أو صدر دجاج 30g)`),
+                priority: 'high'
+            });
+        } else if (nutritionStats.avgProtein < 40 && nutritionStats.avgProtein > 0 && nutritionStats.totalMeals > 3) {
+            recs.push({
+                icon: '🥩',
+                text: t('nutrition.proteinLowAverage', 'متوسط البروتين منخفض، أضف مصادر بروتين في وجباتك الرئيسية'),
+                priority: 'medium'
+            });
+        }
+        
+        // توصيات مبنية على نمط الأكل
+        const hasBreakfast = todayMeals.some(m => m.meal_type === 'Breakfast');
+        if (!hasBreakfast && todayMeals.length > 0) {
+            recs.push({
+                icon: '🌅',
+                text: t('nutrition.noBreakfast', 'لم تسجل وجبة فطور اليوم، الفطور يمنحك الطاقة لبدء يومك'),
+                priority: 'medium'
+            });
+        }
+        
+        // توصيات مبنية على التنوع
+        const mealTypesCount = new Set(todayMeals.map(m => m.meal_type)).size;
+        if (todayMeals.length >= 3 && mealTypesCount < 2) {
+            recs.push({
+                icon: '🥗',
+                text: t('nutrition.lowVariety', 'تنوع الوجبات محدود، حاول تنويع مصادر الطعام'),
+                priority: 'low'
+            });
+        }
+        
+        // رسالة ترحيبية للمستخدم الجديد
+        if (nutritionStats.totalMeals === 0) {
+            recs.push({
+                icon: '🍽️',
+                text: t('nutrition.welcome', 'مرحباً! ابدأ بتسجيل أول وجبة للحصول على تحليل غذائي مخصص'),
+                priority: 'high'
+            });
+        }
+        
+        // إذا لم توجد توصيات
+        if (recs.length === 0 && nutritionStats.totalMeals > 0) {
+            recs.push({
+                icon: '✅',
+                text: t('nutrition.balancedDiet', 'نظامك الغذائي متوازن، استمر بهذا المستوى الممتاز'),
+                priority: 'low'
+            });
+        }
+        
+        return recs;
     };
 
+    // ✅ توقع الوزن المحسن
     const getPrediction = () => {
         const totalMeals = nutritionStats.totalMeals;
         if (totalMeals < 5) return null;
         
         const avgCalories = nutritionStats.totalCalories / totalMeals;
-        const weeklyChange = ((avgCalories - nutritionGoals.dailyCalories) * 7) / 7700;
-        const maxChange = Math.min(Math.abs(weeklyChange), 1);
+        const avgProtein = nutritionStats.avgProtein;
         
-        if (weeklyChange > 0.2) return { icon: '📈', text: (t('nutrition.weightGainExpected', 'زيادة متوقعة')) + ` ${maxChange.toFixed(1)} ` + (t('nutrition.kgPerWeek', 'كجم أسبوعياً')), color: '#f59e0b', severity: 'warning' };
-        if (weeklyChange < -0.2) return { icon: '📉', text: (t('nutrition.weightLossExpected', 'خسارة متوقعة')) + ` ${maxChange.toFixed(1)} ` + (t('nutrition.kgPerWeek', 'كجم أسبوعياً')), color: '#10b981', severity: 'success' };
-        return { icon: '➡️', text: t('nutrition.weightStable', 'وزن مستقر متوقع'), color: '#3b82f6', severity: 'info' };
+        // حساب الفرق عن الهدف
+        const calorieDiff = avgCalories - nutritionGoals.dailyCalories;
+        const weeklyChange = (calorieDiff * 7) / 7700; // 7700 سعرة = 1 كجم دهون
+        
+        let status = 'info';
+        let icon = '➡️';
+        let text = '';
+        
+        if (weeklyChange > 0.3) {
+            status = 'high';
+            icon = '📈';
+            text = t('nutrition.weightGainPrediction', `زيادة متوقعة ${weeklyChange.toFixed(1)} كجم أسبوعياً، استهلاكك أعلى من احتياجك`);
+        } else if (weeklyChange > 0.1) {
+            status = 'warning';
+            icon = '📈';
+            text = t('nutrition.weightGainMild', `زيادة طفيفة متوقعة ${weeklyChange.toFixed(1)} كجم أسبوعياً`);
+        } else if (weeklyChange < -0.3) {
+            status = 'success';
+            icon = '📉';
+            text = t('nutrition.weightLossPrediction', `خسارة متوقعة ${Math.abs(weeklyChange).toFixed(1)} كجم أسبوعياً مع هذا العجز الحراري`);
+        } else if (weeklyChange < -0.1) {
+            status = 'info';
+            icon = '📉';
+            text = t('nutrition.weightLossMild', `خسارة طفيفة متوقعة ${Math.abs(weeklyChange).toFixed(1)} كجم أسبوعياً`);
+        } else {
+            text = t('nutrition.weightStable', 'الوزن مستقر متوقع بناءً على استهلاكك الحالي');
+        }
+        
+        // تحذير إضافي لنقص البروتين
+        if (avgProtein < 40 && avgProtein > 0) {
+            text += ' ' + t('nutrition.proteinWarning', '⚠️ نقص البروتين قد يؤثر على كتلة العضلات');
+        }
+        
+        return { icon, text, status };
     };
 
     const prediction = getPrediction();
@@ -281,10 +394,7 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         <div className="analytics-container">
             {/* شريط التحكم */}
             <div className="analytics-header">
-                <h2>
-                    <span>🍽️</span>
-                    {t('nutrition.dashboard', 'لوحة التغذية')}
-                </h2>
+                <h2>{t('nutrition.dashboard', 'لوحة التغذية')}</h2>
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
                     {lastUpdate && (
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
@@ -301,27 +411,31 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
                 </div>
             </div>
 
-            {/* التوصيات السريعة */}
+            {/* 🧠 التوصيات الذكية */}
             {recommendations.length > 0 && (
                 <div className="recommendations-section">
                     <h3>💡 {t('nutrition.smartRecommendations', 'توصيات ذكية')}</h3>
-                    <ul className="tips-grid" style={{ listStyle: 'none', padding: 0 }}>
+                    <div className="recommendations-list">
                         {recommendations.map((rec, idx) => (
-                            <li key={idx} className="tip-item" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                                <span>{rec}</span>
-                            </li>
+                            <div key={idx} className={`recommendation priority-${rec.priority}`}>
+                                <div className="rec-header">
+                                    <span className="rec-icon">{rec.icon}</span>
+                                    <span className="rec-title">{rec.title || t('nutrition.recommendation', 'توصية')}</span>
+                                </div>
+                                <p className="rec-advice">{rec.text}</p>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                 </div>
             )}
 
-            {/* التنبؤ السريع */}
+            {/* 🔮 توقع الوزن */}
             {prediction && (
-                <div className={`insight-card ${prediction.severity === 'warning' ? 'energy-critical' : ''}`}>
+                <div className={`insight-card ${prediction.status === 'high' ? 'energy-critical' : prediction.status === 'warning' ? 'energy-warning' : ''}`}>
                     <div className="insight-icon">{prediction.icon}</div>
                     <div className="insight-content">
-                        <h3>{t('nutrition.prediction', 'توقع الوزن')}</h3>
-                        <p style={{ color: prediction.color, fontWeight: 'bold' }}>{prediction.text}</p>
+                        <h3>{t('nutrition.weightPrediction', 'توقع الوزن')}</h3>
+                        <p style={{ fontWeight: 'bold' }}>{prediction.text}</p>
                     </div>
                 </div>
             )}
@@ -332,7 +446,7 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
                     📊 {t('nutrition.summary', 'ملخص')}
                 </button>
                 <button className={activeTab === 'insights' ? 'active' : ''} onClick={() => setActiveTab('insights')}>
-                    📈 {t('nutrition.advanced.title', 'تحليلات متقدمة')}
+                    🧠 {t('nutrition.advanced.title', 'تحليلات متقدمة')}
                 </button>
             </div>
 
@@ -400,7 +514,7 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
                                         <div className="progress-fill" style={{ width: `${goalProgress.protein}%` }}></div>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--spacing-sm)', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
-                                        <span>{nutritionStats.totalProtein}g</span>
+                                        <span>{nutritionStats.todayProtein}g</span>
                                         <span>/ {nutritionGoals.dailyProtein}g</span>
                                     </div>
                                 </div>
@@ -474,8 +588,7 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
             {/* تذييل */}
             <div className="analytics-footer">
                 <small>
-                    {t('nutrition.totalMeals', 'إجمالي الوجبات')}: {nutritionStats.totalMeals} | 
-                    {t('nutrition.totalCalories', 'إجمالي السعرات')}: {nutritionStats.totalCalories}
+                    {t('nutrition.totalMeals', 'إجمالي الوجبات')}: {nutritionStats.totalMeals} | {t('nutrition.totalCalories', 'إجمالي السعرات')}: {nutritionStats.totalCalories}
                 </small>
             </div>
         </div>

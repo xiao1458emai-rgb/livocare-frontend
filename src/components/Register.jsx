@@ -129,7 +129,7 @@ function Register({ onRegisterSuccess }) {
         if (!formData.email || !formData.email.includes('@') || !formData.email.includes('.')) {
             return t('register.invalidEmail');
         }
-        if (!formData.password || formData.password.length < 6) {
+        if (!formData.password || formData.password.length < 8) {
             return t('register.passwordShort');
         }
         if (passwordStrength < 50) {
@@ -312,7 +312,6 @@ function Register({ onRegisterSuccess }) {
                         <div className="form-row">
                             <div className="form-group half">
                                 <label htmlFor="first_name">
-                                    <span className="label-icon">👤</span>
                                     {t('register.firstName')}
                                 </label>
                                 <input
@@ -329,7 +328,6 @@ function Register({ onRegisterSuccess }) {
                             
                             <div className="form-group half">
                                 <label htmlFor="last_name">
-                                    <span className="label-icon">👤</span>
                                     {t('register.lastName')}
                                 </label>
                                 <input
@@ -347,7 +345,6 @@ function Register({ onRegisterSuccess }) {
 
                         <div className="form-group">
                             <label htmlFor="username">
-                                <span className="label-icon">🔑</span>
                                 {t('register.username')} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper">
@@ -364,7 +361,7 @@ function Register({ onRegisterSuccess }) {
                                 />
                             </div>
                             {touched.username && formData.username && formData.username.length < 3 && (
-                                <p className="field-error" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
+                                <p className="field-error">
                                     {t('register.usernameTooShort')}
                                 </p>
                             )}
@@ -372,7 +369,6 @@ function Register({ onRegisterSuccess }) {
 
                         <div className="form-group">
                             <label htmlFor="email">
-                                <span className="label-icon">📧</span>
                                 {t('register.email')} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper">
@@ -392,7 +388,6 @@ function Register({ onRegisterSuccess }) {
 
                         <div className="form-group">
                             <label htmlFor="password">
-                                <span className="label-icon">🔒</span>
                                 {t('register.password')} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper password-wrapper" style={{ position: 'relative' }}>
@@ -405,12 +400,13 @@ function Register({ onRegisterSuccess }) {
                                     onBlur={() => handleBlur('password')}
                                     required
                                     placeholder={t('register.passwordPlaceholder')}
-                                    className={`search-input ${touched.password && (!formData.password || formData.password.length < 6) ? 'error' : ''}`}
+                                    className={`search-input ${touched.password && (!formData.password || formData.password.length < 8) ? 'error' : ''}`}
                                 />
                                 <button
                                     type="button"
                                     className="password-toggle"
                                     onClick={() => setShowPassword(!showPassword)}
+                                    aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
                                     style={{
                                         position: 'absolute',
                                         right: 'var(--spacing-md)',
@@ -419,7 +415,10 @@ function Register({ onRegisterSuccess }) {
                                         background: 'none',
                                         border: 'none',
                                         cursor: 'pointer',
-                                        fontSize: '1.2rem'
+                                        fontSize: '1.2rem',
+                                        padding: 'var(--spacing-xs)',
+                                        borderRadius: 'var(--radius-full)',
+                                        transition: 'all var(--transition-fast)'
                                     }}
                                     tabIndex="-1"
                                 >
@@ -440,16 +439,18 @@ function Register({ onRegisterSuccess }) {
                                             }}
                                         ></div>
                                     </div>
-                                    <span className="strength-text" style={{ fontSize: '0.75rem', color: getPasswordStrengthColor() }}>
+                                    <span className="strength-text" style={{ fontSize: '0.7rem', color: getPasswordStrengthColor() }}>
                                         {getPasswordStrengthText()}
                                     </span>
                                 </div>
                             )}
+                            <p className="password-hint" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: 'var(--spacing-xs)' }}>
+                                {t('register.passwordHint')}
+                            </p>
                         </div>
 
                         <div className="form-group">
                             <label htmlFor="password2">
-                                <span className="label-icon">🔒</span>
                                 {t('register.confirmPassword')} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper password-wrapper" style={{ position: 'relative' }}>
@@ -468,6 +469,7 @@ function Register({ onRegisterSuccess }) {
                                     type="button"
                                     className="password-toggle"
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    aria-label={showConfirmPassword ? "إخفاء تأكيد كلمة المرور" : "إظهار تأكيد كلمة المرور"}
                                     style={{
                                         position: 'absolute',
                                         right: 'var(--spacing-md)',
@@ -476,7 +478,10 @@ function Register({ onRegisterSuccess }) {
                                         background: 'none',
                                         border: 'none',
                                         cursor: 'pointer',
-                                        fontSize: '1.2rem'
+                                        fontSize: '1.2rem',
+                                        padding: 'var(--spacing-xs)',
+                                        borderRadius: 'var(--radius-full)',
+                                        transition: 'all var(--transition-fast)'
                                     }}
                                     tabIndex="-1"
                                 >
@@ -484,7 +489,7 @@ function Register({ onRegisterSuccess }) {
                                 </button>
                             </div>
                             {touched.password2 && formData.password2 && formData.password !== formData.password2 && (
-                                <p className="field-error" style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: 'var(--spacing-xs)' }}>
+                                <p className="field-error">
                                     {t('register.passwordsDoNotMatch')}
                                 </p>
                             )}
@@ -503,47 +508,24 @@ function Register({ onRegisterSuccess }) {
                                         {t('register.registering')}
                                     </>
                                 ) : (
-                                    <>📝 {t('register.registerButton')}</>
+                                    <>{t('register.registerButton')}</>
                                 )}
                             </button>
                         </div>
 
-                        <div className="terms-info" style={{ marginTop: 'var(--spacing-md)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-                            <p>
-                                {t('register.termsPrefix')}
-                                <button type="button" className="terms-link" style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}>
-                                    {t('register.termsOfService')}
-                                </button>
-                                {t('register.and')}
-                                <button type="button" className="terms-link" style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}>
-                                    {t('register.privacyPolicy')}
-                                </button>
-                            </p>
-                        </div>
-
-                        <div className="login-link" style={{ marginTop: 'var(--spacing-lg)', textAlign: 'center', borderTop: '1px solid var(--border-light)', paddingTop: 'var(--spacing-lg)' }}>
-                            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                                {t('register.haveAccount')} 
-                                <Link 
-                                    to="/login"
-                                    className="login-button-link"
-                                    style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none', marginLeft: 'var(--spacing-sm)' }}
-                                >
-                                    {t('register.login')}
-                                    <span className="btn-arrow">→</span>
-                                </Link>
-                            </p>
-                        </div>
-                    </form>
-
-                    {/* قسم Google Auth */}
-                    <div className="google-auth-section" style={{ marginTop: 'var(--spacing-lg)', paddingTop: 'var(--spacing-md)' }}>
-                        <div className="divider" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-lg)' }}>
+                        {/* الفاصل البصري */}
+                        <div className="divider" style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 'var(--spacing-md)', 
+                            margin: 'var(--spacing-xl) 0 var(--spacing-lg)' 
+                        }}>
                             <span className="divider-line" style={{ flex: 1, height: '1px', background: 'var(--border-light)' }}></span>
                             <span className="divider-text" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{t('register.or')}</span>
                             <span className="divider-line" style={{ flex: 1, height: '1px', background: 'var(--border-light)' }}></span>
                         </div>
-                        
+
+                        {/* زر Google محسّن */}
                         <button 
                             type="button"
                             onClick={handleGoogleRegister}
@@ -554,20 +536,59 @@ function Register({ onRegisterSuccess }) {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: 'var(--spacing-sm)',
-                                padding: 'var(--spacing-sm) var(--spacing-md)',
+                                gap: 'var(--spacing-md)',
+                                padding: 'var(--spacing-md) var(--spacing-lg)',
                                 background: 'white',
                                 border: '1px solid var(--border-light)',
                                 borderRadius: 'var(--radius-lg)',
                                 cursor: 'pointer',
                                 fontWeight: 500,
-                                color: '#3c4043'
+                                fontSize: '0.95rem',
+                                color: '#3c4043',
+                                transition: 'all var(--transition-fast)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.target.style.background = '#f8f9fa';
+                                e.target.style.transform = 'translateY(-1px)';
+                                e.target.style.boxShadow = 'var(--shadow-md)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.background = 'white';
+                                e.target.style.transform = 'translateY(0)';
+                                e.target.style.boxShadow = 'none';
                             }}
                         >
-                            <img src="https://www.google.com/favicon.ico" alt="Google" className="google-icon" style={{ width: '20px', height: '20px' }} />
+                            <img src="https://www.google.com/favicon.ico" alt="" className="google-icon" style={{ width: '20px', height: '20px' }} />
                             <span>{t('register.signupWithGoogle')}</span>
                         </button>
-                    </div>
+
+                        <div className="login-link" style={{ marginTop: 'var(--spacing-xl)', textAlign: 'center' }}>
+                            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+                                {t('register.haveAccount')}{' '}
+                                <Link 
+                                    to="/login"
+                                    style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}
+                                >
+                                    {t('register.login')}
+                                    <span className="btn-arrow"> →</span>
+                                </Link>
+                            </p>
+                        </div>
+
+                        {/* الشروط والأحكام */}
+                        <div className="terms-info" style={{ marginTop: 'var(--spacing-lg)', textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
+                            <p>
+                                {t('register.termsPrefix')}
+                                <button type="button" className="terms-link" style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0 }}>
+                                    {t('register.termsOfService')}
+                                </button>
+                                {t('register.and')}
+                                <button type="button" className="terms-link" style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0 }}>
+                                    {t('register.privacyPolicy')}
+                                </button>
+                            </p>
+                        </div>
+                    </form>
 
                     {message && (
                         <div className={`notification-message ${messageType}`} style={{
@@ -595,6 +616,7 @@ function Register({ onRegisterSuccess }) {
                                     setMessageType('');
                                 }}
                                 style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+                                aria-label="إغلاق"
                             >
                                 ✕
                             </button>
@@ -602,7 +624,7 @@ function Register({ onRegisterSuccess }) {
                     )}
                 </div>
 
-                {/* معلومات إضافية */}
+                {/* معلومات إضافية - بدون إيموجي مكرر */}
                 <div className="register-info">
                     <div className="info-card" style={{
                         background: 'var(--card-bg)',
@@ -612,51 +634,34 @@ function Register({ onRegisterSuccess }) {
                         border: '1px solid var(--border-light)',
                         marginBottom: 'var(--spacing-lg)'
                     }}>
-                        <h3 style={{ margin: '0 0 var(--spacing-lg) 0', color: 'var(--text-primary)' }}>🌟 {t('register.benefitsTitle')}</h3>
+                        <h3 style={{ margin: '0 0 var(--spacing-lg) 0', color: 'var(--text-primary)' }}>{t('register.benefitsTitle')}</h3>
                         <ul className="benefits-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <span className="benefit-icon">📊</span>
+                                <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>📊</span>
                                 <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{t('register.benefit1')}</span>
                             </li>
                             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <span className="benefit-icon">🥗</span>
+                                <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>🥗</span>
                                 <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{t('register.benefit2')}</span>
                             </li>
                             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <span className="benefit-icon">🌙</span>
+                                <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>🌙</span>
                                 <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{t('register.benefit3')}</span>
                             </li>
                             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <span className="benefit-icon">😊</span>
+                                <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>😊</span>
                                 <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{t('register.benefit4')}</span>
                             </li>
                             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <span className="benefit-icon">💊</span>
+                                <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>💊</span>
                                 <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{t('register.benefit5')}</span>
                             </li>
                         </ul>
                     </div>
-
-                    <div className="testimonial-card" style={{
-                        background: 'var(--primary-gradient)',
-                        borderRadius: 'var(--radius-2xl)',
-                        padding: 'var(--spacing-xl)',
-                        color: 'white'
-                    }}>
-                        <p className="testimonial-text" style={{ fontSize: '1rem', lineHeight: 1.6, marginBottom: 'var(--spacing-lg)', fontStyle: 'italic' }}>
-                            "{t('register.testimonial')}"
-                        </p>
-                        <div className="testimonial-author" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                            <span className="author-avatar" style={{ fontSize: '2rem' }}>👤</span>
-                            <span className="author-name" style={{ fontWeight: 600 }}>{t('register.testimonialAuthor')}</span>
-                        </div>
-                    </div>
                 </div>
             </div>
 
-            {/* الأنماط الإضافية */}
             <style>{`
-                /* أنماط صفحة التسجيل */
                 .register-container {
                     min-height: 100vh;
                     background: var(--primary-bg);
@@ -665,7 +670,6 @@ function Register({ onRegisterSuccess }) {
                     overflow-x: hidden;
                 }
 
-                /* خلفية متحركة */
                 .register-background {
                     position: fixed;
                     top: 0;
@@ -722,7 +726,6 @@ function Register({ onRegisterSuccess }) {
                     to { transform: rotate(360deg); }
                 }
 
-                /* شريط التحكم */
                 .register-control-bar {
                     background: var(--card-bg);
                     border-bottom: 1px solid var(--border-light);
@@ -742,13 +745,7 @@ function Register({ onRegisterSuccess }) {
                     gap: var(--spacing-md);
                 }
 
-                .app-title {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-md);
-                }
-
-                .title-text h1 {
+                .app-title .title-text h1 {
                     margin: 0;
                     color: var(--text-primary);
                     font-size: 1.8rem;
@@ -803,14 +800,6 @@ function Register({ onRegisterSuccess }) {
                     color: white;
                 }
 
-                .lang-flag {
-                    font-size: 1.1rem;
-                }
-
-                .lang-text {
-                    font-size: 0.9rem;
-                }
-
                 .theme-toggle {
                     width: 40px;
                     height: 40px;
@@ -832,7 +821,6 @@ function Register({ onRegisterSuccess }) {
                     color: white;
                 }
 
-                /* المحتوى الرئيسي */
                 .register-content {
                     display: flex;
                     justify-content: center;
@@ -846,7 +834,6 @@ function Register({ onRegisterSuccess }) {
                     z-index: 1;
                 }
 
-                /* بطاقة التسجيل */
                 .register-form-card {
                     background: var(--card-bg);
                     border-radius: var(--radius-2xl);
@@ -883,17 +870,16 @@ function Register({ onRegisterSuccess }) {
                 .register-header h2 {
                     margin: 0 0 var(--spacing-sm) 0;
                     color: var(--text-primary);
-                    font-size: 2rem;
+                    font-size: 1.8rem;
                     font-weight: 700;
                 }
 
                 .register-description {
                     margin: 0;
                     color: var(--text-secondary);
-                    font-size: 0.95rem;
+                    font-size: 0.9rem;
                 }
 
-                /* حقول النموذج */
                 .form-row {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
@@ -909,17 +895,11 @@ function Register({ onRegisterSuccess }) {
                 }
 
                 .form-group label {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
+                    display: block;
                     margin-bottom: var(--spacing-sm);
                     font-weight: 600;
                     color: var(--text-secondary);
-                    font-size: 0.9rem;
-                }
-
-                .label-icon {
-                    font-size: 1rem;
+                    font-size: 0.85rem;
                 }
 
                 .required {
@@ -927,20 +907,61 @@ function Register({ onRegisterSuccess }) {
                     margin-left: var(--spacing-xs);
                 }
 
+                .search-input {
+                    width: 100%;
+                    padding: var(--spacing-md);
+                    border: 1px solid var(--border-light);
+                    border-radius: var(--radius-md);
+                    background: var(--input-bg);
+                    color: var(--text-primary);
+                    transition: all var(--transition-fast);
+                }
+
+                .search-input:focus {
+                    outline: none;
+                    border-color: var(--primary);
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+                }
+
                 .search-input.error {
-                    border-color: var(--error) !important;
+                    border-color: var(--error);
                 }
 
                 .field-error {
                     margin-top: var(--spacing-xs);
                     color: var(--error);
-                    font-size: 0.75rem;
+                    font-size: 0.7rem;
+                }
+
+                .password-hint {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    margin-top: var(--spacing-xs);
                 }
 
                 .password-toggle:hover {
-                    color: var(--primary);
                     background: var(--hover-bg);
-                    border-radius: var(--radius-full);
+                }
+
+                .type-btn.active {
+                    background: var(--primary-gradient);
+                    color: white;
+                    border: none;
+                    padding: var(--spacing-md);
+                    border-radius: var(--radius-lg);
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                }
+
+                .type-btn.active:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-lg);
+                }
+
+                .type-btn.active:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
                 }
 
                 [dir="rtl"] .password-toggle {
@@ -949,28 +970,15 @@ function Register({ onRegisterSuccess }) {
                 }
 
                 [dir="rtl"] .btn-arrow {
-                    transform: rotate(180deg);
                     display: inline-block;
+                    transform: rotate(180deg);
                 }
 
-                [dir="rtl"] .form-row {
-                    direction: rtl;
-                }
-
-                /* معلومات إضافية */
                 .register-info {
                     width: 100%;
-                    max-width: 400px;
+                    max-width: 350px;
                 }
 
-                .testimonial-card {
-                    background: var(--primary-gradient);
-                    border-radius: var(--radius-2xl);
-                    padding: var(--spacing-xl);
-                    color: white;
-                }
-
-                /* الثيم المظلم لزر Google */
                 .dark-mode .google-register-btn {
                     background: #2d2d2d;
                     color: #e8eaed;
@@ -981,7 +989,7 @@ function Register({ onRegisterSuccess }) {
                     background: #3c4043;
                 }
 
-                @media (max-width: 1023px) and (min-width: 768px) {
+                @media (max-width: 1023px) {
                     .register-content {
                         flex-direction: column;
                         align-items: center;
@@ -998,7 +1006,7 @@ function Register({ onRegisterSuccess }) {
                     }
                     
                     .app-title {
-                        justify-content: center;
+                        text-align: center;
                     }
                 }
 
@@ -1052,25 +1060,8 @@ function Register({ onRegisterSuccess }) {
                         font-size: 1.3rem;
                     }
                     
-                    .register-description {
-                        font-size: 0.85rem;
-                    }
-                    
-                    .info-card,
-                    .testimonial-card {
+                    .info-card {
                         padding: var(--spacing-lg);
-                    }
-                }
-
-                @media (prefers-reduced-motion: reduce) {
-                    .bg-shape,
-                    .register-form-card:hover {
-                        animation: none !important;
-                        transform: none !important;
-                    }
-                    
-                    .spinner {
-                        animation: none !important;
                     }
                 }
             `}</style>

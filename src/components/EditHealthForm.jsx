@@ -28,12 +28,10 @@ function Dashboard({ onLogout }) {
     const navigate = useNavigate();
     const isRTL = i18n.language === 'ar';
     
-    // useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const refreshIntervalRef = useRef(null);
     const isFetchingRef = useRef(false);
     
-    // الحالات
     const [healthRecords, setHealthRecords] = useState([]);
     const [latestHealthData, setLatestHealthData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -198,10 +196,11 @@ function Dashboard({ onLogout }) {
         return `${value} ${unit}`.trim();
     };
 
+    // ✅ تنسيق ضغط الدم مع مسافات
     const displayBloodPressure = (systolic, diastolic) => {
         if ((!systolic && systolic !== 0) || systolic === null) return '—';
         if ((!diastolic && diastolic !== 0) || diastolic === null) return '—';
-        return `${systolic} / ${diastolic}`;
+        return `${systolic} / ${diastolic} mmHg`;
     };
 
     const getTodayDate = () => {
@@ -235,6 +234,23 @@ function Dashboard({ onLogout }) {
         return count;
     };
 
+    // ✅ عناوين الأقسام بدون أيقونات مكررة
+    const getSectionTitle = (sectionKey) => {
+        const titles = {
+            'health': t('dashboard.dashboard'),
+            'nutrition': t('dashboard.nutritionTitle'),
+            'sleep': t('dashboard.sleepTitle'),
+            'habits': t('dashboard.habitsTitle'),
+            'mood': t('dashboard.moodTitle'),
+            'chat': t('dashboard.chatTitle'),
+            'profile': t('dashboard.profileTitle'),
+            'smart': t('dashboard.smartTitle'),
+            'notifications': t('notifications.title'),
+            'reports': t('reports.title')
+        };
+        return titles[sectionKey] || t('dashboard.dashboard');
+    };
+
     const renderSectionContent = () => {
         switch (activeSection) {
             case 'health':
@@ -243,7 +259,7 @@ function Dashboard({ onLogout }) {
                         {/* قسم الملخص */}
                         <div className="recommendations-section" style={{ marginTop: 0 }}>
                             <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
-                                <h3>📊 {t('dashboard.dailySummary')}</h3>
+                                <h3>{t('dashboard.dailySummary')}</h3>
                                 <span className="stat-label">{getTodayDate()}</span>
                             </div>
                             
@@ -274,7 +290,7 @@ function Dashboard({ onLogout }) {
                                         {latestHealthData?.recorded_at && latestHealthData?.weight !== null && (
                                             <div className="stat-label">
                                                 {new Date(latestHealthData.recorded_at).toLocaleTimeString(
-                                                    i18n.language === 'ar' ? 'ar-EG' : 'en-US',
+                                                    isRTL ? 'ar-EG' : 'en-US',
                                                     { hour: '2-digit', minute: '2-digit' }
                                                 )}
                                             </div>
@@ -282,7 +298,7 @@ function Dashboard({ onLogout }) {
                                     </div>
                                 </div>
                                 
-                                {/* ضغط الدم */}
+                                {/* ضغط الدم - ✅ تنسيق صحيح مع مسافات */}
                                 <div className="analytics-stat-card">
                                     <div className="stat-icon">❤️</div>
                                     <div className="stat-content">
@@ -380,22 +396,6 @@ function Dashboard({ onLogout }) {
                 return null;
         }
     };
-
-    const getSectionTitle = (sectionKey) => {
-        const titles = {
-            'health': `📊 ${t('dashboard.dashboard')}`,
-            'nutrition': `🥗 ${t('dashboard.nutritionTitle')}`,
-            'sleep': `🌙 ${t('dashboard.sleepTitle')}`,
-            'habits': `💊 ${t('dashboard.habitsTitle')}`,
-            'mood': `😊 ${t('dashboard.moodTitle')}`,
-            'chat': `💬 ${t('dashboard.chatTitle')}`,
-            'profile': `👤 ${t('dashboard.profileTitle')}`,
-            'smart': `🧠 الميزات الذكية`,
-            'notifications': `🔔 ${t('notifications.title')}`,
-            'reports': `📊 ${t('reports.title')}`
-        };
-        return titles[sectionKey] || t('dashboard.dashboard');
-    };
     
     // حالة التحميل
     if (loading && healthRecords.length === 0) {
@@ -490,7 +490,7 @@ function Dashboard({ onLogout }) {
                         {latestHealthData?.recorded_at && (
                             <div className="last-updated">
                                 {t('dashboard.lastUpdated', 'آخر تحديث')}: {new Date(latestHealthData.recorded_at).toLocaleDateString(
-                                    i18n.language === 'ar' ? 'ar-EG' : 'en-US'
+                                    isRTL ? 'ar-EG' : 'en-US'
                                 )}
                             </div>
                         )}
@@ -502,9 +502,7 @@ function Dashboard({ onLogout }) {
                 </div>
             </main>
 
-            {/* الأنماط الإضافية للوحة التحكم */}
             <style>{`
-                /* أنماط إضافية للوحة التحكم */
                 .dashboard-layout {
                     min-height: 100vh;
                     background: var(--primary-bg);

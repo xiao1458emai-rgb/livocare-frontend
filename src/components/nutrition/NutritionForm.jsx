@@ -7,19 +7,18 @@ import NutritionAnalytics from '../Analytics/NutritionAnalytics';
 import BarcodeScanner from '../Camera/BarcodeScanner';
 import '../../index.css';  
 
-// إعداد أنواع الوجبات مع دعم الترجمة
+// إعداد أنواع الوجبات مع دعم الترجمة (بدون أيقونات مكررة)
 const getMealTypeChoices = (t) => [
-    { value: 'Breakfast', label: `🍳 ${t('nutrition.breakfast', 'فطور')}`, color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' },
-    { value: 'Lunch', label: `🍲 ${t('nutrition.lunch', 'غداء')}`, color: '#FF6B35', bg: 'rgba(255, 107, 53, 0.15)' },
-    { value: 'Dinner', label: `🍽️ ${t('nutrition.dinner', 'عشاء')}`, color: '#2E86AB', bg: 'rgba(46, 134, 171, 0.15)' },
-    { value: 'Snack', label: `🍎 ${t('nutrition.snack', 'وجبة خفيفة')}`, color: '#A23B72', bg: 'rgba(162, 59, 114, 0.15)' },
-    { value: 'Other', label: `📝 ${t('nutrition.other', 'أخرى')}`, color: '#6A8D73', bg: 'rgba(106, 141, 115, 0.15)' },
+    { value: 'Breakfast', label: t('nutrition.breakfast', 'فطور'), color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' },
+    { value: 'Lunch', label: t('nutrition.lunch', 'غداء'), color: '#FF6B35', bg: 'rgba(255, 107, 53, 0.15)' },
+    { value: 'Dinner', label: t('nutrition.dinner', 'عشاء'), color: '#2E86AB', bg: 'rgba(46, 134, 171, 0.15)' },
+    { value: 'Snack', label: t('nutrition.snack', 'وجبة خفيفة'), color: '#A23B72', bg: 'rgba(162, 59, 114, 0.15)' },
+    { value: 'Other', label: t('nutrition.other', 'أخرى'), color: '#6A8D73', bg: 'rgba(106, 141, 115, 0.15)' },
 ];
 
 function NutritionForm({ onDataSubmitted, isAuthReady }) {
     const { t, i18n } = useTranslation();
     
-    // ✅ useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
     
@@ -69,7 +68,6 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         return true;
     };
 
-    // ✅ دالة fetchMeals
     const fetchMeals = useCallback(async () => {
         if (!isAuthReady || !isMountedRef.current) return;
         if (!checkAuth()) return;
@@ -105,7 +103,6 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         }
     }, [isAuthReady, t]);
 
-    // ✅ جلب الوجبات عند تحميل المكون
     useEffect(() => {
         if (isAuthReady) {
             fetchMeals();
@@ -554,7 +551,6 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         ];
     };
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -565,7 +561,6 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
 
     return (
         <div className="analytics-container">
-            {/* ✅ ماسح الباركود */}
             {showScanner && (
                 <BarcodeScanner 
                     onScan={handleBarcodeScanned} 
@@ -573,12 +568,9 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 />
             )}
             
-            {/* رأس النموذج */}
+            {/* رأس النموذج - بدون أيقونة مكررة */}
             <div className="analytics-header">
-                <h2>
-                    <span>🥗</span>
-                    {editingMeal ? t('nutrition.editMeal', 'تعديل وجبة') : t('nutrition.addMeal', 'إضافة وجبة')}
-                </h2>
+                <h2>{editingMeal ? t('nutrition.editMeal', 'تعديل وجبة') : t('nutrition.addMeal', 'إضافة وجبة')}</h2>
                 <button 
                     type="button" 
                     onClick={() => setShowScanner(true)}
@@ -590,7 +582,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 </button>
             </div>
 
-            {/* ملخص التغذية السريع */}
+            {/* ملخص التغذية السريع - بدون أيقونات مكررة */}
             <div className="analytics-stats-grid" style={{ marginBottom: 'var(--spacing-lg)' }}>
                 <div className="analytics-stat-card">
                     <div className="stat-icon">🔥</div>
@@ -623,7 +615,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
             </div>
 
             <form onSubmit={editingMeal ? handleUpdateMeal : handleSubmit}>
-                {/* قسم نوع الوجبة */}
+                {/* قسم نوع الوجبة - بدون أيقونات مكررة */}
                 <div className="recommendations-section">
                     <h3>{t('nutrition.mealType', 'نوع الوجبة')}</h3>
                     <div className="type-filters" style={{ marginTop: 'var(--spacing-md)' }}>
@@ -653,7 +645,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                     />
                 </div>
 
-                {/* قسم المكونات */}
+                {/* قسم المكونات - بدون أيقونات مكررة */}
                 <div className="recommendations-section">
                     <h3>{t('nutrition.ingredients', 'المكونات')}</h3>
                     <div className="ingredients-container" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-md)' }}>
@@ -733,7 +725,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                 
                                 <div className="analytics-stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-md)' }}>
                                     <div className="field-group">
-                                        <label>🔥 {t('nutrition.calories', 'سعرات')}</label>
+                                        <label>{t('nutrition.calories', 'سعرات')}</label>
                                         <input
                                             type="number"
                                             name="calories"
@@ -744,7 +736,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                         />
                                     </div>
                                     <div className="field-group">
-                                        <label>💪 {t('nutrition.protein', 'بروتين')}</label>
+                                        <label>{t('nutrition.protein', 'بروتين')}</label>
                                         <input
                                             type="number"
                                             name="protein"
@@ -755,7 +747,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                         />
                                     </div>
                                     <div className="field-group">
-                                        <label>🌾 {t('nutrition.carbs', 'كربوهيدرات')}</label>
+                                        <label>{t('nutrition.carbs', 'كربوهيدرات')}</label>
                                         <input
                                             type="number"
                                             name="carbs"
@@ -766,7 +758,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                         />
                                     </div>
                                     <div className="field-group">
-                                        <label>🫒 {t('nutrition.fat', 'دهون')}</label>
+                                        <label>{t('nutrition.fat', 'دهون')}</label>
                                         <input
                                             type="number"
                                             name="fat"
@@ -801,18 +793,18 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 {/* أزرار الإجراء */}
                 <div className="analytics-header" style={{ justifyContent: 'center', gap: 'var(--spacing-md)', borderBottom: 'none' }}>
                     <button type="button" onClick={clearForm} className="type-btn">
-                        🔄 {t('common.reset', 'إعادة تعيين')}
+                        {t('common.reset', 'إعادة تعيين')}
                     </button>
                     <button type="submit" disabled={isLoading} className="type-btn active">
-                        {isLoading ? '⏳' : '💾'} {editingMeal ? t('common.update', 'تحديث') : t('common.save', 'حفظ')}
+                        {isLoading ? '⏳' : ''} {editingMeal ? t('common.update', 'تحديث') : t('common.save', 'حفظ')}
                     </button>
                 </div>
             </form>
 
-            {/* قسم الوجبات المسجلة */}
+            {/* قسم الوجبات المسجلة - بدون أيقونات مكررة */}
             <div className="recommendations-section" style={{ marginTop: 'var(--spacing-xl)' }}>
                 <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)' }}>
-                    <h3>📋 {t('nutrition.recentMeals', 'الوجبات المسجلة')}</h3>
+                    <h3>{t('nutrition.recentMeals', 'الوجبات المسجلة')}</h3>
                     <button onClick={fetchMeals} className="refresh-btn" disabled={loadingMeals}>
                         {loadingMeals ? '⏳' : '🔄'}
                     </button>
@@ -845,26 +837,28 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                 </div>
                                 <div className="notification-content">
                                     <div className="nutrition-badges" style={{ display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-sm)' }}>
-                                        <span className="priority-badge priority-urgent">🔥 {meal.total_calories}</span>
+                                        <span className="priority-badge priority-urgent">{meal.total_calories} {t('nutrition.caloriesUnit', 'سعرة')}</span>
                                         {meal.ingredients && meal.ingredients.length > 0 && (
                                             <>
-                                                <span className="priority-badge priority-high">💪 {meal.ingredients.reduce((sum, i) => sum + (i.protein || 0), 0)}g</span>
-                                                <span className="priority-badge priority-medium">🌾 {meal.ingredients.reduce((sum, i) => sum + (i.carbs || 0), 0)}g</span>
-                                                <span className="priority-badge priority-low">🫒 {meal.ingredients.reduce((sum, i) => sum + (i.fat || 0), 0)}g</span>
+                                                <span className="priority-badge priority-high">{meal.ingredients.reduce((sum, i) => sum + (i.protein || 0), 0)}g {t('nutrition.protein', 'بروتين')}</span>
+                                                <span className="priority-badge priority-medium">{meal.ingredients.reduce((sum, i) => sum + (i.carbs || 0), 0)}g {t('nutrition.carbs', 'كربوهيدرات')}</span>
+                                                <span className="priority-badge priority-low">{meal.ingredients.reduce((sum, i) => sum + (i.fat || 0), 0)}g {t('nutrition.fat', 'دهون')}</span>
                                             </>
                                         )}
                                     </div>
                                     {meal.ingredients && meal.ingredients.length > 0 && (
                                         <div className="ingredients-list" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-xs)' }}>
                                             {meal.ingredients.slice(0, 4).map((ing, idx) => (
-                                                <span key={idx} className="rec-type tip">🍽️ {ing.name} {ing.quantity}{ing.unit}</span>
+                                                <span key={idx} className="rec-type tip">
+                                                    {ing.name} {ing.quantity}{ing.unit}
+                                                </span>
                                             ))}
                                             {meal.ingredients.length > 4 && (
                                                 <span className="rec-type">+{meal.ingredients.length - 4}</span>
                                             )}
                                         </div>
                                     )}
-                                    {meal.notes && <div className="rec-advice" style={{ marginTop: 'var(--spacing-sm)' }}>📝 {meal.notes}</div>}
+                                    {meal.notes && <div className="rec-advice" style={{ marginTop: 'var(--spacing-sm)' }}>{meal.notes}</div>}
                                 </div>
                             </div>
                         ))}
