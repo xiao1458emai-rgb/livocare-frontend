@@ -1,13 +1,19 @@
+// src/components/nutrition/NutritionMain.jsx
 'use client'
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import NutritionForm from './NutritionForm';
 import NutritionDashboard from './NutritionDashboard';
 import axiosInstance from "../../services/api";
 import '../../index.css';
 
 function NutritionMain({ isAuthReady }) {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const [activeTab, setActiveTab] = useState('form');
     const [meals, setMeals] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -19,6 +25,23 @@ function NutritionMain({ isAuthReady }) {
     const autoRefreshRef = useRef(autoRefresh);
     const intervalRef = useRef(null);
     const isFetchingRef = useRef(false);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     // تحديث autoRefreshRef عند تغيير autoRefresh
     useEffect(() => {
@@ -52,7 +75,7 @@ function NutritionMain({ isAuthReady }) {
         } catch (error) {
             console.error('Error fetching meals:', error);
             if (isMountedRef.current) {
-                setError(t('nutrition.errorLoadingMeals', 'حدث خطأ في تحميل الوجبات'));
+                setError(isArabic ? 'حدث خطأ في تحميل الوجبات' : 'Error loading meals');
             }
         } finally {
             if (isMountedRef.current) {
@@ -60,7 +83,7 @@ function NutritionMain({ isAuthReady }) {
             }
             isFetchingRef.current = false;
         }
-    }, [isAuthReady, t]);
+    }, [isAuthReady, isArabic]);
 
     // نظام التحديث التلقائي
     useEffect(() => {
@@ -130,8 +153,8 @@ function NutritionMain({ isAuthReady }) {
 
     const formatLastUpdate = useCallback((date) => {
         if (!date) return '';
-        return date.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US');
-    }, [i18n.language]);
+        return date.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US');
+    }, [isArabic]);
 
     return (
         <div className="analytics-container">
@@ -156,9 +179,9 @@ function NutritionMain({ isAuthReady }) {
                 </div>
             )}
 
-            {/* رأس الصفحة - بدون أيقونة مكررة */}
+            {/* رأس الصفحة */}
             <div className="analytics-header" style={{ borderBottom: 'none', marginBottom: 0 }}>
-                <h2>{t('nutrition.title', 'التغذية')}</h2>
+                <h2>{isArabic ? 'التغذية' : 'Nutrition'}</h2>
                 <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center', flexWrap: 'wrap' }}>
                     {/* آخر تحديث */}
                     <div style={{
@@ -174,6 +197,8 @@ function NutritionMain({ isAuthReady }) {
                         <span>🕒</span>
                         <span>{formatLastUpdate(lastUpdate)}</span>
                     </div>
+                    
+                    {/* ✅ تم إزالة زر اللغة من هنا - يوجد الآن فقط في ProfileManager */}
                     
                     {/* تبديل التحديث التلقائي */}
                     <label style={{
@@ -212,7 +237,7 @@ function NutritionMain({ isAuthReady }) {
                                 transition: 'all var(--transition-fast)'
                             }}></span>
                         </span>
-                        <span>{t('nutrition.autoRefresh', 'تحديث تلقائي')}</span>
+                        <span>{isArabic ? 'تحديث تلقائي' : 'Auto Refresh'}</span>
                     </label>
                     
                     {/* عدد الوجبات */}
@@ -226,7 +251,7 @@ function NutritionMain({ isAuthReady }) {
                         borderRadius: 'var(--radius-full)'
                     }}>
                         <span style={{ fontSize: '1.3rem', fontWeight: 'bold' }}>{meals.length}</span>
-                        <span style={{ fontSize: '0.75rem', opacity: 0.9 }}>{t('nutrition.mealsLogged', 'وجبة')}</span>
+                        <span style={{ fontSize: '0.75rem', opacity: 0.9 }}>{isArabic ? 'وجبة' : 'meals'}</span>
                     </div>
                 </div>
             </div>
@@ -239,19 +264,19 @@ function NutritionMain({ isAuthReady }) {
                 </div>
             )}
 
-            {/* أزرار التبويب - بدون أيقونات مكررة */}
+            {/* أزرار التبويب */}
             <div className="analytics-tabs">
                 <button 
                     className={activeTab === 'form' ? 'active' : ''}
                     onClick={() => setActiveTab('form')}
                 >
-                    {t('nutrition.newMeal', 'وجبة جديدة')}
+                    {isArabic ? 'وجبة جديدة' : 'New Meal'}
                 </button>
                 <button 
                     className={activeTab === 'dashboard' ? 'active' : ''}
                     onClick={() => setActiveTab('dashboard')}
                 >
-                    {t('nutrition.dashboard', 'لوحة التحكم')}
+                    {isArabic ? 'لوحة التحكم' : 'Dashboard'}
                 </button>
             </div>
 

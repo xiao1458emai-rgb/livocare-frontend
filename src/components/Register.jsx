@@ -1,11 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/api';
 import '../index.css';
 
+// ✅ دالة عامة لتطبيق اللغة (مطابقة لما في ProfileManager)
+const applyLanguage = (lang) => {
+    const isArabic = lang === 'ar';
+    localStorage.setItem('app_lang', lang);
+    document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
+    document.documentElement.lang = isArabic ? 'ar' : 'en';
+};
+
 function Register({ onRegisterSuccess }) {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
         username: '',
@@ -29,6 +42,31 @@ function Register({ onRegisterSuccess }) {
     // رابط خدمة Google Auth المنفصلة
     const GOOGLE_AUTH_URL = import.meta.env.VITE_GOOGLE_AUTH_URL || 'https://google-auth-fwz4.onrender.com';
 
+    // ✅ تبديل اللغة (يتم الاحتفاظ به في صفحة التسجيل)
+    const toggleLanguage = () => {
+        const newLang = lang === 'ar' ? 'en' : 'ar';
+        setLang(newLang);
+        applyLanguage(newLang);
+    };
+
+    // ✅ الاستماع لتغييرات اللغة (للتزامن مع أي تغيير يحدث أثناء البقاء في الصفحة)
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // تطبيق اتجاه الصفحة
+                document.documentElement.dir = event.detail.isArabic ? 'rtl' : 'ltr';
+                document.documentElement.lang = event.detail.isArabic ? 'ar' : 'en';
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
+
     // تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
@@ -36,6 +74,14 @@ function Register({ onRegisterSuccess }) {
         
         if (savedDarkMode) {
             document.documentElement.classList.add('dark-mode');
+        }
+        
+        // تطبيق اللغة المحفوظة عند تحميل الصفحة
+        const savedLang = localStorage.getItem('app_lang');
+        if (savedLang) {
+            const isSavedArabic = savedLang === 'ar';
+            document.documentElement.dir = isSavedArabic ? 'rtl' : 'ltr';
+            document.documentElement.lang = savedLang;
         }
     }, []);
 
@@ -93,17 +139,6 @@ function Register({ onRegisterSuccess }) {
         }));
     };
 
-    const changeLanguage = (lng) => {
-        i18n.changeLanguage(lng);
-        localStorage.setItem('livocare_language', lng);
-        document.documentElement.lang = lng;
-        document.documentElement.dir = lng === 'ar' ? 'rtl' : 'ltr';
-        
-        window.dispatchEvent(new CustomEvent('languageChanged', { 
-            detail: { language: lng, direction: lng === 'ar' ? 'rtl' : 'ltr' }
-        }));
-    };
-
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -121,22 +156,22 @@ function Register({ onRegisterSuccess }) {
 
     const validateForm = () => {
         if (!formData.username || formData.username.length < 3) {
-            return t('register.usernameShort');
+            return isArabic ? 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل' : 'Username must be at least 3 characters';
         }
         if (!formData.username.match(/^[a-zA-Z0-9_]+$/)) {
-            return t('register.usernameInvalid');
+            return isArabic ? 'اسم المستخدم يحتوي على أحرف غير مسموحة' : 'Username contains invalid characters';
         }
         if (!formData.email || !formData.email.includes('@') || !formData.email.includes('.')) {
-            return t('register.invalidEmail');
+            return isArabic ? 'البريد الإلكتروني غير صالح' : 'Invalid email address';
         }
         if (!formData.password || formData.password.length < 8) {
-            return t('register.passwordShort');
+            return isArabic ? 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' : 'Password must be at least 8 characters';
         }
         if (passwordStrength < 50) {
-            return t('register.passwordWeak');
+            return isArabic ? 'كلمة المرور ضعيفة' : 'Password is weak';
         }
         if (formData.password !== formData.password2) {
-            return t('register.passwordMismatch');
+            return isArabic ? 'كلمة المرور غير متطابقة' : 'Passwords do not match';
         }
         return null;
     };
@@ -149,10 +184,10 @@ function Register({ onRegisterSuccess }) {
     };
 
     const getPasswordStrengthText = () => {
-        if (passwordStrength < 30) return t('register.passwordWeak');
-        if (passwordStrength < 60) return t('register.passwordFair');
-        if (passwordStrength < 80) return t('register.passwordGood');
-        return t('register.passwordStrong');
+        if (passwordStrength < 30) return isArabic ? 'ضعيفة' : 'Weak';
+        if (passwordStrength < 60) return isArabic ? 'متوسطة' : 'Fair';
+        if (passwordStrength < 80) return isArabic ? 'جيدة' : 'Good';
+        return isArabic ? 'قوية جداً' : 'Very Strong';
     };
 
     const handleSubmit = useCallback(async (e) => {
@@ -182,7 +217,7 @@ function Register({ onRegisterSuccess }) {
             console.log('✅ Registration successful:', response.data);
             
             if (isMountedRef.current) {
-                setMessage(t('register.success'));
+                setMessage(isArabic ? 'تم إنشاء الحساب بنجاح' : 'Account created successfully');
                 setMessageType('success');
             }
             
@@ -216,16 +251,16 @@ function Register({ onRegisterSuccess }) {
             
             if (!isMountedRef.current) return;
             
-            let errorMessage = t('register.failed');
+            let errorMessage = isArabic ? 'فشل إنشاء الحساب' : 'Registration failed';
             
             if (error.response?.data?.username) {
-                errorMessage = t('register.usernameExists');
+                errorMessage = isArabic ? 'اسم المستخدم موجود مسبقاً' : 'Username already exists';
             } else if (error.response?.data?.email) {
-                errorMessage = t('register.emailExists');
+                errorMessage = isArabic ? 'البريد الإلكتروني موجود مسبقاً' : 'Email already exists';
             } else if (error.response?.status === 400) {
-                errorMessage = t('register.invalidData');
+                errorMessage = isArabic ? 'بيانات غير صالحة' : 'Invalid data';
             } else if (!navigator.onLine) {
-                errorMessage = t('register.networkError');
+                errorMessage = isArabic ? 'لا يوجد اتصال بالإنترنت' : 'No internet connection';
             }
             
             setMessage(errorMessage);
@@ -236,7 +271,7 @@ function Register({ onRegisterSuccess }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [formData, t, onRegisterSuccess, validateForm, navigate]);
+    }, [formData, onRegisterSuccess, navigate, isArabic]);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -266,34 +301,24 @@ function Register({ onRegisterSuccess }) {
                     <div className="app-title">
                         <div className="title-text">
                             <h1>LivoCare</h1>
-                            <span className="app-subtitle">{t('register.subtitle')}</span>
+                            <span className="app-subtitle">{isArabic ? 'انضم إلى LivoCare وابدأ رحلتك الصحية' : 'Join LivoCare and start your health journey'}</span>
                         </div>
                     </div>
                     
                     <div className="register-controls">
-                        <div className="language-switcher">
-                            <button 
-                                className={`lang-btn ${i18n.language === 'ar' ? 'active' : ''}`}
-                                onClick={() => changeLanguage('ar')}
-                                title="العربية"
-                            >
-                                <span className="lang-flag">🇸🇦</span>
-                                <span className="lang-text">عربي</span>
-                            </button>
-                            <button 
-                                className={`lang-btn ${i18n.language === 'en' ? 'active' : ''}`}
-                                onClick={() => changeLanguage('en')}
-                                title="English"
-                            >
-                                <span className="lang-flag">🇺🇸</span>
-                                <span className="lang-text">EN</span>
-                            </button>
-                        </div>
+                        {/* ✅ زر اللغة موجود في صفحة التسجيل لأنها صفحة عامة قبل تسجيل الدخول */}
+                        <button 
+                            className="lang-btn"
+                            onClick={toggleLanguage}
+                            title={isArabic ? 'English' : 'العربية'}
+                        >
+                            {isArabic ? 'EN' : 'AR'}
+                        </button>
                         
                         <button 
                             className="theme-toggle"
                             onClick={toggleDarkMode}
-                            title={document.documentElement.classList.contains('dark-mode') ? t('register.switchToLight') : t('register.switchToDark')}
+                            title={document.documentElement.classList.contains('dark-mode') ? (isArabic ? 'وضع فاتح' : 'Light Mode') : (isArabic ? 'وضع مظلم' : 'Dark Mode')}
                         >
                             {document.documentElement.classList.contains('dark-mode') ? '☀️' : '🌙'}
                         </button>
@@ -304,15 +329,15 @@ function Register({ onRegisterSuccess }) {
             <div className="register-content">
                 <div className="register-form-card">
                     <div className="register-header">
-                        <h2>{t('register.title')}</h2>
-                        <p className="register-description">{t('register.description')}</p>
+                        <h2>{isArabic ? 'إنشاء حساب جديد' : 'Create New Account'}</h2>
+                        <p className="register-description">{isArabic ? 'أدخل بياناتك لإنشاء حساب' : 'Enter your details to create an account'}</p>
                     </div>
                     
                     <form onSubmit={handleSubmit} className="register-form">
                         <div className="form-row">
                             <div className="form-group half">
                                 <label htmlFor="first_name">
-                                    {t('register.firstName')}
+                                    {isArabic ? 'الاسم الأول' : 'First Name'}
                                 </label>
                                 <input
                                     id="first_name"
@@ -321,14 +346,14 @@ function Register({ onRegisterSuccess }) {
                                     value={formData.first_name}
                                     onChange={handleChange}
                                     onBlur={() => handleBlur('first_name')}
-                                    placeholder={t('register.firstNamePlaceholder')}
+                                    placeholder={isArabic ? 'أدخل اسمك الأول' : 'Enter your first name'}
                                     className={`search-input ${touched.first_name && !formData.first_name ? 'error' : ''}`}
                                 />
                             </div>
                             
                             <div className="form-group half">
                                 <label htmlFor="last_name">
-                                    {t('register.lastName')}
+                                    {isArabic ? 'اسم العائلة' : 'Last Name'}
                                 </label>
                                 <input
                                     id="last_name"
@@ -337,7 +362,7 @@ function Register({ onRegisterSuccess }) {
                                     value={formData.last_name}
                                     onChange={handleChange}
                                     onBlur={() => handleBlur('last_name')}
-                                    placeholder={t('register.lastNamePlaceholder')}
+                                    placeholder={isArabic ? 'أدخل اسم العائلة' : 'Enter your last name'}
                                     className={`search-input ${touched.last_name && !formData.last_name ? 'error' : ''}`}
                                 />
                             </div>
@@ -345,7 +370,7 @@ function Register({ onRegisterSuccess }) {
 
                         <div className="form-group">
                             <label htmlFor="username">
-                                {t('register.username')} <span className="required">*</span>
+                                {isArabic ? 'اسم المستخدم' : 'Username'} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper">
                                 <input
@@ -356,20 +381,20 @@ function Register({ onRegisterSuccess }) {
                                     onChange={handleChange}
                                     onBlur={() => handleBlur('username')}
                                     required
-                                    placeholder={t('register.usernamePlaceholder')}
+                                    placeholder={isArabic ? 'أدخل اسم المستخدم' : 'Enter username'}
                                     className={`search-input ${touched.username && (!formData.username || formData.username.length < 3) ? 'error' : ''}`}
                                 />
                             </div>
                             {touched.username && formData.username && formData.username.length < 3 && (
                                 <p className="field-error">
-                                    {t('register.usernameTooShort')}
+                                    {isArabic ? 'اسم المستخدم قصير جداً (3 أحرف على الأقل)' : 'Username is too short (minimum 3 characters)'}
                                 </p>
                             )}
                         </div>
 
                         <div className="form-group">
                             <label htmlFor="email">
-                                {t('register.email')} <span className="required">*</span>
+                                {isArabic ? 'البريد الإلكتروني' : 'Email'} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper">
                                 <input
@@ -380,7 +405,7 @@ function Register({ onRegisterSuccess }) {
                                     onChange={handleChange}
                                     onBlur={() => handleBlur('email')}
                                     required
-                                    placeholder={t('register.emailPlaceholder')}
+                                    placeholder={isArabic ? 'أدخل بريدك الإلكتروني' : 'Enter your email'}
                                     className={`search-input ${touched.email && (!formData.email || !formData.email.includes('@')) ? 'error' : ''}`}
                                 />
                             </div>
@@ -388,7 +413,7 @@ function Register({ onRegisterSuccess }) {
 
                         <div className="form-group">
                             <label htmlFor="password">
-                                {t('register.password')} <span className="required">*</span>
+                                {isArabic ? 'كلمة المرور' : 'Password'} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper password-wrapper" style={{ position: 'relative' }}>
                                 <input
@@ -399,14 +424,14 @@ function Register({ onRegisterSuccess }) {
                                     onChange={handleChange}
                                     onBlur={() => handleBlur('password')}
                                     required
-                                    placeholder={t('register.passwordPlaceholder')}
+                                    placeholder={isArabic ? 'أدخل كلمة المرور' : 'Enter password'}
                                     className={`search-input ${touched.password && (!formData.password || formData.password.length < 8) ? 'error' : ''}`}
                                 />
                                 <button
                                     type="button"
                                     className="password-toggle"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+                                    aria-label={showPassword ? (isArabic ? 'إخفاء كلمة المرور' : 'Hide password') : (isArabic ? 'إظهار كلمة المرور' : 'Show password')}
                                     style={{
                                         position: 'absolute',
                                         right: 'var(--spacing-md)',
@@ -445,13 +470,13 @@ function Register({ onRegisterSuccess }) {
                                 </div>
                             )}
                             <p className="password-hint" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: 'var(--spacing-xs)' }}>
-                                {t('register.passwordHint')}
+                                {isArabic ? '8 أحرف على الأقل، حرف كبير، رقم، رمز' : 'At least 8 characters, uppercase, number, symbol'}
                             </p>
                         </div>
 
                         <div className="form-group">
                             <label htmlFor="password2">
-                                {t('register.confirmPassword')} <span className="required">*</span>
+                                {isArabic ? 'تأكيد كلمة المرور' : 'Confirm Password'} <span className="required">*</span>
                             </label>
                             <div className="input-wrapper password-wrapper" style={{ position: 'relative' }}>
                                 <input
@@ -462,14 +487,14 @@ function Register({ onRegisterSuccess }) {
                                     onChange={handleChange}
                                     onBlur={() => handleBlur('password2')}
                                     required
-                                    placeholder={t('register.confirmPasswordPlaceholder')}
+                                    placeholder={isArabic ? 'أعد إدخال كلمة المرور' : 'Re-enter password'}
                                     className={`search-input ${touched.password2 && formData.password2 && formData.password !== formData.password2 ? 'error' : ''}`}
                                 />
                                 <button
                                     type="button"
                                     className="password-toggle"
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    aria-label={showConfirmPassword ? "إخفاء تأكيد كلمة المرور" : "إظهار تأكيد كلمة المرور"}
+                                    aria-label={showConfirmPassword ? (isArabic ? 'إخفاء تأكيد كلمة المرور' : 'Hide confirm password') : (isArabic ? 'إظهار تأكيد كلمة المرور' : 'Show confirm password')}
                                     style={{
                                         position: 'absolute',
                                         right: 'var(--spacing-md)',
@@ -490,7 +515,7 @@ function Register({ onRegisterSuccess }) {
                             </div>
                             {touched.password2 && formData.password2 && formData.password !== formData.password2 && (
                                 <p className="field-error">
-                                    {t('register.passwordsDoNotMatch')}
+                                    {isArabic ? 'كلمة المرور غير متطابقة' : 'Passwords do not match'}
                                 </p>
                             )}
                         </div>
@@ -505,10 +530,10 @@ function Register({ onRegisterSuccess }) {
                                 {loading ? (
                                     <>
                                         <span className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
-                                        {t('register.registering')}
+                                        {isArabic ? 'جاري التسجيل...' : 'Registering...'}
                                     </>
                                 ) : (
-                                    <>{t('register.registerButton')}</>
+                                    <>{isArabic ? 'إنشاء حساب' : 'Sign Up'}</>
                                 )}
                             </button>
                         </div>
@@ -521,7 +546,7 @@ function Register({ onRegisterSuccess }) {
                             margin: 'var(--spacing-xl) 0 var(--spacing-lg)' 
                         }}>
                             <span className="divider-line" style={{ flex: 1, height: '1px', background: 'var(--border-light)' }}></span>
-                            <span className="divider-text" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{t('register.or')}</span>
+                            <span className="divider-text" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{isArabic ? 'أو' : 'OR'}</span>
                             <span className="divider-line" style={{ flex: 1, height: '1px', background: 'var(--border-light)' }}></span>
                         </div>
 
@@ -559,17 +584,17 @@ function Register({ onRegisterSuccess }) {
                             }}
                         >
                             <img src="https://www.google.com/favicon.ico" alt="" className="google-icon" style={{ width: '20px', height: '20px' }} />
-                            <span>{t('register.signupWithGoogle')}</span>
+                            <span>{isArabic ? 'التسجيل باستخدام Google' : 'Sign up with Google'}</span>
                         </button>
 
                         <div className="login-link" style={{ marginTop: 'var(--spacing-xl)', textAlign: 'center' }}>
                             <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                                {t('register.haveAccount')}{' '}
+                                {isArabic ? 'لديك حساب بالفعل؟' : 'Already have an account?'}{' '}
                                 <Link 
                                     to="/login"
                                     style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}
                                 >
-                                    {t('register.login')}
+                                    {isArabic ? 'تسجيل الدخول' : 'Login'}
                                     <span className="btn-arrow"> →</span>
                                 </Link>
                             </p>
@@ -578,13 +603,13 @@ function Register({ onRegisterSuccess }) {
                         {/* الشروط والأحكام */}
                         <div className="terms-info" style={{ marginTop: 'var(--spacing-lg)', textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
                             <p>
-                                {t('register.termsPrefix')}
+                                {isArabic ? 'بالتسجيل، أنت توافق على' : 'By signing up, you agree to our'}{' '}
                                 <button type="button" className="terms-link" style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0 }}>
-                                    {t('register.termsOfService')}
+                                    {isArabic ? 'شروط الخدمة' : 'Terms of Service'}
                                 </button>
-                                {t('register.and')}
+                                {isArabic ? ' و ' : ' and '}
                                 <button type="button" className="terms-link" style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0 }}>
-                                    {t('register.privacyPolicy')}
+                                    {isArabic ? 'سياسة الخصوصية' : 'Privacy Policy'}
                                 </button>
                             </p>
                         </div>
@@ -624,7 +649,7 @@ function Register({ onRegisterSuccess }) {
                     )}
                 </div>
 
-                {/* معلومات إضافية - بدون إيموجي مكرر */}
+                {/* معلومات إضافية */}
                 <div className="register-info">
                     <div className="info-card" style={{
                         background: 'var(--card-bg)',
@@ -634,27 +659,27 @@ function Register({ onRegisterSuccess }) {
                         border: '1px solid var(--border-light)',
                         marginBottom: 'var(--spacing-lg)'
                     }}>
-                        <h3 style={{ margin: '0 0 var(--spacing-lg) 0', color: 'var(--text-primary)' }}>{t('register.benefitsTitle')}</h3>
+                        <h3 style={{ margin: '0 0 var(--spacing-lg) 0', color: 'var(--text-primary)' }}>{isArabic ? 'لماذا تنضم إلى LivoCare؟' : 'Why join LivoCare?'}</h3>
                         <ul className="benefits-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
                                 <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>📊</span>
-                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{t('register.benefit1')}</span>
+                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'تتبع شامل للعلامات الحيوية' : 'Comprehensive vital signs tracking'}</span>
                             </li>
                             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
                                 <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>🥗</span>
-                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{t('register.benefit2')}</span>
+                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'خطط تغذية ذكية' : 'Smart nutrition plans'}</span>
                             </li>
                             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
                                 <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>🌙</span>
-                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{t('register.benefit3')}</span>
+                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'تحليل النوم' : 'Sleep analysis'}</span>
                             </li>
                             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
                                 <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>😊</span>
-                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{t('register.benefit4')}</span>
+                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'تتبع الحالة المزاجية' : 'Mood tracking'}</span>
                             </li>
                             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
                                 <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>💊</span>
-                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{t('register.benefit5')}</span>
+                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'متابعة الأدوية' : 'Medication tracking'}</span>
                             </li>
                         </ul>
                     </div>
@@ -767,37 +792,21 @@ function Register({ onRegisterSuccess }) {
                     gap: var(--spacing-md);
                 }
 
-                .language-switcher {
-                    display: flex;
-                    gap: var(--spacing-xs);
-                    background: var(--secondary-bg);
-                    padding: var(--spacing-xs);
-                    border-radius: var(--radius-full);
-                    border: 1px solid var(--border-light);
-                }
-
                 .lang-btn {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    padding: var(--spacing-sm) var(--spacing-md);
-                    background: transparent;
-                    color: var(--text-secondary);
-                    border: none;
-                    border-radius: var(--radius-full);
+                    background: var(--secondary-bg);
+                    color: var(--text-primary);
+                    border: 1px solid var(--border-light);
+                    padding: 0.5rem 1rem;
+                    border-radius: 10px;
+                    font-size: 0.85rem;
                     cursor: pointer;
-                    transition: all var(--transition-fast);
-                    font-size: 0.9rem;
+                    transition: all var(--transition-medium);
                 }
 
                 .lang-btn:hover {
-                    background: var(--hover-bg);
-                    transform: translateY(-1px);
-                }
-
-                .lang-btn.active {
-                    background: var(--primary);
+                    background: var(--primary-color);
                     color: white;
+                    border-color: var(--primary-color);
                 }
 
                 .theme-toggle {
@@ -1040,14 +1049,6 @@ function Register({ onRegisterSuccess }) {
                     
                     .form-group.half {
                         margin-bottom: var(--spacing-lg);
-                    }
-                    
-                    .lang-text {
-                        display: none;
-                    }
-                    
-                    .lang-btn {
-                        padding: var(--spacing-sm);
                     }
                 }
 

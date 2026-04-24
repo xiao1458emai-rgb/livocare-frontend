@@ -1,13 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
 
-function Sidebar({ activeSection, onSectionChange }) {
-    const { t, i18n } = useTranslation();
-    const isRTL = i18n.language === 'ar';
+function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = propIsArabic !== undefined ? propIsArabic : (lang === 'ar');
+    const isRTL = isArabic;
+    
     const [notificationCount, setNotificationCount] = useState(0);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [hoveredItem, setHoveredItem] = useState(null);
@@ -17,43 +22,58 @@ function Sidebar({ activeSection, onSectionChange }) {
     const abortControllerRef = useRef(null);
     const isFetchingRef = useRef(false);
 
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
+
     const getSections = () => [
-        { id: 'health', icon: '❤️', color: '#ef4444', gradient: 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)', tooltip: t('sidebar.tooltips.health') },
-        { id: 'nutrition', icon: '🥗', color: '#10b981', gradient: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)', tooltip: t('sidebar.tooltips.nutrition') },
-        { id: 'sleep', icon: '🌙', color: '#8b5cf6', gradient: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)', tooltip: t('sidebar.tooltips.sleep') },
-        { id: 'mood', icon: '😊', color: '#f59e0b', gradient: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)', tooltip: t('sidebar.tooltips.mood') },
-        { id: 'habits', icon: '💊', color: '#f97316', gradient: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)', tooltip: t('sidebar.tooltips.habits') },
-        { id: 'smart', icon: '🧠', color: '#3b82f6', gradient: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)', tooltip: t('sidebar.tooltips.smart') },
-        { id: 'chat', icon: '💬', color: '#14b8a6', gradient: 'linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%)', tooltip: t('sidebar.tooltips.chat') },
-        { id: 'reports', icon: '📊', color: '#a855f7', gradient: 'linear-gradient(135deg, #a855f7 0%, #c084fc 100%)', tooltip: t('sidebar.tooltips.reports') },
-        { id: 'profile', icon: '👤', color: '#6b7280', gradient: 'linear-gradient(135deg, #6b7280 0%, #9ca3af 100%)', tooltip: t('sidebar.tooltips.profile') },
+        { id: 'health', icon: '❤️', color: '#ef4444', gradient: 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)', tooltip: isArabic ? 'العلامات الحيوية' : 'Vital Signs' },
+        { id: 'nutrition', icon: '🥗', color: '#10b981', gradient: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)', tooltip: isArabic ? 'التغذية' : 'Nutrition' },
+        { id: 'sleep', icon: '🌙', color: '#8b5cf6', gradient: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)', tooltip: isArabic ? 'النوم' : 'Sleep' },
+        { id: 'mood', icon: '😊', color: '#f59e0b', gradient: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)', tooltip: isArabic ? 'المزاج' : 'Mood' },
+        { id: 'habits', icon: '💊', color: '#f97316', gradient: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)', tooltip: isArabic ? 'العادات' : 'Habits' },
+        { id: 'smart', icon: '🧠', color: '#3b82f6', gradient: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)', tooltip: isArabic ? 'الميزات الذكية' : 'Smart Features' },
+        { id: 'chat', icon: '💬', color: '#14b8a6', gradient: 'linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%)', tooltip: isArabic ? 'المساعد الذكي' : 'Smart Chat' },
+        { id: 'reports', icon: '📊', color: '#a855f7', gradient: 'linear-gradient(135deg, #a855f7 0%, #c084fc 100%)', tooltip: isArabic ? 'التقارير' : 'Reports' },
+        { id: 'profile', icon: '👤', color: '#6b7280', gradient: 'linear-gradient(135deg, #6b7280 0%, #9ca3af 100%)', tooltip: isArabic ? 'الملف الشخصي' : 'Profile' },
     ];
 
     const sections = getSections();
 
     const getSectionInfo = (sectionId) => {
         const sectionNames = {
-            health: t('sidebar.sections.health.name', 'Vital Health'),
-            nutrition: t('sidebar.sections.nutrition.name', 'Nutrition'),
-            sleep: t('sidebar.sections.sleep.name', 'Sleep'),
-            mood: t('sidebar.sections.mood.name', 'Mood'),
-            habits: t('sidebar.sections.habits.name', 'Habits & Medications'),
-            smart: t('sidebar.sections.smart.name', 'Smart Features'),
-            chat: t('sidebar.sections.chat.name', 'Smart Chat'),
-            reports: t('sidebar.sections.reports.name', 'Reports'),
-            profile: t('sidebar.sections.profile.name', 'User Management')
+            health: isArabic ? 'العلامات الحيوية' : 'Vital Signs',
+            nutrition: isArabic ? 'التغذية' : 'Nutrition',
+            sleep: isArabic ? 'النوم' : 'Sleep',
+            mood: isArabic ? 'المزاج' : 'Mood',
+            habits: isArabic ? 'العادات والأدوية' : 'Habits & Medications',
+            smart: isArabic ? 'الميزات الذكية' : 'Smart Features',
+            chat: isArabic ? 'المساعد الذكي' : 'Smart Chat',
+            reports: isArabic ? 'التقارير' : 'Reports',
+            profile: isArabic ? 'الملف الشخصي' : 'Profile'
         };
         
         const sectionDescriptions = {
-            health: t('sidebar.sections.health.description', 'Track biometric measurements'),
-            nutrition: t('sidebar.sections.nutrition.description', 'Manage meals and calories'),
-            sleep: t('sidebar.sections.sleep.description', 'Sleep quality and hours'),
-            mood: t('sidebar.sections.mood.description', 'Track emotions and feelings'),
-            habits: t('sidebar.sections.habits.description', 'Supplements and daily routine'),
-            smart: t('sidebar.sections.smart.description', 'Advanced recommendations & analytics'),
-            chat: t('sidebar.sections.chat.description', 'Intelligent health assistant'),
-            reports: t('sidebar.sections.reports.description', 'Health reports and analytics'),
-            profile: t('sidebar.sections.profile.description', 'Settings and goals')
+            health: isArabic ? 'تتبع القياسات الحيوية' : 'Track biometric measurements',
+            nutrition: isArabic ? 'إدارة الوجبات والسعرات' : 'Manage meals and calories',
+            sleep: isArabic ? 'جودة النوم والساعات' : 'Sleep quality and hours',
+            mood: isArabic ? 'تتبع المشاعر والأحاسيس' : 'Track emotions and feelings',
+            habits: isArabic ? 'المكملات والروتين اليومي' : 'Supplements and daily routine',
+            smart: isArabic ? 'توصيات وتحليلات متقدمة' : 'Advanced recommendations & analytics',
+            chat: isArabic ? 'مساعد صحي ذكي' : 'Intelligent health assistant',
+            reports: isArabic ? 'تقارير وتحليلات صحية' : 'Health reports and analytics',
+            profile: isArabic ? 'الإعدادات والأهداف' : 'Settings and goals'
         };
         
         return {
@@ -84,11 +104,11 @@ function Sidebar({ activeSection, onSectionChange }) {
             if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
                 return;
             }
-            console.error(t('sidebar.errorFetchingCount'), error);
+            console.error('Error fetching notification count', error);
         } finally {
             isFetchingRef.current = false;
         }
-    }, [t]);
+    }, []);
 
     useEffect(() => {
         fetchNotificationCount();
@@ -152,18 +172,18 @@ function Sidebar({ activeSection, onSectionChange }) {
                     </div>
                     {!isCollapsed && (
                         <div className="logo-text">
-                            <span className="app-name">{t('sidebar.appName', 'LivoCare')}</span>
-                            <span className="app-tagline">{t('sidebar.tagline', 'Your Health Care')}</span>
+                            <span className="app-name">LivoCare</span>
+                            <span className="app-tagline">{isArabic ? 'العناية بصحتك' : 'Your Health Care'}</span>
                         </div>
                     )}
                 </div>
                 <button 
                     className="collapse-toggle" 
                     onClick={toggleCollapse}
-                    aria-label={isCollapsed ? t('sidebar.expand', 'Expand') : t('sidebar.collapse', 'Collapse')}
-                    title={isCollapsed ? t('sidebar.expand', 'Expand') : t('sidebar.collapse', 'Collapse')}
+                    aria-label={isCollapsed ? (isArabic ? 'توسيع' : 'Expand') : (isArabic ? 'طي' : 'Collapse')}
+                    title={isCollapsed ? (isArabic ? 'توسيع' : 'Expand') : (isArabic ? 'طي' : 'Collapse')}
                 >
-                    <span className="toggle-icon" aria-hidden="true">{isCollapsed ? '→' : '←'}</span>
+                    <span className="toggle-icon" aria-hidden="true">{isCollapsed ? (isRTL ? '←' : '→') : (isRTL ? '→' : '←')}</span>
                 </button>
             </div>
 
@@ -172,7 +192,7 @@ function Sidebar({ activeSection, onSectionChange }) {
                     {!isCollapsed && (
                         <h3 className="nav-title">
                             <span className="title-icon" aria-hidden="true">📊</span>
-                            {t('sidebar.dashboard', 'Dashboard')}
+                            {isArabic ? 'لوحة التحكم' : 'Dashboard'}
                         </h3>
                     )}
                     <div className="nav-items">
@@ -234,15 +254,15 @@ function Sidebar({ activeSection, onSectionChange }) {
                     {!isCollapsed && (
                         <h3 className="nav-title">
                             <span className="title-icon" aria-hidden="true">⚡</span>
-                            {t('sidebar.extras', 'Extras')}
+                            {isArabic ? 'إضافات' : 'Extras'}
                         </h3>
                     )}
                     <div className="nav-items">
                         <button 
                             className={`nav-item extra-item ${activeSection === 'notifications' ? 'active' : ''}`}
                             onClick={() => onSectionChange('notifications')}
-                            aria-label={t('sidebar.notifications', 'Notifications')}
-                            title={isCollapsed ? t('sidebar.notifications', 'Notifications') : undefined}
+                            aria-label={isArabic ? 'الإشعارات' : 'Notifications'}
+                            title={isCollapsed ? (isArabic ? 'الإشعارات' : 'Notifications') : undefined}
                         >
                             <div className="nav-item-content">
                                 <div className="nav-icon-wrapper">
@@ -250,8 +270,8 @@ function Sidebar({ activeSection, onSectionChange }) {
                                 </div>
                                 {!isCollapsed && (
                                     <div className="nav-text">
-                                        <span className="nav-name">{t('sidebar.notifications', 'Notifications')}</span>
-                                        <span className="nav-description">{t('sidebar.notificationsDesc', 'Latest updates and alerts')}</span>
+                                        <span className="nav-name">{isArabic ? 'الإشعارات' : 'Notifications'}</span>
+                                        <span className="nav-description">{isArabic ? 'آخر التحديثات والتنبيهات' : 'Latest updates and alerts'}</span>
                                     </div>
                                 )}
                             </div>
@@ -269,13 +289,13 @@ function Sidebar({ activeSection, onSectionChange }) {
                 <div className="sidebar-footer">
                     <div className="user-stats">
                         <div className="stat-item">
-                            <span className="stat-value">{t('sidebar.activeSectionsCount', '7')}</span>
-                            <span className="stat-label">{t('sidebar.activeSections', 'Active Sections')}</span>
+                            <span className="stat-value">7</span>
+                            <span className="stat-label">{isArabic ? 'أقسام نشطة' : 'Active Sections'}</span>
                         </div>
                         <div className="stat-divider" aria-hidden="true"></div>
                         <div className="stat-item">
-                            <span className="stat-value">{t('sidebar.healthCoveragePercent', '100%')}</span>
-                            <span className="stat-label">{t('sidebar.healthCoverage', 'Health Coverage')}</span>
+                            <span className="stat-value">100%</span>
+                            <span className="stat-label">{isArabic ? 'تغطية صحية' : 'Health Coverage'}</span>
                         </div>
                     </div>
 
@@ -285,19 +305,17 @@ function Sidebar({ activeSection, onSectionChange }) {
                             <div className="avatar-status online"></div>
                         </div>
                         <div className="user-info">
-                            <span className="user-name">{t('sidebar.userName', 'Livocare User')}</span>
-                            <span className="user-role">{t('sidebar.userRole', 'Premium User')}</span>
+                            <span className="user-name">{isArabic ? 'مستخدم LivoCare' : 'LivoCare User'}</span>
+                            <span className="user-role">{isArabic ? 'مستخدم متميز' : 'Premium User'}</span>
                         </div>
-                        <button className="user-menu-btn" aria-label={t('sidebar.userMenu', 'User menu')}>
+                        <button className="user-menu-btn" aria-label={isArabic ? 'قائمة المستخدم' : 'User menu'}>
                             <span className="menu-dots" aria-hidden="true">⋮</span>
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* الأنماط المخصصة للسايدبار */}
             <style>{`
-                /* أنماط السايدبار */
                 .sidebar {
                     width: 280px;
                     height: 100vh;
@@ -319,7 +337,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     background: linear-gradient(135deg, #0b1120 0%, #030712 100%);
                 }
 
-                /* وضع مصغر */
                 .sidebar.collapsed {
                     width: 80px;
                 }
@@ -336,7 +353,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     margin: 0;
                 }
 
-                /* خلفية متحركة */
                 .sidebar-bg {
                     position: absolute;
                     top: 0;
@@ -371,7 +387,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     50% { transform: scale(1.1) translate(10px, -10px); }
                 }
 
-                /* رأس السايدبار */
                 .sidebar-header {
                     padding: 2rem 1.5rem;
                     border-bottom: 1px solid rgba(255,255,255,0.1);
@@ -471,7 +486,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     display: inline-block;
                 }
 
-                /* قائمة التنقل */
                 .sidebar-nav {
                     flex: 1;
                     padding: 1.5rem 0;
@@ -641,7 +655,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     50% { opacity: 0.5; }
                 }
 
-                /* Tooltip */
                 .nav-tooltip {
                     position: fixed;
                     left: 90px;
@@ -687,7 +700,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     color: rgba(255,255,255,0.7);
                 }
 
-                /* تذييل السايدبار */
                 .sidebar-footer {
                     padding: 1.5rem;
                     border-top: 1px solid rgba(255,255,255,0.1);
@@ -821,7 +833,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     font-size: 1.2rem;
                 }
 
-                /* RTL دعم */
                 .sidebar.rtl {
                     left: auto;
                     right: 0;
@@ -851,7 +862,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     left: -2px;
                 }
 
-                /* شريط التمرير */
                 .sidebar::-webkit-scrollbar {
                     width: 4px;
                 }
@@ -869,7 +879,6 @@ function Sidebar({ activeSection, onSectionChange }) {
                     background: rgba(255, 255, 255, 0.5);
                 }
 
-                /* استجابة */
                 @media (max-width: 1023px) and (min-width: 768px) {
                     .sidebar {
                         width: 250px;

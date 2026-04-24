@@ -1,8 +1,6 @@
-// src/components/HabitTracker.jsx
 'use client'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import HabitAnalytics from './Analytics/HabitAnalytics';
 import BarcodeScanner from '../components/Camera/BarcodeScanner';
@@ -17,8 +15,6 @@ const roundNumber = (num, decimals = 1) => {
 // دالة لحساب النقاط للعادات فقط (بدون أدوية)
 const calculatePoints = (habitName, isCompleted, habitType) => {
     if (!isCompleted) return 0;
-    
-    // الأدوية لا تحصل على نقاط تشجيع (مختلفة عن العادات)
     if (habitType === 'medication') return 0;
     
     const pointsMap = {
@@ -55,9 +51,13 @@ const detectHabitType = (habitName, habitDescription = '') => {
     return 'habit';
 };
 
-function HabitTracker({ isAuthReady }) {
-    const { t, i18n } = useTranslation();
-    const isArabic = i18n.language === 'ar';
+function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
+    // ✅ استخدام isArabic من props مع إمكانية التحديث عبر الحدث
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = propIsArabic !== undefined ? propIsArabic : (lang === 'ar');
     
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
@@ -80,6 +80,23 @@ function HabitTracker({ isAuthReady }) {
     const [drugSearchQuery, setDrugSearchQuery] = useState('');
     const [drugSearchResults, setDrugSearchResults] = useState([]);
     const [searchingDrug, setSearchingDrug] = useState(false);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     // جلب تعريفات العادات
     const fetchHabitDefinitions = useCallback(async () => {
@@ -127,7 +144,7 @@ function HabitTracker({ isAuthReady }) {
         } catch (error) {
             console.error('Failed to fetch habits:', error);
             if (isMountedRef.current) {
-                setMessage(t('habits.fetchError'));
+                setMessage(isArabic ? 'فشل في تحميل العادات' : 'Failed to load habits');
                 setIsError(true);
                 setDefinitions([]);
                 setLogs([]);
@@ -139,7 +156,7 @@ function HabitTracker({ isAuthReady }) {
             }
             isFetchingRef.current = false;
         }
-    }, [isAuthReady, t]);
+    }, [isAuthReady, isArabic]);
 
     useEffect(() => {
         if (isAuthReady) {
@@ -310,7 +327,7 @@ function HabitTracker({ isAuthReady }) {
         e.preventDefault();
         
         if (!isAuthReady) {
-            setMessage(t('habits.loginRequired'));
+            setMessage(isArabic ? 'الرجاء تسجيل الدخول' : 'Please login');
             setIsError(true);
             return;
         }
@@ -320,13 +337,13 @@ function HabitTracker({ isAuthReady }) {
         );
         
         if (existingHabit) {
-            setMessage(t('habits.duplicateHabit', { name: newHabitName }));
+            setMessage(isArabic ? `العادة "${newHabitName}" موجودة مسبقاً` : `Habit "${newHabitName}" already exists`);
             setIsError(true);
             return;
         }
 
         if (!newHabitName.trim() || !newHabitDescription.trim()) {
-            setMessage(t('habits.emptyFields'));
+            setMessage(isArabic ? 'الرجاء إدخال اسم ووصف العادة' : 'Please enter habit name and description');
             setIsError(true);
             return;
         }
@@ -342,7 +359,7 @@ function HabitTracker({ isAuthReady }) {
                 frequency: 'Daily'
             });
             
-            setMessage(t('habits.addSuccess', { name: newHabitName }));
+            setMessage(isArabic ? `تم إضافة "${newHabitName}" بنجاح` : `Successfully added "${newHabitName}"`);
             setNewHabitName('');
             setNewHabitDescription('');
             await fetchHabitDefinitions();
@@ -350,7 +367,7 @@ function HabitTracker({ isAuthReady }) {
             
         } catch (error) {
             console.error('Failed to add habit:', error);
-            setMessage(t('habits.addError'));
+            setMessage(isArabic ? 'فشل في إضافة العادة' : 'Failed to add habit');
             setIsError(true);
         } finally {
             setLoading(false);
@@ -359,7 +376,7 @@ function HabitTracker({ isAuthReady }) {
     
     const handleToggleLog = async (habitId) => {
         if (!isAuthReady) {
-            setMessage(t('habits.loginRequired'));
+            setMessage(isArabic ? 'الرجاء تسجيل الدخول' : 'Please login');
             setIsError(true);
             return;
         }
@@ -374,7 +391,7 @@ function HabitTracker({ isAuthReady }) {
         try {
             if (existingLog && existingLog.id) {
                 await axiosInstance.delete(`/habit-logs/${existingLog.id}/`);
-                setMessage(t('habits.logRemoved', { name: habit?.name || '' }));
+                setMessage(isArabic ? `تم إلغاء إنجاز "${habit?.name}"` : `Undid "${habit?.name}"`);
             } else {
                 await axiosInstance.post('/habit-logs/complete/', {
                     habit_id: habitId,
@@ -384,9 +401,9 @@ function HabitTracker({ isAuthReady }) {
                 const habitType = detectHabitType(habit?.name || '', habit?.description || '');
                 const points = calculatePoints(habit?.name || '', true, habitType);
                 if (points > 0) {
-                    setMessage(t('habits.logAdded', { name: habit?.name || '', points }));
+                    setMessage(isArabic ? `✓ تم إنجاز "${habit?.name}" (+${points} نقطة)` : `✓ Completed "${habit?.name}" (+${points} points)`);
                 } else {
-                    setMessage(t('habits.logAddedNoPoints', { name: habit?.name || '' }));
+                    setMessage(isArabic ? `✓ تم إنجاز "${habit?.name}"` : `✓ Completed "${habit?.name}"`);
                 }
             }
             await fetchHabitDefinitions();
@@ -394,7 +411,7 @@ function HabitTracker({ isAuthReady }) {
             
         } catch (error) {
             console.error('Failed to update habit log:', error);
-            setMessage(t('habits.updateError'));
+            setMessage(isArabic ? 'فشل في تحديث العادة' : 'Failed to update habit');
             setIsError(true);
         } finally {
             setLoading(false);
@@ -421,7 +438,7 @@ function HabitTracker({ isAuthReady }) {
                 <div className="scanner-modal" onClick={() => setShowScanner(false)}>
                     <div className="scanner-modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="scanner-header">
-                            <h3>{t('habits.scanBarcode')}</h3>
+                            <h3>{isArabic ? 'مسح الباركود' : 'Scan Barcode'}</h3>
                             <button className="close-btn" onClick={() => setShowScanner(false)}>✕</button>
                         </div>
                         <BarcodeScanner 
@@ -434,16 +451,16 @@ function HabitTracker({ isAuthReady }) {
                             onClose={() => setShowScanner(false)} 
                         />
                         <div className="scanner-footer">
-                            <p>{t('habits.scanInstructions')}</p>
-                            <button className="cancel-btn" onClick={() => setShowScanner(false)}>{t('common.cancel')}</button>
+                            <p>{isArabic ? 'ضع رمز المنتج داخل الإطار للمسح' : 'Place the barcode inside the frame to scan'}</p>
+                            <button className="cancel-btn" onClick={() => setShowScanner(false)}>{isArabic ? 'إلغاء' : 'Cancel'}</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* رأس الصفحة - ✅ بدون أيقونة مكررة */}
+            {/* رأس الصفحة - ✅ بدون زر لغة */}
             <div className="analytics-header">
-                <h2>{t('habits.title')}</h2>
+                <h2>{isArabic ? 'العادات والأدوية' : 'Habits & Medications'}</h2>
                 <div className="stat-label">
                     {new Date().toLocaleDateString(isArabic ? 'ar-EG' : 'en-US', {
                         weekday: 'long',
@@ -452,6 +469,7 @@ function HabitTracker({ isAuthReady }) {
                         day: 'numeric'
                     })}
                 </div>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
             {/* ✅ قسم البحث عن الأدوية (منفصل) */}
@@ -522,7 +540,7 @@ function HabitTracker({ isAuthReady }) {
                 <div className="insight-card" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)', color: 'white' }}>
                     <div className="insight-icon">🏆</div>
                     <div className="insight-content">
-                        <h3 style={{ color: 'white' }}>{t('habits.points.title', 'نقاطك')}</h3>
+                        <h3 style={{ color: 'white' }}>{isArabic ? 'نقاطك' : 'Your Points'}</h3>
                         <div className="analytics-stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--spacing-md)' }}>
                             <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
                                 <div className="stat-content">
@@ -579,17 +597,17 @@ function HabitTracker({ isAuthReady }) {
             <div className="recommendations-section">
                 <div className="rec-header">
                     <span className="rec-icon">➕</span>
-                    <span className="rec-category">{t('habits.newHabit')}</span>
+                    <span className="rec-category">{isArabic ? 'إضافة عادة جديدة' : 'Add New Habit'}</span>
                 </div>
                 
                 <form onSubmit={handleAddDefinition}>
                     <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                        <label className="stat-label">{t('habits.habitName')}</label>
+                        <label className="stat-label">{isArabic ? 'اسم العادة' : 'Habit Name'}</label>
                         <input
                             type="text"
                             value={newHabitName}
                             onChange={(e) => setNewHabitName(e.target.value)}
-                            placeholder={t('habits.namePlaceholder')}
+                            placeholder={isArabic ? 'مثال: شرب ماء، رياضة، نوم...' : 'Example: Drink water, exercise, sleep...'}
                             required
                             disabled={!isAuthReady || loading}
                             className="search-input"
@@ -597,11 +615,11 @@ function HabitTracker({ isAuthReady }) {
                     </div>
                     
                     <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                        <label className="stat-label">{t('habits.habitDescription')}</label>
+                        <label className="stat-label">{isArabic ? 'وصف العادة' : 'Habit Description'}</label>
                         <textarea
                             value={newHabitDescription}
                             onChange={(e) => setNewHabitDescription(e.target.value)}
-                            placeholder={t('habits.descriptionPlaceholder')}
+                            placeholder={isArabic ? 'وصف تفصيلي للعادة...' : 'Detailed description of the habit...'}
                             required
                             rows="3"
                             disabled={!isAuthReady || loading}
@@ -616,7 +634,7 @@ function HabitTracker({ isAuthReady }) {
                         className="type-btn active"
                         style={{ width: '100%' }}
                     >
-                        {loading ? '⏳ ' + t('common.saving') : '➕ ' + t('habits.addHabit')}
+                        {loading ? '⏳ ' + (isArabic ? 'جاري الحفظ...' : 'Saving...') : '➕ ' + (isArabic ? 'إضافة عادة' : 'Add Habit')}
                     </button>
                 </form>
             </div>
@@ -638,7 +656,7 @@ function HabitTracker({ isAuthReady }) {
                 {loading && isAuthReady && (
                     <div className="analytics-loading">
                         <div className="spinner"></div>
-                        <p>{t('common.loading')}</p>
+                        <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
                     </div>
                 )}
                 

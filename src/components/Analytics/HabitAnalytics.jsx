@@ -1,17 +1,45 @@
 // src/components/Analytics/HabitAnalytics.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import './Analytics.css';
 
 const HabitAnalytics = ({ refreshTrigger }) => {
-    const { t, i18n } = useTranslation();
-    const isArabic = i18n.language?.startsWith('ar');
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
+    const [darkMode, setDarkMode] = useState(() => {
+        const saved = localStorage.getItem('livocare_darkMode') === 'true';
+        return saved || window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+    
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('medications');
     const isMountedRef = useRef(true);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // إعادة جلب البيانات عند تغيير اللغة
+                fetchData();
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     const extractData = (response) => {
         if (response?.results) return response.results;
@@ -62,7 +90,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
         return () => { isMountedRef.current = false; };
     }, [fetchData, refreshTrigger]);
 
-    // ✅ تحديد نوع العادة بشكل أكثر دقة
+    // ✅ تحديد نوع العادة
     const detectHabitType = (habitName, habitDescription = '') => {
         const text = (habitName + ' ' + habitDescription).toLowerCase();
         
@@ -219,7 +247,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             ? Math.round((habitStats.completed / habitStats.totalLogs) * 100) 
             : 0;
         
-        // ✅ أقوى عادة (أعلى نسبة التزام)
+        // ✅ أقوى عادة
         const strongestHabit = [...medications, ...regularHabits].reduce((best, current) => 
             current.rate > best.rate ? current : best, { rate: 0, name: '' });
         
@@ -255,12 +283,26 @@ const HabitAnalytics = ({ refreshTrigger }) => {
         };
     };
 
+    // تأثير الوضع المظلم
+    useEffect(() => {
+        const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true';
+        setDarkMode(savedDarkMode);
+    }, []);
+
+    useEffect(() => {
+        const handleThemeChange = (e) => {
+            setDarkMode(e.detail?.darkMode ?? false);
+        };
+        window.addEventListener('themeChange', handleThemeChange);
+        return () => window.removeEventListener('themeChange', handleThemeChange);
+    }, []);
+
     if (loading) {
         return (
-            <div className="analytics-container">
+            <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="analytics-loading">
                     <div className="spinner"></div>
-                    <p>{t('common.loading')}</p>
+                    <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
                 </div>
             </div>
         );
@@ -268,28 +310,29 @@ const HabitAnalytics = ({ refreshTrigger }) => {
 
     if (error || !data) {
         return (
-            <div className="analytics-container">
+            <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="analytics-error">
-                    <p>📝 {error || (isArabic ? 'لا توجد بيانات كافية' : 'Insufficient data')}</p>
+                    <p>⚠️ {error || (isArabic ? 'لا توجد بيانات كافية' : 'Insufficient data')}</p>
                     <button onClick={fetchData} className="retry-btn">
-                        🔄 {t('common.retry')}
+                        🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                     </button>
+                    {/* ✅ تم إزالة زر اللغة من هنا */}
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="analytics-container">
-            {/* رأس التحليلات - ✅ بدون أيقونة مكررة */}
+        <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
                 <h2>{isArabic ? 'تحليل العادات' : 'Habits Analytics'}</h2>
-                <button onClick={fetchData} className="refresh-btn" title={t('common.refresh')}>
+                <button onClick={fetchData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
-            {/* ✅ ملخص سريع (مرة واحدة فقط) */}
+            {/* ملخص سريع */}
             <div className="analytics-stats-grid">
                 <div className="analytics-stat-card">
                     <div className="stat-icon">💊</div>
@@ -321,7 +364,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                 </div>
             </div>
 
-            {/* ✅ تبويب واحد فقط - منظم */}
+            {/* تبويبات */}
             <div className="analytics-tabs">
                 <button className={activeTab === 'medications' ? 'active' : ''} onClick={() => setActiveTab('medications')}>
                     💊 {isArabic ? 'الأدوية' : 'Medications'}
@@ -335,7 +378,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             </div>
 
             <div className="tab-content">
-                {/* ✅ تبويب الأدوية */}
+                {/* تبويب الأدوية */}
                 {activeTab === 'medications' && (
                     <div className="medications-section">
                         {data.medications.count === 0 ? (
@@ -352,9 +395,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                                         <div className="stat-value" style={{ fontSize: '2rem', color: 'var(--primary)' }}>
                                             {data.medications.adherenceRate}%
                                         </div>
-                                        <p className="stat-trend">
-                                            {data.medications.complianceMessage}
-                                        </p>
+                                        <p className="stat-trend">{data.medications.complianceMessage}</p>
                                     </div>
                                 </div>
 
@@ -386,7 +427,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* ✅ تبويب العادات (منفصل تماماً) */}
+                {/* تبويب العادات */}
                 {activeTab === 'habits' && (
                     <div className="habits-section">
                         {data.habits.count === 0 ? (
@@ -404,9 +445,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                                             {data.habits.completionRate}%
                                         </div>
                                         {data.strongestHabit && (
-                                            <p className="stat-trend">
-                                                💪 {data.strongestHabit}: {data.strongestHabitRate}%
-                                            </p>
+                                            <p className="stat-trend">💪 {data.strongestHabit}: {data.strongestHabitRate}%</p>
                                         )}
                                     </div>
                                 </div>
@@ -444,10 +483,9 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* ✅ تبويب التحليلات */}
+                {/* تبويب التحليلات */}
                 {activeTab === 'insights' && (
                     <div className="insights-section">
-                        {/* أنماط صحية محتملة */}
                         {data.healthPatterns.length > 0 && (
                             <div className="insight-card" style={{ background: 'var(--info-bg)' }}>
                                 <div className="insight-icon">📊</div>
@@ -469,7 +507,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                             </div>
                         )}
 
-                        {/* توصيات */}
                         {data.recommendations.length > 0 && (
                             <div className="recommendations-section">
                                 <h3>💡 {isArabic ? 'توصيات ذكية' : 'Smart Recommendations'}</h3>
@@ -488,7 +525,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                             </div>
                         )}
 
-                        {/* نصائح سريعة */}
                         <div className="habit-tips">
                             <h4>💡 {isArabic ? 'نصائح سريعة' : 'Quick Tips'}</h4>
                             <div className="tips-grid">

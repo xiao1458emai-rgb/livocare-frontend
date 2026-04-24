@@ -1,6 +1,6 @@
+// src/components/MoodTracker.jsx
 'use client'
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import MoodAnalytics from './Analytics/MoodAnalytics';
 import '../index.css';
@@ -50,52 +50,50 @@ const getMoodGradient = (mood) => {
     return gradients[mood] || 'linear-gradient(135deg, #6b7280 0%, #9ca3af 100%)';
 };
 
-// دالة للحصول على نص المزاج المترجم
-const getTranslatedMood = (mood, t) => {
-    const translations = {
-        'Excellent': t('mood.excellent'),
-        'Good': t('mood.good'),
-        'Neutral': t('mood.neutral'),
-        'Stressed': t('mood.stressed'),
-        'Anxious': t('mood.anxious'),
-        'Sad': t('mood.sad')
+// دالة للحصول على نص المزاج
+const getMoodText = (mood, isArabic) => {
+    const mapAr = {
+        'Excellent': 'ممتاز',
+        'Good': 'جيد',
+        'Neutral': 'محايد',
+        'Stressed': 'مرهق',
+        'Anxious': 'قلق',
+        'Sad': 'حزين'
     };
-    return translations[mood] || mood;
+    const mapEn = {
+        'Excellent': 'Excellent',
+        'Good': 'Good',
+        'Neutral': 'Neutral',
+        'Stressed': 'Stressed',
+        'Anxious': 'Anxious',
+        'Sad': 'Sad'
+    };
+    return isArabic ? (mapAr[mood] || mood) : (mapEn[mood] || mood);
 };
 
 // دالة للحصول على اقتراح نشاط حسب المزاج
-const getActivitySuggestion = (mood, t) => {
-    const suggestions = {
-        'Excellent': {
-            icon: '🚀',
-            text: t('mood.suggestions.excellent', 'وقت مناسب للإنتاجية والإنجاز')
-        },
-        'Good': {
-            icon: '💪',
-            text: t('mood.suggestions.good', 'استغل طاقتك في ممارسة هواية تحبها')
-        },
-        'Neutral': {
-            icon: '🎧',
-            text: t('mood.suggestions.neutral', 'استمع لموسيقى تحبها لتحسين مزاجك')
-        },
-        'Stressed': {
-            icon: '🧘',
-            text: t('mood.suggestions.stressed', 'جرب تمارين التنفس العميق أو المشي')
-        },
-        'Anxious': {
-            icon: '🌿',
-            text: t('mood.suggestions.anxious', 'خذ استراحة قصيرة وتأمل لمدة 5 دقائق')
-        },
-        'Sad': {
-            icon: '💬',
-            text: t('mood.suggestions.sad', 'تحدث مع شخص تثق به أو اكتب مشاعرك')
-        }
+const getActivitySuggestion = (mood, isArabic) => {
+    const suggestionsAr = {
+        'Excellent': { icon: '🚀', text: 'وقت مناسب للإنتاجية والإنجاز' },
+        'Good': { icon: '💪', text: 'استغل طاقتك في ممارسة هواية تحبها' },
+        'Neutral': { icon: '🎧', text: 'استمع لموسيقى تحبها لتحسين مزاجك' },
+        'Stressed': { icon: '🧘', text: 'جرب تمارين التنفس العميق أو المشي' },
+        'Anxious': { icon: '🌿', text: 'خذ استراحة قصيرة وتأمل لمدة 5 دقائق' },
+        'Sad': { icon: '💬', text: 'تحدث مع شخص تثق به أو اكتب مشاعرك' }
     };
-    return suggestions[mood] || { icon: '💡', text: t('mood.suggestions.default', 'اهتم بنفسك اليوم') };
+    const suggestionsEn = {
+        'Excellent': { icon: '🚀', text: 'Great time for productivity and achievement' },
+        'Good': { icon: '💪', text: 'Use your energy to do an activity you love' },
+        'Neutral': { icon: '🎧', text: 'Listen to music you like to improve your mood' },
+        'Stressed': { icon: '🧘', text: 'Try deep breathing exercises or walking' },
+        'Anxious': { icon: '🌿', text: 'Take a short break and meditate for 5 minutes' },
+        'Sad': { icon: '💬', text: 'Talk to someone you trust or write your feelings' }
+    };
+    return isArabic ? (suggestionsAr[mood] || { icon: '💡', text: 'اهتم بنفسك اليوم' }) : (suggestionsEn[mood] || { icon: '💡', text: 'Take care of yourself today' });
 };
 
-// دالة للكشف عن الاكتئاب - ✅ تم إصلاح i18n
-const detectDepressionRisk = (moodData, t) => {
+// دالة للكشف عن الاكتئاب
+const detectDepressionRisk = (moodData, isArabic) => {
     if (moodData.length < 5) return null;
     
     const badMoods = ['Stressed', 'Anxious', 'Sad'];
@@ -119,16 +117,16 @@ const detectDepressionRisk = (moodData, t) => {
         return {
             risk: 'high',
             days: consecutiveBadDays,
-            message: t('mood.depressionRisk.warning', '⚠️ نلاحظ انخفاضاً مستمراً في مزاجك'),
-            suggestion: t('mood.depressionRisk.suggestion', 'يفضل التحدث مع شخص تثق به أو استشارة مختص'),
+            message: isArabic ? '⚠️ نلاحظ انخفاضاً مستمراً في مزاجك' : '⚠️ We notice a continuous decline in your mood',
+            suggestion: isArabic ? 'يفضل التحدث مع شخص تثق به أو استشارة مختص' : 'Talk to someone you trust or consult a specialist',
             mood: lastBadMood
         };
     } else if (consecutiveBadDays >= 3) {
         return {
             risk: 'moderate',
             days: consecutiveBadDays,
-            message: t('mood.depressionRisk.moderate', '📉 مزاجك منخفض لعدة أيام متتالية'),
-            suggestion: t('mood.depressionRisk.moderateSuggestion', 'حاول القيام بنشاطات تحبها للخروج من هذه الحالة'),
+            message: isArabic ? '📉 مزاجك منخفض لعدة أيام متتالية' : '📉 Your mood has been low for several consecutive days',
+            suggestion: isArabic ? 'حاول القيام بنشاطات تحبها للخروج من هذه الحالة' : 'Try doing activities you enjoy to lift your mood',
             mood: lastBadMood
         };
     }
@@ -137,8 +135,12 @@ const detectDepressionRisk = (moodData, t) => {
 };
 
 function MoodTracker({ isAuthReady }) {
-    const { t, i18n } = useTranslation();
-    const isArabic = i18n.language === 'ar';
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
     
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
@@ -160,6 +162,26 @@ function MoodTracker({ isAuthReady }) {
         text_entry: ''
     });
     const [reducedMotion, setReducedMotion] = useState(false);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // تطبيق اتجاه الصفحة
+                document.documentElement.dir = event.detail.isArabic ? 'rtl' : 'ltr';
+                document.documentElement.lang = event.detail.isArabic ? 'ar' : 'en';
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     useEffect(() => {
         const motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -215,7 +237,7 @@ function MoodTracker({ isAuthReady }) {
         } catch (error) {
             console.error('Error fetching mood data:', error);
             if (isMountedRef.current) {
-                setError(t('mood.fetchError'));
+                setError(isArabic ? 'خطأ في جلب بيانات المزاج' : 'Error fetching mood data');
             }
         } finally {
             if (isMountedRef.current) {
@@ -223,7 +245,7 @@ function MoodTracker({ isAuthReady }) {
             }
             isFetchingRef.current = false;
         }
-    }, [isAuthReady, t]);
+    }, [isAuthReady, isArabic]);
 
     useEffect(() => {
         fetchMoodData();
@@ -280,14 +302,14 @@ function MoodTracker({ isAuthReady }) {
             const percentage = (overlap.length / lowSleepDays.length) * 100;
             return {
                 hasCorrelation: true,
-                message: t('mood.correlations.sleepImpact', 'نلاحظ أن مزاجك أسوأ عندما تنام أقل من 6 ساعات'),
-                details: t('mood.correlations.sleepImpactDetails', `في ${overlap.length} من ${lowSleepDays.length} يوم`),
-                suggestion: t('mood.correlations.sleepSuggestion', 'حاول النوم 7-8 ساعات لتحسين مزاجك')
+                message: isArabic ? 'نلاحظ أن مزاجك أسوأ عندما تنام أقل من 6 ساعات' : 'We notice your mood is worse when you sleep less than 6 hours',
+                details: isArabic ? `في ${overlap.length} من ${lowSleepDays.length} يوم` : `in ${overlap.length} of ${lowSleepDays.length} days`,
+                suggestion: isArabic ? 'حاول النوم 7-8 ساعات لتحسين مزاجك' : 'Try to sleep 7-8 hours to improve your mood'
             };
         }
         
         return null;
-    }, [moodData, sleepData, t]);
+    }, [moodData, sleepData, isArabic]);
 
     const moodStats = useMemo(() => {
         const stats = {};
@@ -298,8 +320,8 @@ function MoodTracker({ isAuthReady }) {
     }, [moodData]);
 
     const depressionRisk = useMemo(() => {
-        return detectDepressionRisk(moodData, t);
-    }, [moodData, t]);
+        return detectDepressionRisk(moodData, isArabic);
+    }, [moodData, isArabic]);
 
     const handleAddMood = useCallback(async (e) => {
         e.preventDefault();
@@ -323,7 +345,7 @@ function MoodTracker({ isAuthReady }) {
         } catch (error) {
             console.error('Error adding mood:', error);
             if (isMountedRef.current) {
-                setError(t('mood.addError'));
+                setError(isArabic ? 'خطأ في إضافة المزاج' : 'Error adding mood');
                 setTimeout(() => {
                     if (isMountedRef.current) setError(null);
                 }, 3000);
@@ -334,10 +356,10 @@ function MoodTracker({ isAuthReady }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [newMood, t, fetchMoodData]);
+    }, [newMood, isArabic, fetchMoodData]);
 
     const handleDeleteMood = useCallback(async (id) => {
-        if (!window.confirm(t('mood.deleteConfirm'))) return;
+        if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف هذا السجل؟' : 'Are you sure you want to delete this record?')) return;
         
         try {
             await axiosInstance.delete(`/mood-logs/${id}/`);
@@ -355,20 +377,20 @@ function MoodTracker({ isAuthReady }) {
         } catch (error) {
             console.error('Error deleting mood:', error);
             if (isMountedRef.current) {
-                setError(t('mood.deleteError'));
+                setError(isArabic ? 'خطأ في حذف السجل' : 'Error deleting record');
                 setTimeout(() => {
                     if (isMountedRef.current) setError(null);
                 }, 3000);
             }
         }
-    }, [t, todayMood]);
+    }, [isArabic, todayMood]);
 
     if (loading && moodData.length === 0) {
         return (
             <div className="analytics-container">
                 <div className="analytics-loading">
                     <div className="spinner"></div>
-                    <p>{t('common.loading')}</p>
+                    <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
                 </div>
             </div>
         );
@@ -376,12 +398,12 @@ function MoodTracker({ isAuthReady }) {
 
     return (
         <div className={`analytics-container ${reducedMotion ? 'reduce-motion' : ''}`}>
-            {/* رأس الصفحة - ✅ بدون أيقونة مكررة */}
+            {/* رأس الصفحة */}
             <div className="analytics-header">
                 <div className="title-wrapper" style={{ flex: 1 }}>
-                    <h2>{t('mood.title')}</h2>
+                    <h2>{isArabic ? 'تتبع المزاج' : 'Mood Tracker'}</h2>
                     <div className="type-filters" style={{ marginBottom: 0 }}>
-                        <span className="type-btn">📊 {moodData.length} {t('mood.entries')}</span>
+                        <span className="type-btn">📊 {moodData.length} {isArabic ? 'سجل' : 'entries'}</span>
                         {Object.entries(moodStats).slice(0, 3).map(([mood, count]) => (
                             <span key={mood} className="type-btn" style={{ color: getMoodColor(mood) }}>
                                 {getMoodIcon(mood)} {count}
@@ -394,13 +416,14 @@ function MoodTracker({ isAuthReady }) {
                 </div>
                 
                 <div className="controls" style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+                    {/* ✅ تم إزالة زر اللغة من هنا */}
                     <button 
                         onClick={() => setShowForm(!showForm)}
                         className={`type-btn ${todayMood ? 'active' : ''}`}
                         style={{ background: todayMood ? 'var(--success)' : 'var(--primary)' }}
                     >
                         <span>{todayMood ? '✏️' : '➕'}</span>
-                        <span>{todayMood ? t('mood.updateToday') : t('mood.addToday')}</span>
+                        <span>{todayMood ? (isArabic ? 'تحديث اليوم' : 'Update Today') : (isArabic ? 'أضف اليوم' : 'Add Today')}</span>
                     </button>
                     
                     <label className="auto-refresh-toggle" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}>
@@ -429,14 +452,14 @@ function MoodTracker({ isAuthReady }) {
                                 transition: 'all var(--transition-fast)'
                             }}></span>
                         </span>
-                        <span className="stat-label">{t('mood.autoRefresh')}</span>
+                        <span className="stat-label">{isArabic ? 'تحديث تلقائي' : 'Auto Refresh'}</span>
                     </label>
                 </div>
             </div>
 
             {lastUpdate && (
                 <div className="stat-label" style={{ marginBottom: 'var(--spacing-md)', textAlign: 'right' }}>
-                    🕒 {t('mood.lastUpdate')}: {lastUpdate.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
+                    🕒 {isArabic ? 'آخر تحديث' : 'Last Update'}: {lastUpdate.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
                 </div>
             )}
 
@@ -447,7 +470,7 @@ function MoodTracker({ isAuthReady }) {
                         <span className="rec-category">{depressionRisk.message}</span>
                     </div>
                     <p className="rec-message">
-                        {t('mood.depressionRisk.details', `لاحظنا انخفاضاً في مزاجك لـ ${depressionRisk.days} أيام متتالية`)}
+                        {isArabic ? `لاحظنا انخفاضاً في مزاجك لـ ${depressionRisk.days} أيام متتالية` : `We noticed a decline in your mood for ${depressionRisk.days} consecutive days`}
                     </p>
                     <div className="rec-advice">{depressionRisk.suggestion}</div>
                 </div>
@@ -461,35 +484,35 @@ function MoodTracker({ isAuthReady }) {
                     <div className="insight-content">
                         <div className="notification-header" style={{ marginBottom: 0 }}>
                             <div className="notification-title">
-                                <h3>{t('mood.yourMoodToday')}</h3>
+                                <h3>{isArabic ? 'مزاجك اليوم' : 'Your Mood Today'}</h3>
                                 <span className="priority-badge" style={{ background: getMoodColor(todayMood.mood), color: 'white' }}>
-                                    {getTranslatedMood(todayMood.mood, t)}
+                                    {getMoodText(todayMood.mood, isArabic)}
                                 </span>
                             </div>
-                            <button onClick={() => handleDeleteMood(todayMood.id)} className="notification-action-btn" title={t('common.delete')}>
+                            <button onClick={() => handleDeleteMood(todayMood.id)} className="notification-action-btn" title={isArabic ? 'حذف' : 'Delete'}>
                                 🗑️
                             </button>
                         </div>
                         
                         {todayMood.factors && (
                             <div className="notification-content" style={{ marginTop: 'var(--spacing-sm)' }}>
-                                <strong>{t('mood.factors')}:</strong> {todayMood.factors}
+                                <strong>{isArabic ? 'العوامل المؤثرة' : 'Factors'}:</strong> {todayMood.factors}
                             </div>
                         )}
                         {todayMood.text_entry && (
                             <div className="notification-content">
-                                <strong>{t('mood.notes')}:</strong> {todayMood.text_entry}
+                                <strong>{isArabic ? 'ملاحظات' : 'Notes'}:</strong> {todayMood.text_entry}
                             </div>
                         )}
                         
                         <div className="notification-meta" style={{ marginTop: 'var(--spacing-sm)' }}>
-                            <span className="notification-time">{t('mood.recordedAt')}: {new Date(todayMood.entry_time).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}</span>
+                            <span className="notification-time">{isArabic ? 'وقت التسجيل' : 'Recorded At'}: {new Date(todayMood.entry_time).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}</span>
                         </div>
                         
                         <div className="recommendation-card priority-low" style={{ marginTop: 'var(--spacing-md)' }}>
                             <div className="rec-header">
-                                <span className="rec-icon">{getActivitySuggestion(todayMood.mood, t).icon}</span>
-                                <span className="rec-category">{getActivitySuggestion(todayMood.mood, t).text}</span>
+                                <span className="rec-icon">{getActivitySuggestion(todayMood.mood, isArabic).icon}</span>
+                                <span className="rec-category">{getActivitySuggestion(todayMood.mood, isArabic).text}</span>
                             </div>
                         </div>
                     </div>
@@ -499,13 +522,13 @@ function MoodTracker({ isAuthReady }) {
             {showForm && (
                 <div className="recommendations-section">
                     <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
-                        <h3>{todayMood ? t('mood.updateToday') : t('mood.addNew')}</h3>
+                        <h3>{todayMood ? (isArabic ? 'تحديث المزاج' : 'Update Mood') : (isArabic ? 'إضافة مزاج جديد' : 'Add New Mood')}</h3>
                         <button onClick={() => setShowForm(false)} className="refresh-btn">✕</button>
                     </div>
                     
                     <form onSubmit={handleAddMood}>
                         <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                            <label className="stat-label">{t('mood.chooseMood')}</label>
+                            <label className="stat-label">{isArabic ? 'اختر حالتك المزاجية' : 'Choose Your Mood'}</label>
                             <div className="type-filters" style={{ marginTop: 'var(--spacing-sm)' }}>
                                 {['Excellent', 'Good', 'Neutral', 'Stressed', 'Anxious', 'Sad'].map(mood => (
                                     <label key={mood} className="type-btn" style={{
@@ -522,29 +545,29 @@ function MoodTracker({ isAuthReady }) {
                                             style={{ display: 'none' }}
                                         />
                                         <span>{getMoodIcon(mood)}</span>
-                                        <span>{getTranslatedMood(mood, t)}</span>
+                                        <span>{getMoodText(mood, isArabic)}</span>
                                     </label>
                                 ))}
                             </div>
                         </div>
 
                         <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                            <label className="stat-label">{t('mood.factors')} ({t('common.optional')})</label>
+                            <label className="stat-label">{isArabic ? 'العوامل المؤثرة' : 'Factors'} ({isArabic ? 'اختياري' : 'Optional'})</label>
                             <input 
                                 type="text"
                                 value={newMood.factors}
                                 onChange={(e) => setNewMood({...newMood, factors: e.target.value})}
-                                placeholder={t('mood.factorsPlaceholder')}
+                                placeholder={isArabic ? 'مثال: قلة نوم، ضغوط عمل...' : 'Example: lack of sleep, work stress...'}
                                 className="search-input"
                             />
                         </div>
 
                         <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                            <label className="stat-label">{t('mood.notes')} ({t('common.optional')})</label>
+                            <label className="stat-label">{isArabic ? 'ملاحظات إضافية' : 'Additional Notes'} ({isArabic ? 'اختياري' : 'Optional'})</label>
                             <textarea 
                                 value={newMood.text_entry}
                                 onChange={(e) => setNewMood({...newMood, text_entry: e.target.value})}
-                                placeholder={t('mood.notesPlaceholder')}
+                                placeholder={isArabic ? 'أضف أي تفاصيل إضافية...' : 'Add any additional details...'}
                                 className="search-input"
                                 rows="2"
                                 style={{ resize: 'vertical' }}
@@ -556,14 +579,14 @@ function MoodTracker({ isAuthReady }) {
                                 {loading ? (
                                     <>
                                         <span className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
-                                        {t('common.saving')}
+                                        {isArabic ? 'جاري الحفظ...' : 'Saving...'}
                                     </>
                                 ) : (
-                                    <>{t('mood.saveMood')}</>
+                                    <>{isArabic ? 'حفظ' : 'Save'}</>
                                 )}
                             </button>
                             <button type="button" onClick={() => setShowForm(false)} className="type-btn" style={{ flex: 1 }}>
-                                {t('common.cancel')}
+                                {isArabic ? 'إلغاء' : 'Cancel'}
                             </button>
                         </div>
                     </form>
@@ -582,7 +605,7 @@ function MoodTracker({ isAuthReady }) {
                 <div className="insight-card">
                     <div className="insight-icon">🧠</div>
                     <div className="insight-content">
-                        <h3>{t('mood.correlations.title', 'تحليل ذكي')}</h3>
+                        <h3>{isArabic ? 'تحليل ذكي' : 'Smart Analysis'}</h3>
                         <p className="rec-message">{sleepMoodCorrelation.message}</p>
                         <p className="stat-label">{sleepMoodCorrelation.details}</p>
                         <div className="rec-advice" style={{ marginTop: 'var(--spacing-sm)' }}>💡 {sleepMoodCorrelation.suggestion}</div>
@@ -590,11 +613,11 @@ function MoodTracker({ isAuthReady }) {
                 </div>
             )}
 
-            {/* السجل التاريخي - ✅ بدون أيقونات مكررة */}
+            {/* السجل التاريخي */}
             <div className="recommendations-section">
                 <div className="rec-header">
                     <span className="rec-icon">📋</span>
-                    <span className="rec-category">{t('mood.history')}</span>
+                    <span className="rec-category">{isArabic ? 'سجل المزاج' : 'Mood History'}</span>
                     {moodData.length > 0 && <span className="rec-type tip">({moodData.length})</span>}
                 </div>
                 
@@ -608,10 +631,10 @@ function MoodTracker({ isAuthReady }) {
                                             {getMoodIcon(entry.mood)}
                                         </div>
                                         <span style={{ color: getMoodColor(entry.mood), fontWeight: 'bold' }}>
-                                            {getTranslatedMood(entry.mood, t)}
+                                            {getMoodText(entry.mood, isArabic)}
                                         </span>
                                     </div>
-                                    <button onClick={() => handleDeleteMood(entry.id)} className="notification-action-btn" title={t('common.delete')}>
+                                    <button onClick={() => handleDeleteMood(entry.id)} className="notification-action-btn" title={isArabic ? 'حذف' : 'Delete'}>
                                         🗑️
                                     </button>
                                 </div>
@@ -633,12 +656,12 @@ function MoodTracker({ isAuthReady }) {
                                     
                                     {entry.factors && (
                                         <div style={{ marginTop: 'var(--spacing-sm)' }}>
-                                            <strong>{t('mood.factors')}:</strong> {entry.factors}
+                                            <strong>{isArabic ? 'العوامل المؤثرة' : 'Factors'}:</strong> {entry.factors}
                                         </div>
                                     )}
                                     {entry.text_entry && (
                                         <div style={{ marginTop: 'var(--spacing-sm)' }}>
-                                            <strong>{t('mood.notes')}:</strong> {entry.text_entry}
+                                            <strong>{isArabic ? 'ملاحظات' : 'Notes'}:</strong> {entry.text_entry}
                                         </div>
                                     )}
                                 </div>
@@ -648,10 +671,10 @@ function MoodTracker({ isAuthReady }) {
                 ) : (
                     <div className="analytics-empty">
                         <div className="empty-icon">📝</div>
-                        <h4>{t('mood.noRecords')}</h4>
-                        <p>{t('mood.startRecording')}</p>
+                        <h4>{isArabic ? 'لا توجد سجلات مزاج' : 'No Mood Records'}</h4>
+                        <p>{isArabic ? 'ابدأ بتسجيل حالتك المزاجية' : 'Start recording your mood'}</p>
                         <button onClick={() => setShowForm(true)} className="type-btn active" style={{ marginTop: 'var(--spacing-md)' }}>
-                            ➕ {t('mood.addFirst')}
+                            ➕ {isArabic ? 'أضف أول سجل' : 'Add First Record'}
                         </button>
                     </div>
                 )}
@@ -668,13 +691,15 @@ function MoodTracker({ isAuthReady }) {
                     <div className="rec-header">
                         <span className="rec-icon">ℹ️</span>
                         <span className="rec-category">
-                            {t('mood.needMoreData', `سجل ${7 - moodData.length} يوم إضافي للحصول على تحليلات دقيقة`)}
+                            {isArabic ? `سجل ${7 - moodData.length} يوم إضافي للحصول على تحليلات دقيقة` : `Log ${7 - moodData.length} more days for accurate insights`}
                         </span>
                     </div>
                 </div>
             )}
 
             <style>{`
+                /* ✅ تم إزالة .lang-btn styles */
+
                 @keyframes spin {
                     to { transform: rotate(360deg); }
                 }

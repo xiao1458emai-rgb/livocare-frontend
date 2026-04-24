@@ -1,12 +1,16 @@
 'use client'
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
 
 function HealthDashboard({ refreshKey }) {
-    const { t, i18n } = useTranslation();
-    const isArabic = i18n.language === 'ar';
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const [latestReading, setLatestReading] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -26,6 +30,26 @@ function HealthDashboard({ refreshKey }) {
     const isFetchingRef = useRef(false);
     const isFetchingInsightsRef = useRef(false);
     const isFetchingAdvancedRef = useRef(false);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // تطبيق اتجاه الصفحة
+                document.documentElement.dir = event.detail.isArabic ? 'rtl' : 'ltr';
+                document.documentElement.lang = event.detail.isArabic ? 'ar' : 'en';
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     // جلب أحدث قراءة
     const fetchLatestReading = useCallback(async () => {
@@ -50,12 +74,12 @@ function HealthDashboard({ refreshKey }) {
         } catch (err) {
             if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
             console.error('Failed to fetch latest health reading:', err);
-            if (isMountedRef.current) setError(t('health.dashboard.fetchError'));
+            if (isMountedRef.current) setError(isArabic ? 'خطأ في جلب البيانات' : 'Error fetching data');
         } finally {
             if (isMountedRef.current) setLoading(false);
             isFetchingRef.current = false;
         }
-    }, [t]);
+    }, [isArabic]);
 
     // جلب الرؤى المتقاطعة
     const fetchCrossInsights = useCallback(async () => {
@@ -105,7 +129,7 @@ function HealthDashboard({ refreshKey }) {
             if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
             console.error('Failed to fetch advanced insights:', err);
             if (isMountedRef.current) {
-                if (err.response?.status === 404) setAdvancedError(isArabic ? '⚠️ ميزة التحليلات المتقدمة غير متوفرة حالياً' : '⚠️ Advanced insights feature is currently unavailable');
+                if (err.response?.status === 404) setAdvancedError(isArabic ? 'ميزة التحليلات المتقدمة غير متوفرة حالياً' : 'Advanced insights feature is currently unavailable');
                 else setAdvancedError(isArabic ? 'تعذر تحميل التحليلات المتقدمة' : 'Failed to load advanced insights');
             }
         } finally {
@@ -330,7 +354,7 @@ function HealthDashboard({ refreshKey }) {
             <div className="analytics-container">
                 <div className="analytics-loading">
                     <div className="spinner"></div>
-                    <p>{t('health.dashboard.loading')}</p>
+                    <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
                 </div>
             </div>
         );
@@ -343,8 +367,9 @@ function HealthDashboard({ refreshKey }) {
                     <div className="empty-icon">❌</div>
                     <p>{error}</p>
                     <button onClick={fetchLatestReading} className="type-btn active">
-                        🔄 {t('health.dashboard.retry')}
+                        🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                     </button>
+                    {/* ✅ تم إزالة زر اللغة من هنا */}
                 </div>
             </div>
         );
@@ -354,10 +379,10 @@ function HealthDashboard({ refreshKey }) {
 
     return (
         <div className="analytics-container">
-            {/* رأس اللوحة - ✅ بدون أيقونة مكررة */}
+            {/* رأس اللوحة */}
             <div className="analytics-header">
                 <h2>
-                    {t('health.dashboard.latestReading')}
+                    {isArabic ? 'آخر قراءة صحية' : 'Latest Health Reading'}
                     <span className={`priority-badge priority-${readingStatus.status === 'critical' ? 'urgent' : readingStatus.status === 'warning' ? 'high' : readingStatus.status === 'good' ? 'medium' : 'low'}`} style={{ marginLeft: 'var(--spacing-sm)' }}>
                         <span className="status-icon">{readingStatus.icon}</span>
                         {readingStatus.message}
@@ -367,9 +392,10 @@ function HealthDashboard({ refreshKey }) {
                     <span className="notification-time">📅 {formattedDate.date}</span>
                     <span className="notification-time">⏰ {formattedDate.time}</span>
                 </div>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
-            {/* ✅ درجة الصحة */}
+            {/* درجة الصحة */}
             <div className="global-health-card" style={{ marginBottom: 'var(--spacing-lg)' }}>
                 <div className="health-score-container">
                     <div className="health-score-circle">
@@ -397,24 +423,22 @@ function HealthDashboard({ refreshKey }) {
                 </div>
             </div>
 
-            {/* بطاقات القراءات - ✅ تنسيق صحيح */}
+            {/* بطاقات القراءات */}
             <div className="analytics-stats-grid">
-                {/* الوزن */}
                 <div className="analytics-stat-card">
                     <div className="stat-icon">⚖️</div>
                     <div className="stat-content">
-                        <div className="stat-label">{t('health.dashboard.weight')}</div>
+                        <div className="stat-label">{isArabic ? 'الوزن' : 'Weight'}</div>
                         <div className="stat-value">
                             {latestReading?.weight_kg ? `${latestReading.weight_kg.toFixed(1)} kg` : '—'}
                         </div>
                     </div>
                 </div>
 
-                {/* ضغط الدم - ✅ مع مسافات */}
                 <div className="analytics-stat-card">
                     <div className="stat-icon">❤️</div>
                     <div className="stat-content">
-                        <div className="stat-label">{t('health.dashboard.bloodPressure')}</div>
+                        <div className="stat-label">{isArabic ? 'ضغط الدم' : 'Blood Pressure'}</div>
                         <div className="stat-value">
                             {latestReading?.systolic_pressure && latestReading?.diastolic_pressure 
                                 ? `${latestReading.systolic_pressure} / ${latestReading.diastolic_pressure} mmHg`
@@ -423,11 +447,10 @@ function HealthDashboard({ refreshKey }) {
                     </div>
                 </div>
 
-                {/* الجلوكوز */}
                 <div className="analytics-stat-card">
                     <div className="stat-icon">🩸</div>
                     <div className="stat-content">
-                        <div className="stat-label">{t('health.dashboard.bloodGlucose')}</div>
+                        <div className="stat-label">{isArabic ? 'سكر الدم' : 'Blood Glucose'}</div>
                         <div className="stat-value">
                             {latestReading?.blood_glucose ? `${latestReading.blood_glucose.toFixed(0)} mg/dL` : '—'}
                         </div>
@@ -493,7 +516,7 @@ function HealthDashboard({ refreshKey }) {
             {/* أزرار الإجراءات */}
             <div className="type-filters" style={{ justifyContent: 'center', marginTop: 'var(--spacing-lg)' }}>
                 <button onClick={fetchLatestReading} className="type-btn active">
-                    🔄 {t('health.dashboard.refresh')}
+                    🔄 {isArabic ? 'تحديث' : 'Refresh'}
                 </button>
             </div>
         </div>

@@ -1,20 +1,47 @@
 // src/components/Analytics/AdvancedHealthInsights.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import './Analytics.css';
 
 const AdvancedHealthInsights = ({ refreshTrigger }) => {
-    const { t, i18n } = useTranslation();
-    const [darkMode, setDarkMode] = useState(false);
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
+    const [darkMode, setDarkMode] = useState(() => {
+        const saved = localStorage.getItem('livocare_darkMode') === 'true';
+        return saved || window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+    
     const [insights, setInsights] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     
-    const isArabic = i18n.language.startsWith('ar');
     const isMountedRef = useRef(true);
     const abortControllerRef = useRef(null);
     const isFetchingRef = useRef(false);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // إعادة جلب البيانات عند تغيير اللغة
+                fetchInsights();
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
@@ -49,17 +76,6 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
         return String(value);
     }, [isArabic]);
 
-    // ✅ دالة ترجمة
-    const translateText = useCallback((text) => {
-        const safeText = toSafeString(text);
-        if (!safeText) return safeText;
-        if (typeof safeText === 'string' && safeText.includes('.')) {
-            const translated = t(safeText, '');
-            if (translated && translated !== safeText) return translated;
-        }
-        return safeText;
-    }, [t, toSafeString]);
-
     // ✅ جلب التحليلات وإضافة الذكاء المحلي
     const fetchInsights = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
@@ -75,7 +91,7 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
         setError(null);
         
         try {
-            const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
+            const currentLang = isArabic ? 'ar' : 'en';
             console.log('📢 Fetching advanced insights from backend...');
             
             const response = await axiosInstance.get('/advanced-insights/', {
@@ -86,12 +102,10 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
             
             if (!isMountedRef.current) return;
             
-            // ✅ معالجة البيانات وإضافة الذكاء المحلي إذا لزم الأمر
             let processedData = null;
             if (response.data && response.data.success && response.data.data) {
                 processedData = response.data.data;
             } else {
-                // ✅ محاكاة التحليل الذكي في حال عدم وجود backend
                 processedData = generateLocalInsights();
             }
             
@@ -108,7 +122,6 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
             
             console.error('❌ Error fetching advanced insights:', err);
             
-            // ✅ محاولة التحليل المحلي في حالة الخطأ
             const localInsights = generateLocalInsights();
             if (localInsights) {
                 setInsights(localInsights);
@@ -121,11 +134,10 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
             if (isMountedRef.current) setLoading(false);
             isFetchingRef.current = false;
         }
-    }, [i18n.language, isArabic]);
+    }, [isArabic]);
 
     // ✅ توليد تحليلات ذكية محلياً
     const generateLocalInsights = () => {
-        // محاكاة بيانات حقيقية (في التطبيق الفعلي ستأتي من API)
         const mockData = {
             hasData: true,
             globalScore: 65,
@@ -191,7 +203,7 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
         return () => {
             if (abortControllerRef.current) abortControllerRef.current.abort();
         };
-    }, [refreshTrigger, i18n.language, fetchInsights]);
+    }, [refreshTrigger, fetchInsights]);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -220,6 +232,7 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                 <button onClick={fetchInsights} className="retry-btn">
                     🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                 </button>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
         );
     }
@@ -232,6 +245,7 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                 <p className="no-data-hint">
                     {isArabic ? 'سجل المزيد من البيانات الصحية للحصول على تحليلات متقدمة' : 'Log more health data to get advanced insights'}
                 </p>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
         );
     }
@@ -239,18 +253,19 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
     return (
         <div className={`analytics-container advanced-insights ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
-                <h2>{isArabic ? '🧠 التحليلات المتقدمة' : 'Advanced Health Insights'}</h2>
+                <h2>{isArabic ? 'التحليلات المتقدمة' : 'Advanced Health Insights'}</h2>
                 <button onClick={fetchInsights} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
             <div className="insights-container">
                 
-                {/* 🧠 الحالة الصحية الشاملة */}
+                {/* الحالة الصحية الشاملة */}
                 {insights.global_health && (
                     <div className="global-health-card">
-                        <h3>{isArabic ? '🧠 الحالة الصحية اليوم' : 'Daily Health Status'}</h3>
+                        <h3>{isArabic ? 'الحالة الصحية اليوم' : 'Daily Health Status'}</h3>
                         <div className="health-score-container">
                             <div className="health-score-circle">
                                 <svg width="120" height="120" viewBox="0 0 120 120">
@@ -280,7 +295,7 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                         
                         <div className="health-analysis">
                             <div className="analysis-summary">
-                                <strong>{isArabic ? '🔍 التحليل:' : 'Analysis:'}</strong>
+                                <strong>{isArabic ? 'التحليل:' : 'Analysis:'}</strong>
                                 <p>{insights.global_health.summary}</p>
                             </div>
                             
@@ -301,10 +316,10 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* 📉 تحليل الاتجاهات */}
+                {/* تحليل الاتجاهات */}
                 {insights.trends && insights.trends.length > 0 && (
                     <div className="trends-card">
-                        <h3>{isArabic ? '📉 تحليل الاتجاهات' : 'Trend Analysis'}</h3>
+                        <h3>{isArabic ? 'تحليل الاتجاهات' : 'Trend Analysis'}</h3>
                         <div className="trends-list">
                             {insights.trends.map((trend, idx) => (
                                 <div key={idx} className={`trend-item direction-${trend.direction}`}>
@@ -318,10 +333,10 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* 🧠 ملاحظات ذكية (العلاقات) */}
+                {/* ملاحظات ذكية (العلاقات) */}
                 {insights.correlations && insights.correlations.length > 0 && (
                     <div className="correlations-card">
-                        <h3>{isArabic ? '🧠 ملاحظات ذكية' : 'Smart Insights'}</h3>
+                        <h3>{isArabic ? 'ملاحظات ذكية' : 'Smart Insights'}</h3>
                         <div className="correlations-list">
                             {insights.correlations.map((corr, idx) => (
                                 <div key={idx} className="correlation-item">
@@ -333,10 +348,10 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* 🚨 تحليل المخاطر */}
+                {/* تحليل المخاطر */}
                 {insights.risks && insights.risks.length > 0 && (
                     <div className="risks-card">
-                        <h3>{isArabic ? '🚨 تحليل المخاطر' : 'Risk Analysis'}</h3>
+                        <h3>{isArabic ? 'تحليل المخاطر' : 'Risk Analysis'}</h3>
                         <div className="risks-list">
                             {insights.risks.map((risk, idx) => (
                                 <div key={idx} className={`risk-item severity-${risk.severity}`}>
@@ -357,7 +372,7 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* 💡 توصيات فورية */}
+                {/* توصيات فورية */}
                 {insights.recommendations && insights.recommendations.immediate && insights.recommendations.immediate.length > 0 && (
                     <div className="recommendations-card">
                         <h3>💡 {isArabic ? 'توصيات فورية' : 'Immediate Recommendations'}</h3>
@@ -375,7 +390,7 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* 💡 توصيات لاحقة */}
+                {/* توصيات لاحقة */}
                 {insights.recommendations && insights.recommendations.later && insights.recommendations.later.length > 0 && (
                     <div className="recommendations-card">
                         <h3>💡 {isArabic ? 'توصيات لاحقة' : 'Later Recommendations'}</h3>
@@ -393,7 +408,7 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* 💡 توصيات شاملة */}
+                {/* توصيات شاملة */}
                 {insights.recommendations && insights.recommendations.holistic && insights.recommendations.holistic.length > 0 && (
                     <div className="recommendations-card">
                         <h3>💡 {isArabic ? 'توصيات شاملة' : 'Holistic Recommendations'}</h3>

@@ -1,13 +1,18 @@
 // src/components/HealthHistory.jsx
 'use client'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import EditHealthForm from './EditHealthForm';
 import '../index.css';
 
 function HealthHistory({ refreshKey, onDataSubmitted }) {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -19,10 +24,29 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
     
-    // useRef لمنع التحديثات المتكررة
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
     const isDeletingRef = useRef(false);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // تطبيق اتجاه الصفحة
+                document.documentElement.dir = event.detail.isArabic ? 'rtl' : 'ltr';
+                document.documentElement.lang = event.detail.isArabic ? 'ar' : 'en';
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     const getSafeHistory = useCallback(() => {
         return Array.isArray(history) ? history : [];
@@ -55,7 +79,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         } catch (err) {
             console.error('Error fetching health history:', err);
             if (isMountedRef.current) {
-                setError(t('history.fetchError'));
+                setError(isArabic ? 'خطأ في تحميل السجل الصحي' : 'Error loading health history');
                 setHistory([]);
             }
         } finally {
@@ -64,7 +88,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
             }
             isFetchingRef.current = false;
         }
-    }, [t]);
+    }, [isArabic]);
 
     useEffect(() => {
         fetchHistory();
@@ -77,7 +101,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         
         return safeHistory.filter(record => {
             const searchLower = searchTerm.toLowerCase();
-            const date = new Date(record.recorded_at).toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US');
+            const date = new Date(record.recorded_at).toLocaleDateString(isArabic ? 'ar-EG' : 'en-US');
             return date.includes(searchLower) || 
                    record.weight_kg?.toString().includes(searchLower) ||
                    record.systolic_pressure?.toString().includes(searchLower) ||
@@ -86,7 +110,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                    record.heart_rate?.toString().includes(searchLower) ||
                    record.spo2?.toString().includes(searchLower);
         });
-    }, [history, searchTerm, i18n.language, getSafeHistory]);
+    }, [history, searchTerm, isArabic, getSafeHistory]);
 
     // فرز البيانات
     const sortedHistory = useMemo(() => {
@@ -140,7 +164,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         } catch (err) {
             console.error('Error deleting record:', err);
             if (isMountedRef.current) {
-                setError(t('history.deleteError'));
+                setError(isArabic ? 'خطأ في حذف السجل' : 'Error deleting record');
                 setTimeout(() => {
                     if (isMountedRef.current) setError(null);
                 }, 3000);
@@ -148,7 +172,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         } finally {
             isDeletingRef.current = false;
         }
-    }, [t, onDataSubmitted, fetchHistory]);
+    }, [onDataSubmitted, fetchHistory, isArabic]);
 
     const handleBulkDelete = useCallback(async () => {
         if (selectedRecords.length === 0 || isDeletingRef.current || !isMountedRef.current) return;
@@ -168,7 +192,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         } catch (err) {
             console.error('Error bulk deleting:', err);
             if (isMountedRef.current) {
-                setError(t('history.bulkDeleteError'));
+                setError(isArabic ? 'خطأ في الحذف الجماعي' : 'Error in bulk delete');
                 setTimeout(() => {
                     if (isMountedRef.current) setError(null);
                 }, 3000);
@@ -176,7 +200,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         } finally {
             isDeletingRef.current = false;
         }
-    }, [selectedRecords, onDataSubmitted, fetchHistory, t]);
+    }, [selectedRecords, onDataSubmitted, fetchHistory, isArabic]);
 
     const toggleSelectAll = () => {
         if (selectedRecords.length === paginatedHistory.length) {
@@ -211,60 +235,60 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         
         if (record.heart_rate) {
             if (record.heart_rate > 100) {
-                issues.push('⚠️ ' + (t('history.highHeartRate') || 'نبض مرتفع'));
+                issues.push('⚠️ ' + (isArabic ? 'نبض مرتفع' : 'High heart rate'));
             } else if (record.heart_rate < 60) {
-                issues.push('⚠️ ' + (t('history.lowHeartRate') || 'نبض منخفض'));
+                issues.push('⚠️ ' + (isArabic ? 'نبض منخفض' : 'Low heart rate'));
             } else {
-                issues.push('✅ ' + (t('history.normalHeartRate') || 'نبض طبيعي'));
+                issues.push('✅ ' + (isArabic ? 'نبض طبيعي' : 'Normal heart rate'));
             }
         } else {
-            issues.push('❓ ' + (t('history.heartRateNotMeasured') || 'لم يتم قياس النبض'));
+            issues.push('❓ ' + (isArabic ? 'لم يتم قياس النبض' : 'Heart rate not measured'));
         }
         
         if (record.spo2) {
             if (record.spo2 < 95) {
-                issues.push('⚠️ ' + (t('history.lowSpO2') || 'أكسجين منخفض'));
+                issues.push('⚠️ ' + (isArabic ? 'أكسجين منخفض' : 'Low oxygen'));
             } else {
-                issues.push('✅ ' + (t('history.normalSpO2') || 'أكسجين طبيعي'));
+                issues.push('✅ ' + (isArabic ? 'أكسجين طبيعي' : 'Normal oxygen'));
             }
         } else {
-            issues.push('❓ ' + (t('history.spo2NotMeasured') || 'لم يتم قياس الأكسجين'));
+            issues.push('❓ ' + (isArabic ? 'لم يتم قياس الأكسجين' : 'Oxygen not measured'));
         }
         
         if (record.systolic_pressure && record.diastolic_pressure) {
             if (record.systolic_pressure > 140 || record.diastolic_pressure > 90) {
-                issues.push('⚠️ ' + (t('history.highBP') || 'ضغط مرتفع'));
+                issues.push('⚠️ ' + (isArabic ? 'ضغط مرتفع' : 'High blood pressure'));
             } else if (record.systolic_pressure < 90 || record.diastolic_pressure < 60) {
-                issues.push('⚠️ ' + (t('history.lowBP') || 'ضغط منخفض'));
+                issues.push('⚠️ ' + (isArabic ? 'ضغط منخفض' : 'Low blood pressure'));
             } else {
-                issues.push('✅ ' + (t('history.normalBP') || 'ضغط طبيعي'));
+                issues.push('✅ ' + (isArabic ? 'ضغط طبيعي' : 'Normal blood pressure'));
             }
         } else {
-            issues.push('❓ ' + (t('history.bpNotMeasured') || 'لم يتم قياس الضغط'));
+            issues.push('❓ ' + (isArabic ? 'لم يتم قياس الضغط' : 'Blood pressure not measured'));
         }
         
         if (record.blood_glucose) {
             if (record.blood_glucose > 140) {
-                issues.push('⚠️ ' + (t('history.highGlucose') || 'سكر مرتفع'));
+                issues.push('⚠️ ' + (isArabic ? 'سكر مرتفع' : 'High blood sugar'));
             } else if (record.blood_glucose < 70) {
-                issues.push('⚠️ ' + (t('history.lowGlucose') || 'سكر منخفض'));
+                issues.push('⚠️ ' + (isArabic ? 'سكر منخفض' : 'Low blood sugar'));
             } else {
-                issues.push('✅ ' + (t('history.normalGlucose') || 'سكر طبيعي'));
+                issues.push('✅ ' + (isArabic ? 'سكر طبيعي' : 'Normal blood sugar'));
             }
         } else {
-            issues.push('❓ ' + (t('history.glucoseNotMeasured') || 'لم يتم قياس السكر'));
+            issues.push('❓ ' + (isArabic ? 'لم يتم قياس السكر' : 'Blood sugar not measured'));
         }
         
         if (record.weight_kg) {
             if (record.weight_kg > 100) {
-                issues.push('⚠️ ' + (t('history.highWeight') || 'وزن مرتفع'));
+                issues.push('⚠️ ' + (isArabic ? 'وزن مرتفع' : 'High weight'));
             } else if (record.weight_kg < 50) {
-                issues.push('⚠️ ' + (t('history.lowWeight') || 'وزن منخفض'));
+                issues.push('⚠️ ' + (isArabic ? 'وزن منخفض' : 'Low weight'));
             } else {
-                issues.push('✅ ' + (t('history.normalWeight') || 'وزن طبيعي'));
+                issues.push('✅ ' + (isArabic ? 'وزن طبيعي' : 'Normal weight'));
             }
         } else {
-            issues.push('❓ ' + (t('history.weightNotMeasured') || 'لم يتم قياس الوزن'));
+            issues.push('❓ ' + (isArabic ? 'لم يتم قياس الوزن' : 'Weight not measured'));
         }
         
         return issues;
@@ -307,20 +331,23 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         );
     };
 
-    const safeHistory = getSafeHistory();
-    const weightCount = safeHistory.filter(r => r.weight_kg && r.weight_kg !== null && r.weight_kg !== '').length;
-    const pressureCount = safeHistory.filter(r => r.systolic_pressure && r.diastolic_pressure && 
-        r.systolic_pressure !== null && r.diastolic_pressure !== null).length;
-    const glucoseCount = safeHistory.filter(r => r.blood_glucose && r.blood_glucose !== null && r.blood_glucose !== '').length;
-    const heartRateCount = safeHistory.filter(r => r.heart_rate && r.heart_rate !== null && r.heart_rate !== '').length;
-    const spo2Count = safeHistory.filter(r => r.spo2 && r.spo2 !== null && r.spo2 !== '').length;
+    const formatDate = (dateString) => {
+        if (!dateString) return { date: isArabic ? 'تاريخ غير معروف' : 'Unknown date', time: '', full: '' };
+        const date = new Date(dateString);
+        const locale = isArabic ? 'ar-EG' : 'en-US';
+        return {
+            date: date.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' }),
+            time: date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+            full: date.toLocaleString(locale)
+        };
+    };
 
     if (loading) {
         return (
             <div className="analytics-container">
                 <div className="analytics-loading">
                     <div className="spinner"></div>
-                    <p>{t('history.loading')}</p>
+                    <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
                 </div>
             </div>
         );
@@ -333,39 +360,35 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                     <div className="empty-icon">⚠️</div>
                     <p>{error}</p>
                     <button onClick={fetchHistory} className="type-btn active">
-                        🔄 {t('history.retry')}
+                        🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                     </button>
+                    {/* ✅ تم إزالة زر اللغة من هنا */}
                 </div>
             </div>
         );
     }
 
-    const formatDate = (dateString) => {
-        if (!dateString) return { date: t('history.unknownDate'), time: '', full: '' };
-        const date = new Date(dateString);
-        const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-US';
-        return {
-            date: date.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' }),
-            time: date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
-            full: date.toLocaleString(locale)
-        };
-    };
+    const safeHistory = getSafeHistory();
+    const weightCount = safeHistory.filter(r => r.weight_kg && r.weight_kg !== null && r.weight_kg !== '').length;
+    const pressureCount = safeHistory.filter(r => r.systolic_pressure && r.diastolic_pressure && 
+        r.systolic_pressure !== null && r.diastolic_pressure !== null).length;
+    const glucoseCount = safeHistory.filter(r => r.blood_glucose && r.blood_glucose !== null && r.blood_glucose !== '').length;
+    const heartRateCount = safeHistory.filter(r => r.heart_rate && r.heart_rate !== null && r.heart_rate !== '').length;
+    const spo2Count = safeHistory.filter(r => r.spo2 && r.spo2 !== null && r.spo2 !== '').length;
 
     return (
         <div className="analytics-container">
             {/* رأس القسم */}
             <div className="analytics-header" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-md)' }}>
-                    <h2>
-                        <span>📊</span>
-                        {t('history.title')}
-                    </h2>
+                    <h2>{isArabic ? 'السجل الصحي' : 'Health History'}</h2>
                     <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+                        {/* ✅ تم إزالة زر اللغة من هنا */}
                         <div className="search-box" style={{ position: 'relative' }}>
                             <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>🔍</span>
                             <input
                                 type="text"
-                                placeholder={t('history.searchPlaceholder')}
+                                placeholder={isArabic ? 'بحث...' : 'Search...'}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="search-input"
@@ -374,19 +397,19 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                         </div>
                         {selectedRecords.length > 0 && (
                             <button onClick={handleBulkDelete} className="delete-read-btn">
-                                🗑️ {t('history.deleteSelected', { count: selectedRecords.length })}
+                                🗑️ {isArabic ? `حذف ${selectedRecords.length} سجل` : `Delete ${selectedRecords.length} records`}
                             </button>
                         )}
                     </div>
                 </div>
                 
                 <div className="type-filters" style={{ justifyContent: 'flex-start', marginTop: 'var(--spacing-md)' }}>
-                    <span className="type-btn">📝 {t('history.record')} {safeHistory.length}</span>
-                    <span className="type-btn">⚖️ {t('history.weight')} {weightCount}</span>
-                    <span className="type-btn">❤️ {t('history.pressure')} {pressureCount}</span>
-                    <span className="type-btn">🩸 {t('history.glucose')} {glucoseCount}</span>
-                    <span className="type-btn">❤️ {t('history.heartRate') || 'النبض'} {heartRateCount}</span>
-                    <span className="type-btn">💨 {t('history.spo2') || 'الأكسجين'} {spo2Count}</span>
+                    <span className="type-btn">📝 {isArabic ? 'سجل' : 'Record'} {safeHistory.length}</span>
+                    <span className="type-btn">⚖️ {isArabic ? 'وزن' : 'Weight'} {weightCount}</span>
+                    <span className="type-btn">❤️ {isArabic ? 'ضغط' : 'Pressure'} {pressureCount}</span>
+                    <span className="type-btn">🩸 {isArabic ? 'سكر' : 'Glucose'} {glucoseCount}</span>
+                    <span className="type-btn">❤️ {isArabic ? 'النبض' : 'Heart Rate'} {heartRateCount}</span>
+                    <span className="type-btn">💨 {isArabic ? 'الأكسجين' : 'SpO₂'} {spo2Count}</span>
                 </div>
             </div>
 
@@ -394,11 +417,11 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
             {safeHistory.length === 0 && !editingRecord && (
                 <div className="analytics-empty">
                     <div className="empty-icon">📝</div>
-                    <h3>{t('history.noRecords')}</h3>
-                    <p>{t('history.startAdding')}</p>
+                    <h3>{isArabic ? 'لا توجد سجلات صحية' : 'No Health Records'}</h3>
+                    <p>{isArabic ? 'ابدأ بإضافة قراءاتك الصحية الأولى' : 'Start adding your health readings'}</p>
                     <div className="type-filters" style={{ justifyContent: 'center', marginTop: 'var(--spacing-md)' }}>
-                        <span className="type-btn">💡 {t('history.tip1')}</span>
-                        <span className="type-btn">💡 {t('history.tip2')}</span>
+                        <span className="type-btn">💡 {isArabic ? 'أضف قراءة جديدة من النموذج أعلاه' : 'Add new reading from the form above'}</span>
+                        <span className="type-btn">💡 {isArabic ? 'يمكنك تسجيل القياسات التي تريدها فقط' : 'You can record only the measurements you want'}</span>
                     </div>
                 </div>
             )}
@@ -420,36 +443,36 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                                     </th>
                                     <th onClick={() => handleSort('recorded_at')} style={{ cursor: 'pointer', padding: '0.75rem', whiteSpace: 'nowrap' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>📅</span> {t('history.date')} <span>{getSortIcon('recorded_at')}</span>
+                                            <span>📅</span> {isArabic ? 'التاريخ' : 'Date'} <span>{getSortIcon('recorded_at')}</span>
                                         </div>
                                     </th>
                                     <th onClick={() => handleSort('weight_kg')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>⚖️</span> {t('history.weight')} <span>{getSortIcon('weight_kg')}</span>
+                                            <span>⚖️</span> {isArabic ? 'الوزن' : 'Weight'} <span>{getSortIcon('weight_kg')}</span>
                                         </div>
                                     </th>
                                     <th onClick={() => handleSort('systolic_pressure')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>❤️</span> {t('history.bloodPressure')} <span>{getSortIcon('systolic_pressure')}</span>
+                                            <span>❤️</span> {isArabic ? 'ضغط الدم' : 'Blood Pressure'} <span>{getSortIcon('systolic_pressure')}</span>
                                         </div>
                                     </th>
                                     <th onClick={() => handleSort('blood_glucose')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>🩸</span> {t('history.glucose')} <span>{getSortIcon('blood_glucose')}</span>
+                                            <span>🩸</span> {isArabic ? 'السكر' : 'Glucose'} <span>{getSortIcon('blood_glucose')}</span>
                                         </div>
                                     </th>
                                     <th onClick={() => handleSort('heart_rate')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>❤️</span> {t('history.heartRate') || 'النبض'} <span>{getSortIcon('heart_rate')}</span>
+                                            <span>❤️</span> {isArabic ? 'النبض' : 'Heart Rate'} <span>{getSortIcon('heart_rate')}</span>
                                         </div>
                                     </th>
                                     <th onClick={() => handleSort('spo2')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>💨</span> {t('history.spo2') || 'الأكسجين'} <span>{getSortIcon('spo2')}</span>
+                                            <span>💨</span> {isArabic ? 'الأكسجين' : 'SpO₂'} <span>{getSortIcon('spo2')}</span>
                                         </div>
                                     </th>
-                                    <th style={{ padding: '0.75rem' }}>📈 {t('history.status')}</th>
-                                    <th style={{ padding: '0.75rem' }}>⚙️ {t('history.actions')}</th>
+                                    <th style={{ padding: '0.75rem' }}>📈 {isArabic ? 'الحالة' : 'Status'}</th>
+                                    <th style={{ padding: '0.75rem' }}>⚙️ {isArabic ? 'إجراءات' : 'Actions'}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -497,10 +520,10 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                                             </td>
                                             <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
                                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <button onClick={() => setEditingRecord(record)} className="notification-action-btn" title={t('history.editTooltip')}>
+                                                    <button onClick={() => setEditingRecord(record)} className="notification-action-btn" title={isArabic ? 'تعديل' : 'Edit'}>
                                                         ✏️
                                                     </button>
-                                                    <button onClick={() => setDeleteConfirm(record.id)} className="notification-action-btn" title={t('history.deleteTooltip')}>
+                                                    <button onClick={() => setDeleteConfirm(record.id)} className="notification-action-btn" title={isArabic ? 'حذف' : 'Delete'}>
                                                         🗑️
                                                     </button>
                                                 </div>
@@ -520,17 +543,17 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                                 disabled={currentPage === 1}
                                 className="type-btn"
                             >
-                                {i18n.language === 'ar' ? '→' : '←'}
+                                {isArabic ? '←' : '←'}
                             </button>
                             <span className="stat-label">
-                                {t('history.page')} {currentPage} {t('history.of')} {totalPages}
+                                {isArabic ? `صفحة ${currentPage} من ${totalPages}` : `Page ${currentPage} of ${totalPages}`}
                             </span>
                             <button
                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                 disabled={currentPage === totalPages}
                                 className="type-btn"
                             >
-                                {i18n.language === 'ar' ? '←' : '→'}
+                                {isArabic ? '→' : '→'}
                             </button>
                         </div>
                     )}
@@ -562,18 +585,18 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: 'var(--spacing-md)' }}>
                             <span style={{ fontSize: '1.6rem' }}>⚠️</span>
-                            <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>{t('history.deleteConfirmTitle')}</h3>
+                            <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>{isArabic ? 'تأكيد الحذف' : 'Confirm Delete'}</h3>
                         </div>
                         <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                            <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{t('history.deleteConfirmMessage')}</p>
-                            <p style={{ color: 'var(--error)', fontSize: '0.8rem' }}>{t('history.irreversibleAction')}</p>
+                            <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{isArabic ? 'هل أنت متأكد من حذف هذا السجل؟' : 'Are you sure you want to delete this record?'}</p>
+                            <p style={{ color: 'var(--error)', fontSize: '0.8rem' }}>{isArabic ? 'هذا الإجراء لا يمكن التراجع عنه' : 'This action cannot be undone'}</p>
                         </div>
                         <div style={{ display: 'flex', gap: '0.75rem' }}>
                             <button onClick={() => setDeleteConfirm(null)} className="type-btn" style={{ flex: 1 }}>
-                                {t('common.cancel')}
+                                {isArabic ? 'إلغاء' : 'Cancel'}
                             </button>
                             <button onClick={() => handleDelete(deleteConfirm)} className="type-btn active" style={{ flex: 1, background: 'var(--error)', color: 'white' }}>
-                                🗑️ {t('history.confirmDelete')}
+                                🗑️ {isArabic ? 'حذف' : 'Delete'}
                             </button>
                         </div>
                     </div>
@@ -592,8 +615,9 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                 />
             )}
 
-            {/* الأنماط الإضافية */}
             <style>{`
+                /* ✅ تم إزالة .lang-btn styles */
+
                 .table-row:hover {
                     background: var(--hover-bg) !important;
                 }

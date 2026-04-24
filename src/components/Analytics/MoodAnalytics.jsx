@@ -1,6 +1,5 @@
 // src/components/Analytics/MoodAnalytics.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import './Analytics.css';
 
@@ -25,21 +24,29 @@ const getMoodEmoji = (mood) => {
     return map[mood] || '😐';
 };
 
-// دالة للحصول على نص المزاج المترجم
-const getMoodText = (mood, t) => {
-    const map = {
-        'Excellent': t('mood.excellent'),
-        'Good': t('mood.good'),
-        'Neutral': t('mood.neutral'),
-        'Stressed': t('mood.stressed'),
-        'Anxious': t('mood.anxious'),
-        'Sad': t('mood.sad')
+// دالة للحصول على نص المزاج
+const getMoodText = (mood, isArabic) => {
+    const mapAr = {
+        'Excellent': 'ممتاز',
+        'Good': 'جيد',
+        'Neutral': 'محايد',
+        'Stressed': 'مرهق',
+        'Anxious': 'قلق',
+        'Sad': 'حزين'
     };
-    return map[mood] || mood;
+    const mapEn = {
+        'Excellent': 'Excellent',
+        'Good': 'Good',
+        'Neutral': 'Neutral',
+        'Stressed': 'Stressed',
+        'Anxious': 'Anxious',
+        'Sad': 'Sad'
+    };
+    return isArabic ? (mapAr[mood] || mood) : (mapEn[mood] || mood);
 };
 
-// دالة لتحليل أيام الأسبوع - ✅ تم إصلاح i18n
-const analyzeDayPatterns = (moodRecords, t, isArabic) => {
+// دالة لتحليل أيام الأسبوع
+const analyzeDayPatterns = (moodRecords, isArabic) => {
     if (moodRecords.length < 7) return null;
 
     const dayScores = {
@@ -53,9 +60,7 @@ const analyzeDayPatterns = (moodRecords, t, isArabic) => {
     
     let bestDay = null, worstDay = null;
     let bestScore = 0, worstScore = 5;
-    let bestCount = 0, worstCount = 0;
     
-    // ✅ أيام الأسبوع بالعربية والإنجليزية
     const dayNamesAr = {
         0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء',
         3: 'الأربعاء', 4: 'الخميس', 5: 'الجمعة', 6: 'السبت'
@@ -74,12 +79,10 @@ const analyzeDayPatterns = (moodRecords, t, isArabic) => {
             if (avg > bestScore) {
                 bestScore = avg;
                 bestDay = dayNames[parseInt(day)];
-                bestCount = scores.length;
             }
             if (avg < worstScore) {
                 worstScore = avg;
                 worstDay = dayNames[parseInt(day)];
-                worstCount = scores.length;
             }
         }
     });
@@ -88,21 +91,18 @@ const analyzeDayPatterns = (moodRecords, t, isArabic) => {
         return {
             type: 'day_pattern',
             icon: '📅',
-            title: t('analytics.mood.patterns.dayTitle', 'نمط أيام الأسبوع'),
+            title: isArabic ? 'نمط أيام الأسبوع' : 'Weekly Pattern',
             bestDay,
             worstDay,
             bestScore: roundNumber(bestScore, 1),
-            worstScore: roundNumber(worstScore, 1),
-            bestCount,
-            worstCount
+            worstScore: roundNumber(worstScore, 1)
         };
     }
-    
     return null;
 };
 
 // دالة لتحليل أوقات اليوم
-const analyzeTimePatterns = (moodRecords, t, isArabic) => {
+const analyzeTimePatterns = (moodRecords, isArabic) => {
     if (moodRecords.length < 5) return null;
     
     const timeSlots = {
@@ -114,7 +114,6 @@ const analyzeTimePatterns = (moodRecords, t, isArabic) => {
     
     moodRecords.forEach(record => {
         const hour = record.date.getHours();
-        
         if (hour >= 5 && hour < 12) timeSlots.morning.scores.push(record.score);
         else if (hour >= 12 && hour < 17) timeSlots.afternoon.scores.push(record.score);
         else if (hour >= 17 && hour < 21) timeSlots.evening.scores.push(record.score);
@@ -138,17 +137,16 @@ const analyzeTimePatterns = (moodRecords, t, isArabic) => {
         return {
             type: 'time_pattern',
             icon: '⏰',
-            title: t('analytics.mood.patterns.timeTitle', 'أفضل وقت للمزاج'),
+            title: isArabic ? 'أفضل وقت للمزاج' : 'Best Time for Mood',
             bestTime,
             bestScore: roundNumber(bestScore, 1)
         };
     }
-    
     return null;
 };
 
 // دالة لتحليل الاتجاه
-const analyzeTrend = (moodRecords, t) => {
+const analyzeTrend = (moodRecords, isArabic) => {
     if (moodRecords.length < 5) return null;
     
     const recent = moodRecords.slice(-5);
@@ -166,25 +164,24 @@ const analyzeTrend = (moodRecords, t) => {
         return {
             type: 'improving',
             icon: '📈',
-            title: t('analytics.mood.trend.improving', 'مزاجك يتحسن'),
-            message: t('analytics.mood.trend.improvingMessage', 'نلاحظ تحسناً في مزاجك خلال الأيام الأخيرة'),
+            title: isArabic ? 'مزاجك يتحسن' : 'Your mood is improving',
+            message: isArabic ? 'نلاحظ تحسناً في مزاجك خلال الأيام الأخيرة' : 'We notice an improvement in your mood recently',
             difference: roundNumber(difference, 1)
         };
     } else if (difference < -0.2) {
         return {
             type: 'declining',
             icon: '📉',
-            title: t('analytics.mood.trend.declining', 'مزاجك في انخفاض'),
-            message: t('analytics.mood.trend.decliningMessage', 'نلاحظ انخفاضاً في مزاجك خلال الأيام الأخيرة'),
+            title: isArabic ? 'مزاجك في انخفاض' : 'Your mood is declining',
+            message: isArabic ? 'نلاحظ انخفاضاً في مزاجك خلال الأيام الأخيرة' : 'We notice a decline in your mood recently',
             difference: roundNumber(Math.abs(difference), 1)
         };
     }
-    
     return null;
 };
 
 // دالة لتحليل تأثير النوم على المزاج
-const analyzeSleepImpact = (sleepRecords, moodRecords, t) => {
+const analyzeSleepImpact = (sleepRecords, moodRecords, isArabic) => {
     if (sleepRecords.length < 5 || moodRecords.length < 5) return null;
     
     const sleepByDay = {};
@@ -201,13 +198,9 @@ const analyzeSleepImpact = (sleepRecords, moodRecords, t) => {
     moodRecords.forEach(mood => {
         const date = mood.date.toDateString();
         const sleepHours = sleepByDay[date];
-        
         if (sleepHours) {
-            if (sleepHours >= 7) {
-                goodSleepDays.push(mood.score);
-            } else if (sleepHours < 6) {
-                badSleepDays.push(mood.score);
-            }
+            if (sleepHours >= 7) goodSleepDays.push(mood.score);
+            else if (sleepHours < 6) badSleepDays.push(mood.score);
         }
     });
     
@@ -220,18 +213,17 @@ const analyzeSleepImpact = (sleepRecords, moodRecords, t) => {
             return {
                 type: 'sleep_impact',
                 icon: '😴',
-                title: t('analytics.mood.impacts.sleep', 'تأثير النوم على مزاجك'),
-                message: t('analytics.mood.impacts.sleepMessage', 'عندما تنام جيداً، يتحسن مزاجك'),
+                title: isArabic ? 'تأثير النوم على مزاجك' : 'Sleep impact on your mood',
+                message: isArabic ? 'النوم الجيد يحسن مزاجك' : 'Good sleep improves your mood',
                 difference: roundNumber(difference, 1)
             };
         }
     }
-    
     return null;
 };
 
 // دالة لتحليل تأثير النشاط على المزاج
-const analyzeActivityImpact = (activities, moodRecords, t) => {
+const analyzeActivityImpact = (activities, moodRecords, isArabic) => {
     if (activities.length < 5 || moodRecords.length < 5) return null;
     
     const activityByDay = {};
@@ -248,12 +240,8 @@ const analyzeActivityImpact = (activities, moodRecords, t) => {
     moodRecords.forEach(mood => {
         const date = mood.date.toDateString();
         const activityMinutes = activityByDay[date] || 0;
-        
-        if (activityMinutes >= 30) {
-            activeDays.push(mood.score);
-        } else if (activityMinutes < 10) {
-            inactiveDays.push(mood.score);
-        }
+        if (activityMinutes >= 30) activeDays.push(mood.score);
+        else if (activityMinutes < 10) inactiveDays.push(mood.score);
     });
     
     if (activeDays.length >= 3 && inactiveDays.length >= 3) {
@@ -265,18 +253,17 @@ const analyzeActivityImpact = (activities, moodRecords, t) => {
             return {
                 type: 'activity_impact',
                 icon: '🏃',
-                title: t('analytics.mood.impacts.activity', 'تأثير النشاط على مزاجك'),
-                message: t('analytics.mood.impacts.activityMessage', 'النشاط البدني يحسن مزاجك'),
+                title: isArabic ? 'تأثير النشاط على مزاجك' : 'Activity impact on your mood',
+                message: isArabic ? 'النشاط البدني يحسن مزاجك' : 'Physical activity improves your mood',
                 difference: roundNumber(difference, 1)
             };
         }
     }
-    
     return null;
 };
 
 // دالة لاكتشاف انخفاض المزاج
-const detectMoodDecline = (moodRecords, t) => {
+const detectMoodDecline = (moodRecords, isArabic) => {
     if (moodRecords.length < 3) return null;
     
     const recent = moodRecords.slice(-5);
@@ -284,40 +271,40 @@ const detectMoodDecline = (moodRecords, t) => {
     const lowMoods = ['Stressed', 'Anxious', 'Sad'];
     
     for (let i = recent.length - 1; i >= 0; i--) {
-        if (lowMoods.includes(recent[i].raw)) {
-            consecutiveLow++;
-        } else {
-            break;
-        }
+        if (lowMoods.includes(recent[i].raw)) consecutiveLow++;
+        else break;
     }
     
     if (consecutiveLow >= 3) {
         return {
             type: 'decline_alert',
             icon: '⚠️',
-            title: t('analytics.mood.alerts.decline', 'انخفاض مستمر في المزاج'),
-            message: t('analytics.mood.alerts.declineMessage', `انخفض مزاجك لمدة ${consecutiveLow} أيام متتالية`),
+            title: isArabic ? 'انخفاض مستمر في المزاج' : 'Continuous mood decline',
+            message: isArabic ? `انخفض مزاجك لمدة ${consecutiveLow} أيام متتالية` : `Your mood has been low for ${consecutiveLow} consecutive days`,
             severity: consecutiveLow >= 5 ? 'high' : 'medium',
             days: consecutiveLow
         };
     }
-    
     return null;
 };
 
 // دالة لتوليد التوصيات
-const generateRecommendations = (analysis, t) => {
+const generateRecommendations = (analysis, isArabic) => {
     const recommendations = [];
     
     if (analysis.trend?.type === 'declining') {
         recommendations.push({
             icon: '💙',
-            title: t('analytics.mood.recommendations.declining.title', 'اهتم بنفسك'),
-            advice: t('analytics.mood.recommendations.declining.advice', 'لاحظنا انخفاضاً في مزاجك، خذ وقتاً للراحة'),
-            tips: [
-                t('analytics.mood.recommendations.declining.tip1', 'تحدث مع شخص تثق به'),
-                t('analytics.mood.recommendations.declining.tip2', 'قم بنشاط تحبه'),
-                t('analytics.mood.recommendations.declining.tip3', 'اكتب مشاعرك')
+            title: isArabic ? 'اهتم بنفسك' : 'Take care of yourself',
+            advice: isArabic ? 'لاحظنا انخفاضاً في مزاجك، خذ وقتاً للراحة' : 'We noticed a decline in your mood, take time to rest',
+            tips: isArabic ? [
+                'تحدث مع شخص تثق به',
+                'قم بنشاط تحبه',
+                'اكتب مشاعرك'
+            ] : [
+                'Talk to someone you trust',
+                'Do an activity you enjoy',
+                'Write down your feelings'
             ]
         });
     }
@@ -325,12 +312,16 @@ const generateRecommendations = (analysis, t) => {
     if (analysis.sleepImpact) {
         recommendations.push({
             icon: '😴',
-            title: t('analytics.mood.recommendations.sleep.title', 'حسّن نومك'),
-            advice: t('analytics.mood.recommendations.sleep.advice', 'النوم الجيد يحسن مزاجك'),
-            tips: [
-                t('analytics.mood.recommendations.sleep.tip1', 'نم 7-8 ساعات يومياً'),
-                t('analytics.mood.recommendations.sleep.tip2', 'تجنب الشاشات قبل النوم'),
-                t('analytics.mood.recommendations.sleep.tip3', 'احرص على وقت نوم منتظم')
+            title: isArabic ? 'حسّن نومك' : 'Improve your sleep',
+            advice: isArabic ? 'النوم الجيد يحسن مزاجك' : 'Good sleep improves your mood',
+            tips: isArabic ? [
+                'نم 7-8 ساعات يومياً',
+                'تجنب الشاشات قبل النوم',
+                'احرص على وقت نوم منتظم'
+            ] : [
+                'Sleep 7-8 hours daily',
+                'Avoid screens before bed',
+                'Keep a regular sleep schedule'
             ]
         });
     }
@@ -338,12 +329,16 @@ const generateRecommendations = (analysis, t) => {
     if (analysis.activityImpact) {
         recommendations.push({
             icon: '🏃',
-            title: t('analytics.mood.recommendations.activity.title', 'زد نشاطك'),
-            advice: t('analytics.mood.recommendations.activity.advice', 'النشاط البدني يحسن المزاج'),
-            tips: [
-                t('analytics.mood.recommendations.activity.tip1', 'امشِ 30 دقيقة يومياً'),
-                t('analytics.mood.recommendations.activity.tip2', 'جرب تمارين الاسترخاء'),
-                t('analytics.mood.recommendations.activity.tip3', 'استمع للموسيقى أثناء المشي')
+            title: isArabic ? 'زد نشاطك' : 'Increase your activity',
+            advice: isArabic ? 'النشاط البدني يحسن المزاج' : 'Physical activity improves mood',
+            tips: isArabic ? [
+                'امشِ 30 دقيقة يومياً',
+                'جرب تمارين الاسترخاء',
+                'استمع للموسيقى أثناء المشي'
+            ] : [
+                'Walk 30 minutes daily',
+                'Try relaxation exercises',
+                'Listen to music while walking'
             ]
         });
     }
@@ -351,11 +346,14 @@ const generateRecommendations = (analysis, t) => {
     if (analysis.dayPattern && analysis.dayPattern.bestDay) {
         recommendations.push({
             icon: '📅',
-            title: t('analytics.mood.recommendations.dayPattern.title', 'استغل أيامك الجيدة'),
-            advice: `أيام ${analysis.dayPattern.bestDay} هي الأفضل لك`,
-            tips: [
-                t('analytics.mood.recommendations.dayPattern.tip1', 'خطط لأنشطتك المهمة في أيامك الجيدة'),
-                t('analytics.mood.recommendations.dayPattern.tip2', 'كن لطيفاً مع نفسك في الأيام الأخرى')
+            title: isArabic ? 'استغل أيامك الجيدة' : 'Make the most of your good days',
+            advice: isArabic ? `أيام ${analysis.dayPattern.bestDay} هي الأفضل لك` : `${analysis.dayPattern.bestDay} are your best days`,
+            tips: isArabic ? [
+                'خطط لأنشطتك المهمة في أيامك الجيدة',
+                'كن لطيفاً مع نفسك في الأيام الأخرى'
+            ] : [
+                'Plan important activities on your good days',
+                'Be kind to yourself on other days'
             ]
         });
     }
@@ -363,11 +361,14 @@ const generateRecommendations = (analysis, t) => {
     if (analysis.timePattern) {
         recommendations.push({
             icon: '⏰',
-            title: t('analytics.mood.recommendations.timePattern.title', 'أفضل وقت لمزاجك'),
-            advice: `وقت ${analysis.timePattern.bestTime} هو الأفضل لمزاجك`,
-            tips: [
-                t('analytics.mood.recommendations.timePattern.tip1', 'استغل هذا الوقت للإبداع'),
-                t('analytics.mood.recommendations.timePattern.tip2', 'خطط لمهامك المهمة في هذا الوقت')
+            title: isArabic ? 'أفضل وقت لمزاجك' : 'Best time for your mood',
+            advice: isArabic ? `وقت ${analysis.timePattern.bestTime} هو الأفضل لمزاجك` : `${analysis.timePattern.bestTime} is best for your mood`,
+            tips: isArabic ? [
+                'استغل هذا الوقت للإبداع',
+                'خطط لمهامك المهمة في هذا الوقت'
+            ] : [
+                'Use this time for creative work',
+                'Plan important tasks for this time'
             ]
         });
     }
@@ -375,31 +376,69 @@ const generateRecommendations = (analysis, t) => {
     if (recommendations.length === 0 && analysis.hasData) {
         recommendations.push({
             icon: '🌟',
-            title: t('analytics.mood.recommendations.default.title', 'استمر على ما أنت عليه'),
-            advice: t('analytics.mood.recommendations.default.advice', 'مزاجك متوازن، استمر في عاداتك الجيدة'),
-            tips: [
-                t('analytics.mood.recommendations.default.tip1', 'واصل تسجيل مزاجك'),
-                t('analytics.mood.recommendations.default.tip2', 'شارك إيجابيتك مع الآخرين')
+            title: isArabic ? 'استمر على ما أنت عليه' : 'Keep up the good work',
+            advice: isArabic ? 'مزاجك متوازن، استمر في عاداتك الجيدة' : 'Your mood is balanced, keep up your good habits',
+            tips: isArabic ? [
+                'واصل تسجيل مزاجك',
+                'شارك إيجابيتك مع الآخرين'
+            ] : [
+                'Continue tracking your mood',
+                'Share your positivity with others'
             ]
         });
     }
-    
     return recommendations;
 };
 
 // ======================== المكون الرئيسي ========================
 const MoodAnalytics = ({ refreshTrigger }) => {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
+    const [darkMode, setDarkMode] = useState(() => {
+        const saved = localStorage.getItem('livocare_darkMode') === 'true';
+        return saved || window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+    
     const isMountedRef = useRef(true);
-    const isArabic = i18n.language === 'ar';
-    const [darkMode, setDarkMode] = useState(false);
     const [analysis, setAnalysis] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // إعادة جلب البيانات عند تغيير اللغة
+                fetchAllData();
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
+
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true';
         setDarkMode(savedDarkMode);
+    }, []);
+
+    useEffect(() => {
+        const handleThemeChange = (e) => {
+            setDarkMode(e.detail?.darkMode ?? false);
+        };
+        window.addEventListener('themeChange', handleThemeChange);
+        return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
     const fetchAllData = useCallback(async () => {
@@ -432,24 +471,21 @@ const MoodAnalytics = ({ refreshTrigger }) => {
             const sleepRecords = sleepDataRaw;
             const activities = activitiesDataRaw;
             
-            console.log('📊 MoodAnalytics - Starting analysis...');
-            console.log(`Mood records: ${moodRecords.length}, Sleep: ${sleepRecords.length}, Activities: ${activities.length}`);
-            
             let analysisResult = null;
             
             if (moodRecords.length === 0) {
                 analysisResult = {
                     hasData: false,
-                    message: t('analytics.mood.noData', 'لا توجد بيانات كافية للتحليل. قم بتسجيل مزاجك أولاً!'),
-                    recommendations: generateRecommendations({ hasData: false }, t)
+                    message: isArabic ? 'لا توجد بيانات كافية للتحليل. قم بتسجيل مزاجك أولاً!' : 'Insufficient data for analysis. Log your mood first!',
+                    recommendations: generateRecommendations({ hasData: false }, isArabic)
                 };
             } else {
-                const trend = analyzeTrend(moodRecords, t);
-                const dayPattern = analyzeDayPatterns(moodRecords, t, isArabic);
-                const timePattern = analyzeTimePatterns(moodRecords, t, isArabic);
-                const sleepImpact = analyzeSleepImpact(sleepRecords, moodRecords, t);
-                const activityImpact = analyzeActivityImpact(activities, moodRecords, t);
-                const declineAlert = detectMoodDecline(moodRecords, t);
+                const trend = analyzeTrend(moodRecords, isArabic);
+                const dayPattern = analyzeDayPatterns(moodRecords, isArabic);
+                const timePattern = analyzeTimePatterns(moodRecords, isArabic);
+                const sleepImpact = analyzeSleepImpact(sleepRecords, moodRecords, isArabic);
+                const activityImpact = analyzeActivityImpact(activities, moodRecords, isArabic);
+                const declineAlert = detectMoodDecline(moodRecords, isArabic);
                 
                 const scores = moodRecords.map(r => r.score);
                 const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
@@ -477,33 +513,27 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                         totalDays: moodRecords.length,
                         mostFrequent: mostFrequentMood,
                         mostFrequentEmoji: getMoodEmoji(mostFrequentMood),
-                        mostFrequentText: getMoodText(mostFrequentMood, t)
+                        mostFrequentText: getMoodText(mostFrequentMood, isArabic)
                     },
                     prediction: predictionValue ? {
                         value: predictionValue,
                         trend: predictionTrend
                     } : null,
-                    recommendations: generateRecommendations({ trend, sleepImpact, activityImpact, dayPattern, timePattern, hasData: true }, t)
+                    recommendations: generateRecommendations({ trend, sleepImpact, activityImpact, dayPattern, timePattern, hasData: true }, isArabic)
                 };
                 
                 analysisResult = fullAnalysis;
             }
             
-            if (isMountedRef.current) {
-                setAnalysis(analysisResult);
-            }
+            if (isMountedRef.current) setAnalysis(analysisResult);
             
         } catch (err) {
             console.error('Error in MoodAnalytics fetchAllData:', err);
-            if (isMountedRef.current) {
-                setError(t('analytics.mood.error', 'حدث خطأ في تحليل المزاج'));
-            }
+            if (isMountedRef.current) setError(isArabic ? 'حدث خطأ في تحليل المزاج' : 'Error analyzing mood');
         } finally {
-            if (isMountedRef.current) {
-                setLoading(false);
-            }
+            if (isMountedRef.current) setLoading(false);
         }
-    }, [t, isArabic]);
+    }, [isArabic]);
 
     useEffect(() => {
         fetchAllData();
@@ -511,16 +541,14 @@ const MoodAnalytics = ({ refreshTrigger }) => {
 
     useEffect(() => {
         isMountedRef.current = true;
-        return () => {
-            isMountedRef.current = false;
-        };
+        return () => { isMountedRef.current = false; };
     }, []);
 
     if (loading) {
         return (
             <div className={`analytics-loading ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="spinner"></div>
-                <p>{t('common.loading')}</p>
+                <p>{isArabic ? 'جاري التحليل...' : 'Analyzing...'}</p>
             </div>
         );
     }
@@ -530,8 +558,9 @@ const MoodAnalytics = ({ refreshTrigger }) => {
             <div className={`analytics-error ${darkMode ? 'dark-mode' : ''}`}>
                 <p>❌ {error}</p>
                 <button onClick={fetchAllData} className="retry-btn">
-                    🔄 {t('common.retry')}
+                    🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                 </button>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
         );
     }
@@ -539,10 +568,11 @@ const MoodAnalytics = ({ refreshTrigger }) => {
     return (
         <div className={`analytics-container mood-analytics ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
-                <h2>{t('analytics.mood.title', 'تحليل المزاج')}</h2>
-                <button onClick={fetchAllData} className="refresh-btn" title={t('common.refresh')}>
+                <h2>{isArabic ? 'تحليل المزاج' : 'Mood Analytics'}</h2>
+                <button onClick={fetchAllData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
             {analysis && (
@@ -563,30 +593,30 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                         </div>
                     ) : (
                         <>
-                            {/* ✅ الإحصائيات السريعة - تم إصلاح i18n */}
+                            {/* الإحصائيات السريعة */}
                             <div className="quick-stats">
                                 <div className="stat-box">
                                     <div className="stat-value">{analysis.summary.avgMood}</div>
-                                    <div className="stat-label">{t('analytics.mood.avgMood', 'متوسط المزاج')}</div>
+                                    <div className="stat-label">{isArabic ? 'متوسط المزاج' : 'Average Mood'}</div>
                                 </div>
                                 <div className="stat-box">
                                     <div className="stat-value">{analysis.summary.totalDays}</div>
-                                    <div className="stat-label">{t('analytics.mood.daysCount', 'أيام مسجلة')}</div>
+                                    <div className="stat-label">{isArabic ? 'أيام مسجلة' : 'Days Recorded'}</div>
                                 </div>
                                 <div className="stat-box">
                                     <div className="stat-value">
                                         {analysis.summary.mostFrequentEmoji} {analysis.summary.mostFrequentText}
                                     </div>
-                                    <div className="stat-label">{t('analytics.mood.mostFrequent', 'الأكثر تكراراً')}</div>
+                                    <div className="stat-label">{isArabic ? 'الأكثر تكراراً' : 'Most Frequent'}</div>
                                 </div>
                             </div>
 
-                            {/* ✅ التنبؤ - تم إصلاح placeholders */}
+                            {/* التنبؤ */}
                             {analysis.prediction && (
                                 <div className="prediction-box">
                                     <span className="prediction-icon">🔮</span>
                                     <span className="prediction-text">
-                                        {t('analytics.mood.prediction.tomorrow', 'غداً')}: 
+                                        {isArabic ? 'غداً' : 'Tomorrow'}: 
                                         <strong> {analysis.prediction.value}/5</strong> 
                                         <span className="prediction-trend"> {analysis.prediction.trend}</span>
                                     </span>
@@ -613,7 +643,7 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                                 </div>
                             )}
 
-                            {/* ✅ أنماط الأيام - تم إصلاح i18n */}
+                            {/* أنماط الأيام */}
                             {analysis.dayPattern && (
                                 <div className="pattern-card">
                                     <div className="pattern-header">
@@ -636,9 +666,7 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                                         <span className="pattern-icon">⏰</span>
                                         <span className="pattern-title">{analysis.timePattern.title}</span>
                                     </div>
-                                    <p className="pattern-content">
-                                        {analysis.timePattern.bestTime}
-                                    </p>
+                                    <p className="pattern-content">{analysis.timePattern.bestTime}</p>
                                 </div>
                             )}
 
@@ -664,7 +692,7 @@ const MoodAnalytics = ({ refreshTrigger }) => {
 
                             {/* التوصيات */}
                             <div className="recommendations-section">
-                                <h3>💡 {t('analytics.mood.recommendations.title', 'توصيات مخصصة')}</h3>
+                                <h3>💡 {isArabic ? 'توصيات مخصصة' : 'Personalized Recommendations'}</h3>
                                 {analysis.recommendations?.map((rec, i) => (
                                     <div key={i} className="recommendation-card">
                                         <div className="rec-header">
@@ -673,9 +701,7 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                                         </div>
                                         <p className="rec-advice">{rec.advice}</p>
                                         <ul className="rec-tips">
-                                            {rec.tips?.map((tip, j) => (
-                                                <li key={j}>{tip}</li>
-                                            ))}
+                                            {rec.tips?.map((tip, j) => <li key={j}>{tip}</li>)}
                                         </ul>
                                     </div>
                                 ))}

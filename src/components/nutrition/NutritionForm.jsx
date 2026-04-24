@@ -1,23 +1,26 @@
 // src/components/nutrition/NutritionForm.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import axiosInstance from "../../services/api";
-import NutritionAnalytics from '../Analytics/NutritionAnalytics';
 import BarcodeScanner from '../Camera/BarcodeScanner';
 import '../../index.css';  
 
-// إعداد أنواع الوجبات مع دعم الترجمة (بدون أيقونات مكررة)
-const getMealTypeChoices = (t) => [
-    { value: 'Breakfast', label: t('nutrition.breakfast', 'فطور'), color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' },
-    { value: 'Lunch', label: t('nutrition.lunch', 'غداء'), color: '#FF6B35', bg: 'rgba(255, 107, 53, 0.15)' },
-    { value: 'Dinner', label: t('nutrition.dinner', 'عشاء'), color: '#2E86AB', bg: 'rgba(46, 134, 171, 0.15)' },
-    { value: 'Snack', label: t('nutrition.snack', 'وجبة خفيفة'), color: '#A23B72', bg: 'rgba(162, 59, 114, 0.15)' },
-    { value: 'Other', label: t('nutrition.other', 'أخرى'), color: '#6A8D73', bg: 'rgba(106, 141, 115, 0.15)' },
+// ✅ إعدادات اللغة مباشرة
+const getMealTypeChoices = (isArabic) => [
+    { value: 'Breakfast', label: isArabic ? 'فطور' : 'Breakfast', color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' },
+    { value: 'Lunch', label: isArabic ? 'غداء' : 'Lunch', color: '#FF6B35', bg: 'rgba(255, 107, 53, 0.15)' },
+    { value: 'Dinner', label: isArabic ? 'عشاء' : 'Dinner', color: '#2E86AB', bg: 'rgba(46, 134, 171, 0.15)' },
+    { value: 'Snack', label: isArabic ? 'وجبة خفيفة' : 'Snack', color: '#A23B72', bg: 'rgba(162, 59, 114, 0.15)' },
+    { value: 'Other', label: isArabic ? 'أخرى' : 'Other', color: '#6A8D73', bg: 'rgba(106, 141, 115, 0.15)' },
 ];
 
 function NutritionForm({ onDataSubmitted, isAuthReady }) {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
     
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
@@ -39,7 +42,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         { 
             name: '', 
             quantity: '100', 
-            unit: 'غرام', 
+            unit: isArabic ? 'غرام' : 'gram', 
             calories: '',  
             protein: '',   
             carbs: '',     
@@ -58,10 +61,27 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
     const [messageType, setMessageType] = useState('');
     const [searchTimeout, setSearchTimeout] = useState(null);
 
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
+
     const checkAuth = () => {
         const token = localStorage.getItem('access_token');
         if (!token) {
-            setMessage(t('nutrition.loginRequired', 'الرجاء تسجيل الدخول'));
+            setMessage(isArabic ? 'الرجاء تسجيل الدخول' : 'Please login');
             setMessageType('error');
             return false;
         }
@@ -92,7 +112,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         } catch (error) {
             console.error('Error fetching meals:', error);
             if (isMountedRef.current) {
-                setMessage(t('nutrition.errorLoading', 'خطأ في تحميل البيانات'));
+                setMessage(isArabic ? 'خطأ في تحميل البيانات' : 'Error loading data');
                 setMessageType('error');
                 setMeals([]);
             }
@@ -101,7 +121,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 setLoadingMeals(false);
             }
         }
-    }, [isAuthReady, t]);
+    }, [isAuthReady, isArabic]);
 
     useEffect(() => {
         if (isAuthReady) {
@@ -110,13 +130,13 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
     }, [isAuthReady, fetchMeals]);
 
     const handleDeleteMeal = async (mealId) => {
-        if (!window.confirm(t('nutrition.deleteConfirm', 'هل أنت متأكد من حذف هذه الوجبة؟'))) return;
+        if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف هذه الوجبة؟' : 'Are you sure you want to delete this meal?')) return;
         
         try {
             await axiosInstance.delete(`/meals/${mealId}/`);
             if (isMountedRef.current) {
                 setMeals(prev => prev.filter(meal => meal.id !== mealId));
-                setMessage(t('nutrition.mealDeleted', 'تم حذف الوجبة بنجاح'));
+                setMessage(isArabic ? 'تم حذف الوجبة بنجاح' : 'Meal deleted successfully');
                 setMessageType('success');
                 setRefreshAnalytics(prev => prev + 1);
                 setTimeout(() => setMessage(''), 3000);
@@ -124,7 +144,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         } catch (error) {
             console.error('Error deleting meal:', error);
             if (isMountedRef.current) {
-                setMessage(t('nutrition.deleteError', 'خطأ في حذف الوجبة'));
+                setMessage(isArabic ? 'خطأ في حذف الوجبة' : 'Error deleting meal');
                 setMessageType('error');
             }
         }
@@ -236,7 +256,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         setFoodItems(prev => [...prev, { 
             name: '', 
             quantity: '100', 
-            unit: 'غرام', 
+            unit: isArabic ? 'غرام' : 'gram', 
             calories: '', 
             protein: '', 
             carbs: '', 
@@ -296,7 +316,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
             setFoodItems([{ 
                 name: '', 
                 quantity: '100', 
-                unit: 'غرام', 
+                unit: isArabic ? 'غرام' : 'gram', 
                 calories: '', 
                 protein: '', 
                 carbs: '', 
@@ -321,7 +341,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
 
         setShowScanner(false);
         setIsLoading(true);
-        setMessage('جاري البحث عن المنتج...');
+        setMessage(isArabic ? 'جاري البحث عن المنتج...' : 'Searching for product...');
         setMessageType('info');
 
         try {
@@ -332,19 +352,19 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 const nutriments = product.nutriments || {};
 
                 const productData = {
-                    name: product.product_name || product.generic_name || `منتج (${barcode.slice(-8)})`,
+                    name: product.product_name || product.generic_name || (isArabic ? `منتج (${barcode.slice(-8)})` : `Product (${barcode.slice(-8)})`),
                     calories: nutriments['energy-kcal'] || nutriments.energy || 0,
                     protein: nutriments.proteins || 0,
                     carbs: nutriments.carbohydrates || 0,
                     fat: nutriments.fat || 0,
                     barcode: barcode,
-                    unit: 'غرام'
+                    unit: isArabic ? 'غرام' : 'gram'
                 };
 
                 setFoodItems(prev => [...prev, {
                     name: productData.name,
                     quantity: '100',
-                    unit: 'غرام',
+                    unit: isArabic ? 'غرام' : 'gram',
                     calories: productData.calories.toString(),
                     protein: productData.protein.toString(),
                     carbs: productData.carbs.toString(),
@@ -357,13 +377,13 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                     manualEdit: true
                 }]);
 
-                setMessage(`✅ تم العثور على المنتج: ${productData.name}`);
+                setMessage(isArabic ? `✅ تم العثور على المنتج: ${productData.name}` : `✅ Product found: ${productData.name}`);
                 setMessageType('success');
             } else {
                 setFoodItems(prev => [...prev, {
-                    name: `منتج جديد (${barcode.slice(-8)})`,
+                    name: isArabic ? `منتج جديد (${barcode.slice(-8)})` : `New product (${barcode.slice(-8)})`,
                     quantity: '100',
-                    unit: 'غرام',
+                    unit: isArabic ? 'غرام' : 'gram',
                     calories: '',
                     protein: '',
                     carbs: '',
@@ -375,15 +395,15 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                     selectedFood: null,
                     manualEdit: true
                 }]);
-                setMessage(`⚠️ المنتج غير موجود، تمت إضافته كمنتج جديد`);
+                setMessage(isArabic ? '⚠️ المنتج غير موجود، تمت إضافته كمنتج جديد' : '⚠️ Product not found, added as new product');
                 setMessageType('info');
             }
         } catch (error) {
             console.error('❌ Error in barcode search:', error);
             setFoodItems(prev => [...prev, {
-                name: `منتج جديد (${barcode.slice(-8)})`,
+                name: isArabic ? `منتج جديد (${barcode.slice(-8)})` : `New product (${barcode.slice(-8)})`,
                 quantity: '100',
-                unit: 'غرام',
+                unit: isArabic ? 'غرام' : 'gram',
                 calories: '',
                 protein: '',
                 carbs: '',
@@ -395,7 +415,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 selectedFood: null,
                 manualEdit: true
             }]);
-            setMessage(`⚠️ خطأ في البحث، تمت إضافة منتج جديد`);
+            setMessage(isArabic ? '⚠️ خطأ في البحث، تمت إضافة منتج جديد' : '⚠️ Search error, added as new product');
             setMessageType('error');
         } finally {
             setIsLoading(false);
@@ -406,14 +426,14 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
     const handleUpdateMeal = async (e) => {
         e.preventDefault();
         if (!isAuthReady || !editingMeal) {
-            setMessage(t('nutrition.loginRequired', 'الرجاء تسجيل الدخول'));
+            setMessage(isArabic ? 'الرجاء تسجيل الدخول' : 'Please login');
             setMessageType('error');
             return;
         }
         setIsLoading(true);
         const validItems = foodItems.filter(item => item.name && item.quantity);
         if (validItems.length === 0) {
-            setMessage(t('nutrition.atLeastOneIngredient', 'أضف مكون واحد على الأقل'));
+            setMessage(isArabic ? 'أضف مكون واحد على الأقل' : 'Add at least one ingredient');
             setMessageType('error');
             setIsLoading(false);
             return;
@@ -436,7 +456,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 ingredients
             });
             if (isMountedRef.current) {
-                setMessage(t('nutrition.mealUpdated', 'تم تحديث الوجبة بنجاح'));
+                setMessage(isArabic ? 'تم تحديث الوجبة بنجاح' : 'Meal updated successfully');
                 setMessageType('success');
                 setRefreshAnalytics(prev => prev + 1);
                 setShowEditForm(false);
@@ -447,7 +467,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         } catch (error) {
             console.error('Update error:', error);
             if (isMountedRef.current) {
-                setMessage(t('nutrition.updateFailed', 'فشل تحديث الوجبة'));
+                setMessage(isArabic ? 'فشل تحديث الوجبة' : 'Failed to update meal');
                 setMessageType('error');
             }
         } finally {
@@ -458,14 +478,14 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!isAuthReady) {
-            setMessage(t('nutrition.loginRequired', 'الرجاء تسجيل الدخول'));
+            setMessage(isArabic ? 'الرجاء تسجيل الدخول' : 'Please login');
             setMessageType('error');
             return;
         }
         setIsLoading(true);
         const validItems = foodItems.filter(item => item.name && item.quantity);
         if (validItems.length === 0) {
-            setMessage(t('nutrition.atLeastOneIngredient', 'أضف مكون واحد على الأقل'));
+            setMessage(isArabic ? 'أضف مكون واحد على الأقل' : 'Add at least one ingredient');
             setMessageType('error');
             setIsLoading(false);
             return;
@@ -488,7 +508,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 ingredients
             });
             if (isMountedRef.current) {
-                setMessage(t('nutrition.mealAdded', 'تم إضافة الوجبة بنجاح'));
+                setMessage(isArabic ? 'تم إضافة الوجبة بنجاح' : 'Meal added successfully');
                 setMessageType('success');
                 setRefreshAnalytics(prev => prev + 1);
                 await fetchMeals();
@@ -498,7 +518,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         } catch (error) {
             console.error('Submission error:', error);
             if (isMountedRef.current) {
-                setMessage(t('nutrition.failedToSave', 'فشل حفظ الوجبة'));
+                setMessage(isArabic ? 'فشل حفظ الوجبة' : 'Failed to save meal');
                 setMessageType('error');
             }
         } finally {
@@ -515,7 +535,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         setFoodItems([{ 
             name: '', 
             quantity: '100', 
-            unit: 'غرام', 
+            unit: isArabic ? 'غرام' : 'gram', 
             calories: '', 
             protein: '', 
             carbs: '', 
@@ -530,13 +550,13 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
     };
 
     const getMealTypeColor = (mealType) => {
-        const meal = getMealTypeChoices(t).find(m => m.value === mealType);
+        const meal = getMealTypeChoices(isArabic).find(m => m.value === mealType);
         return meal ? meal.color : '#6c757d';
     };
 
     const formatMealDate = (dateString) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US', {
+        return date.toLocaleDateString(isArabic ? 'ar-EG' : 'en-US', {
             weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
             hour: '2-digit', minute: '2-digit'
         });
@@ -544,10 +564,10 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
 
     const getUnitOptions = () => {
         return [
-            { value: 'غرام', label: i18n.language === 'ar' ? 'غرام' : 'gram' },
-            { value: 'مل', label: i18n.language === 'ar' ? 'مل' : 'ml' },
-            { value: 'قطعة', label: i18n.language === 'ar' ? 'قطعة' : 'piece' },
-            { value: 'كوب', label: i18n.language === 'ar' ? 'كوب' : 'cup' }
+            { value: isArabic ? 'غرام' : 'gram', label: isArabic ? 'غرام' : 'gram' },
+            { value: isArabic ? 'مل' : 'ml', label: isArabic ? 'مل' : 'ml' },
+            { value: isArabic ? 'قطعة' : 'piece', label: isArabic ? 'قطعة' : 'piece' },
+            { value: isArabic ? 'كوب' : 'cup', label: isArabic ? 'كوب' : 'cup' }
         ];
     };
 
@@ -568,9 +588,9 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 />
             )}
             
-            {/* رأس النموذج - بدون أيقونة مكررة */}
+            {/* رأس النموذج */}
             <div className="analytics-header">
-                <h2>{editingMeal ? t('nutrition.editMeal', 'تعديل وجبة') : t('nutrition.addMeal', 'إضافة وجبة')}</h2>
+                <h2>{editingMeal ? (isArabic ? 'تعديل وجبة' : 'Edit Meal') : (isArabic ? 'إضافة وجبة' : 'Add Meal')}</h2>
                 <button 
                     type="button" 
                     onClick={() => setShowScanner(true)}
@@ -580,46 +600,47 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 >
                     📷
                 </button>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
-            {/* ملخص التغذية السريع - بدون أيقونات مكررة */}
+            {/* ملخص التغذية السريع */}
             <div className="analytics-stats-grid" style={{ marginBottom: 'var(--spacing-lg)' }}>
                 <div className="analytics-stat-card">
                     <div className="stat-icon">🔥</div>
                     <div className="stat-content">
                         <div className="stat-value">{nutritionSummary.totalCalories}</div>
-                        <div className="stat-label">{t('nutrition.calories', 'سعرات')}</div>
+                        <div className="stat-label">{isArabic ? 'سعرات' : 'Calories'}</div>
                     </div>
                 </div>
                 <div className="analytics-stat-card">
                     <div className="stat-icon">💪</div>
                     <div className="stat-content">
                         <div className="stat-value">{nutritionSummary.totalProtein}g</div>
-                        <div className="stat-label">{t('nutrition.protein', 'بروتين')}</div>
+                        <div className="stat-label">{isArabic ? 'بروتين' : 'Protein'}</div>
                     </div>
                 </div>
                 <div className="analytics-stat-card">
                     <div className="stat-icon">🌾</div>
                     <div className="stat-content">
                         <div className="stat-value">{nutritionSummary.totalCarbs}g</div>
-                        <div className="stat-label">{t('nutrition.carbs', 'كربوهيدرات')}</div>
+                        <div className="stat-label">{isArabic ? 'كربوهيدرات' : 'Carbs'}</div>
                     </div>
                 </div>
                 <div className="analytics-stat-card">
                     <div className="stat-icon">🫒</div>
                     <div className="stat-content">
                         <div className="stat-value">{nutritionSummary.totalFat}g</div>
-                        <div className="stat-label">{t('nutrition.fat', 'دهون')}</div>
+                        <div className="stat-label">{isArabic ? 'دهون' : 'Fat'}</div>
                     </div>
                 </div>
             </div>
 
             <form onSubmit={editingMeal ? handleUpdateMeal : handleSubmit}>
-                {/* قسم نوع الوجبة - بدون أيقونات مكررة */}
+                {/* قسم نوع الوجبة */}
                 <div className="recommendations-section">
-                    <h3>{t('nutrition.mealType', 'نوع الوجبة')}</h3>
+                    <h3>{isArabic ? 'نوع الوجبة' : 'Meal Type'}</h3>
                     <div className="type-filters" style={{ marginTop: 'var(--spacing-md)' }}>
-                        {getMealTypeChoices(t).map(meal => (
+                        {getMealTypeChoices(isArabic).map(meal => (
                             <button
                                 key={meal.value}
                                 type="button"
@@ -634,7 +655,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
 
                 {/* قسم وقت الوجبة */}
                 <div className="recommendations-section">
-                    <h3>{t('nutrition.mealTime', 'وقت الوجبة')}</h3>
+                    <h3>{isArabic ? 'وقت الوجبة' : 'Meal Time'}</h3>
                     <input
                         type="datetime-local"
                         name="meal_time"
@@ -645,9 +666,9 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                     />
                 </div>
 
-                {/* قسم المكونات - بدون أيقونات مكررة */}
+                {/* قسم المكونات */}
                 <div className="recommendations-section">
-                    <h3>{t('nutrition.ingredients', 'المكونات')}</h3>
+                    <h3>{isArabic ? 'المكونات' : 'Ingredients'}</h3>
                     <div className="ingredients-container" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-md)' }}>
                         {foodItems.map((item, index) => (
                             <div key={index} className="card" style={{ padding: 'var(--spacing-md)' }}>
@@ -663,14 +684,14 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                 </div>
                                 
                                 <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                                    <label>{t('nutrition.foodName', 'اسم الطعام')}</label>
+                                    <label>{isArabic ? 'اسم الطعام' : 'Food Name'}</label>
                                     <input
                                         type="text"
                                         name="name"
                                         value={item.name}
                                         onChange={(e) => handleItemChange(index, e)}
                                         className="search-input"
-                                        placeholder={t('nutrition.foodNamePlaceholder', 'ابحث عن طعام...')}
+                                        placeholder={isArabic ? 'ابحث عن طعام...' : 'Search for food...'}
                                     />
                                     {item.showResults && item.searchResults.length > 0 && (
                                         <div className="search-results" style={{ 
@@ -696,7 +717,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                 
                                 <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
                                     <div className="field-group">
-                                        <label>{t('nutrition.quantity', 'الكمية')}</label>
+                                        <label>{isArabic ? 'الكمية' : 'Quantity'}</label>
                                         <input
                                             type="number"
                                             value={item.quantity}
@@ -706,7 +727,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                         />
                                     </div>
                                     <div className="field-group">
-                                        <label>{t('nutrition.unit', 'الوحدة')}</label>
+                                        <label>{isArabic ? 'الوحدة' : 'Unit'}</label>
                                         <select
                                             value={item.unit}
                                             onChange={(e) => {
@@ -725,7 +746,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                 
                                 <div className="analytics-stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-md)' }}>
                                     <div className="field-group">
-                                        <label>{t('nutrition.calories', 'سعرات')}</label>
+                                        <label>{isArabic ? 'سعرات' : 'Calories'}</label>
                                         <input
                                             type="number"
                                             name="calories"
@@ -736,7 +757,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                         />
                                     </div>
                                     <div className="field-group">
-                                        <label>{t('nutrition.protein', 'بروتين')}</label>
+                                        <label>{isArabic ? 'بروتين' : 'Protein'}</label>
                                         <input
                                             type="number"
                                             name="protein"
@@ -747,7 +768,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                         />
                                     </div>
                                     <div className="field-group">
-                                        <label>{t('nutrition.carbs', 'كربوهيدرات')}</label>
+                                        <label>{isArabic ? 'كربوهيدرات' : 'Carbs'}</label>
                                         <input
                                             type="number"
                                             name="carbs"
@@ -758,7 +779,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                         />
                                     </div>
                                     <div className="field-group">
-                                        <label>{t('nutrition.fat', 'دهون')}</label>
+                                        <label>{isArabic ? 'دهون' : 'Fat'}</label>
                                         <input
                                             type="number"
                                             name="fat"
@@ -772,39 +793,39 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                             </div>
                         ))}
                         <button type="button" onClick={handleAddItem} className="add-ingredient-btn" style={{ width: '100%', padding: 'var(--spacing-md)', background: 'var(--secondary-bg)', border: '2px dashed var(--border-light)', borderRadius: 'var(--radius-lg)', cursor: 'pointer' }}>
-                            ➕ {t('nutrition.addIngredient', 'أضف مكون')}
+                            ➕ {isArabic ? 'أضف مكون' : 'Add Ingredient'}
                         </button>
                     </div>
                 </div>
 
                 {/* قسم الملاحظات */}
                 <div className="recommendations-section">
-                    <h3>{t('nutrition.notes', 'ملاحظات')}</h3>
+                    <h3>{isArabic ? 'ملاحظات' : 'Notes'}</h3>
                     <textarea
                         name="notes"
                         value={mealData.notes}
                         onChange={handleMealChange}
                         className="search-input"
                         style={{ minHeight: '80px', resize: 'vertical' }}
-                        placeholder={t('nutrition.notesPlaceholder', 'أي ملاحظات إضافية...')}
+                        placeholder={isArabic ? 'أي ملاحظات إضافية...' : 'Any additional notes...'}
                     />
                 </div>
 
                 {/* أزرار الإجراء */}
                 <div className="analytics-header" style={{ justifyContent: 'center', gap: 'var(--spacing-md)', borderBottom: 'none' }}>
                     <button type="button" onClick={clearForm} className="type-btn">
-                        {t('common.reset', 'إعادة تعيين')}
+                        {isArabic ? 'إعادة تعيين' : 'Reset'}
                     </button>
                     <button type="submit" disabled={isLoading} className="type-btn active">
-                        {isLoading ? '⏳' : ''} {editingMeal ? t('common.update', 'تحديث') : t('common.save', 'حفظ')}
+                        {isLoading ? '⏳' : ''} {editingMeal ? (isArabic ? 'تحديث' : 'Update') : (isArabic ? 'حفظ' : 'Save')}
                     </button>
                 </div>
             </form>
 
-            {/* قسم الوجبات المسجلة - بدون أيقونات مكررة */}
+            {/* قسم الوجبات المسجلة */}
             <div className="recommendations-section" style={{ marginTop: 'var(--spacing-xl)' }}>
                 <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)' }}>
-                    <h3>{t('nutrition.recentMeals', 'الوجبات المسجلة')}</h3>
+                    <h3>{isArabic ? 'الوجبات المسجلة' : 'Recorded Meals'}</h3>
                     <button onClick={fetchMeals} className="refresh-btn" disabled={loadingMeals}>
                         {loadingMeals ? '⏳' : '🔄'}
                     </button>
@@ -817,7 +838,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                 ) : meals.length === 0 ? (
                     <div className="analytics-empty">
                         <div className="empty-icon">🍽️</div>
-                        <p>{t('nutrition.noMealsYet', 'لا توجد وجبات مسجلة بعد')}</p>
+                        <p>{isArabic ? 'لا توجد وجبات مسجلة بعد' : 'No meals recorded yet'}</p>
                     </div>
                 ) : (
                     <div className="notifications-list">
@@ -825,7 +846,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                             <div key={meal.id} className="notification-card">
                                 <div className="notification-header">
                                     <div className="notification-title">
-                                        <span>{getMealTypeChoices(t).find(m => m.value === meal.meal_type)?.label}</span>
+                                        <span>{getMealTypeChoices(isArabic).find(m => m.value === meal.meal_type)?.label}</span>
                                     </div>
                                     <div className="notification-meta">
                                         <span className="notification-time">{formatMealDate(meal.meal_time)}</span>
@@ -837,12 +858,12 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                                 </div>
                                 <div className="notification-content">
                                     <div className="nutrition-badges" style={{ display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-sm)' }}>
-                                        <span className="priority-badge priority-urgent">{meal.total_calories} {t('nutrition.caloriesUnit', 'سعرة')}</span>
+                                        <span className="priority-badge priority-urgent">{meal.total_calories} {isArabic ? 'سعرة' : 'cal'}</span>
                                         {meal.ingredients && meal.ingredients.length > 0 && (
                                             <>
-                                                <span className="priority-badge priority-high">{meal.ingredients.reduce((sum, i) => sum + (i.protein || 0), 0)}g {t('nutrition.protein', 'بروتين')}</span>
-                                                <span className="priority-badge priority-medium">{meal.ingredients.reduce((sum, i) => sum + (i.carbs || 0), 0)}g {t('nutrition.carbs', 'كربوهيدرات')}</span>
-                                                <span className="priority-badge priority-low">{meal.ingredients.reduce((sum, i) => sum + (i.fat || 0), 0)}g {t('nutrition.fat', 'دهون')}</span>
+                                                <span className="priority-badge priority-high">{meal.ingredients.reduce((sum, i) => sum + (i.protein || 0), 0)}g {isArabic ? 'بروتين' : 'protein'}</span>
+                                                <span className="priority-badge priority-medium">{meal.ingredients.reduce((sum, i) => sum + (i.carbs || 0), 0)}g {isArabic ? 'كربوهيدرات' : 'carbs'}</span>
+                                                <span className="priority-badge priority-low">{meal.ingredients.reduce((sum, i) => sum + (i.fat || 0), 0)}g {isArabic ? 'دهون' : 'fat'}</span>
                                             </>
                                         )}
                                     </div>

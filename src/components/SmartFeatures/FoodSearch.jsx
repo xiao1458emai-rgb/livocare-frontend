@@ -1,15 +1,37 @@
 // src/components/SmartFeatures/FoodSearch.jsx
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './SmartFeatures.css';
 
 const FoodSearch = ({ onSelectFood }) => {
-    const { t } = useTranslation();
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     const handleSearch = async () => {
         if (!query.trim()) return;
@@ -18,7 +40,6 @@ const FoodSearch = ({ onSelectFood }) => {
         setError(null);
         
         try {
-            // ✅ الاتصال المباشر بـ Open Food Facts API
             const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=15&fields=code,product_name,generic_name,brands,nutriments,image_front_small_url,serving_size`;
             
             console.log('🔍 Searching:', searchUrl);
@@ -31,8 +52,6 @@ const FoodSearch = ({ onSelectFood }) => {
                 }
             });
             
-            console.log('📡 Response:', response.data);
-            
             if (response.data && response.data.products && response.data.products.length > 0) {
                 const products = response.data.products
                     .filter(product => {
@@ -42,7 +61,7 @@ const FoodSearch = ({ onSelectFood }) => {
                     .slice(0, 15)
                     .map(product => {
                         const nutriments = product.nutriments || {};
-                        const name = product.product_name || product.generic_name || 'منتج غذائي';
+                        const name = product.product_name || product.generic_name || (isArabic ? 'منتج غذائي' : 'Food product');
                         
                         let calories = nutriments['energy-kcal'] || nutriments['energy'] || 0;
                         let protein = nutriments['proteins'] || nutriments['protein'] || 0;
@@ -74,15 +93,15 @@ const FoodSearch = ({ onSelectFood }) => {
                 setResults(products);
                 
                 if (products.length === 0) {
-                    setError('لم يتم العثور على نتائج');
+                    setError(isArabic ? 'لم يتم العثور على نتائج' : 'No results found');
                 }
             } else {
                 setResults([]);
-                setError('لم يتم العثور على نتائج');
+                setError(isArabic ? 'لم يتم العثور على نتائج' : 'No results found');
             }
         } catch (err) {
             console.error('Food search error:', err);
-            setError('حدث خطأ في البحث. تأكد من اتصالك بالإنترنت.');
+            setError(isArabic ? 'حدث خطأ في البحث. تأكد من اتصالك بالإنترنت.' : 'Search error. Check your internet connection.');
         } finally {
             setLoading(false);
         }
@@ -100,8 +119,11 @@ const FoodSearch = ({ onSelectFood }) => {
     return (
         <div className="food-search">
             <div className="search-header">
-                <h3>🔍 بحث عن طعام</h3>
-                <p className="search-subtitle">ابحث عن الأطعمة والمكونات الغذائية</p>
+                <h3>{isArabic ? '🔍 بحث عن طعام' : '🔍 Food Search'}</h3>
+                <p className="search-subtitle">
+                    {isArabic ? 'ابحث عن الأطعمة والمكونات الغذائية' : 'Search for foods and ingredients'}
+                </p>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
             
             <div className="search-box">
@@ -110,7 +132,7 @@ const FoodSearch = ({ onSelectFood }) => {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="مثال: تفاح، دجاج، أرز، زبادي..."
+                    placeholder={isArabic ? 'مثال: تفاح، دجاج، أرز، زبادي...' : 'Example: apple, chicken, rice, yogurt...'}
                     className="search-input"
                 />
                 <button 
@@ -118,14 +140,14 @@ const FoodSearch = ({ onSelectFood }) => {
                     disabled={loading}
                     className="search-btn"
                 >
-                    {loading ? '⏳' : '🔍 بحث'}
+                    {loading ? '⏳' : '🔍'} {isArabic ? 'بحث' : 'Search'}
                 </button>
             </div>
 
             {loading && (
                 <div className="search-loading">
                     <div className="spinner-small"></div>
-                    <p>جاري البحث...</p>
+                    <p>{isArabic ? 'جاري البحث...' : 'Searching...'}</p>
                 </div>
             )}
 
@@ -139,9 +161,9 @@ const FoodSearch = ({ onSelectFood }) => {
             {results.length === 0 && query && !loading && !error && (
                 <div className="no-results">
                     <div className="no-results-icon">🔍</div>
-                    <p>لم يتم العثور على نتائج لـ "{query}"</p>
+                    <p>{isArabic ? `لم يتم العثور على نتائج لـ "${query}"` : `No results found for "${query}"`}</p>
                     <p className="no-results-hint">
-                        💡 جرب: تفاح، دجاج، أرز، خبز، زبادي، موز
+                        💡 {isArabic ? 'جرب: تفاح، دجاج، أرز، خبز، زبادي، موز' : 'Try: apple, chicken, rice, bread, yogurt, banana'}
                     </p>
                 </div>
             )}
@@ -149,7 +171,7 @@ const FoodSearch = ({ onSelectFood }) => {
             {results.length > 0 && (
                 <div className="search-results">
                     <div className="results-header">
-                        <span>📋 نتائج البحث ({results.length})</span>
+                        <span>📋 {isArabic ? `نتائج البحث (${results.length})` : `Search Results (${results.length})`}</span>
                     </div>
                     <div className="results-grid">
                         {results.map((food, index) => (
@@ -169,22 +191,22 @@ const FoodSearch = ({ onSelectFood }) => {
                                     {food.brand && <p className="food-brand">🏭 {food.brand}</p>}
                                     <div className="food-nutrients">
                                         {formatNumber(food.calories) > 0 && (
-                                            <span className="nutrient calories">🔥 {food.calories} سعرة</span>
+                                            <span className="nutrient calories">🔥 {food.calories} {isArabic ? 'سعرة' : 'cal'}</span>
                                         )}
                                         {formatNumber(food.protein) > 0 && (
-                                            <span className="nutrient protein">💪 {food.protein}g بروتين</span>
+                                            <span className="nutrient protein">💪 {food.protein}g {isArabic ? 'بروتين' : 'protein'}</span>
                                         )}
                                         {formatNumber(food.carbs) > 0 && (
-                                            <span className="nutrient carbs">🌾 {food.carbs}g كارب</span>
+                                            <span className="nutrient carbs">🌾 {food.carbs}g {isArabic ? 'كارب' : 'carbs'}</span>
                                         )}
                                         {formatNumber(food.fat) > 0 && (
-                                            <span className="nutrient fat">🫒 {food.fat}g دهون</span>
+                                            <span className="nutrient fat">🫒 {food.fat}g {isArabic ? 'دهون' : 'fat'}</span>
                                         )}
                                     </div>
                                     {food.fiber > 0 && (
-                                        <div className="food-fiber">🌿 ألياف: {food.fiber}g</div>
+                                        <div className="food-fiber">🌿 {isArabic ? 'ألياف' : 'Fiber'}: {food.fiber}g</div>
                                     )}
-                                    <div className="select-hint">✨ انقر للإضافة</div>
+                                    <div className="select-hint">{isArabic ? '✨ انقر للإضافة' : '✨ Click to add'}</div>
                                 </div>
                             </div>
                         ))}

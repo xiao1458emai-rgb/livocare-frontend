@@ -1,6 +1,6 @@
+// src/components/Dashboard.jsx
 'use client'
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/api'; 
 import '../index.css';
@@ -16,7 +16,7 @@ import SleepTracker from './SleepTracker';
 import HabitTracker from './HabitTracker';
 import ActivityForm from './ActivityForm';
 import MoodTracker from './MoodTracker'; 
-import ProfileManager from './usermangment'; 
+import ProfileManager from './ProfileManager';  // ✅ تصحيح المسار
 import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
 import Notifications from './Notifications/Notifications';
@@ -24,9 +24,15 @@ import Reports from './Reports';
 import AdvancedHealthInsights from './Analytics/AdvancedHealthInsights';
 
 function Dashboard({ onLogout }) {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const navigate = useNavigate();
-    const isRTL = i18n.language === 'ar';
+    const isRTL = isArabic;
     
     const isMountedRef = useRef(true);
     const refreshIntervalRef = useRef(null);
@@ -50,6 +56,26 @@ function Dashboard({ onLogout }) {
         }
         return false;
     });
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // تحديث اتجاه الصفحة
+                document.documentElement.dir = event.detail.isArabic ? 'rtl' : 'ltr';
+                document.documentElement.lang = event.detail.isArabic ? 'ar' : 'en';
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
 
     // تطبيق الوضع المظلم
     useEffect(() => {
@@ -126,7 +152,7 @@ function Dashboard({ onLogout }) {
         } catch (err) {
             console.error('Error fetching health data:', err);
             if (isMountedRef.current) {
-                setError(err.response?.data?.message || t('dashboard.fetchError'));
+                setError(isArabic ? 'حدث خطأ في جلب البيانات' : 'Error fetching data');
             }
         } finally {
             if (isMountedRef.current) {
@@ -134,7 +160,7 @@ function Dashboard({ onLogout }) {
             }
             isFetchingRef.current = false;
         }
-    }, [isAuthReady, t]);
+    }, [isAuthReady, isArabic]);
 
     // جلب البيانات عند التغيير
     useEffect(() => {
@@ -158,21 +184,16 @@ function Dashboard({ onLogout }) {
         };
     }, [autoRefresh, isAuthReady]);
 
-    // إعدادات اللغة
+    // ✅ إعدادات اللغة الأولية - تطبيق اللغة من localStorage
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
-            document.documentElement.lang = i18n.language;
-            
-            const handleLanguageChange = (e) => {
-                document.documentElement.dir = e.detail.language === 'ar' ? 'rtl' : 'ltr';
-                document.documentElement.lang = e.detail.language;
-            };
-            
-            window.addEventListener('languageChanged', handleLanguageChange);
-            return () => window.removeEventListener('languageChanged', handleLanguageChange);
+            const savedLang = localStorage.getItem('app_lang');
+            const currentLang = savedLang === 'en' ? 'en' : 'ar';
+            const isCurrentArabic = currentLang === 'ar';
+            document.documentElement.dir = isCurrentArabic ? 'rtl' : 'ltr';
+            document.documentElement.lang = isCurrentArabic ? 'ar' : 'en';
         }
-    }, [isRTL, i18n.language]);
+    }, []);
     
     // تنظيف
     useEffect(() => {
@@ -196,7 +217,6 @@ function Dashboard({ onLogout }) {
         return `${value} ${unit}`.trim();
     };
 
-    // ✅ تنسيق ضغط الدم مع مسافات
     const displayBloodPressure = (systolic, diastolic) => {
         if ((!systolic && systolic !== 0) || systolic === null) return '—';
         if ((!diastolic && diastolic !== 0) || diastolic === null) return '—';
@@ -206,7 +226,7 @@ function Dashboard({ onLogout }) {
     const getTodayDate = () => {
         const today = new Date();
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-US';
+        const locale = isArabic ? 'ar-EG' : 'en-US';
         return today.toLocaleDateString(locale, options);
     };
 
@@ -234,21 +254,20 @@ function Dashboard({ onLogout }) {
         return count;
     };
 
-    // ✅ عناوين الأقسام بدون أيقونات مكررة
     const getSectionTitle = (sectionKey) => {
         const titles = {
-            'health': t('dashboard.dashboard'),
-            'nutrition': t('dashboard.nutritionTitle'),
-            'sleep': t('dashboard.sleepTitle'),
-            'habits': t('dashboard.habitsTitle'),
-            'mood': t('dashboard.moodTitle'),
-            'chat': t('dashboard.chatTitle'),
-            'profile': t('dashboard.profileTitle'),
-            'smart': t('dashboard.smartTitle'),
-            'notifications': t('notifications.title'),
-            'reports': t('reports.title')
+            'health': isArabic ? 'لوحة التحكم' : 'Dashboard',
+            'nutrition': isArabic ? 'التغذية' : 'Nutrition',
+            'sleep': isArabic ? 'النوم' : 'Sleep',
+            'habits': isArabic ? 'العادات' : 'Habits',
+            'mood': isArabic ? 'المزاج' : 'Mood',
+            'chat': isArabic ? 'المساعد الذكي' : 'AI Assistant',
+            'profile': isArabic ? 'الملف الشخصي' : 'Profile',
+            'smart': isArabic ? 'الميزات الذكية' : 'Smart Features',
+            'notifications': isArabic ? 'الإشعارات' : 'Notifications',
+            'reports': isArabic ? 'التقارير' : 'Reports'
         };
-        return titles[sectionKey] || t('dashboard.dashboard');
+        return titles[sectionKey] || (isArabic ? 'لوحة التحكم' : 'Dashboard');
     };
 
     const renderSectionContent = () => {
@@ -256,41 +275,38 @@ function Dashboard({ onLogout }) {
             case 'health':
                 return (
                     <div className="health-section">
-                        {/* قسم الملخص */}
                         <div className="recommendations-section" style={{ marginTop: 0 }}>
                             <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
-                                <h3>{t('dashboard.dailySummary')}</h3>
+                                <h3>{isArabic ? 'ملخص اليوم' : 'Daily Summary'}</h3>
                                 <span className="stat-label">{getTodayDate()}</span>
                             </div>
                             
-                            {/* شارة القياسات */}
                             <div className="type-filters" style={{ marginBottom: 'var(--spacing-md)', justifyContent: 'flex-start' }}>
                                 <span className="type-btn" style={{ background: 'var(--secondary-bg)', cursor: 'default' }}>
-                                    📋 {getMeasuredCount()}/4 {t('dashboard.measurementsRecorded', 'قياسات مسجلة')}
+                                    📋 {getMeasuredCount()}/4 {isArabic ? 'قياسات مسجلة' : 'Measurements Recorded'}
                                 </span>
                                 {getMeasuredCount() < 4 && (
                                     <span className="type-btn" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', cursor: 'default' }}>
-                                        💡 {t('dashboard.missingMeasurements', 'يمكنك ترك الحقول الفارغة للقياسات التي لم تجريها')}
+                                        💡 {isArabic ? 'يمكنك ترك الحقول الفارغة للقياسات التي لم تجريها' : 'You can leave empty fields for measurements you haven\'t taken'}
                                     </span>
                                 )}
                             </div>
                             
                             <div className="analytics-stats-grid">
-                                {/* الوزن */}
                                 <div className="analytics-stat-card">
                                     <div className="stat-icon">⚖️</div>
                                     <div className="stat-content">
-                                        <div className="stat-label">{t('dashboard.lastWeight')}</div>
+                                        <div className="stat-label">{isArabic ? 'آخر وزن' : 'Last Weight'}</div>
                                         <div className="stat-value">
-                                            {displayValue(latestHealthData?.weight, t('dashboard.kg'))}
+                                            {displayValue(latestHealthData?.weight, isArabic ? 'كجم' : 'kg')}
                                         </div>
                                         {latestHealthData?.weight === null && (
-                                            <div className="stat-label" style={{ color: 'var(--warning)' }}>⚠️ {t('dashboard.notMeasured', 'لم يتم القياس')}</div>
+                                            <div className="stat-label" style={{ color: 'var(--warning)' }}>⚠️ {isArabic ? 'لم يتم القياس' : 'Not measured'}</div>
                                         )}
                                         {latestHealthData?.recorded_at && latestHealthData?.weight !== null && (
                                             <div className="stat-label">
                                                 {new Date(latestHealthData.recorded_at).toLocaleTimeString(
-                                                    isRTL ? 'ar-EG' : 'en-US',
+                                                    isArabic ? 'ar-EG' : 'en-US',
                                                     { hour: '2-digit', minute: '2-digit' }
                                                 )}
                                             </div>
@@ -298,100 +314,96 @@ function Dashboard({ onLogout }) {
                                     </div>
                                 </div>
                                 
-                                {/* ضغط الدم - ✅ تنسيق صحيح مع مسافات */}
                                 <div className="analytics-stat-card">
                                     <div className="stat-icon">❤️</div>
                                     <div className="stat-content">
-                                        <div className="stat-label">{t('dashboard.bloodPressure')}</div>
+                                        <div className="stat-label">{isArabic ? 'ضغط الدم' : 'Blood Pressure'}</div>
                                         <div className="stat-value">
                                             {displayBloodPressure(latestHealthData?.systolic, latestHealthData?.diastolic)}
                                         </div>
                                         {(!latestHealthData?.systolic || !latestHealthData?.diastolic) && (
-                                            <div className="stat-label" style={{ color: 'var(--warning)' }}>⚠️ {t('dashboard.notMeasured', 'لم يتم القياس')}</div>
+                                            <div className="stat-label" style={{ color: 'var(--warning)' }}>⚠️ {isArabic ? 'لم يتم القياس' : 'Not measured'}</div>
                                         )}
-                                        <div className="stat-label">{t('dashboard.sysDia')}</div>
+                                        <div className="stat-label">{isArabic ? 'انقباضي / انبساطي' : 'Systolic / Diastolic'}</div>
                                     </div>
                                 </div>
                                 
-                                {/* الجلوكوز */}
                                 <div className="analytics-stat-card">
                                     <div className="stat-icon">🩸</div>
                                     <div className="stat-content">
-                                        <div className="stat-label">{t('dashboard.bloodGlucose')}</div>
+                                        <div className="stat-label">{isArabic ? 'سكر الدم' : 'Blood Glucose'}</div>
                                         <div className="stat-value">
                                             {displayValue(latestHealthData?.glucose, 'mg/dL')}
                                         </div>
                                         {latestHealthData?.glucose === null && (
-                                            <div className="stat-label" style={{ color: 'var(--warning)' }}>⚠️ {t('dashboard.notMeasured', 'لم يتم القياس')}</div>
+                                            <div className="stat-label" style={{ color: 'var(--warning)' }}>⚠️ {isArabic ? 'لم يتم القياس' : 'Not measured'}</div>
                                         )}
-                                        <div className="stat-label">{t('dashboard.glucoseLevel')}</div>
+                                        <div className="stat-label">{isArabic ? 'مستوى السكر' : 'Glucose Level'}</div>
                                     </div>
                                 </div>
                             </div>
                             
-                            {/* رسالة عدم وجود بيانات */}
                             {getMeasuredCount() === 0 && (
                                 <div className="analytics-empty" style={{ marginTop: 'var(--spacing-lg)' }}>
                                     <div className="empty-icon">📊</div>
-                                    <h4>{t('dashboard.noDataTitle', 'لا توجد بيانات صحية')}</h4>
-                                    <p>{t('dashboard.noDataMessage', 'أضف قراءاتك الصحية الأولى')}</p>
+                                    <h4>{isArabic ? 'لا توجد بيانات صحية' : 'No Health Data'}</h4>
+                                    <p>{isArabic ? 'أضف قراءاتك الصحية الأولى' : 'Add your first health readings'}</p>
                                     <button 
                                         onClick={() => document.querySelector('.health-form')?.scrollIntoView({ behavior: 'smooth' })}
                                         className="type-btn active"
                                     >
-                                        ➕ {t('dashboard.addFirstReading', 'أضف قراءة')}
+                                        ➕ {isArabic ? 'أضف قراءة' : 'Add Reading'}
                                     </button>
                                 </div>
                             )}
                             
-                            {/* رسالة البيانات الجزئية */}
                             {getMeasuredCount() > 0 && getMeasuredCount() < 4 && (
                                 <div className="recommendation-card priority-medium" style={{ marginTop: 'var(--spacing-lg)' }}>
                                     <div className="rec-header">
                                         <span className="rec-icon">💡</span>
-                                        <span className="rec-category">{t('dashboard.partialDataHint', 'يمكنك تسجيل القياسات المتبقية من النموذج أدناه')}</span>
+                                        <span className="rec-category">{isArabic ? 'يمكنك تسجيل القياسات المتبقية من النموذج أدناه' : 'You can record the remaining measurements from the form below'}</span>
                                     </div>
                                 </div>
                             )}
                         </div>
                         
-                        {/* المكونات */}
                         <div className="health-components">
                             <div className="health-form">
-                                <HealthForm onDataSubmitted={handleDataSubmitted} allowPartialEntries={true} />
+                                <HealthForm onDataSubmitted={handleDataSubmitted} allowPartialEntries={true} isArabic={isArabic}/>
                             </div>
                             
-                            <ActivityForm onDataSubmitted={handleDataSubmitted} onActivityChange={handleDataSubmitted} />
+                            <ActivityForm onDataSubmitted={handleDataSubmitted} onActivityChange={handleDataSubmitted} isArabic={isArabic} />
                             
                             <div className="activity-analytics-wrapper">
-                                <ActivityAnalytics refreshTrigger={refreshKey} />
-                                <AdvancedHealthInsights refreshTrigger={refreshKey} />
+                                <ActivityAnalytics refreshTrigger={refreshKey} isArabic={isArabic} />
+                                <AdvancedHealthInsights refreshTrigger={refreshKey} isArabic={isArabic} />
                             </div>
                             
-                            <HealthHistory refreshKey={refreshKey} onDataSubmitted={handleDataSubmitted} allowIncompleteEntries={true} />
-                            <HealthCharts refreshKey={refreshKey} />
+                            <HealthHistory refreshKey={refreshKey} onDataSubmitted={handleDataSubmitted} allowIncompleteEntries={true} isArabic={isArabic} />
+                            <HealthCharts refreshKey={refreshKey} isArabic={isArabic} />
                         </div>
                     </div>
                 );
                 
             case 'nutrition':
-                return <NutritionMain onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
+                return <NutritionMain onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} isArabic={isArabic}/>;
             case 'sleep':
-                return <SleepTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
+                return <SleepTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} isArabic={isArabic}/>;
             case 'habits':
-                return <HabitTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} />;
+                return <HabitTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} isArabic={isArabic}/>;
             case 'mood':
-                return <MoodTracker isAuthReady={isAuthReady} />;
+                return <MoodTracker isAuthReady={isAuthReady} isArabic={isArabic}/>;
             case 'chat':
-                return <ChatInterface isAuthReady={isAuthReady} />;
+                return <ChatInterface isAuthReady={isAuthReady} isArabic={isArabic}/>;
             case 'profile':
+                // ✅ لا نمرر isArabic هنا لأن ProfileManager يدير اللغة بنفسه
                 return <ProfileManager isAuthReady={isAuthReady} />;
             case 'smart':
-                return <SmartDashboard />;
+                return <SmartDashboard isArabic={isArabic} />;
             case 'notifications':
-                return <Notifications isAuthReady={isAuthReady} />;
+                return <Notifications isAuthReady={isAuthReady} isArabic={isArabic}/>;
             case 'reports':
-                return <Reports isAuthReady={isAuthReady} />;
+                return <Reports isAuthReady={isAuthReady} isArabic={isArabic}/>;
             default:
                 return null;
         }
@@ -403,8 +415,8 @@ function Dashboard({ onLogout }) {
             <div className="analytics-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div className="analytics-loading">
                     <div className="spinner"></div>
-                    <h2>{t('dashboard.loadingSummary', 'جاري التحميل...')}</h2>
-                    <p>{t('dashboard.pleaseWait', 'يرجى الانتظار قليلاً')}</p>
+                    <h2>{isArabic ? 'جاري التحميل...' : 'Loading...'}</h2>
+                    <p>{isArabic ? 'يرجى الانتظار قليلاً' : 'Please wait a moment'}</p>
                 </div>
             </div>
         );
@@ -418,7 +430,7 @@ function Dashboard({ onLogout }) {
                     <div className="empty-icon">⚠️</div>
                     <h2>{error}</h2>
                     <button onClick={fetchHealthData} className="retry-btn">
-                        🔄 {t('dashboard.retry', 'إعادة المحاولة')}
+                        🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                     </button>
                 </div>
             </div>
@@ -430,7 +442,7 @@ function Dashboard({ onLogout }) {
             {/* شريط التحكم العلوي */}
             <div className="control-bar">
                 <div className="control-left">
-                    <button className="menu-toggle" onClick={toggleSidebar} aria-label="Toggle menu">
+                    <button className="menu-toggle" onClick={toggleSidebar} aria-label={isArabic ? 'القائمة' : 'Menu'}>
                         {sidebarOpen ? '✕' : '☰'}
                     </button>
                     <div className="app-name">LivoCare</div>
@@ -441,13 +453,14 @@ function Dashboard({ onLogout }) {
                 </div>
                 
                 <div className="control-right">
-                    <button className="theme-toggle" onClick={toggleDarkMode} title={darkMode ? '☀️' : '🌙'}>
+                    {/* ✅ تم إزالة زر اللغة - يوجد الآن فقط في ProfileManager */}
+                    <button className="theme-toggle" onClick={toggleDarkMode} title={darkMode ? (isArabic ? 'وضع فاتح' : 'Light Mode') : (isArabic ? 'وضع مظلم' : 'Dark Mode')}>
                         {darkMode ? '☀️' : '🌙'}
                     </button>
                     {onLogout && (
-                        <button className="logout-btn" onClick={onLogout} title={t('dashboard.logout')}>
+                        <button className="logout-btn" onClick={onLogout} title={isArabic ? 'تسجيل خروج' : 'Logout'}>
                             <span className="logout-icon">🚪</span>
-                            <span className="logout-text">{t('dashboard.logout')}</span>
+                            <span className="logout-text">{isArabic ? 'تسجيل خروج' : 'Logout'}</span>
                         </button>
                     )}
                 </div>
@@ -461,6 +474,7 @@ function Dashboard({ onLogout }) {
                         setActiveSection(section);
                         setSidebarOpen(false);
                     }}
+                    isArabic={isArabic}
                 />
             </div>
             
@@ -474,23 +488,23 @@ function Dashboard({ onLogout }) {
                         <h1>{getSectionTitle(activeSection)}</h1>
                         <div className="refresh-controls">
                             <button onClick={handleManualRefresh} disabled={loading} className={`refresh-btn ${loading ? 'loading' : ''}`}>
-                                {loading ? '⏳' : '🔄'} {t('dashboard.refresh', 'تحديث')}
+                                {loading ? '⏳' : '🔄'} {isArabic ? 'تحديث' : 'Refresh'}
                             </button>
                             
                             <label className="auto-refresh-toggle">
                                 <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
                                 <span className="toggle-slider"></span>
-                                <span className="toggle-label">{t('dashboard.autoRefresh', 'تحديث تلقائي')}</span>
+                                <span className="toggle-label">{isArabic ? 'تحديث تلقائي' : 'Auto Refresh'}</span>
                             </label>
                         </div>
                     </div>
                     
                     <div className="header-info">
-                        {autoRefresh && <span className="auto-refresh-status">🔄 {t('dashboard.autoRefreshActive', 'التحديث التلقائي نشط')}</span>}
+                        {autoRefresh && <span className="auto-refresh-status">🔄 {isArabic ? 'التحديث التلقائي نشط' : 'Auto refresh active'}</span>}
                         {latestHealthData?.recorded_at && (
                             <div className="last-updated">
-                                {t('dashboard.lastUpdated', 'آخر تحديث')}: {new Date(latestHealthData.recorded_at).toLocaleDateString(
-                                    isRTL ? 'ar-EG' : 'en-US'
+                                {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(latestHealthData.recorded_at).toLocaleDateString(
+                                    isArabic ? 'ar-EG' : 'en-US'
                                 )}
                             </div>
                         )}

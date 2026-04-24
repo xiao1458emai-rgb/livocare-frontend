@@ -1,6 +1,6 @@
+// src/components/nutrition/NutritionDashboard.jsx
 'use client'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import NutritionAnalytics from '../Analytics/NutritionAnalytics';
 import '../../index.css';
@@ -11,24 +11,6 @@ const roundNumber = (num, decimals = 1) => {
     return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 };
 
-// دالة لدمج العناصر المكررة
-const mergeDuplicateItems = (items) => {
-    const merged = {};
-    items.forEach(item => {
-        const key = `${item.name}_${item.unit}`;
-        if (merged[key]) {
-            merged[key].quantity += item.quantity;
-            merged[key].calories += item.calories;
-            merged[key].protein += item.protein;
-            merged[key].carbs += item.carbs;
-            merged[key].fat += item.fat;
-        } else {
-            merged[key] = { ...item };
-        }
-    });
-    return Object.values(merged);
-};
-
 // دالة مساعدة لاستخراج البيانات من response
 const extractData = (response) => {
     if (response?.results) return response.results;
@@ -37,7 +19,13 @@ const extractData = (response) => {
 };
 
 function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh }) {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const [meals, setMeals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [autoRefresh, setAutoRefresh] = useState(false);
@@ -56,6 +44,23 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
     const intervalRef = useRef(null);
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     // تحديث autoRefreshRef
     useEffect(() => {
@@ -176,7 +181,6 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
             };
         }, { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0, todayCalories: 0, todayProtein: 0, count: 0 });
 
-        // ✅ حساب التقدم بشكل صحيح
         const proteinProgress = stats.todayProtein > 0 ? Math.min(100, Math.round((stats.todayProtein / nutritionGoals.dailyProtein) * 100)) : 0;
 
         return {
@@ -223,18 +227,21 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         'Other': '📝' 
     }[type] || '🍽️');
     
-    const getMealTypeLabel = (type) => ({ 
-        'Breakfast': t('nutrition.breakfast', 'فطور'), 
-        'Lunch': t('nutrition.lunch', 'غداء'), 
-        'Dinner': t('nutrition.dinner', 'عشاء'), 
-        'Snack': t('nutrition.snack', 'وجبة خفيفة'), 
-        'Other': t('nutrition.other', 'أخرى') 
-    }[type] || type);
+    const getMealTypeLabel = (type, isArabic) => {
+        const labels = {
+            'Breakfast': isArabic ? 'فطور' : 'Breakfast',
+            'Lunch': isArabic ? 'غداء' : 'Lunch',
+            'Dinner': isArabic ? 'عشاء' : 'Dinner',
+            'Snack': isArabic ? 'وجبة خفيفة' : 'Snack',
+            'Other': isArabic ? 'أخرى' : 'Other'
+        };
+        return labels[type] || type;
+    };
     
     const formatDate = (dateString) => {
         try {
             return new Date(dateString).toLocaleDateString(
-                i18n.language === 'ar' ? 'ar-EG' : 'en-US', 
+                isArabic ? 'ar-EG' : 'en-US', 
                 { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
             );
         } catch {
@@ -242,89 +249,74 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         }
     };
 
-    // ✅ توصيات ذكية محسنة
+    // توصيات ذكية محسنة
     const getRecommendations = () => {
         const recs = [];
         const todayMeals = meals?.filter(meal => new Date(meal.meal_time).toDateString() === new Date().toDateString()) || [];
         const calorieDiff = nutritionStats.todayCalories - nutritionGoals.dailyCalories;
         
-        // توصيات مبنية على السعرات
         if (nutritionStats.todayCalories === 0 && nutritionStats.totalMeals > 0) {
             recs.push({
                 icon: '📝',
-                text: t('nutrition.todayNoMeals', 'لم تسجل وجبات اليوم، سجل وجباتك للحصول على تحليل دقيق'),
+                text: isArabic ? 'لم تسجل وجبات اليوم، سجل وجباتك للحصول على تحليل دقيق' : 'No meals logged today, log your meals for accurate analysis',
                 priority: 'high'
             });
         } else if (calorieDiff > 300) {
             recs.push({
                 icon: '🔥',
-                text: t('nutrition.caloriesExceed', `تجاوزت هدف السعرات بـ ${calorieDiff} سعرة، قلل الكربوهيدرات في الوجبة القادمة`),
+                text: isArabic ? `تجاوزت هدف السعرات بـ ${calorieDiff} سعرة` : `You exceeded your calorie goal by ${calorieDiff} calories`,
                 priority: 'high'
             });
         } else if (calorieDiff < -300 && nutritionStats.todayCalories > 0) {
             recs.push({
                 icon: '⚠️',
-                text: t('nutrition.caloriesDeficit', `سعراتك أقل من الهدف بـ ${Math.abs(calorieDiff)}، أضف وجبة خفيفة صحية`),
+                text: isArabic ? `سعراتك أقل من الهدف بـ ${Math.abs(calorieDiff)}، أضف وجبة خفيفة صحية` : `Your calories are ${Math.abs(calorieDiff)} below target, add a healthy snack`,
                 priority: 'medium'
             });
         } else if (goalProgress.calories >= 80 && goalProgress.calories <= 110) {
             recs.push({
                 icon: '✅',
-                text: t('nutrition.caloriesGood', 'ممتاز! سعراتك قريبة من الهدف الموصى به'),
+                text: isArabic ? 'ممتاز! سعراتك قريبة من الهدف الموصى به' : 'Excellent! Your calories are close to the recommended target',
                 priority: 'low'
             });
         }
         
-        // توصيات مبنية على البروتين
         const proteinDeficit = nutritionGoals.dailyProtein - nutritionStats.todayProtein;
         if (proteinDeficit > 20 && nutritionStats.todayProtein > 0) {
             recs.push({
                 icon: '💪',
-                text: t('nutrition.proteinDeficit', `تحتاج ${Math.round(proteinDeficit)}g بروتين إضافية (بيضتين 12g أو صدر دجاج 30g)`),
+                text: isArabic ? `تحتاج ${Math.round(proteinDeficit)}g بروتين إضافية` : `You need ${Math.round(proteinDeficit)}g additional protein`,
                 priority: 'high'
             });
         } else if (nutritionStats.avgProtein < 40 && nutritionStats.avgProtein > 0 && nutritionStats.totalMeals > 3) {
             recs.push({
                 icon: '🥩',
-                text: t('nutrition.proteinLowAverage', 'متوسط البروتين منخفض، أضف مصادر بروتين في وجباتك الرئيسية'),
+                text: isArabic ? 'متوسط البروتين منخفض، أضف مصادر بروتين في وجباتك الرئيسية' : 'Average protein is low, add protein sources to your main meals',
                 priority: 'medium'
             });
         }
         
-        // توصيات مبنية على نمط الأكل
         const hasBreakfast = todayMeals.some(m => m.meal_type === 'Breakfast');
         if (!hasBreakfast && todayMeals.length > 0) {
             recs.push({
                 icon: '🌅',
-                text: t('nutrition.noBreakfast', 'لم تسجل وجبة فطور اليوم، الفطور يمنحك الطاقة لبدء يومك'),
+                text: isArabic ? 'لم تسجل وجبة فطور اليوم، الفطور يمنحك الطاقة لبدء يومك' : 'No breakfast logged today, breakfast gives you energy to start your day',
                 priority: 'medium'
             });
         }
         
-        // توصيات مبنية على التنوع
-        const mealTypesCount = new Set(todayMeals.map(m => m.meal_type)).size;
-        if (todayMeals.length >= 3 && mealTypesCount < 2) {
-            recs.push({
-                icon: '🥗',
-                text: t('nutrition.lowVariety', 'تنوع الوجبات محدود، حاول تنويع مصادر الطعام'),
-                priority: 'low'
-            });
-        }
-        
-        // رسالة ترحيبية للمستخدم الجديد
         if (nutritionStats.totalMeals === 0) {
             recs.push({
                 icon: '🍽️',
-                text: t('nutrition.welcome', 'مرحباً! ابدأ بتسجيل أول وجبة للحصول على تحليل غذائي مخصص'),
+                text: isArabic ? 'مرحباً! ابدأ بتسجيل أول وجبة للحصول على تحليل غذائي مخصص' : 'Welcome! Start by logging your first meal for personalized nutrition analysis',
                 priority: 'high'
             });
         }
         
-        // إذا لم توجد توصيات
         if (recs.length === 0 && nutritionStats.totalMeals > 0) {
             recs.push({
                 icon: '✅',
-                text: t('nutrition.balancedDiet', 'نظامك الغذائي متوازن، استمر بهذا المستوى الممتاز'),
+                text: isArabic ? 'نظامك الغذائي متوازن، استمر بهذا المستوى الممتاز' : 'Your diet is balanced, keep up this excellent level',
                 priority: 'low'
             });
         }
@@ -332,17 +324,14 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         return recs;
     };
 
-    // ✅ توقع الوزن المحسن
+    // توقع الوزن
     const getPrediction = () => {
         const totalMeals = nutritionStats.totalMeals;
         if (totalMeals < 5) return null;
         
         const avgCalories = nutritionStats.totalCalories / totalMeals;
-        const avgProtein = nutritionStats.avgProtein;
-        
-        // حساب الفرق عن الهدف
         const calorieDiff = avgCalories - nutritionGoals.dailyCalories;
-        const weeklyChange = (calorieDiff * 7) / 7700; // 7700 سعرة = 1 كجم دهون
+        const weeklyChange = (calorieDiff * 7) / 7700;
         
         let status = 'info';
         let icon = '➡️';
@@ -351,26 +340,21 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         if (weeklyChange > 0.3) {
             status = 'high';
             icon = '📈';
-            text = t('nutrition.weightGainPrediction', `زيادة متوقعة ${weeklyChange.toFixed(1)} كجم أسبوعياً، استهلاكك أعلى من احتياجك`);
+            text = isArabic ? `زيادة متوقعة ${weeklyChange.toFixed(1)} كجم أسبوعياً` : `Expected gain of ${weeklyChange.toFixed(1)} kg weekly`;
         } else if (weeklyChange > 0.1) {
             status = 'warning';
             icon = '📈';
-            text = t('nutrition.weightGainMild', `زيادة طفيفة متوقعة ${weeklyChange.toFixed(1)} كجم أسبوعياً`);
+            text = isArabic ? `زيادة طفيفة متوقعة ${weeklyChange.toFixed(1)} كجم أسبوعياً` : `Slight gain of ${weeklyChange.toFixed(1)} kg expected weekly`;
         } else if (weeklyChange < -0.3) {
             status = 'success';
             icon = '📉';
-            text = t('nutrition.weightLossPrediction', `خسارة متوقعة ${Math.abs(weeklyChange).toFixed(1)} كجم أسبوعياً مع هذا العجز الحراري`);
+            text = isArabic ? `خسارة متوقعة ${Math.abs(weeklyChange).toFixed(1)} كجم أسبوعياً` : `Expected loss of ${Math.abs(weeklyChange).toFixed(1)} kg weekly`;
         } else if (weeklyChange < -0.1) {
             status = 'info';
             icon = '📉';
-            text = t('nutrition.weightLossMild', `خسارة طفيفة متوقعة ${Math.abs(weeklyChange).toFixed(1)} كجم أسبوعياً`);
+            text = isArabic ? `خسارة طفيفة متوقعة ${Math.abs(weeklyChange).toFixed(1)} كجم أسبوعياً` : `Slight loss of ${Math.abs(weeklyChange).toFixed(1)} kg expected weekly`;
         } else {
-            text = t('nutrition.weightStable', 'الوزن مستقر متوقع بناءً على استهلاكك الحالي');
-        }
-        
-        // تحذير إضافي لنقص البروتين
-        if (avgProtein < 40 && avgProtein > 0) {
-            text += ' ' + t('nutrition.proteinWarning', '⚠️ نقص البروتين قد يؤثر على كتلة العضلات');
+            text = isArabic ? 'الوزن مستقر متوقع بناءً على استهلاكك الحالي' : 'Weight expected to remain stable based on current intake';
         }
         
         return { icon, text, status };
@@ -384,7 +368,7 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
             <div className="analytics-container">
                 <div className="analytics-loading">
                     <div className="spinner"></div>
-                    <p>{t('nutrition.loading', 'جاري تحميل البيانات...')}</p>
+                    <p>{isArabic ? 'جاري تحميل البيانات...' : 'Loading data...'}</p>
                 </div>
             </div>
         );
@@ -394,33 +378,34 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
         <div className="analytics-container">
             {/* شريط التحكم */}
             <div className="analytics-header">
-                <h2>{t('nutrition.dashboard', 'لوحة التغذية')}</h2>
+                <h2>{isArabic ? 'لوحة التغذية' : 'Nutrition Dashboard'}</h2>
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
                     {lastUpdate && (
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
-                            🕒 {lastUpdate.toLocaleTimeString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}
+                            🕒 {lastUpdate.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
                         </span>
                     )}
-                    <button onClick={handleRefresh} className="refresh-btn" title={t('nutrition.refresh', 'تحديث')}>
+                    <button onClick={handleRefresh} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                         🔄
                     </button>
+                    {/* ✅ تم إزالة زر اللغة من هنا */}
                     <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', fontSize: '0.8rem', cursor: 'pointer' }}>
                         <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
-                        <span>{t('nutrition.autoRefresh', 'تحديث تلقائي')}</span>
+                        <span>{isArabic ? 'تحديث تلقائي' : 'Auto Refresh'}</span>
                     </label>
                 </div>
             </div>
 
-            {/* 🧠 التوصيات الذكية */}
+            {/* التوصيات الذكية */}
             {recommendations.length > 0 && (
                 <div className="recommendations-section">
-                    <h3>💡 {t('nutrition.smartRecommendations', 'توصيات ذكية')}</h3>
+                    <h3>💡 {isArabic ? 'توصيات ذكية' : 'Smart Recommendations'}</h3>
                     <div className="recommendations-list">
                         {recommendations.map((rec, idx) => (
                             <div key={idx} className={`recommendation priority-${rec.priority}`}>
                                 <div className="rec-header">
                                     <span className="rec-icon">{rec.icon}</span>
-                                    <span className="rec-title">{rec.title || t('nutrition.recommendation', 'توصية')}</span>
+                                    <span className="rec-title">{isArabic ? 'توصية' : 'Recommendation'}</span>
                                 </div>
                                 <p className="rec-advice">{rec.text}</p>
                             </div>
@@ -429,12 +414,12 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
                 </div>
             )}
 
-            {/* 🔮 توقع الوزن */}
+            {/* توقع الوزن */}
             {prediction && (
                 <div className={`insight-card ${prediction.status === 'high' ? 'energy-critical' : prediction.status === 'warning' ? 'energy-warning' : ''}`}>
                     <div className="insight-icon">{prediction.icon}</div>
                     <div className="insight-content">
-                        <h3>{t('nutrition.weightPrediction', 'توقع الوزن')}</h3>
+                        <h3>{isArabic ? 'توقع الوزن' : 'Weight Prediction'}</h3>
                         <p style={{ fontWeight: 'bold' }}>{prediction.text}</p>
                     </div>
                 </div>
@@ -443,10 +428,10 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
             {/* تبويبات */}
             <div className="analytics-tabs">
                 <button className={activeTab === 'basic' ? 'active' : ''} onClick={() => setActiveTab('basic')}>
-                    📊 {t('nutrition.summary', 'ملخص')}
+                    📊 {isArabic ? 'ملخص' : 'Summary'}
                 </button>
                 <button className={activeTab === 'insights' ? 'active' : ''} onClick={() => setActiveTab('insights')}>
-                    🧠 {t('nutrition.advanced.title', 'تحليلات متقدمة')}
+                    🧠 {isArabic ? 'تحليلات متقدمة' : 'Advanced Insights'}
                 </button>
             </div>
 
@@ -459,55 +444,53 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
                                 <div className="stat-icon">🍽️</div>
                                 <div className="stat-content">
                                     <div className="stat-value">{nutritionStats.totalMeals}</div>
-                                    <div className="stat-label">{t('nutrition.meals', 'وجبة')}</div>
+                                    <div className="stat-label">{isArabic ? 'وجبة' : 'Meals'}</div>
                                 </div>
                             </div>
                             <div className="analytics-stat-card">
                                 <div className="stat-icon">🔥</div>
                                 <div className="stat-content">
                                     <div className="stat-value">{nutritionStats.totalCalories}</div>
-                                    <div className="stat-label">{t('nutrition.calories', 'سعرة')}</div>
+                                    <div className="stat-label">{isArabic ? 'سعرة' : 'Calories'}</div>
                                 </div>
                             </div>
                             <div className="analytics-stat-card">
                                 <div className="stat-icon">💪</div>
                                 <div className="stat-content">
                                     <div className="stat-value">{nutritionStats.avgProtein}g</div>
-                                    <div className="stat-label">{t('nutrition.protein', 'بروتين')}</div>
+                                    <div className="stat-label">{isArabic ? 'بروتين' : 'Protein'}</div>
                                 </div>
                             </div>
                             <div className="analytics-stat-card">
                                 <div className="stat-icon">📅</div>
                                 <div className="stat-content">
                                     <div className="stat-value">{nutritionStats.todayCalories}</div>
-                                    <div className="stat-label">{t('nutrition.today', 'اليوم')}</div>
+                                    <div className="stat-label">{isArabic ? 'اليوم' : 'Today'}</div>
                                 </div>
                             </div>
                         </div>
 
                         {/* تقدم الأهداف */}
                         <div className="recommendations-section">
-                            <h3>🎯 {t('nutrition.dailyGoalsProgress', 'أهداف اليوم')}</h3>
+                            <h3>🎯 {isArabic ? 'أهداف اليوم' : 'Daily Goals'}</h3>
                             <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr', gap: 'var(--spacing-md)' }}>
-                                {/* Calories */}
                                 <div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-sm)' }}>
-                                        <span>🔥 {t('nutrition.calories', 'سعرات')}</span>
+                                        <span>🔥 {isArabic ? 'سعرات' : 'Calories'}</span>
                                         <span>{goalProgress.calories}%</span>
                                     </div>
                                     <div className="progress-bar">
                                         <div className="progress-fill" style={{ width: `${goalProgress.calories}%` }}></div>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--spacing-sm)', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
-                                        <span>{Math.round(nutritionStats.todayCalories)} {t('nutrition.caloriesUnit', 'سعرة')}</span>
-                                        <span>/ {nutritionGoals.dailyCalories} {t('nutrition.caloriesUnit', 'سعرة')}</span>
+                                        <span>{Math.round(nutritionStats.todayCalories)} {isArabic ? 'سعرة' : 'cal'}</span>
+                                        <span>/ {nutritionGoals.dailyCalories} {isArabic ? 'سعرة' : 'cal'}</span>
                                     </div>
                                 </div>
                                 
-                                {/* Protein */}
                                 <div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-sm)' }}>
-                                        <span>💪 {t('nutrition.protein', 'بروتين')}</span>
+                                        <span>💪 {isArabic ? 'بروتين' : 'Protein'}</span>
                                         <span>{goalProgress.protein}%</span>
                                     </div>
                                     <div className="progress-bar">
@@ -523,14 +506,14 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
 
                         {/* توزيع الوجبات */}
                         <div className="recommendations-section">
-                            <h4>📊 {t('nutrition.mealDistribution', 'توزيع الوجبات')}</h4>
+                            <h4>📊 {isArabic ? 'توزيع الوجبات' : 'Meal Distribution'}</h4>
                             <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr', gap: 'var(--spacing-sm)' }}>
                                 {['Breakfast', 'Lunch', 'Dinner', 'Snack'].map(type => {
                                     const count = meals?.filter(m => m.meal_type === type).length || 0;
                                     const percent = meals?.length ? Math.round((count / meals.length) * 100) : 0;
                                     return (
                                         <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                                            <span style={{ minWidth: '80px' }}>{getMealTypeIcon(type)} {getMealTypeLabel(type)}</span>
+                                            <span style={{ minWidth: '80px' }}>{getMealTypeIcon(type)} {getMealTypeLabel(type, isArabic)}</span>
                                             <div className="progress-bar" style={{ flex: 1 }}>
                                                 <div className="progress-fill" style={{ width: `${percent}%`, background: 'var(--secondary)' }}></div>
                                             </div>
@@ -543,18 +526,18 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
 
                         {/* آخر الوجبات */}
                         <div className="recommendations-section">
-                            <h3>📝 {t('nutrition.loggedMeals', 'آخر الوجبات')}</h3>
+                            <h3>📝 {isArabic ? 'آخر الوجبات' : 'Recent Meals'}</h3>
                             {meals?.length === 0 ? (
                                 <div className="analytics-empty">
                                     <div className="empty-icon">🍽️</div>
-                                    <p>{t('nutrition.noMeals', 'لا توجد وجبات مسجلة')}</p>
+                                    <p>{isArabic ? 'لا توجد وجبات مسجلة' : 'No meals recorded'}</p>
                                 </div>
                             ) : (
                                 <div className="habits-list">
                                     {meals.slice(0, 5).map(meal => (
                                         <div key={meal.id} className="habit-card">
                                             <div className="habit-header">
-                                                <span className="habit-name">{getMealTypeIcon(meal.meal_type)} {getMealTypeLabel(meal.meal_type)}</span>
+                                                <span className="habit-name">{getMealTypeIcon(meal.meal_type)} {getMealTypeLabel(meal.meal_type, isArabic)}</span>
                                                 <span className="habit-rate">🔥 {meal.total_calories}</span>
                                             </div>
                                             <div className="habit-desc">{formatDate(meal.meal_time)}</div>
@@ -588,7 +571,7 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
             {/* تذييل */}
             <div className="analytics-footer">
                 <small>
-                    {t('nutrition.totalMeals', 'إجمالي الوجبات')}: {nutritionStats.totalMeals} | {t('nutrition.totalCalories', 'إجمالي السعرات')}: {nutritionStats.totalCalories}
+                    {isArabic ? 'إجمالي الوجبات' : 'Total meals'}: {nutritionStats.totalMeals} | {isArabic ? 'إجمالي السعرات' : 'Total calories'}: {nutritionStats.totalCalories}
                 </small>
             </div>
         </div>

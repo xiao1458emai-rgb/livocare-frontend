@@ -1,7 +1,6 @@
 // src/components/ProfileManager.jsx
 'use client'
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
 
@@ -29,15 +28,15 @@ const calculateBMI = (weight, height) => {
 };
 
 // دالة للحصول على تصنيف BMI
-const getBMICategory = (bmi, t) => {
-    if (bmi < 18.5) return { category: t('profile.bmi.underweight'), color: '#f59e0b', icon: '⚠️' };
-    if (bmi < 25) return { category: t('profile.bmi.normal'), color: '#10b981', icon: '✅' };
-    if (bmi < 30) return { category: t('profile.bmi.overweight'), color: '#f97316', icon: '⚠️' };
-    return { category: t('profile.bmi.obese'), color: '#ef4444', icon: '🔴' };
+const getBMICategory = (bmi, isArabic) => {
+    if (bmi < 18.5) return { category: isArabic ? 'نقص وزن' : 'Underweight', color: '#f59e0b', icon: '⚠️' };
+    if (bmi < 25) return { category: isArabic ? 'وزن طبيعي' : 'Normal', color: '#10b981', icon: '✅' };
+    if (bmi < 30) return { category: isArabic ? 'زيادة وزن' : 'Overweight', color: '#f97316', icon: '⚠️' };
+    return { category: isArabic ? 'سمنة' : 'Obese', color: '#ef4444', icon: '🔴' };
 };
 
 // دالة لحساب التقدم نحو الهدف
-const calculateGoalProgress = (goal, currentData) => {
+const calculateGoalProgress = (goal, currentData, isArabic) => {
     if (!goal || !currentData) return { progress: 0, remaining: 0, status: 'unknown', daysLeft: 0, isAchieved: false };
     
     let currentValue = 0;
@@ -129,8 +128,26 @@ const calculateGoalProgress = (goal, currentData) => {
     };
 };
 
+// ✅ دالة عامة لتغيير اللغة وتحديث جميع المكونات
+const setAppLanguage = (lang, isArabic) => {
+    localStorage.setItem('app_lang', lang);
+    document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
+    document.documentElement.lang = isArabic ? 'ar' : 'en';
+    
+    // ✅ إرسال حدث عام ليستمع له باقي المكونات
+    const languageChangeEvent = new CustomEvent('languageChange', { 
+        detail: { lang, isArabic } 
+    });
+    window.dispatchEvent(languageChangeEvent);
+};
+
 function ProfileManager({ isAuthReady }) {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة من localStorage
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
     
     const [userData, setUserData] = useState({
         username: '',
@@ -179,7 +196,7 @@ function ProfileManager({ isAuthReady }) {
     const [settings, setSettings] = useState({
         autoUpdate: true,
         notifications: true,
-        language: i18n.language,
+        language: isArabic ? 'ar' : 'en',
         updateInterval: 30
     });
 
@@ -189,6 +206,38 @@ function ProfileManager({ isAuthReady }) {
     const [lastBackup, setLastBackup] = useState(null);
     const [reducedMotion, setReducedMotion] = useState(false);
 
+    // ✅ تبديل اللغة (الزر الوحيد المسؤول عن تغيير اللغة)
+    const toggleLanguage = () => {
+        const newLang = lang === 'ar' ? 'en' : 'ar';
+        const newIsArabic = newLang === 'ar';
+        
+        setLang(newLang);
+        setSettings(prev => ({ ...prev, language: newLang }));
+        
+        // ✅ استخدام الدالة العامة لتطبيق اللغة على كامل التطبيق
+        setAppLanguage(newLang, newIsArabic);
+        
+        // ✅ عرض رسالة تأكيد للمستخدم
+        setMessage(newIsArabic ? '✅ تم تغيير اللغة إلى العربية' : '✅ Language changed to English');
+        setMessageType('success');
+        setTimeout(() => setMessage(''), 3000);
+    };
+
+    // ✅ الاستماع لتغييرات اللغة من مكونات أخرى (للتأكد من التزامن)
+    useEffect(() => {
+        const handleExternalLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        
+        window.addEventListener('languageChange', handleExternalLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleExternalLanguageChange);
+        };
+    }, [lang]);
+
     // حساب smartProfile
     const smartProfile = useMemo(() => {
         const weight = parseFloat(userData.initial_weight) || healthData.weight;
@@ -197,7 +246,7 @@ function ProfileManager({ isAuthReady }) {
         if (!weight || !height) return null;
         
         const bmi = calculateBMI(weight, height);
-        const bmiCategory = bmi ? getBMICategory(bmi, t) : null;
+        const bmiCategory = bmi ? getBMICategory(bmi, isArabic) : null;
         
         let age = null;
         if (userData.date_of_birth) {
@@ -241,7 +290,7 @@ function ProfileManager({ isAuthReady }) {
             weight,
             height
         };
-    }, [userData.initial_weight, userData.height, userData.date_of_birth, healthData, t]);
+    }, [userData.initial_weight, userData.height, userData.date_of_birth, healthData, isArabic]);
 
     // توليد توصيات ذكية
     const getPersonalizedRecommendations = useMemo(() => {
@@ -250,49 +299,49 @@ function ProfileManager({ isAuthReady }) {
         const bmi = smartProfile?.bmi;
         
         if (occupation === 'Student') {
-            recommendations.push({ icon: '📚', text: t('profile.recommendations.studentSleep'), priority: 'medium' });
-            recommendations.push({ icon: '🍎', text: t('profile.recommendations.studentNutrition'), priority: 'medium' });
+            recommendations.push({ icon: '📚', text: isArabic ? 'حاول النوم 7-8 ساعات لتحسين التركيز' : 'Try to sleep 7-8 hours to improve focus', priority: 'medium' });
+            recommendations.push({ icon: '🍎', text: isArabic ? 'تناول وجبات متوازنة أثناء فترة الدراسة' : 'Eat balanced meals during study period', priority: 'medium' });
         } else if (occupation === 'Full-Time') {
-            recommendations.push({ icon: '💼', text: t('profile.recommendations.employeeActivity'), priority: 'high' });
-            recommendations.push({ icon: '🧘', text: t('profile.recommendations.employeeStress'), priority: 'high' });
+            recommendations.push({ icon: '💼', text: isArabic ? 'مارس نشاطاً بسيطاً خلال فترات الراحة في العمل' : 'Do simple activity during work breaks', priority: 'high' });
+            recommendations.push({ icon: '🧘', text: isArabic ? 'جرب تمارين التنفس لتخفيف ضغط العمل' : 'Try breathing exercises to relieve work stress', priority: 'high' });
         } else if (occupation === 'Freelancer') {
-            recommendations.push({ icon: '🖥️', text: t('profile.recommendations.freelancerRoutine'), priority: 'medium' });
+            recommendations.push({ icon: '🖥️', text: isArabic ? 'حدد روتيناً يومياً ثابتاً للعمل والنوم' : 'Set a consistent daily routine for work and sleep', priority: 'medium' });
         }
         
         if (bmi) {
             if (bmi < 18.5) {
-                recommendations.push({ icon: '🥑', text: t('profile.recommendations.weightGain'), priority: 'high' });
+                recommendations.push({ icon: '🥑', text: isArabic ? 'زد من السعرات الصحية لتحسين وزنك' : 'Increase healthy calories to improve your weight', priority: 'high' });
             } else if (bmi > 25) {
-                recommendations.push({ icon: '🏃', text: t('profile.recommendations.weightLoss'), priority: 'high' });
+                recommendations.push({ icon: '🏃', text: isArabic ? 'زد نشاطك البدني تدريجياً لتقليل الوزن' : 'Gradually increase physical activity to lose weight', priority: 'high' });
             }
         }
         
         if (healthData.sleep && healthData.sleep < 7) {
-            recommendations.push({ icon: '😴', text: t('profile.recommendations.sleepMore', { hours: 8 - healthData.sleep }), priority: 'high' });
+            recommendations.push({ icon: '😴', text: isArabic ? `متوسط نومك ${healthData.sleep} ساعات، حاول زيادة نومك` : `Your average sleep is ${healthData.sleep} hours, try to increase it`, priority: 'high' });
         }
         
         if (healthData.activity && healthData.activity < 150) {
-            recommendations.push({ icon: '🏃', text: t('profile.recommendations.activityMore', { minutes: 150 - healthData.activity }), priority: 'medium' });
+            recommendations.push({ icon: '🏃', text: isArabic ? `نشاطك الأسبوعي ${healthData.activity} دقيقة، استهدف 150 دقيقة` : `Your weekly activity is ${healthData.activity} minutes, aim for 150 minutes`, priority: 'medium' });
         }
         
         return recommendations.slice(0, 5);
-    }, [userData.occupation_status, smartProfile?.bmi, healthData, t]);
+    }, [userData.occupation_status, smartProfile?.bmi, healthData, isArabic]);
 
     // إحصائيات الأهداف
     const goalsStats = useMemo(() => {
         const total = healthGoals.length;
         const completed = healthGoals.filter(g => {
-            const progress = calculateGoalProgress(g, healthData);
+            const progress = calculateGoalProgress(g, healthData, isArabic);
             return progress.isAchieved || g.is_achieved;
         }).length;
         const inProgress = total - completed;
         const avgProgress = total > 0 ? Math.round(healthGoals.reduce((sum, g) => {
-            const progress = calculateGoalProgress(g, healthData);
+            const progress = calculateGoalProgress(g, healthData, isArabic);
             return sum + progress.progress;
         }, 0) / total) : 0;
         
         return { total, completed, inProgress, avgProgress };
-    }, [healthGoals, healthData]);
+    }, [healthGoals, healthData, isArabic]);
 
     // Effects
     useEffect(() => {
@@ -454,7 +503,7 @@ function ProfileManager({ isAuthReady }) {
             
         } catch (error) {
             console.error('Error fetching user data:', error);
-            setMessage(t('profile.error.fetchUser'));
+            setMessage(isArabic ? 'خطأ في تحميل بيانات المستخدم' : 'Error loading user data');
             setMessageType('error');
         } finally {
             setLoading(false);
@@ -488,7 +537,7 @@ function ProfileManager({ isAuthReady }) {
 
     const checkAndUpdateGoalsAutomatically = async () => {
         for (const goal of healthGoals) {
-            const progress = calculateGoalProgress(goal, healthData);
+            const progress = calculateGoalProgress(goal, healthData, isArabic);
             
             if (progress.isAchieved && !goal.is_achieved) {
                 await markGoalAsAchieved(goal.id);
@@ -505,7 +554,7 @@ function ProfileManager({ isAuthReady }) {
                 is_achieved: true,
                 achieved_date: new Date().toISOString()
             });
-            setMessage(t('profile.goals.achievedAuto'));
+            setMessage(isArabic ? 'تم تحقيق الهدف تلقائياً!' : 'Goal automatically achieved!');
             setMessageType('success');
             fetchHealthGoals();
             
@@ -567,13 +616,13 @@ function ProfileManager({ isAuthReady }) {
             });
             
             await axiosInstance.put('/profile/', updateData);
-            setMessage(t('profile.profile.updated'));
+            setMessage(isArabic ? 'تم تحديث الملف الشخصي بنجاح' : 'Profile updated successfully');
             setMessageType('success');
             await fetchUserData();
             await fetchCurrentHealthData();
         } catch (error) {
             console.error('Error updating profile:', error);
-            setMessage(t('profile.error.updateProfile'));
+            setMessage(isArabic ? 'خطأ في تحديث الملف الشخصي' : 'Error updating profile');
             setMessageType('error');
         } finally {
             setSaving(false);
@@ -587,14 +636,14 @@ function ProfileManager({ isAuthReady }) {
         setMessage('');
         
         if (passwordData.new_password !== passwordData.confirm_password) {
-            setMessage(t('profile.password.passwordsDoNotMatch'));
+            setMessage(isArabic ? 'كلمة المرور الجديدة غير متطابقة' : 'New passwords do not match');
             setMessageType('error');
             setChangingPassword(false);
             return;
         }
         
         if (passwordData.new_password.length < 8) {
-            setMessage(t('profile.password.passwordTooShort'));
+            setMessage(isArabic ? 'كلمة المرور قصيرة جداً (8 أحرف على الأقل)' : 'Password too short (minimum 8 characters)');
             setMessageType('error');
             setChangingPassword(false);
             return;
@@ -606,16 +655,16 @@ function ProfileManager({ isAuthReady }) {
                 new_password: passwordData.new_password
             });
             
-            setMessage(t('profile.password.changed'));
+            setMessage(isArabic ? 'تم تغيير كلمة المرور بنجاح' : 'Password changed successfully');
             setMessageType('success');
             setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
             
         } catch (error) {
             console.error('Error changing password:', error);
             if (error.response?.status === 400) {
-                setMessage(t('profile.password.wrongCurrentPassword'));
+                setMessage(isArabic ? 'كلمة المرور الحالية غير صحيحة' : 'Current password is incorrect');
             } else {
-                setMessage(t('profile.password.changeError'));
+                setMessage(isArabic ? 'خطأ في تغيير كلمة المرور' : 'Error changing password');
             }
             setMessageType('error');
         } finally {
@@ -630,7 +679,7 @@ function ProfileManager({ isAuthReady }) {
         
         try {
             if (!newGoal.title || !newGoal.target_value || !newGoal.target_date) {
-                setMessage(t('profile.goals.requiredFields'));
+                setMessage(isArabic ? 'الرجاء ملء جميع الحقول المطلوبة' : 'Please fill all required fields');
                 setMessageType('error');
                 setSaving(false);
                 return;
@@ -681,11 +730,11 @@ function ProfileManager({ isAuthReady }) {
                 target_date: '',
                 start_value: ''
             });
-            setMessage(t('profile.goals.added'));
+            setMessage(isArabic ? 'تم إضافة الهدف بنجاح' : 'Goal added successfully');
             setMessageType('success');
         } catch (error) {
             console.error('Error adding goal:', error);
-            setMessage(t('profile.error.addGoal'));
+            setMessage(isArabic ? 'خطأ في إضافة الهدف' : 'Error adding goal');
             setMessageType('error');
         } finally {
             setSaving(false);
@@ -694,16 +743,16 @@ function ProfileManager({ isAuthReady }) {
     };
 
     const deleteGoal = async (goalId) => {
-        if (!confirm(t('profile.goals.deleteConfirm'))) return;
+        if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا الهدف؟' : 'Are you sure you want to delete this goal?')) return;
         
         try {
             await axiosInstance.delete(`/goals/${goalId}/`);
             setHealthGoals(prev => prev.filter(goal => goal.id !== goalId));
-            setMessage(t('profile.goals.deleted'));
+            setMessage(isArabic ? 'تم حذف الهدف بنجاح' : 'Goal deleted successfully');
             setMessageType('success');
         } catch (error) {
             console.error('Error deleting goal:', error);
-            setMessage(t('profile.error.deleteGoal'));
+            setMessage(isArabic ? 'خطأ في حذف الهدف' : 'Error deleting goal');
             setMessageType('error');
         } finally {
             setTimeout(() => setMessage(''), 3000);
@@ -714,11 +763,11 @@ function ProfileManager({ isAuthReady }) {
         setSaving(true);
         try {
             localStorage.setItem('appSettings', JSON.stringify(settings));
-            setMessage(t('profile.settings.saved'));
+            setMessage(isArabic ? 'تم حفظ الإعدادات' : 'Settings saved');
             setMessageType('success');
         } catch (error) {
             console.error('Error saving settings:', error);
-            setMessage(t('profile.settings.error'));
+            setMessage(isArabic ? 'خطأ في حفظ الإعدادات' : 'Error saving settings');
             setMessageType('error');
         } finally {
             setSaving(false);
@@ -727,11 +776,11 @@ function ProfileManager({ isAuthReady }) {
     };
 
     const handleDeleteAccount = async () => {
-        if (!confirm(t('profile.danger.deleteAccountConfirm'))) return;
+        if (!confirm(isArabic ? '⚠️ هل أنت متأكد؟ هذا الإجراء لا يمكن التراجع عنه!' : '⚠️ Are you sure? This action cannot be undone!')) return;
         
-        const confirmation = prompt(t('profile.danger.typeDelete'));
+        const confirmation = prompt(isArabic ? 'اكتب "حذف" لتأكيد حذف حسابك' : 'Type "delete" to confirm account deletion');
         if (confirmation !== 'حذف' && confirmation !== 'delete') {
-            setMessage(t('profile.danger.cancelled'));
+            setMessage(isArabic ? 'تم إلغاء العملية' : 'Operation cancelled');
             setMessageType('info');
             return;
         }
@@ -741,7 +790,7 @@ function ProfileManager({ isAuthReady }) {
             await axiosInstance.delete('/delete-account/');
             
             localStorage.clear();
-            setMessage(t('profile.danger.accountDeleted'));
+            setMessage(isArabic ? 'تم حذف الحساب بنجاح' : 'Account deleted successfully');
             setMessageType('success');
             
             setTimeout(() => {
@@ -749,7 +798,7 @@ function ProfileManager({ isAuthReady }) {
             }, 3000);
         } catch (error) {
             console.error('Error deleting account:', error);
-            setMessage(t('profile.error.deleteAccount'));
+            setMessage(isArabic ? 'خطأ في حذف الحساب' : 'Error deleting account');
             setMessageType('error');
         } finally {
             setDeleting(false);
@@ -770,11 +819,11 @@ function ProfileManager({ isAuthReady }) {
             linkElement.setAttribute('download', fileName);
             linkElement.click();
             
-            setMessage(t('profile.danger.exportSuccess'));
+            setMessage(isArabic ? 'تم تصدير البيانات بنجاح' : 'Data exported successfully');
             setMessageType('success');
         } catch (error) {
             console.error('Error exporting data:', error);
-            setMessage(t('profile.error.exportData'));
+            setMessage(isArabic ? 'خطأ في تصدير البيانات' : 'Error exporting data');
             setMessageType('error');
         } finally {
             setExporting(false);
@@ -783,7 +832,7 @@ function ProfileManager({ isAuthReady }) {
     };
 
     const handleFullBackup = async () => {
-        if (!confirm(t('profile.backup.confirm'))) return;
+        if (!confirm(isArabic ? 'هل تريد إنشاء نسخة احتياطية كاملة؟' : 'Do you want to create a full backup?')) return;
         
         setExporting(true);
         try {
@@ -808,11 +857,11 @@ function ProfileManager({ isAuthReady }) {
             linkElement.setAttribute('download', fileName);
             linkElement.click();
             
-            setMessage(t('profile.backup.success'));
+            setMessage(isArabic ? 'تم إنشاء النسخة الاحتياطية بنجاح' : 'Backup created successfully');
             setMessageType('success');
         } catch (error) {
             console.error('Error creating backup:', error);
-            setMessage(t('profile.backup.error'));
+            setMessage(isArabic ? 'خطأ في إنشاء النسخة الاحتياطية' : 'Error creating backup');
             setMessageType('error');
         } finally {
             setExporting(false);
@@ -824,7 +873,7 @@ function ProfileManager({ isAuthReady }) {
         const file = event.target.files[0];
         if (!file) return;
         
-        if (!confirm(t('profile.restore.confirm'))) {
+        if (!confirm(isArabic ? 'تحذير: استعادة النسخة الاحتياطية ستستبدل بياناتك الحالية. هل تريد المتابعة؟' : 'Warning: Restoring backup will replace your current data. Continue?')) {
             event.target.value = '';
             return;
         }
@@ -838,7 +887,7 @@ function ProfileManager({ isAuthReady }) {
                 throw new Error('Invalid backup file');
             }
             
-            setMessage(t('profile.restore.success'));
+            setMessage(isArabic ? 'تم استعادة النسخة الاحتياطية بنجاح' : 'Backup restored successfully');
             setMessageType('success');
             
             fetchUserData();
@@ -846,7 +895,7 @@ function ProfileManager({ isAuthReady }) {
             fetchCurrentHealthData();
         } catch (error) {
             console.error('Error restoring backup:', error);
-            setMessage(t('profile.restore.error'));
+            setMessage(isArabic ? 'خطأ في استعادة النسخة الاحتياطية' : 'Error restoring backup');
             setMessageType('error');
         } finally {
             setLoading(false);
@@ -860,7 +909,7 @@ function ProfileManager({ isAuthReady }) {
             <div className="analytics-container">
                 <div className="analytics-loading">
                     <div className="spinner"></div>
-                    <p>{t('common.loading')}</p>
+                    <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
                 </div>
             </div>
         );
@@ -870,10 +919,11 @@ function ProfileManager({ isAuthReady }) {
         <div className={`analytics-container ${reducedMotion ? 'reduce-motion' : ''}`}>
             {/* رأس الصفحة */}
             <div className="analytics-header">
-                <h2>
-                    <span>👤</span>
-                    {t('profile.title')}
-                </h2>
+                <h2>{isArabic ? 'الملف الشخصي' : 'Profile'}</h2>
+                {/* ✅ زر اللغة الوحيد في التطبيق */}
+                <button onClick={toggleLanguage} className="lang-btn">
+                    {isArabic ? 'English' : 'العربية'}
+                </button>
             </div>
 
             {/* Smart Profile Card */}
@@ -881,24 +931,24 @@ function ProfileManager({ isAuthReady }) {
                 <div className="insight-card" style={{ background: 'var(--primary-gradient)', color: 'white' }}>
                     <div className="insight-icon">🧠</div>
                     <div className="insight-content">
-                        <h3 style={{ color: 'white' }}>{t('profile.smartProfile.title')}</h3>
+                        <h3 style={{ color: 'white' }}>{isArabic ? 'لمحة صحية ذكية' : 'Smart Health Profile'}</h3>
                         <div className="analytics-stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
                             <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
                                 <div className="stat-content">
-                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.smartProfile.bmi')}</div>
+                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'مؤشر كتلة الجسم' : 'BMI'}</div>
                                     <div className="stat-value" style={{ color: smartProfile.bmiCategory?.color }}>{smartProfile.bmi}</div>
                                     <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>{smartProfile.bmiCategory?.category}</div>
                                 </div>
                             </div>
                             <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
                                 <div className="stat-content">
-                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.smartProfile.age')}</div>
+                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'العمر' : 'Age'}</div>
                                     <div className="stat-value" style={{ color: 'white' }}>{smartProfile.age || '—'}</div>
                                 </div>
                             </div>
                             <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
                                 <div className="stat-content">
-                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.smartProfile.healthScore')}</div>
+                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'درجة الصحة' : 'Health Score'}</div>
                                     <div className="stat-value" style={{ color: 'white' }}>{smartProfile.healthScore}</div>
                                     <div className="progress-bar" style={{ marginTop: 'var(--spacing-xs)' }}>
                                         <div className="progress-fill" style={{ width: `${smartProfile.healthScore}%` }}></div>
@@ -911,7 +961,7 @@ function ProfileManager({ isAuthReady }) {
                             <div className="recommendations-section" style={{ background: 'rgba(255,255,255,0.1)', marginTop: 'var(--spacing-md)' }}>
                                 <div className="rec-header">
                                     <span className="rec-icon">💡</span>
-                                    <span className="rec-category" style={{ color: 'white' }}>{t('profile.smartProfile.recommendations')}</span>
+                                    <span className="rec-category" style={{ color: 'white' }}>{isArabic ? 'توصيات مخصصة' : 'Personalized Recommendations'}</span>
                                 </div>
                                 <div className="recommendations-list">
                                     {getPersonalizedRecommendations.map((rec, i) => (
@@ -932,13 +982,13 @@ function ProfileManager({ isAuthReady }) {
             {/* التبويبات */}
             <div className="analytics-tabs">
                 <button className={`type-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
-                    📝 {t('profile.tabs.profile')}
+                    📝 {isArabic ? 'الملف الشخصي' : 'Profile'}
                 </button>
                 <button className={`type-btn ${activeTab === 'goals' ? 'active' : ''}`} onClick={() => setActiveTab('goals')}>
-                    🎯 {t('profile.tabs.goals')}
+                    🎯 {isArabic ? 'الأهداف' : 'Goals'}
                 </button>
                 <button className={`type-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
-                    ⚙️ {t('profile.tabs.settings')}
+                    ⚙️ {isArabic ? 'الإعدادات' : 'Settings'}
                 </button>
             </div>
 
@@ -956,75 +1006,75 @@ function ProfileManager({ isAuthReady }) {
                 {activeTab === 'profile' && (
                     <form onSubmit={handleUserUpdate}>
                         <div className="recommendations-section">
-                            <h3>📋 {t('profile.profile.basicInfo')}</h3>
+                            <h3>📋 {isArabic ? 'المعلومات الأساسية' : 'Basic Information'}</h3>
                             <div className="strengths-weaknesses" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                                 <div className="field-group">
-                                    <label className="stat-label">{t('profile.profile.username')}</label>
+                                    <label className="stat-label">{isArabic ? 'اسم المستخدم' : 'Username'}</label>
                                     <input type="text" value={userData.username} disabled className="search-input" />
                                 </div>
                                 <div className="field-group">
-                                    <label className="stat-label">{t('profile.profile.email')}</label>
+                                    <label className="stat-label">{isArabic ? 'البريد الإلكتروني' : 'Email'}</label>
                                     <input type="email" value={userData.email} onChange={(e) => setUserData({...userData, email: e.target.value})} className="search-input" />
                                 </div>
                                 <div className="field-group">
-                                    <label className="stat-label">{t('profile.profile.firstName')}</label>
+                                    <label className="stat-label">{isArabic ? 'الاسم الأول' : 'First Name'}</label>
                                     <input type="text" value={userData.first_name} onChange={(e) => setUserData({...userData, first_name: e.target.value})} className="search-input" />
                                 </div>
                                 <div className="field-group">
-                                    <label className="stat-label">{t('profile.profile.lastName')}</label>
+                                    <label className="stat-label">{isArabic ? 'اسم العائلة' : 'Last Name'}</label>
                                     <input type="text" value={userData.last_name} onChange={(e) => setUserData({...userData, last_name: e.target.value})} className="search-input" />
                                 </div>
                                 <div className="field-group">
-                                    <label className="stat-label">{t('profile.profile.birthDate')}</label>
+                                    <label className="stat-label">{isArabic ? 'تاريخ الميلاد' : 'Date of Birth'}</label>
                                     <input type="date" value={userData.date_of_birth} onChange={(e) => setUserData({...userData, date_of_birth: e.target.value})} className="search-input" />
                                 </div>
                                 <div className="field-group">
-                                    <label className="stat-label">{t('profile.profile.gender')}</label>
+                                    <label className="stat-label">{isArabic ? 'النوع' : 'Gender'}</label>
                                     <select value={userData.gender} onChange={(e) => setUserData({...userData, gender: e.target.value})} className="search-input">
-                                        <option value="">{t('profile.profile.selectGender')}</option>
-                                        <option value="M">{t('profile.profile.male')}</option>
-                                        <option value="F">{t('profile.profile.female')}</option>
+                                        <option value="">{isArabic ? 'اختر النوع' : 'Select gender'}</option>
+                                        <option value="M">{isArabic ? 'ذكر' : 'Male'}</option>
+                                        <option value="F">{isArabic ? 'أنثى' : 'Female'}</option>
                                     </select>
                                 </div>
                                 <div className="field-group">
-                                    <label className="stat-label">{t('profile.profile.occupation')}</label>
+                                    <label className="stat-label">{isArabic ? 'الوظيفة' : 'Occupation'}</label>
                                     <select value={userData.occupation_status} onChange={(e) => setUserData({...userData, occupation_status: e.target.value})} className="search-input">
-                                        <option value="">{t('profile.profile.selectOccupation')}</option>
-                                        <option value="Student">{t('profile.profile.student')}</option>
-                                        <option value="Full-Time">{t('profile.profile.fullTime')}</option>
-                                        <option value="Freelancer">{t('profile.profile.freelancer')}</option>
-                                        <option value="Other">{t('profile.profile.other')}</option>
+                                        <option value="">{isArabic ? 'اختر الوظيفة' : 'Select occupation'}</option>
+                                        <option value="Student">{isArabic ? 'طالب' : 'Student'}</option>
+                                        <option value="Full-Time">{isArabic ? 'موظف بدوام كامل' : 'Full-Time'}</option>
+                                        <option value="Freelancer">{isArabic ? 'عمل حر' : 'Freelancer'}</option>
+                                        <option value="Other">{isArabic ? 'أخرى' : 'Other'}</option>
                                     </select>
                                 </div>
                             </div>
                         </div>
 
                         <div className="recommendations-section">
-                            <h3>❤️ {t('profile.profile.healthInfo')}</h3>
+                            <h3>❤️ {isArabic ? 'المعلومات الصحية' : 'Health Information'}</h3>
                             <div className="strengths-weaknesses" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                                 <div className="field-group">
-                                    <label className="stat-label">{t('profile.profile.initialWeight')}</label>
+                                    <label className="stat-label">{isArabic ? 'الوزن الأولي' : 'Initial Weight'}</label>
                                     <div className="input-wrapper" style={{ position: 'relative' }}>
                                         <input type="number" step="0.1" value={userData.initial_weight} onChange={(e) => setUserData({...userData, initial_weight: e.target.value})} className="search-input" />
-                                        <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)' }}>{t('profile.units.kg')}</span>
+                                        <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)' }}>{isArabic ? 'كجم' : 'kg'}</span>
                                     </div>
                                 </div>
                                 <div className="field-group">
-                                    <label className="stat-label">{t('profile.profile.height')}</label>
+                                    <label className="stat-label">{isArabic ? 'الطول' : 'Height'}</label>
                                     <div className="input-wrapper" style={{ position: 'relative' }}>
                                         <input type="number" step="0.1" value={userData.height} onChange={(e) => setUserData({...userData, height: e.target.value})} className="search-input" />
-                                        <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)' }}>{t('profile.units.cm')}</span>
+                                        <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)' }}>{isArabic ? 'سم' : 'cm'}</span>
                                     </div>
                                 </div>
                                 <div className="field-group">
-                                    <label className="stat-label">{t('profile.profile.phone')}</label>
+                                    <label className="stat-label">{isArabic ? 'رقم الهاتف' : 'Phone Number'}</label>
                                     <input type="tel" value={userData.phone_number} onChange={(e) => setUserData({...userData, phone_number: e.target.value})} className="search-input" />
                                 </div>
                             </div>
                         </div>
 
                         <button type="submit" disabled={saving} className="type-btn active" style={{ width: '100%' }}>
-                            {saving ? t('common.saving') : t('profile.profile.saveChanges')}
+                            {saving ? (isArabic ? 'جاري الحفظ...' : 'Saving...') : (isArabic ? 'حفظ التغييرات' : 'Save Changes')}
                         </button>
                     </form>
                 )}
@@ -1035,45 +1085,45 @@ function ProfileManager({ isAuthReady }) {
                         <div className="insight-card" style={{ background: 'var(--primary-gradient)', color: 'white' }}>
                             <div className="insight-icon">🎯</div>
                             <div className="insight-content">
-                                <h3 style={{ color: 'white' }}>{t('profile.goals.addNew')}</h3>
+                                <h3 style={{ color: 'white' }}>{isArabic ? 'أضف هدفاً جديداً' : 'Add New Goal'}</h3>
                                 <form onSubmit={handleAddGoal}>
                                     <div className="strengths-weaknesses" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: 'var(--spacing-md)' }}>
                                         <div className="field-group">
-                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.goals.title')}</label>
+                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'عنوان الهدف' : 'Goal Title'}</label>
                                             <input type="text" value={newGoal.title} onChange={(e) => setNewGoal({...newGoal, title: e.target.value})} className="search-input" style={{ background: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.3)', color: 'white' }} />
                                         </div>
                                         <div className="field-group">
-                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.goals.type')}</label>
+                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'نوع الهدف' : 'Goal Type'}</label>
                                             <select value={newGoal.type} onChange={(e) => setNewGoal({...newGoal, type: e.target.value})} className="search-input" style={{ background: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.3)', color: 'white' }}>
-                                                <option value="general">{t('profile.goals.types.general')}</option>
-                                                <option value="weight_loss">{t('profile.goals.types.weightLoss')}</option>
-                                                <option value="weight_gain">{t('profile.goals.types.weightGain')}</option>
-                                                <option value="sleep">{t('profile.goals.types.sleep')}</option>
-                                                <option value="activity">{t('profile.goals.types.activity')}</option>
-                                                <option value="calories">{t('profile.goals.types.calories')}</option>
-                                                <option value="habit">{t('profile.goals.types.habit')}</option>
+                                                <option value="general">{isArabic ? 'عام' : 'General'}</option>
+                                                <option value="weight_loss">{isArabic ? 'خسارة وزن' : 'Weight Loss'}</option>
+                                                <option value="weight_gain">{isArabic ? 'زيادة وزن' : 'Weight Gain'}</option>
+                                                <option value="sleep">{isArabic ? 'نوم' : 'Sleep'}</option>
+                                                <option value="activity">{isArabic ? 'نشاط' : 'Activity'}</option>
+                                                <option value="calories">{isArabic ? 'سعرات' : 'Calories'}</option>
+                                                <option value="habit">{isArabic ? 'عادة' : 'Habit'}</option>
                                             </select>
                                         </div>
                                         <div className="field-group">
-                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.goals.targetValue')}</label>
+                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'القيمة المستهدفة' : 'Target Value'}</label>
                                             <div className="input-wrapper" style={{ position: 'relative' }}>
                                                 <input type="number" step="0.1" value={newGoal.target_value} onChange={(e) => setNewGoal({...newGoal, target_value: e.target.value})} className="search-input" style={{ background: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.3)', color: 'white' }} />
                                                 <select value={newGoal.unit} onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})} className="unit-select" style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', width: 'auto', background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white' }}>
                                                     <option value="kg">kg</option>
-                                                    <option value="hours">{t('profile.units.hours')}</option>
-                                                    <option value="minutes">{t('profile.units.minutes')}</option>
-                                                    <option value="calories">{t('profile.units.calories')}</option>
+                                                    <option value="hours">{isArabic ? 'ساعات' : 'hours'}</option>
+                                                    <option value="minutes">{isArabic ? 'دقائق' : 'minutes'}</option>
+                                                    <option value="calories">{isArabic ? 'سعرة' : 'calories'}</option>
                                                     <option value="percent">%</option>
                                                 </select>
                                             </div>
                                         </div>
                                         <div className="field-group">
-                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('profile.goals.targetDate')}</label>
+                                            <label className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'تاريخ الانتهاء' : 'Target Date'}</label>
                                             <input type="date" value={newGoal.target_date} onChange={(e) => setNewGoal({...newGoal, target_date: e.target.value})} className="search-input" style={{ background: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.3)', color: 'white' }} />
                                         </div>
                                     </div>
                                     <button type="submit" disabled={saving} className="type-btn active" style={{ width: '100%', background: 'white', color: 'var(--primary)' }}>
-                                        {saving ? t('common.saving') : t('profile.goals.addGoal')}
+                                        {saving ? (isArabic ? 'جاري الحفظ...' : 'Saving...') : (isArabic ? 'أضف الهدف' : 'Add Goal')}
                                     </button>
                                 </form>
                             </div>
@@ -1083,35 +1133,35 @@ function ProfileManager({ isAuthReady }) {
                             <div className="analytics-stat-card">
                                 <div className="stat-content">
                                     <div className="stat-value">{goalsStats.total}</div>
-                                    <div className="stat-label">{t('profile.goals.totalGoals')}</div>
+                                    <div className="stat-label">{isArabic ? 'إجمالي الأهداف' : 'Total Goals'}</div>
                                 </div>
                             </div>
                             <div className="analytics-stat-card">
                                 <div className="stat-content">
                                     <div className="stat-value">{goalsStats.completed}</div>
-                                    <div className="stat-label">{t('profile.goals.completed')}</div>
+                                    <div className="stat-label">{isArabic ? 'مكتملة' : 'Completed'}</div>
                                 </div>
                             </div>
                             <div className="analytics-stat-card">
                                 <div className="stat-content">
                                     <div className="stat-value">{goalsStats.inProgress}</div>
-                                    <div className="stat-label">{t('profile.goals.inProgress')}</div>
+                                    <div className="stat-label">{isArabic ? 'قيد التقدم' : 'In Progress'}</div>
                                 </div>
                             </div>
                             <div className="analytics-stat-card">
                                 <div className="stat-content">
                                     <div className="stat-value">{goalsStats.avgProgress}%</div>
-                                    <div className="stat-label">{t('profile.goals.avgProgress')}</div>
+                                    <div className="stat-label">{isArabic ? 'متوسط التقدم' : 'Avg Progress'}</div>
                                 </div>
                             </div>
                         </div>
 
                         <div className="recommendations-section">
-                            <h3>📋 {t('profile.goals.myGoals')}</h3>
+                            <h3>📋 {isArabic ? 'أهدافي' : 'My Goals'}</h3>
                             {healthGoals.length > 0 ? (
                                 <div className="notifications-list">
                                     {healthGoals.map((goal) => {
-                                        const progressData = calculateGoalProgress(goal, healthData);
+                                        const progressData = calculateGoalProgress(goal, healthData, isArabic);
                                         const isCompleted = goal.is_achieved || progressData.isAchieved;
                                         
                                         return (
@@ -1119,11 +1169,16 @@ function ProfileManager({ isAuthReady }) {
                                                 <div className="notification-header">
                                                     <div className="notification-title">
                                                         <h4 style={{ margin: 0 }}>{goal.title}</h4>
-                                                        <span className="rec-type tip">{t(`profile.goals.types.${goal.type}`)}</span>
-                                                        {goal.type === 'weight_loss' && <span className="priority-badge priority-urgent">⬇️ {t('profile.goals.lose')}</span>}
-                                                        {goal.type === 'weight_gain' && <span className="priority-badge priority-high">⬆️ {t('profile.goals.gain')}</span>}
+                                                        <span className="rec-type tip">{isArabic ? 
+                                                            (goal.type === 'weight_loss' ? 'خسارة وزن' : 
+                                                             goal.type === 'weight_gain' ? 'زيادة وزن' :
+                                                             goal.type === 'sleep' ? 'نوم' :
+                                                             goal.type === 'activity' ? 'نشاط' :
+                                                             goal.type === 'calories' ? 'سعرات' : 'عام') : goal.type}</span>
+                                                        {goal.type === 'weight_loss' && <span className="priority-badge priority-urgent">⬇️ {isArabic ? 'خسارة' : 'Lose'}</span>}
+                                                        {goal.type === 'weight_gain' && <span className="priority-badge priority-high">⬆️ {isArabic ? 'زيادة' : 'Gain'}</span>}
                                                     </div>
-                                                    <button onClick={() => deleteGoal(goal.id)} className="notification-action-btn" title={t('common.delete')}>🗑️</button>
+                                                    <button onClick={() => deleteGoal(goal.id)} className="notification-action-btn" title={isArabic ? 'حذف' : 'Delete'}>🗑️</button>
                                                 </div>
                                                 
                                                 <div className="notification-content">
@@ -1139,16 +1194,16 @@ function ProfileManager({ isAuthReady }) {
                                                 </div>
                                                 
                                                 <div className="notification-meta">
-                                                    <span className="notification-time">📅 {t('profile.goals.start')}: {new Date(goal.start_date).toLocaleDateString()}</span>
-                                                    <span className="notification-time">🎯 {t('profile.goals.target')}: {new Date(goal.target_date).toLocaleDateString()}</span>
+                                                    <span className="notification-time">📅 {isArabic ? 'بدأ' : 'Start'}: {new Date(goal.start_date).toLocaleDateString()}</span>
+                                                    <span className="notification-time">🎯 {isArabic ? 'هدف' : 'Target'}: {new Date(goal.target_date).toLocaleDateString()}</span>
                                                     {progressData.daysLeft > 0 && !isCompleted && (
-                                                        <span className="notification-time">⏰ {t('profile.goals.daysLeft')}: {progressData.daysLeft} {t('profile.goals.days')}</span>
+                                                        <span className="notification-time">⏰ {isArabic ? 'يوم متبقي' : 'Days left'}: {progressData.daysLeft}</span>
                                                     )}
                                                 </div>
                                                 
                                                 {progressData.dailyRate > 0 && !isCompleted && (
                                                     <div className="rec-advice" style={{ marginTop: 'var(--spacing-sm)' }}>
-                                                        💡 {t('profile.goals.dailyRate')}: {progressData.dailyRate} {goal.unit}/{t('profile.goals.perDay')}
+                                                        💡 {isArabic ? 'المعدل اليومي المطلوب' : 'Daily rate needed'}: {progressData.dailyRate} {goal.unit}/{isArabic ? 'يوم' : 'day'}
                                                     </div>
                                                 )}
                                                 
@@ -1156,7 +1211,7 @@ function ProfileManager({ isAuthReady }) {
                                                     <div className="recommendation-card priority-low" style={{ marginTop: 'var(--spacing-sm)' }}>
                                                         <div className="rec-header">
                                                             <span className="rec-icon">✅</span>
-                                                            <span className="rec-category">{t('profile.goals.onTrack')}</span>
+                                                            <span className="rec-category">{isArabic ? 'على المسار الصحيح' : 'On Track'}</span>
                                                         </div>
                                                     </div>
                                                 )}
@@ -1164,7 +1219,7 @@ function ProfileManager({ isAuthReady }) {
                                                     <div className="recommendation-card priority-high" style={{ marginTop: 'var(--spacing-sm)' }}>
                                                         <div className="rec-header">
                                                             <span className="rec-icon">⚠️</span>
-                                                            <span className="rec-category">{t('profile.goals.offTrack')}</span>
+                                                            <span className="rec-category">{isArabic ? 'تحتاج زيادة الالتزام' : 'Off Track'}</span>
                                                         </div>
                                                     </div>
                                                 )}
@@ -1172,7 +1227,7 @@ function ProfileManager({ isAuthReady }) {
                                                     <div className="recommendation-card priority-low" style={{ marginTop: 'var(--spacing-sm)' }}>
                                                         <div className="rec-header">
                                                             <span className="rec-icon">🏆</span>
-                                                            <span className="rec-category">{t('profile.goals.achieved')}</span>
+                                                            <span className="rec-category">{isArabic ? 'تم تحقيق الهدف' : 'Achieved'}</span>
                                                         </div>
                                                     </div>
                                                 )}
@@ -1183,8 +1238,8 @@ function ProfileManager({ isAuthReady }) {
                             ) : (
                                 <div className="analytics-empty">
                                     <div className="empty-icon">🎯</div>
-                                    <h4>{t('profile.goals.noGoals')}</h4>
-                                    <p>{t('profile.goals.startAdding')}</p>
+                                    <h4>{isArabic ? 'لا توجد أهداف' : 'No Goals'}</h4>
+                                    <p>{isArabic ? 'أضف هدفك الأول أعلاه' : 'Add your first goal above'}</p>
                                 </div>
                             )}
                         </div>
@@ -1195,12 +1250,12 @@ function ProfileManager({ isAuthReady }) {
                 {activeTab === 'settings' && (
                     <div className="settings-container">
                         <div className="recommendations-section">
-                            <h3>⚙️ {t('profile.settings.title')}</h3>
+                            <h3>⚙️ {isArabic ? 'الإعدادات' : 'Settings'}</h3>
                             
                             <div className="setting-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-lg)', marginBottom: 'var(--spacing-sm)' }}>
                                 <div>
-                                    <label className="stat-label">{t('profile.settings.notifications')}</label>
-                                    <p className="stat-label" style={{ fontSize: '0.75rem' }}>{t('profile.settings.notificationsDesc')}</p>
+                                    <label className="stat-label">{isArabic ? 'الإشعارات' : 'Notifications'}</label>
+                                    <p className="stat-label" style={{ fontSize: '0.75rem' }}>{isArabic ? 'تلقي إشعارات وتذكيرات صحية' : 'Receive health notifications and reminders'}</p>
                                 </div>
                                 <label className="toggle-switch">
                                     <input type="checkbox" checked={settings.notifications} onChange={(e) => setSettings({...settings, notifications: e.target.checked})} />
@@ -1208,65 +1263,78 @@ function ProfileManager({ isAuthReady }) {
                                 </label>
                             </div>
 
+                            {/* ✅ تم إزالة زر اللغة من هنا لأنه موجود في رأس الصفحة */}
+                            
+                            {/* ✅ عرض اللغة الحالية فقط مع إشعار للمستخدم */}
                             <div className="setting-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-lg)', marginBottom: 'var(--spacing-sm)' }}>
                                 <div>
-                                    <label className="stat-label">{t('profile.settings.language')}</label>
-                                    <p className="stat-label" style={{ fontSize: '0.75rem' }}>{t('profile.settings.languageDesc')}</p>
+                                    <label className="stat-label">{isArabic ? 'اللغة الحالية' : 'Current Language'}</label>
+                                    <p className="stat-label" style={{ fontSize: '0.75rem' }}>
+                                        {isArabic ? 'العربية' : 'English'}
+                                        <span style={{ display: 'block', fontSize: '0.7rem', opacity: 0.7 }}>
+                                            {isArabic ? 'يمكنك تغيير اللغة من الزر أعلى الصفحة' : 'You can change language from the button at the top of the page'}
+                                        </span>
+                                    </p>
                                 </div>
-                                <select value={settings.language} onChange={(e) => setSettings({...settings, language: e.target.value})} className="search-input" style={{ width: 'auto' }}>
-                                    <option value="ar">🇸🇦 العربية</option>
-                                    <option value="en">🇺🇸 English</option>
-                                </select>
+                                <div className="lang-indicator" style={{ 
+                                    background: 'var(--primary-color)', 
+                                    color: 'white', 
+                                    padding: '0.25rem 0.75rem', 
+                                    borderRadius: '20px',
+                                    fontSize: '0.75rem'
+                                }}>
+                                    {isArabic ? 'العربية' : 'English'}
+                                </div>
                             </div>
 
                             <button onClick={handleSaveSettings} disabled={saving} className="type-btn active" style={{ width: '100%' }}>
-                                {saving ? t('common.saving') : t('profile.settings.save')}
+                                {saving ? (isArabic ? 'جاري الحفظ...' : 'Saving...') : (isArabic ? 'حفظ الإعدادات' : 'Save Settings')}
                             </button>
                         </div>
 
                         <div className="recommendations-section">
-                            <h3>🔐 {t('profile.password.title')}</h3>
+                            <h3>🔐 {isArabic ? 'تغيير كلمة المرور' : 'Change Password'}</h3>
                             <form onSubmit={handleChangePassword}>
                                 <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                                    <label className="stat-label">{t('profile.password.currentPassword')}</label>
+                                    <label className="stat-label">{isArabic ? 'كلمة المرور الحالية' : 'Current Password'}</label>
                                     <input type="password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} required className="search-input" />
                                 </div>
                                 <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                                    <label className="stat-label">{t('profile.password.newPassword')}</label>
+                                    <label className="stat-label">{isArabic ? 'كلمة المرور الجديدة' : 'New Password'}</label>
                                     <input type="password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} required className="search-input" />
-                                    <small className="stat-label">{t('profile.password.passwordHint')}</small>
+                                    <small className="stat-label">{isArabic ? '8 أحرف على الأقل' : 'Minimum 8 characters'}</small>
                                 </div>
                                 <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                                    <label className="stat-label">{t('profile.password.confirmPassword')}</label>
+                                    <label className="stat-label">{isArabic ? 'تأكيد كلمة المرور الجديدة' : 'Confirm New Password'}</label>
                                     <input type="password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} required className="search-input" />
                                 </div>
                                 <button type="submit" disabled={changingPassword} className="type-btn active" style={{ width: '100%' }}>
-                                    {changingPassword ? t('common.saving') : t('profile.password.change')}
+                                    {changingPassword ? (isArabic ? 'جاري التغيير...' : 'Changing...') : (isArabic ? 'تغيير كلمة المرور' : 'Change Password')}
                                 </button>
                             </form>
                         </div>
 
                         <div className="recommendations-section">
-                            <h3>💾 {t('profile.backup.title')}</h3>
+                            <h3>💾 {isArabic ? 'النسخ الاحتياطي' : 'Backup'}</h3>
                             <div className="strengths-weaknesses" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                                 <div className="insight-card" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
                                     <div className="insight-icon">📦</div>
                                     <div className="insight-content">
-                                        <h4 style={{ color: 'white' }}>{t('profile.backup.fullBackup')}</h4>
-                                        <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.85rem' }}>{t('profile.backup.fullBackupDesc')}</p>
+                                        <h4 style={{ color: 'white' }}>{isArabic ? 'نسخة احتياطية كاملة' : 'Full Backup'}</h4>
+                                        <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.85rem' }}>{isArabic ? 'إنشاء نسخة احتياطية لجميع بياناتك' : 'Create backup of all your data'}</p>
                                         <button onClick={handleFullBackup} disabled={exporting} className="type-btn" style={{ background: 'white', color: '#667eea' }}>
-                                            {exporting ? t('common.exporting') : t('profile.backup.download')}
+                                            {exporting ? (isArabic ? 'جاري التصدير...' : 'Exporting...') : (isArabic ? 'تحميل النسخة' : 'Download Backup')}
                                         </button>
                                     </div>
                                 </div>
                                 <div className="insight-card" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white' }}>
                                     <div className="insight-icon">🔄</div>
                                     <div className="insight-content">
-                                        <h4 style={{ color: 'white' }}>{t('profile.restore.title')}</h4>
-                                        <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.85rem' }}>{t('profile.restore.desc')}</p>
+                                        <h4 style={{ color: 'white' }}>{isArabic ? 'استعادة نسخة احتياطية' : 'Restore Backup'}</h4>
+                                        <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.85rem' }}>{isArabic ? 'استعادة بيانات من نسخة احتياطية سابقة' : 'Restore data from previous backup'}</p>
                                         <input type="file" accept=".json" onChange={handleRestoreBackup} id="restore-file" style={{ display: 'none' }} />
                                         <label htmlFor="restore-file" className="type-btn" style={{ background: 'white', color: '#f5576c', cursor: 'pointer', display: 'inline-block', textAlign: 'center' }}>
-                                            {t('profile.restore.select')}
+                                            {isArabic ? 'اختيار ملف' : 'Select File'}
                                         </label>
                                     </div>
                                 </div>
@@ -1274,14 +1342,14 @@ function ProfileManager({ isAuthReady }) {
                         </div>
 
                         <div className="recommendations-section" style={{ border: '2px solid var(--error)', background: 'rgba(239, 68, 68, 0.05)' }}>
-                            <h4 style={{ color: 'var(--error)' }}>⚠️ {t('profile.danger.zone')}</h4>
-                            <p className="stat-label">{t('profile.danger.warning')}</p>
+                            <h4 style={{ color: 'var(--error)' }}>⚠️ {isArabic ? 'منطقة الخطر' : 'Danger Zone'}</h4>
+                            <p className="stat-label">{isArabic ? 'هذه الإجراءات لا يمكن التراجع عنها' : 'These actions cannot be undone'}</p>
                             <div className="type-filters" style={{ justifyContent: 'center' }}>
                                 <button onClick={handleExportData} disabled={exporting} className="type-btn" style={{ background: 'var(--warning)', color: 'white' }}>
-                                    📥 {t('profile.danger.exportData')}
+                                    📥 {isArabic ? 'تصدير البيانات' : 'Export Data'}
                                 </button>
                                 <button onClick={handleDeleteAccount} disabled={deleting} className="type-btn" style={{ background: 'var(--error)', color: 'white' }}>
-                                    🗑️ {t('profile.danger.deleteAccount')}
+                                    🗑️ {isArabic ? 'حذف الحساب' : 'Delete Account'}
                                 </button>
                             </div>
                         </div>
@@ -1289,8 +1357,39 @@ function ProfileManager({ isAuthReady }) {
                 )}
             </div>
 
-            {/* الأنماط الإضافية */}
             <style>{`
+                .lang-btn {
+                    background: var(--secondary-bg);
+                    color: var(--text-primary);
+                    border: 1px solid var(--border-light);
+                    padding: 0.5rem 1rem;
+                    border-radius: 10px;
+                    font-size: 0.85rem;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                }
+
+                .lang-btn:hover {
+                    background: var(--primary-color);
+                    color: white;
+                    border-color: var(--primary-color);
+                }
+
+                .lang-btn-small {
+                    background: var(--secondary-bg);
+                    color: var(--text-primary);
+                    border: 1px solid var(--border-light);
+                    border-radius: 8px;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                }
+
+                .lang-btn-small:hover {
+                    background: var(--primary-color);
+                    color: white;
+                    border-color: var(--primary-color);
+                }
+
                 .input-unit {
                     color: var(--text-tertiary);
                     font-size: 0.8rem;
@@ -1306,6 +1405,14 @@ function ProfileManager({ isAuthReady }) {
                     margin-bottom: var(--spacing-sm);
                     flex-wrap: wrap;
                     gap: var(--spacing-sm);
+                }
+
+                .lang-indicator {
+                    background: var(--primary-color);
+                    color: white;
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 20px;
+                    font-size: 0.75rem;
                 }
                 
                 [dir="rtl"] .input-unit {

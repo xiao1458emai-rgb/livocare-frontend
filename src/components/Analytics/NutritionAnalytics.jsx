@@ -1,6 +1,5 @@
 // src/components/Analytics/NutritionAnalytics.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Line, Pie } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
@@ -30,15 +29,43 @@ ChartJS.register(
 );
 
 const NutritionAnalytics = ({ refreshTrigger }) => {
-    const { t, i18n } = useTranslation();
-    const [darkMode, setDarkMode] = useState(false);
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
+    const [darkMode, setDarkMode] = useState(() => {
+        const saved = localStorage.getItem('livocare_darkMode') === 'true';
+        return saved || window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+    
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const isMountedRef = useRef(true);
-    const isArabic = i18n.language?.startsWith('ar');
 
-    // أهداف المستخدم (مثال - يمكن جلبها من API)
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // إعادة جلب البيانات عند تغيير اللغة
+                fetchData();
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
+
+    // أهداف المستخدم
     const USER_GOALS = {
         dailyCalories: 2000,
         dailyProtein: 80,
@@ -61,11 +88,19 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
     }, []);
 
     useEffect(() => {
+        const handleThemeChange = (e) => {
+            setDarkMode(e.detail?.darkMode ?? false);
+        };
+        window.addEventListener('themeChange', handleThemeChange);
+        return () => window.removeEventListener('themeChange', handleThemeChange);
+    }, []);
+
+    useEffect(() => {
         fetchData();
         return () => { isMountedRef.current = false; };
     }, [refreshTrigger]);
 
-    // تحليل جودة الطعام بناءً على المكونات
+    // تحليل جودة الطعام
     const analyzeFoodQuality = (meals) => {
         let highQualityCount = 0;
         let processedFoodCount = 0;
@@ -75,18 +110,26 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         meals.forEach(meal => {
             const ingredients = meal.ingredients || [];
             
-            // تحليل جودة المكونات
             ingredients.forEach(ing => {
                 const name = (ing.name || '').toLowerCase();
-                if (['دجاج', 'سمك', 'لحم', 'بيض', 'تونة', 'جبن'].some(p => name.includes(p))) {
+                if (isArabic ? 
+                    ['دجاج', 'سمك', 'لحم', 'بيض', 'تونة', 'جبن'].some(p => name.includes(p)) :
+                    ['chicken', 'fish', 'meat', 'egg', 'tuna', 'cheese'].some(p => name.includes(p))
+                ) {
                     proteinSources.add(name);
                     highQualityCount++;
                 }
-                if (['خضار', 'خس', 'طماطم', 'خيار', 'بروكلي', 'سبانخ'].some(v => name.includes(v))) {
+                if (isArabic ?
+                    ['خضار', 'خس', 'طماطم', 'خيار', 'بروكلي', 'سبانخ'].some(v => name.includes(v)) :
+                    ['vegetable', 'lettuce', 'tomato', 'cucumber', 'broccoli', 'spinach'].some(v => name.includes(v))
+                ) {
                     vegetableCount++;
                     highQualityCount++;
                 }
-                if (['pizza', 'burger', 'fries', 'chips', 'candy', 'soda'].some(p => name.includes(p))) {
+                if (isArabic ?
+                    ['pizza', 'burger', 'fries', 'chips', 'candy', 'soda'].some(p => name.includes(p)) :
+                    ['pizza', 'burger', 'fries', 'chips', 'candy', 'soda'].some(p => name.includes(p))
+                ) {
                     processedFoodCount++;
                 }
             });
@@ -108,19 +151,16 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         const morningMeals = mealHours.filter(h => h >= 6 && h <= 10).length;
         
         const mealTypes = meals.map(m => m.meal_type);
-        const hasHeavyDinner = mealTypes.filter(t => t === 'Dinner').length > 0;
         
         let pattern = '';
         if (lateMeals > meals.length * 0.3) pattern = 'night_eater';
         else if (morningMeals === 0 && meals.length > 0) pattern = 'skip_breakfast';
-        else if (mealTypes.filter(t => t === 'Snack').length > meals.length * 0.5) pattern = 'frequent_snacking';
         else pattern = 'regular';
         
         return {
             pattern,
             lateMealsCount: lateMeals,
             skipBreakfast: morningMeals === 0 && meals.length > 0,
-            hasHeavyDinner,
             mealFrequency: meals.length
         };
     };
@@ -136,13 +176,8 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         
         const issues = [];
         if (proteinPercent < 15) issues.push('protein_low');
-        else if (proteinPercent > 30) issues.push('protein_high');
-        
         if (carbsPercent > 60) issues.push('carbs_high');
-        else if (carbsPercent < 40) issues.push('carbs_low');
-        
         if (fatPercent > 35) issues.push('fat_high');
-        else if (fatPercent < 20) issues.push('fat_low');
         
         return {
             proteinPercent: proteinPercent.toFixed(1),
@@ -155,7 +190,6 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
     const analyzeMeals = (meals) => {
         if (!meals || meals.length === 0) return null;
 
-        // إحصائيات أساسية
         const totalMeals = meals.length;
         let totalCalories = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
         
@@ -171,25 +205,18 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         const avgCarbs = totalCarbs / totalMeals;
         const avgFat = totalFat / totalMeals;
         
-        // ✅ حساب التقدم بشكل صحيح
         const calorieProgress = Math.min(100, Math.round((totalCalories / USER_GOALS.dailyCalories) * 100));
         const proteinProgress = Math.min(100, Math.round((totalProtein / USER_GOALS.dailyProtein) * 100));
-        const carbsProgress = Math.min(100, Math.round((totalCarbs / USER_GOALS.dailyCarbs) * 100));
-        const fatProgress = Math.min(100, Math.round((totalFat / USER_GOALS.dailyFat) * 100));
         
-        // تحليل الفرق عن الهدف
         const calorieDiff = totalCalories - USER_GOALS.dailyCalories;
-        const proteinDiff = totalProtein - USER_GOALS.dailyProtein;
         const proteinNeeded = Math.max(0, USER_GOALS.dailyProtein - totalProtein);
         
-        // توزيع الوجبات
         const distribution = {};
         meals.forEach(m => {
             const type = m.meal_type || 'Other';
             distribution[type] = (distribution[type] || 0) + 1;
         });
 
-        // بيانات الأسبوع
         const weekly = [];
         const today = new Date();
         for (let i = 6; i >= 0; i--) {
@@ -206,42 +233,31 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
             });
         }
         
-        // ✅ تحليلات متقدمة
         const foodQuality = analyzeFoodQuality(meals);
         const eatingPattern = analyzeEatingPattern(meals);
         const macroBalance = analyzeMacroBalance(avgProtein, avgCarbs, avgFat);
         
-        // ✅ درجة التغذية المحسنة
         let nutritionScore = 0;
         
-        // السعرات (30 نقطة)
         if (totalCalories >= USER_GOALS.dailyCalories * 0.9 && totalCalories <= USER_GOALS.dailyCalories * 1.1) nutritionScore += 30;
-        else if (totalCalories >= USER_GOALS.dailyCalories * 0.7 && totalCalories <= USER_GOALS.dailyCalories * 1.3) nutritionScore += 20;
-        else if (totalCalories > 0) nutritionScore += 10;
+        else if (totalCalories > 0) nutritionScore += 15;
         
-        // البروتين (30 نقطة)
         if (totalProtein >= USER_GOALS.dailyProtein) nutritionScore += 30;
         else if (totalProtein >= USER_GOALS.dailyProtein * 0.7) nutritionScore += 20;
-        else if (totalProtein >= USER_GOALS.dailyProtein * 0.5) nutritionScore += 10;
-        else if (totalProtein > 0) nutritionScore += 5;
+        else if (totalProtein > 0) nutritionScore += 10;
         
-        // التنوع (20 نقطة)
         const mealTypesCount = Object.keys(distribution).length;
         if (mealTypesCount >= 3) nutritionScore += 20;
-        else if (mealTypesCount >= 2) nutritionScore += 12;
-        else if (mealTypesCount >= 1) nutritionScore += 5;
+        else if (mealTypesCount >= 1) nutritionScore += 10;
         
-        // جودة الطعام (20 نقطة)
         if (foodQuality.hasVegetables) nutritionScore += 10;
         if (foodQuality.hasQualityProtein) nutritionScore += 10;
         if (foodQuality.processedFoodRisk) nutritionScore -= 15;
         
         nutritionScore = Math.min(100, Math.max(0, nutritionScore));
         
-        // ✅ توصيات ذكية متقدمة
         const recommendations = [];
         
-        // 1. توصية مبنية على السعرات
         if (calorieDiff > 300) {
             recommendations.push({
                 icon: '🔥',
@@ -272,8 +288,7 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
             });
         }
         
-        // 2. توصية مبنية على البروتين
-        if (proteinDiff < -20 && totalProtein > 0) {
+        if (proteinNeeded > 20 && totalProtein > 0) {
             recommendations.push({
                 icon: '💪',
                 timing: 'today',
@@ -287,32 +302,15 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                     : 'Add: 2 eggs (12g) or chicken breast (30g) or tuna can (25g)',
                 details: [isArabic ? 'البروتين يمنحك الشبع ويدعم العضلات' : 'Protein provides satiety and supports muscles']
             });
-        } else if (proteinProgress >= 90) {
-            recommendations.push({
-                icon: '✅',
-                timing: 'general',
-                priority: 'low',
-                title: isArabic ? 'بروتين ممتاز' : 'Excellent Protein',
-                advice: isArabic 
-                    ? `حققت ${Math.round(proteinProgress)}% من هدف البروتين`
-                    : `You achieved ${Math.round(proteinProgress)}% of protein goal`,
-                action: isArabic 
-                    ? 'وازن بين البروتين والكربوهيدرات والدهون'
-                    : 'Balance protein with carbs and fats',
-                details: []
-            });
         }
         
-        // 3. توصية مبنية على نمط الأكل
         if (eatingPattern.skipBreakfast && totalMeals > 0) {
             recommendations.push({
                 icon: '🌅',
                 timing: 'tomorrow',
                 priority: 'medium',
                 title: isArabic ? 'تناول الفطور' : 'Eat Breakfast',
-                advice: isArabic 
-                    ? 'الفطور يمنحك الطاقة لبدء يومك بنشاط'
-                    : 'Breakfast gives you energy to start your day',
+                advice: isArabic ? 'الفطور يمنحك الطاقة لبدء يومك بنشاط' : 'Breakfast gives you energy to start your day',
                 action: isArabic 
                     ? 'جرب: زبادي يوناني مع عسل وجوز، أو بيض مع خبز أسمر'
                     : 'Try: Greek yogurt with honey and walnuts, or eggs with whole wheat bread',
@@ -320,23 +318,6 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
             });
         }
         
-        if (eatingPattern.pattern === 'night_eater') {
-            recommendations.push({
-                icon: '🌙',
-                timing: 'evening',
-                priority: 'medium',
-                title: isArabic ? 'وجبات متأخرة' : 'Late Meals',
-                advice: isArabic 
-                    ? `${eatingPattern.lateMealsCount} وجبة بعد الساعة 10 مساءً`
-                    : `${eatingPattern.lateMealsCount} meals after 10 PM`,
-                action: isArabic 
-                    ? 'أنهِ آخر وجبة قبل الساعة 8 مساءً لتحسين جودة النوم'
-                    : 'Finish your last meal before 8 PM for better sleep quality',
-                details: [isArabic ? 'الأكل المتأخر يؤثر على حرق الدهون وجودة النوم' : 'Late eating affects fat burning and sleep quality']
-            });
-        }
-        
-        // 4. توصية مبنية على جودة الطعام
         if (!foodQuality.hasVegetables && totalMeals > 0) {
             recommendations.push({
                 icon: '🥬',
@@ -351,65 +332,13 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
             });
         }
         
-        if (foodQuality.processedFoodRisk) {
-            recommendations.push({
-                icon: '⚠️',
-                timing: 'general',
-                priority: 'high',
-                title: isArabic ? 'أطعمة مصنعة' : 'Processed Foods',
-                advice: isArabic 
-                    ? 'نسبة عالية من الأطعمة المصنعة في وجباتك'
-                    : 'High proportion of processed foods in your meals',
-                action: isArabic 
-                    ? 'استبدل الوجبات السريعة بأطعمة طبيعية: فواكه، خضروات، بروتينات كاملة'
-                    : 'Replace fast food with natural foods: fruits, vegetables, whole proteins',
-                details: [isArabic ? 'الأطعمة المصنعة تزيد الالتهابات والشعور بالتعب' : 'Processed foods increase inflammation and fatigue']
-            });
-        }
-        
-        // 5. توصية مبنية على تحليل الماكروز
-        if (macroBalance && macroBalance.issues.includes('carbs_high')) {
-            recommendations.push({
-                icon: '🌾',
-                timing: 'next_meal',
-                priority: 'medium',
-                title: isArabic ? 'كربوهيدرات مرتفعة' : 'High Carbs',
-                advice: isArabic 
-                    ? `${macroBalance.carbsPercent}% من إجمالي سعراتك من الكربوهيدرات`
-                    : `${macroBalance.carbsPercent}% of your calories from carbs`,
-                action: isArabic 
-                    ? 'قلل الأرز والخبز إلى النصف، واستبدلها بخضروات'
-                    : 'Reduce rice and bread by half, replace with vegetables',
-                details: [isArabic ? 'الكربوهيدرات الزائدة تتحول إلى دهون' : 'Excess carbs turn into fat']
-            });
-        }
-        
-        if (macroBalance && macroBalance.issues.includes('protein_low')) {
-            recommendations.push({
-                icon: '🥩',
-                timing: 'today',
-                priority: 'high',
-                title: isArabic ? 'بروتين منخفض' : 'Low Protein Ratio',
-                advice: isArabic 
-                    ? `البروتين يشكل ${macroBalance.proteinPercent}% فقط من سعراتك`
-                    : `Protein makes only ${macroBalance.proteinPercent}% of your calories`,
-                action: isArabic 
-                    ? `أضف ${Math.round(proteinNeeded)}g بروتين في وجبتك القادمة`
-                    : `Add ${Math.round(proteinNeeded)}g protein to your next meal`,
-                details: [isArabic ? 'البروتين ضروري لبناء العضلات والشبع' : 'Protein is essential for muscle building and satiety']
-            });
-        }
-        
-        // تقييم الحالة
         let healthStatus = 'good';
-        if (nutritionScore < 40) healthStatus = 'critical';
-        else if (nutritionScore < 60) healthStatus = 'poor';
-        else if (nutritionScore < 75) healthStatus = 'fair';
-        else if (nutritionScore < 90) healthStatus = 'good';
+        if (nutritionScore < 40) healthStatus = 'poor';
+        else if (nutritionScore < 60) healthStatus = 'fair';
+        else if (nutritionScore < 80) healthStatus = 'good';
         else healthStatus = 'excellent';
         
         const statusText = {
-            critical: isArabic ? 'حرجة' : 'Critical',
             poor: isArabic ? 'سيئة' : 'Poor',
             fair: isArabic ? 'متوسطة' : 'Fair',
             good: isArabic ? 'جيدة' : 'Good',
@@ -417,14 +346,12 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
         };
         
         const statusColor = {
-            critical: '#dc2626',
             poor: '#ef4444',
             fair: '#f59e0b',
             good: '#3b82f6',
             excellent: '#10b981'
         };
         
-        // الرسوم البيانية
         const chartData = {
             labels: weekly.map(w => w.day),
             datasets: [{
@@ -493,11 +420,7 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                         font: { size: 11 }
                     } 
                 },
-                tooltip: { 
-                    rtl: isArabic,
-                    bodyColor: darkMode ? '#f8fafc' : '#0f172a',
-                    backgroundColor: darkMode ? '#1e293b' : '#ffffff',
-                }
+                tooltip: { rtl: isArabic }
             },
             scales: {
                 y: { 
@@ -532,29 +455,18 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                 totalMeals,
                 totalCalories: Math.round(totalCalories),
                 totalProtein: totalProtein.toFixed(1),
-                totalCarbs: totalCarbs.toFixed(1),
-                totalFat: totalFat.toFixed(1),
                 avgCalories: Math.round(avgCalories),
                 avgProtein: avgProtein.toFixed(1),
-                avgCarbs: avgCarbs.toFixed(1),
-                avgFat: avgFat.toFixed(1),
                 calorieProgress,
                 proteinProgress,
-                carbsProgress,
-                fatProgress,
                 calorieDiff: calorieDiff > 0 ? `+${calorieDiff}` : calorieDiff,
                 proteinNeeded: Math.round(proteinNeeded),
                 nutritionScore,
                 healthStatus,
                 healthStatusText: statusText[healthStatus],
                 healthStatusColor: statusColor[healthStatus],
-                distribution,
             },
-            analysis: {
-                foodQuality,
-                eatingPattern,
-                macroBalance,
-            },
+            analysis: { foodQuality, eatingPattern, macroBalance },
             recommendations,
             chartData,
             proteinTrendData,
@@ -588,15 +500,13 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                 setError(isArabic ? 'حدث خطأ في تحميل البيانات' : 'Error loading data');
             }
         } finally {
-            if (isMountedRef.current) {
-                setLoading(false);
-            }
+            if (isMountedRef.current) setLoading(false);
         }
     }, [isArabic]);
 
     if (loading) {
         return (
-            <div className="analytics-container">
+            <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="analytics-loading">
                     <div className="spinner"></div>
                     <p>{isArabic ? 'جاري التحليل...' : 'Analyzing...'}</p>
@@ -607,30 +517,31 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
 
     if (error || !data) {
         return (
-            <div className="analytics-container">
+            <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="analytics-error">
                     <p>📊 {error || (isArabic ? 'لا توجد بيانات كافية للتحليل' : 'Insufficient data for analysis')}</p>
                     <button onClick={fetchData} className="retry-btn">
                         🔄 {isArabic ? 'تحديث' : 'Refresh'}
                     </button>
+                    {/* ✅ تم إزالة زر اللغة من هنا */}
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="analytics-container">
-            {/* رأس التحليلات */}
+        <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
                 <h2>{isArabic ? 'تحليل التغذية' : 'Nutrition Analytics'}</h2>
                 <button onClick={fetchData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
-            {/* 🧠 تقييم التغذية الشامل */}
+            {/* تقييم التغذية الشامل */}
             <div className="global-health-card">
-                <h3>🧠 {isArabic ? 'تقييم التغذية' : 'Nutrition Assessment'}</h3>
+                <h3>{isArabic ? 'تقييم التغذية' : 'Nutrition Assessment'}</h3>
                 <div className="health-score-container">
                     <div className="health-score-circle">
                         <svg width="120" height="120" viewBox="0 0 120 120">
@@ -656,10 +567,9 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                     </div>
                 </div>
                 
-                {/* تحليل الحالة */}
                 <div className="health-analysis">
                     <div className="positives-list">
-                        <strong>🔍 {isArabic ? 'التحليل' : 'Analysis'}:</strong>
+                        <strong>{isArabic ? 'التحليل' : 'Analysis'}:</strong>
                         {data.summary.calorieDiff !== 0 && (
                             <div className={`positive-item ${data.summary.calorieDiff > 0 ? 'warning' : 'info'}`}>
                                 {isArabic 
@@ -668,41 +578,20 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                             </div>
                         )}
                         {data.summary.totalProtein > 0 && (
-                            <div className={`positive-item ${data.summary.proteinProgress < 70 ? 'warning' : ''}`}>
+                            <div className="positive-item">
                                 {isArabic 
                                     ? `💪 البروتين: ${data.summary.proteinProgress}% من الهدف (${data.summary.totalProtein}g / ${USER_GOALS.dailyProtein}g)`
                                     : `💪 Protein: ${data.summary.proteinProgress}% of target (${data.summary.totalProtein}g / ${USER_GOALS.dailyProtein}g)`}
                             </div>
                         )}
                     </div>
-                    
-                    {data.analysis.macroBalance && (
-                        <div className="warnings-list">
-                            <strong>⚖️ {isArabic ? 'توازن الماكروز' : 'Macro Balance'}:</strong>
-                            <div className="warning-item">
-                                {isArabic 
-                                    ? `🥩 بروتين: ${data.analysis.macroBalance.proteinPercent}%  |  🌾 كارب: ${data.analysis.macroBalance.carbsPercent}%  |  🫒 دهون: ${data.analysis.macroBalance.fatPercent}%`
-                                    : `🥩 Protein: ${data.analysis.macroBalance.proteinPercent}%  |  🌾 Carbs: ${data.analysis.macroBalance.carbsPercent}%  |  🫒 Fat: ${data.analysis.macroBalance.fatPercent}%`}
-                            </div>
-                            {data.analysis.macroBalance.issues.includes('carbs_high') && (
-                                <div className="warning-item severity-warning">
-                                    ⚠️ {isArabic ? 'الكربوهيدرات مرتفعة' : 'Carbs are high'}
-                                </div>
-                            )}
-                            {data.analysis.macroBalance.issues.includes('protein_low') && (
-                                <div className="warning-item severity-warning">
-                                    ⚠️ {isArabic ? 'البروتين منخفض' : 'Protein is low'}
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
             </div>
 
-            {/* 🧠 ملاحظات ذكية عن نمط الأكل */}
+            {/* ملاحظات ذكية عن نمط الأكل */}
             {(data.analysis.eatingPattern.skipBreakfast || data.analysis.eatingPattern.pattern === 'night_eater') && (
                 <div className="correlations-card">
-                    <h3>🧠 {isArabic ? 'ملاحظات ذكية' : 'Smart Insights'}</h3>
+                    <h3>{isArabic ? 'ملاحظات ذكية' : 'Smart Insights'}</h3>
                     <div className="correlations-list">
                         {data.analysis.eatingPattern.skipBreakfast && (
                             <div className="correlation-item severity-medium">
@@ -710,17 +599,17 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                                     {isArabic ? '🌅 لا تتناول وجبة الفطور' : '🌅 You skip breakfast'}
                                 </p>
                                 <p className="correlation-advice">
-                                    💡 {isArabic ? 'الفطور يزيد التركيز ويقلل الجوع خلال اليوم' : 'Breakfast increases focus and reduces hunger throughout the day'}
+                                    💡 {isArabic ? 'الفطور يزيد التركيز ويقلل الجوع خلال اليوم' : 'Breakfast increases focus and reduces hunger'}
                                 </p>
                             </div>
                         )}
                         {data.analysis.eatingPattern.pattern === 'night_eater' && (
                             <div className="correlation-item severity-warning">
                                 <p className="correlation-message">
-                                    {isArabic ? `🌙 تميل لتناول الطعام في وقت متأخر (${data.analysis.eatingPattern.lateMealsCount} وجبة)` : `🌙 You tend to eat late (${data.analysis.eatingPattern.lateMealsCount} meals)`}
+                                    {isArabic ? `🌙 تميل لتناول الطعام في وقت متأخر` : `🌙 You tend to eat late`}
                                 </p>
                                 <p className="correlation-advice">
-                                    💡 {isArabic ? 'الأكل المتأخر يؤثر على جودة النوم وحرق الدهون' : 'Late eating affects sleep quality and fat burning'}
+                                    💡 {isArabic ? 'الأكل المتأخر يؤثر على جودة النوم' : 'Late eating affects sleep quality'}
                                 </p>
                             </div>
                         )}
@@ -798,7 +687,7 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                 </div>
             </div>
 
-            {/* 💡 التوصيات الذكية */}
+            {/* التوصيات الذكية */}
             {data.recommendations.length > 0 && (
                 <div className="recommendations-card">
                     <h3>💡 {isArabic ? 'توصيات ذكية' : 'Smart Recommendations'}</h3>
@@ -812,7 +701,6 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                                         {rec.timing === 'immediate' ? (isArabic ? '⚠️ فوراً' : '⚠️ Immediate') :
                                          rec.timing === 'today' ? (isArabic ? '📅 اليوم' : '📅 Today') :
                                          rec.timing === 'next_meal' ? (isArabic ? '🍽️ الوجبة القادمة' : '🍽️ Next meal') :
-                                         rec.timing === 'evening' ? (isArabic ? '🌙 المساء' : '🌙 Evening') :
                                          rec.timing === 'tomorrow' ? (isArabic ? '📅 غداً' : '📅 Tomorrow') :
                                          (isArabic ? '💡 عام' : '💡 General')}
                                     </span>
@@ -821,9 +709,7 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                                 <p className="rec-action">🎯 {rec.action}</p>
                                 {rec.details && rec.details.length > 0 && (
                                     <ul className="rec-details">
-                                        {rec.details.map((detail, i) => (
-                                            <li key={i}>✓ {detail}</li>
-                                        ))}
+                                        {rec.details.map((detail, i) => <li key={i}>✓ {detail}</li>)}
                                     </ul>
                                 )}
                             </div>
@@ -832,7 +718,6 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                 </div>
             )}
 
-            {/* تذييل */}
             <div className="analytics-footer">
                 <small>
                     {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date().toLocaleString(isArabic ? 'ar-EG' : 'en-US')}

@@ -2,13 +2,26 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/api';
 import '../index.css';
 
+// ✅ دالة عامة لتطبيق اللغة (مطابقة لما في ProfileManager)
+const applyLanguage = (lang) => {
+    const isArabic = lang === 'ar';
+    localStorage.setItem('app_lang', lang);
+    document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
+    document.documentElement.lang = isArabic ? 'ar' : 'en';
+};
+
 function Login({ onLoginSuccess }) {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -18,7 +31,29 @@ function Login({ onLoginSuccess }) {
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
 
-    // تحميل إعدادات الوضع المظلم واللغة المحفوظة
+    // ✅ تبديل اللغة (يتم الاحتفاظ به في صفحة تسجيل الدخول لأنها الصفحة الوحيدة قبل الدخول)
+    const toggleLanguage = () => {
+        const newLang = lang === 'ar' ? 'en' : 'ar';
+        setLang(newLang);
+        applyLanguage(newLang);
+    };
+
+    // ✅ الاستماع لتغييرات اللغة (للتزامن مع أي تغيير يحدث أثناء البقاء في الصفحة)
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
+
+    // تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -31,6 +66,14 @@ function Login({ onLoginSuccess }) {
         
         if (savedDarkMode) {
             document.documentElement.classList.add('dark-mode');
+        }
+        
+        // تطبيق اللغة المحفوظة عند تحميل الصفحة
+        const savedLang = localStorage.getItem('app_lang');
+        if (savedLang) {
+            const isSavedArabic = savedLang === 'ar';
+            document.documentElement.dir = isSavedArabic ? 'rtl' : 'ltr';
+            document.documentElement.lang = savedLang;
         }
         
         // التحقق من التوكن الحالي
@@ -84,18 +127,6 @@ function Login({ onLoginSuccess }) {
         }));
     };
 
-    const changeLanguage = (lng) => {
-        i18n.changeLanguage(lng);
-        localStorage.setItem('livocare_language', lng);
-        localStorage.setItem('language', lng);
-        document.documentElement.lang = lng;
-        document.documentElement.dir = lng === 'ar' ? 'rtl' : 'ltr';
-        
-        window.dispatchEvent(new CustomEvent('languageChanged', { 
-            detail: { language: lng, direction: lng === 'ar' ? 'rtl' : 'ltr' }
-        }));
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -103,7 +134,7 @@ function Login({ onLoginSuccess }) {
         setMessageType('');
 
         if (!username.trim() || !password.trim()) {
-            setMessage(t('login.emptyFields'));
+            setMessage(isArabic ? 'الرجاء إدخال اسم المستخدم وكلمة المرور' : 'Please enter username and password');
             setMessageType('error');
             setLoading(false);
             return;
@@ -138,7 +169,7 @@ function Login({ onLoginSuccess }) {
             
             localStorage.setItem('username', username);
             
-            setMessage(t('login.success'));
+            setMessage(isArabic ? 'تم تسجيل الدخول بنجاح' : 'Login successful');
             setMessageType('success');
             
             setTimeout(() => {
@@ -153,18 +184,16 @@ function Login({ onLoginSuccess }) {
         } catch (error) {
             console.error('❌ Login error:', error);
             
-            let errorMessage = t('login.failed');
+            let errorMessage = isArabic ? 'فشل تسجيل الدخول' : 'Login failed';
             
-            if (error.response?.status === 400) {
-                errorMessage = t('login.invalidCredentials');
-            } else if (error.response?.status === 401) {
-                errorMessage = t('login.unauthorized');
+            if (error.response?.status === 400 || error.response?.status === 401) {
+                errorMessage = isArabic ? 'اسم المستخدم أو كلمة المرور غير صحيحة' : 'Invalid username or password';
             } else if (error.response?.status === 404) {
-                errorMessage = t('login.serverNotFound');
+                errorMessage = isArabic ? 'الخادم غير متاح' : 'Server not found';
             } else if (error.response?.status === 500) {
-                errorMessage = t('login.serverError');
+                errorMessage = isArabic ? 'خطأ في الخادم' : 'Server error';
             } else if (!navigator.onLine) {
-                errorMessage = t('login.networkError');
+                errorMessage = isArabic ? 'لا يوجد اتصال بالإنترنت' : 'No internet connection';
             }
             
             setMessage(errorMessage);
@@ -208,34 +237,24 @@ function Login({ onLoginSuccess }) {
                         </div>
                         <div className="title-text">
                             <h1>LivoCare</h1>
-                            <span className="app-subtitle">{t('login.appSubtitle')}</span>
+                            <span className="app-subtitle">{isArabic ? 'العناية بصحتك' : 'Your Health Care'}</span>
                         </div>
                     </div>
                     
                     <div className="login-controls">
-                        <div className="language-switcher">
-                            <button 
-                                className={`lang-btn ${i18n.language === 'ar' ? 'active' : ''}`}
-                                onClick={() => changeLanguage('ar')}
-                                title="العربية"
-                            >
-                                <span className="lang-flag">🇸🇦</span>
-                                <span className="lang-text">عربي</span>
-                            </button>
-                            <button 
-                                className={`lang-btn ${i18n.language === 'en' ? 'active' : ''}`}
-                                onClick={() => changeLanguage('en')}
-                                title="English"
-                            >
-                                <span className="lang-flag">🇺🇸</span>
-                                <span className="lang-text">EN</span>
-                            </button>
-                        </div>
+                        {/* ✅ زر اللغة موجود في صفحة تسجيل الدخول لأنها الصفحة الوحيدة قبل الدخول */}
+                        <button 
+                            className="lang-btn"
+                            onClick={toggleLanguage}
+                            title={isArabic ? 'English' : 'العربية'}
+                        >
+                            {isArabic ? 'EN' : 'AR'}
+                        </button>
                         
                         <button 
                             className="theme-toggle"
                             onClick={toggleDarkMode}
-                            title={document.documentElement.classList.contains('dark-mode') ? t('login.switchToLight') : t('login.switchToDark')}
+                            title={document.documentElement.classList.contains('dark-mode') ? (isArabic ? 'وضع فاتح' : 'Light Mode') : (isArabic ? 'وضع مظلم' : 'Dark Mode')}
                         >
                             {document.documentElement.classList.contains('dark-mode') ? '☀️' : '🌙'}
                         </button>
@@ -249,15 +268,15 @@ function Login({ onLoginSuccess }) {
                         <div className="login-icon-wrapper">
                             <div className="login-icon">🔐</div>
                         </div>
-                        <h2>{t('login.title')}</h2>
-                        <p className="login-description">{t('login.description')}</p>
+                        <h2>{isArabic ? 'تسجيل الدخول' : 'Login'}</h2>
+                        <p className="login-description">{isArabic ? 'أدخل بياناتك للوصول إلى حسابك' : 'Enter your credentials to access your account'}</p>
                     </div>
                     
                     <form onSubmit={handleSubmit} className="login-form">
                         <div className="field-group">
                             <label>
                                 <span className="field-icon">👤</span>
-                                {t('login.username')}
+                                {isArabic ? 'اسم المستخدم' : 'Username'}
                             </label>
                             <div className="input-wrapper">
                                 <input
@@ -265,7 +284,7 @@ function Login({ onLoginSuccess }) {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     required
-                                    placeholder={t('login.usernamePlaceholder')}
+                                    placeholder={isArabic ? 'أدخل اسم المستخدم' : 'Enter username'}
                                     disabled={loading}
                                     autoComplete="username"
                                     className="search-input"
@@ -276,7 +295,7 @@ function Login({ onLoginSuccess }) {
                         <div className="field-group">
                             <label>
                                 <span className="field-icon">🔑</span>
-                                {t('login.password')}
+                                {isArabic ? 'كلمة المرور' : 'Password'}
                             </label>
                             <div className="input-wrapper password-wrapper" style={{ position: 'relative' }}>
                                 <input
@@ -284,7 +303,7 @@ function Login({ onLoginSuccess }) {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
-                                    placeholder={t('login.passwordPlaceholder')}
+                                    placeholder={isArabic ? 'أدخل كلمة المرور' : 'Enter password'}
                                     disabled={loading}
                                     autoComplete="current-password"
                                     className="search-input"
@@ -293,7 +312,7 @@ function Login({ onLoginSuccess }) {
                                     type="button"
                                     className="password-toggle"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+                                    aria-label={showPassword ? (isArabic ? 'إخفاء كلمة المرور' : 'Hide password') : (isArabic ? 'إظهار كلمة المرور' : 'Show password')}
                                     style={{
                                         position: 'absolute',
                                         right: 'var(--spacing-md)',
@@ -323,9 +342,23 @@ function Login({ onLoginSuccess }) {
                                     onChange={(e) => setRememberMe(e.target.checked)}
                                     disabled={loading}
                                 />
-                                <span>{t('login.rememberMe')}</span>
+                                <span>{isArabic ? 'تذكرني' : 'Remember me'}</span>
                             </label>
                             
+                            <Link 
+                                to="/forgot-password" 
+                                className="forgot-password-link"
+                                style={{ 
+                                    color: 'var(--primary)', 
+                                    textDecoration: 'none', 
+                                    fontSize: '0.85rem',
+                                    transition: 'color var(--transition-fast)'
+                                }}
+                                onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                                onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                            >
+                                {isArabic ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+                            </Link>
                         </div>
                         
                         {/* أزرار الإجراء */}
@@ -339,10 +372,10 @@ function Login({ onLoginSuccess }) {
                                 {loading ? (
                                     <>
                                         <span className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
-                                        {t('login.loggingIn')}
+                                        {isArabic ? 'جاري تسجيل الدخول...' : 'Logging in...'}
                                     </>
                                 ) : (
-                                    <>🔐 {t('login.loginButton')}</>
+                                    <>{isArabic ? 'دخول' : 'Login'}</>
                                 )}
                             </button>
                             
@@ -353,7 +386,7 @@ function Login({ onLoginSuccess }) {
                                 disabled={loading}
                                 style={{ flex: 1 }}
                             >
-                                🔄 {t('login.resetButton')}
+                                🔄 {isArabic ? 'إعادة تعيين' : 'Reset'}
                             </button>
                         </div>
                         
@@ -367,11 +400,11 @@ function Login({ onLoginSuccess }) {
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-sm)' }}>
                                 <span style={{ fontSize: '1.1rem' }}>💡</span>
-                                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{t('login.demoCredentials')}</span>
+                                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{isArabic ? 'بيانات تجريبية' : 'Demo Credentials'}</span>
                             </div>
                             <div style={{ display: 'flex', gap: 'var(--spacing-lg)', flexWrap: 'wrap', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                <div><span style={{ fontWeight: 500 }}>{t('login.username')}:</span> test</div>
-                                <div><span style={{ fontWeight: 500 }}>{t('login.password')}:</span> test</div>
+                                <div><span style={{ fontWeight: 500 }}>{isArabic ? 'اسم المستخدم' : 'Username'}:</span> test</div>
+                                <div><span style={{ fontWeight: 500 }}>{isArabic ? 'كلمة المرور' : 'Password'}:</span> test</div>
                                 <button 
                                     type="button"
                                     onClick={fillDemoCredentials}
@@ -394,7 +427,7 @@ function Login({ onLoginSuccess }) {
                                         e.target.style.color = 'var(--primary)';
                                     }}
                                 >
-                                    {t('login.fillCredentials')}
+                                    {isArabic ? 'تعبئة' : 'Fill'}
                                 </button>
                             </div>
                         </div>
@@ -442,44 +475,44 @@ function Login({ onLoginSuccess }) {
                         textAlign: 'center' 
                     }}>
                         <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                            {t('login.noAccount')}{' '}
+                            {isArabic ? 'ليس لديك حساب؟' : 'Don\'t have an account?'}{' '}
                             <Link 
                                 to="/register" 
                                 className="register-link-btn"
                                 style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}
                             >
-                                {t('login.register')}
+                                {isArabic ? 'إنشاء حساب جديد' : 'Create account'}
                             </Link>
                         </p>
                     </div>
                     
-                    {/* ميزات LivoCare (بدون إيموجي زائد) */}
+                    {/* ميزات LivoCare */}
                     <div className="app-info" style={{ marginTop: 'var(--spacing-xl)', paddingTop: 'var(--spacing-xl)', borderTop: '1px solid var(--border-light)' }}>
                         <div className="app-info-header" style={{ marginBottom: 'var(--spacing-lg)' }}>
-                            <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>{t('login.featuresTitle')}</h3>
+                            <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>{isArabic ? 'ميزات LivoCare' : 'LivoCare Features'}</h3>
                             <div className="header-decoration" style={{ width: '50px', height: '3px', background: 'var(--primary-gradient)', borderRadius: '2px', marginTop: 'var(--spacing-sm)' }}></div>
                         </div>
                         
                         <ul className="features-list" style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-sm)' }}>
                             <li style={{ padding: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-md)' }}>
                                 <span className="feature-icon" style={{ fontSize: '1.2rem' }}>📊</span>
-                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature1')}</span>
+                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'تتبع الصحة (وزن، ضغط، سكر)' : 'Health tracking (weight, BP, glucose)'}</span>
                             </li>
                             <li style={{ padding: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-md)' }}>
                                 <span className="feature-icon" style={{ fontSize: '1.2rem' }}>🥗</span>
-                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature2')}</span>
+                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'إدارة التغذية' : 'Nutrition management'}</span>
                             </li>
                             <li style={{ padding: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-md)' }}>
                                 <span className="feature-icon" style={{ fontSize: '1.2rem' }}>😴</span>
-                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature3')}</span>
+                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'مراقبة النوم' : 'Sleep monitoring'}</span>
                             </li>
                             <li style={{ padding: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-md)' }}>
                                 <span className="feature-icon" style={{ fontSize: '1.2rem' }}>😊</span>
-                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature4')}</span>
+                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'تتبع الحالة المزاجية' : 'Mood tracking'}</span>
                             </li>
                             <li style={{ padding: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', background: 'var(--secondary-bg)', borderRadius: 'var(--radius-md)' }}>
                                 <span className="feature-icon" style={{ fontSize: '1.2rem' }}>💊</span>
-                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{t('login.feature5')}</span>
+                                <span className="feature-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'متابعة الأدوية' : 'Medication tracking'}</span>
                             </li>
                         </ul>
                     </div>
@@ -487,6 +520,24 @@ function Login({ onLoginSuccess }) {
             </div>
 
             <style>{`
+                .lang-btn {
+                    background: var(--secondary-bg);
+                    color: var(--text-primary);
+                    border: 1px solid var(--border-light);
+                    padding: 0.5rem 1rem;
+                    border-radius: 10px;
+                    font-size: 0.85rem;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                    margin-right: var(--spacing-sm);
+                }
+
+                .lang-btn:hover {
+                    background: var(--primary-color);
+                    color: white;
+                    border-color: var(--primary-color);
+                }
+
                 @keyframes spin {
                     to { transform: rotate(360deg); }
                 }

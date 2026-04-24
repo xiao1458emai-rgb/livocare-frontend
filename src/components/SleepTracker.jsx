@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
 import SleepAnalytics from './Analytics/SleepAnalytics';
@@ -34,14 +33,14 @@ const calculateSleepDuration = (startTime, endTime) => {
 };
 
 // دالة لتنسيق التاريخ للعرض
-const formatDateTime = (dateString, language) => {
+const formatDateTime = (dateString, isArabic) => {
     if (!dateString) return '—';
     
     try {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '—';
         
-        return date.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', {
+        return date.toLocaleString(isArabic ? 'ar-EG' : 'en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
@@ -66,8 +65,13 @@ const getQualityColor = (rating) => {
 };
 
 function SleepTracker({ onDataSubmitted }) {
-    const { t, i18n } = useTranslation();
-    const isArabic = i18n.language === 'ar';
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const [refreshAnalytics, setRefreshAnalytics] = useState(0);
     const [sleepData, setSleepData] = useState({
         start_time: '',
@@ -88,6 +92,26 @@ function SleepTracker({ onDataSubmitted }) {
     const isSubmittingRef = useRef(false);
     const intervalRef = useRef(null);
     const isFetchingHistoryRef = useRef(false);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // تطبيق اتجاه الصفحة
+                document.documentElement.dir = event.detail.isArabic ? 'rtl' : 'ltr';
+                document.documentElement.lang = event.detail.isArabic ? 'ar' : 'en';
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     useEffect(() => {
         const motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -173,37 +197,37 @@ function SleepTracker({ onDataSubmitted }) {
 
     const validateSleepData = useCallback(() => {
         if (!sleepData.start_time || !sleepData.end_time) {
-            return t('sleep.validation.requiredFields');
+            return isArabic ? 'الرجاء إدخال وقت البدء والانتهاء' : 'Please enter start and end time';
         }
 
         const start = new Date(sleepData.start_time);
         const end = new Date(sleepData.end_time);
         
         if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-            return t('sleep.validation.invalidDates');
+            return isArabic ? 'تواريخ غير صالحة' : 'Invalid dates';
         }
         
         if (end <= start) {
-            return t('sleep.validation.endBeforeStart');
+            return isArabic ? 'وقت الانتهاء يجب أن يكون بعد وقت البدء' : 'End time must be after start time';
         }
 
         const now = new Date();
         if (start > now) {
-            return t('sleep.validation.futureTime');
+            return isArabic ? 'لا يمكن تحديد وقت في المستقبل' : 'Cannot set future time';
         }
 
         const durationHours = (end - start) / (1000 * 60 * 60);
         
         if (durationHours > 24) {
-            return t('sleep.validation.tooLong');
+            return isArabic ? 'مدة النوم طويلة جداً (أكثر من 24 ساعة)' : 'Sleep duration too long (more than 24 hours)';
         }
         
         if (durationHours < 1) {
-            return t('sleep.validation.tooShort');
+            return isArabic ? 'مدة النوم قصيرة جداً (أقل من ساعة)' : 'Sleep duration too short (less than 1 hour)';
         }
 
         return null;
-    }, [sleepData.start_time, sleepData.end_time, t]);
+    }, [sleepData.start_time, sleepData.end_time, isArabic]);
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
@@ -237,7 +261,7 @@ function SleepTracker({ onDataSubmitted }) {
             await axiosInstance.post('/sleep/', formattedData);
             
             if (isMountedRef.current) {
-                setMessage(t('sleep.success.message'));
+                setMessage(isArabic ? 'تم تسجيل النوم بنجاح' : 'Sleep recorded successfully');
                 setIsError(false);
                 
                 setSleepData({
@@ -261,14 +285,14 @@ function SleepTracker({ onDataSubmitted }) {
             console.error('Failed to log sleep:', error);
             
             if (isMountedRef.current) {
-                let errorMessage = t('sleep.error.general');
+                let errorMessage = isArabic ? 'فشل تسجيل النوم' : 'Failed to record sleep';
                 
                 if (error.response?.data?.detail) {
                     errorMessage = error.response.data.detail;
                 } else if (error.response?.status === 401) {
-                    errorMessage = t('sleep.error.unauthorized');
+                    errorMessage = isArabic ? 'الرجاء تسجيل الدخول مرة أخرى' : 'Please login again';
                 } else if (error.response?.status === 500) {
-                    errorMessage = t('sleep.error.server');
+                    errorMessage = isArabic ? 'خطأ في الخادم' : 'Server error';
                 }
                 
                 setMessage(errorMessage);
@@ -280,10 +304,10 @@ function SleepTracker({ onDataSubmitted }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [sleepData, validateSleepData, fetchSleepHistory, onDataSubmitted, t]);
+    }, [sleepData, validateSleepData, fetchSleepHistory, onDataSubmitted, isArabic]);
 
     const handleDeleteSleep = useCallback(async (sleepId) => {
-        if (!window.confirm(t('sleep.deleteConfirm'))) return;
+        if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف هذا السجل؟' : 'Are you sure you want to delete this record?')) return;
         
         setLoading(true);
         
@@ -293,7 +317,7 @@ function SleepTracker({ onDataSubmitted }) {
             if (isMountedRef.current) {
                 await fetchSleepHistory();
                 setRefreshAnalytics(prev => prev + 1);
-                setMessage(t('sleep.deleteSuccess'));
+                setMessage(isArabic ? 'تم حذف السجل بنجاح' : 'Record deleted successfully');
                 setIsError(false);
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
@@ -302,7 +326,7 @@ function SleepTracker({ onDataSubmitted }) {
         } catch (error) {
             console.error('Error deleting sleep:', error);
             if (isMountedRef.current) {
-                setMessage(t('sleep.deleteError'));
+                setMessage(isArabic ? 'خطأ في حذف السجل' : 'Error deleting record');
                 setIsError(true);
             }
         } finally {
@@ -310,7 +334,7 @@ function SleepTracker({ onDataSubmitted }) {
                 setLoading(false);
             }
         }
-    }, [fetchSleepHistory, t]);
+    }, [fetchSleepHistory, isArabic]);
 
     const resetForm = useCallback(() => {
         setSleepData({
@@ -370,10 +394,11 @@ function SleepTracker({ onDataSubmitted }) {
 
     return (
         <div className={`analytics-container ${reducedMotion ? 'reduce-motion' : ''}`}>
-            {/* شريط التحكم - بدون أيقونة مكررة */}
+            {/* شريط التحكم */}
             <div className="analytics-header">
-                <h2>{t('sleep.title')}</h2>
+                <h2>{isArabic ? 'تتبع النوم' : 'Sleep Tracker'}</h2>
                 <div className="sleep-controls" style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+                    {/* ✅ تم إزالة زر اللغة من هنا */}
                     <label className="auto-refresh-toggle" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}>
                         <input
                             type="checkbox"
@@ -400,21 +425,21 @@ function SleepTracker({ onDataSubmitted }) {
                                 transition: 'all var(--transition-fast)'
                             }}></span>
                         </span>
-                        <span className="stat-label">{t('sleep.autoRefresh')}</span>
+                        <span className="stat-label">{isArabic ? 'تحديث تلقائي' : 'Auto Refresh'}</span>
                     </label>
                     {lastUpdate && (
                         <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
-                            🕒 {t('sleep.lastUpdate')}: {lastUpdate.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
+                            🕒 {isArabic ? 'آخر تحديث' : 'Last Update'}: {lastUpdate.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* نموذج إضافة النوم - بدون أيقونات مكررة */}
+            {/* نموذج إضافة النوم */}
             <form onSubmit={handleSubmit} className="recommendations-section">
                 <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 'var(--spacing-md)' }}>
                     <div className="field-group">
-                        <label className="stat-label">{t('sleep.startTime')}</label>
+                        <label className="stat-label">{isArabic ? 'وقت النوم' : 'Sleep Start'}</label>
                         <input
                             type="datetime-local"
                             name="start_time"
@@ -426,7 +451,7 @@ function SleepTracker({ onDataSubmitted }) {
                     </div>
 
                     <div className="field-group">
-                        <label className="stat-label">{t('sleep.endTime')}</label>
+                        <label className="stat-label">{isArabic ? 'وقت الاستيقاظ' : 'Wake Up'}</label>
                         <input
                             type="datetime-local"
                             name="end_time"
@@ -442,13 +467,13 @@ function SleepTracker({ onDataSubmitted }) {
                     <div className="insight-card" style={{ marginBottom: 'var(--spacing-md)', padding: 'var(--spacing-sm) var(--spacing-md)' }}>
                         <div className="insight-icon">⏱️</div>
                         <div className="insight-content">
-                            <div className="rec-category">{t('sleep.calculatedDuration')}: <strong>{currentDuration}</strong> {t('sleep.hours')}</div>
+                            <div className="rec-category">{isArabic ? 'المدة المحسوبة' : 'Calculated Duration'}: <strong>{currentDuration}</strong> {isArabic ? 'ساعات' : 'hours'}</div>
                         </div>
                     </div>
                 )}
 
                 <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                    <label className="stat-label">{t('sleep.quality')}</label>
+                    <label className="stat-label">{isArabic ? 'جودة النوم' : 'Sleep Quality'}</label>
                     <div className="rating-selector">
                         <select
                             value={sleepData.quality_rating}
@@ -456,22 +481,22 @@ function SleepTracker({ onDataSubmitted }) {
                             className="search-input"
                             style={{ borderLeft: `4px solid ${getQualityColor(sleepData.quality_rating)}` }}
                         >
-                            <option value={5}>5 - {t('sleep.quality.excellent')}</option>
-                            <option value={4}>4 - {t('sleep.quality.good')}</option>
-                            <option value={3}>3 - {t('sleep.quality.average')}</option>
-                            <option value={2}>2 - {t('sleep.quality.poor')}</option>
-                            <option value={1}>1 - {t('sleep.quality.bad')}</option>
+                            <option value={5}>5 - {isArabic ? 'ممتازة' : 'Excellent'}</option>
+                            <option value={4}>4 - {isArabic ? 'جيدة' : 'Good'}</option>
+                            <option value={3}>3 - {isArabic ? 'متوسطة' : 'Average'}</option>
+                            <option value={2}>2 - {isArabic ? 'سيئة' : 'Poor'}</option>
+                            <option value={1}>1 - {isArabic ? 'سيئة جداً' : 'Very Poor'}</option>
                         </select>
                     </div>
                 </div>
 
                 <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                    <label className="stat-label">{t('sleep.notes')} ({t('sleep.optional')})</label>
+                    <label className="stat-label">{isArabic ? 'ملاحظات' : 'Notes'} ({isArabic ? 'اختياري' : 'Optional'})</label>
                     <textarea
                         rows="2"
                         value={sleepData.notes}
                         onChange={(e) => setSleepData(prev => ({ ...prev, notes: e.target.value }))}
-                        placeholder={t('sleep.notesPlaceholder')}
+                        placeholder={isArabic ? 'أي ملاحظات إضافية...' : 'Any additional notes...'}
                         className="search-input"
                         style={{ resize: 'vertical' }}
                     />
@@ -482,15 +507,15 @@ function SleepTracker({ onDataSubmitted }) {
                         {loading ? (
                             <>
                                 <span className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
-                                {t('sleep.submitting')}
+                                {isArabic ? 'جاري الحفظ...' : 'Saving...'}
                             </>
                         ) : (
-                            <>{t('sleep.submit')}</>
+                            <>{isArabic ? 'حفظ' : 'Save'}</>
                         )}
                     </button>
                     
                     <button type="button" onClick={resetForm} className="type-btn" disabled={loading} style={{ flex: 1 }}>
-                        {t('sleep.reset')}
+                        {isArabic ? 'إعادة تعيين' : 'Reset'}
                     </button>
                 </div>
 
@@ -508,16 +533,16 @@ function SleepTracker({ onDataSubmitted }) {
                 <div className="analytics-stat-card" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
                     <div className="stat-icon">🌙</div>
                     <div className="stat-content">
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('sleep.stats.avgHours')}</div>
+                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'متوسط النوم' : 'Average Sleep'}</div>
                         <div className="stat-value" style={{ color: 'white' }}>{stats.avgHours}</div>
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>{t('sleep.hours')}</div>
+                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>{isArabic ? 'ساعات' : 'hours'}</div>
                     </div>
                 </div>
 
                 <div className="analytics-stat-card" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white' }}>
                     <div className="stat-icon">⭐</div>
                     <div className="stat-content">
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('sleep.stats.avgQuality')}</div>
+                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'جودة النوم' : 'Sleep Quality'}</div>
                         <div className="stat-value" style={{ color: 'white' }}>{stats.avgQuality}</div>
                         <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>/ 5</div>
                     </div>
@@ -526,26 +551,26 @@ function SleepTracker({ onDataSubmitted }) {
                 <div className="analytics-stat-card" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', color: 'white' }}>
                     <div className="stat-icon">📊</div>
                     <div className="stat-content">
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('sleep.stats.totalHours')}</div>
+                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'إجمالي النوم' : 'Total Sleep'}</div>
                         <div className="stat-value" style={{ color: 'white' }}>{stats.totalHours}</div>
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>{t('sleep.hours')}</div>
+                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>{isArabic ? 'ساعات' : 'hours'}</div>
                     </div>
                 </div>
 
                 <div className="analytics-stat-card" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', color: 'white' }}>
                     <div className="stat-icon">📅</div>
                     <div className="stat-content">
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('sleep.stats.nights')}</div>
+                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'ليالي مسجلة' : 'Nights Recorded'}</div>
                         <div className="stat-value" style={{ color: 'white' }}>{stats.totalNights}</div>
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>{t('sleep.stats.recorded')}</div>
+                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>{isArabic ? 'ليلة' : 'nights'}</div>
                     </div>
                 </div>
             </div>
 
-            {/* سجل النوم - بدون أيقونات مكررة */}
+            {/* سجل النوم */}
             <div className="recommendations-section">
                 <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
-                    <h3>{t('sleep.history')}</h3>
+                    <h3>{isArabic ? 'سجل النوم' : 'Sleep History'}</h3>
                     <button onClick={fetchSleepHistory} className="refresh-btn" disabled={fetchingHistory}>
                         {fetchingHistory ? '⏳' : '🔄'}
                     </button>
@@ -554,13 +579,13 @@ function SleepTracker({ onDataSubmitted }) {
                 {fetchingHistory ? (
                     <div className="analytics-loading">
                         <div className="spinner"></div>
-                        <p>{t('common.loading')}</p>
+                        <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
                     </div>
                 ) : sleepHistory.length === 0 ? (
                     <div className="analytics-empty">
                         <div className="empty-icon">🌙</div>
-                        <h4>{t('sleep.noRecords')}</h4>
-                        <p>{t('sleep.startRecording')}</p>
+                        <h4>{isArabic ? 'لا توجد سجلات نوم' : 'No Sleep Records'}</h4>
+                        <p>{isArabic ? 'ابدأ بتسجيل نومك' : 'Start recording your sleep'}</p>
                     </div>
                 ) : (
                     <div className="notifications-list">
@@ -574,7 +599,7 @@ function SleepTracker({ onDataSubmitted }) {
                                 <div key={sleep.id} className="notification-card" style={{ borderTop: `3px solid ${getQualityColor(quality)}` }}>
                                     <div className="notification-header">
                                         <div className="notification-title">
-                                            <span className="notification-time">{formatDateTime(startTime, isArabic ? 'ar' : 'en')}</span>
+                                            <span className="notification-time">{formatDateTime(startTime, isArabic)}</span>
                                         </div>
                                         <div className="notification-actions">
                                             <button 
@@ -588,14 +613,14 @@ function SleepTracker({ onDataSubmitted }) {
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                                 }}
                                                 className="notification-action-btn"
-                                                title={t('common.edit')}
+                                                title={isArabic ? 'تعديل' : 'Edit'}
                                             >
                                                 ✏️
                                             </button>
                                             <button 
                                                 onClick={() => handleDeleteSleep(sleep.id)}
                                                 className="notification-action-btn"
-                                                title={t('common.delete')}
+                                                title={isArabic ? 'حذف' : 'Delete'}
                                             >
                                                 🗑️
                                             </button>
@@ -604,11 +629,11 @@ function SleepTracker({ onDataSubmitted }) {
                                     
                                     <div className="notification-content">
                                         <div className="habit-stats" style={{ justifyContent: 'space-around' }}>
-                                            <div className="stat-label">{t('sleep.duration')}</div>
+                                            <div className="stat-label">{isArabic ? 'المدة' : 'Duration'}</div>
                                             <div className="stat-value">{duration || '—'}</div>
-                                            <div className="stat-label">{t('sleep.hours')}</div>
+                                            <div className="stat-label">{isArabic ? 'ساعات' : 'hours'}</div>
                                             <div className="stat-divider" style={{ width: '1px', height: '30px', background: 'var(--border-light)' }}></div>
-                                            <div className="stat-label">{t('sleep.quality')}</div>
+                                            <div className="stat-label">{isArabic ? 'الجودة' : 'Quality'}</div>
                                             <div className="stat-value" style={{ color: getQualityColor(quality) }}>{quality}</div>
                                             <div className="stat-label">/ 5</div>
                                         </div>
@@ -632,6 +657,8 @@ function SleepTracker({ onDataSubmitted }) {
             </div>
 
             <style>{`
+                /* ✅ تم إزالة .lang-btn styles */
+
                 @keyframes spin {
                     to { transform: rotate(360deg); }
                 }

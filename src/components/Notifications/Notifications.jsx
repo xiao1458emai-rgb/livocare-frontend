@@ -1,7 +1,6 @@
 // src/components/Notifications/Notifications.jsx
 'use client'
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import './Notifications.css';
 
@@ -65,13 +64,13 @@ const getNotificationColor = (type, severity) => {
     return colors[type] || '#6b7280';
 };
 
-// دالة لترجمة الأولوية
-const getPriorityText = (priority, t) => {
+// دالة للحصول على نص الأولوية
+const getPriorityText = (priority, isArabic) => {
     const priorities = {
-        'urgent': t('notifications.priority.urgent', 'عاجل'),
-        'high': t('notifications.priority.high', 'مرتفعة'),
-        'medium': t('notifications.priority.medium', 'متوسطة'),
-        'low': t('notifications.priority.low', 'منخفضة')
+        'urgent': isArabic ? 'عاجل' : 'Urgent',
+        'high': isArabic ? 'مرتفعة' : 'High',
+        'medium': isArabic ? 'متوسطة' : 'Medium',
+        'low': isArabic ? 'منخفضة' : 'Low'
     };
     return priorities[priority] || priority;
 };
@@ -84,7 +83,13 @@ const extractData = (response) => {
 };
 
 function Notifications({ isAuthReady }) {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
@@ -100,6 +105,23 @@ function Notifications({ isAuthReady }) {
         habits: true,
         alerts: true
     });
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     // حساب الإحصائيات من البيانات الفعلية
     const stats = useMemo(() => {
@@ -198,10 +220,10 @@ function Notifications({ isAuthReady }) {
             setNotifications(prev =>
                 prev.map(n => n.id === id ? { ...n, is_read: true } : n)
             );
-            showTemporaryMessage(t('notifications.markedAsRead', 'تمت قراءة الإشعار'), 'success');
+            showTemporaryMessage(isArabic ? 'تمت قراءة الإشعار' : 'Notification marked as read', 'success');
         } catch (error) {
             console.error('Error marking notification as read:', error);
-            showTemporaryMessage(t('common.error', 'حدث خطأ'), 'error');
+            showTemporaryMessage(isArabic ? 'حدث خطأ' : 'Error occurred', 'error');
         }
     };
 
@@ -211,36 +233,36 @@ function Notifications({ isAuthReady }) {
             setNotifications(prev =>
                 prev.map(n => ({ ...n, is_read: true }))
             );
-            showTemporaryMessage(t('notifications.allMarkedAsRead', 'تمت قراءة جميع الإشعارات'), 'success');
+            showTemporaryMessage(isArabic ? 'تمت قراءة جميع الإشعارات' : 'All notifications marked as read', 'success');
         } catch (error) {
             console.error('Error marking all as read:', error);
-            showTemporaryMessage(t('common.error', 'حدث خطأ'), 'error');
+            showTemporaryMessage(isArabic ? 'حدث خطأ' : 'Error occurred', 'error');
         }
     };
 
     const deleteNotification = async (id) => {
-        if (!window.confirm(t('notifications.deleteConfirm', 'هل أنت متأكد من حذف هذا الإشعار؟'))) return;
+        if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف هذا الإشعار؟' : 'Are you sure you want to delete this notification?')) return;
         
         try {
             await axiosInstance.delete(`/notifications/${id}/`);
             setNotifications(prev => prev.filter(n => n.id !== id));
-            showTemporaryMessage(t('notifications.deleted', 'تم حذف الإشعار'), 'success');
+            showTemporaryMessage(isArabic ? 'تم حذف الإشعار' : 'Notification deleted', 'success');
         } catch (error) {
             console.error('Error deleting notification:', error);
-            showTemporaryMessage(t('common.error', 'حدث خطأ'), 'error');
+            showTemporaryMessage(isArabic ? 'حدث خطأ' : 'Error occurred', 'error');
         }
     };
 
     const deleteAllRead = async () => {
-        if (!window.confirm(t('notifications.deleteAllReadConfirm', 'هل أنت متأكد من حذف جميع الإشعارات المقروءة؟'))) return;
+        if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف جميع الإشعارات المقروءة؟' : 'Are you sure you want to delete all read notifications?')) return;
         
         try {
             await axiosInstance.delete('/notifications/delete_all_read/');
             setNotifications(prev => prev.filter(n => !n.is_read));
-            showTemporaryMessage(t('notifications.allReadDeleted', 'تم حذف الإشعارات المقروءة'), 'success');
+            showTemporaryMessage(isArabic ? 'تم حذف الإشعارات المقروءة' : 'Read notifications deleted', 'success');
         } catch (error) {
             console.error('Error deleting all read notifications:', error);
-            showTemporaryMessage(t('common.error', 'حدث خطأ'), 'error');
+            showTemporaryMessage(isArabic ? 'حدث خطأ' : 'Error occurred', 'error');
         }
     };
 
@@ -311,12 +333,12 @@ function Notifications({ isAuthReady }) {
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
 
-        if (diffMins < 1) return t('notifications.justNow', 'الآن');
-        if (diffMins < 60) return t('notifications.minutesAgo', '{{count}} دقيقة', { count: diffMins });
-        if (diffHours < 24) return t('notifications.hoursAgo', '{{count}} ساعة', { count: diffHours });
-        if (diffDays < 7) return t('notifications.daysAgo', '{{count}} يوم', { count: diffDays });
+        if (diffMins < 1) return isArabic ? 'الآن' : 'Just now';
+        if (diffMins < 60) return isArabic ? `منذ ${diffMins} دقيقة` : `${diffMins} minutes ago`;
+        if (diffHours < 24) return isArabic ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`;
+        if (diffDays < 7) return isArabic ? `منذ ${diffDays} يوم` : `${diffDays} days ago`;
         
-        return date.toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US');
+        return date.toLocaleDateString(isArabic ? 'ar-EG' : 'en-US');
     };
 
     if (loading && notifications.length === 0) {
@@ -324,7 +346,7 @@ function Notifications({ isAuthReady }) {
             <div className="analytics-container">
                 <div className="analytics-loading">
                     <div className="spinner"></div>
-                    <p>{t('common.loading', 'جاري التحميل...')}</p>
+                    <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
                 </div>
             </div>
         );
@@ -344,8 +366,7 @@ function Notifications({ isAuthReady }) {
             {/* رأس الصفحة */}
             <div className="analytics-header">
                 <h2>
-                    <span>🔔</span>
-                    {t('notifications.title', 'الإشعارات')}
+                    {isArabic ? 'الإشعارات' : 'Notifications'}
                     {stats.unread > 0 && (
                         <span className="unread-badge" style={{
                             display: 'inline-flex',
@@ -363,18 +384,19 @@ function Notifications({ isAuthReady }) {
                     )}
                 </h2>
                 <div className="header-actions" style={{ display: 'flex', gap: '8px' }}>
-                    <button className="refresh-btn" onClick={fetchNotifications} title={t('common.refresh', 'تحديث')}>
+                    <button className="refresh-btn" onClick={fetchNotifications} title={isArabic ? 'تحديث' : 'Refresh'}>
                         🔄
                     </button>
-                    <button className="stats-toggle-btn" onClick={() => setShowStats(!showStats)} title={t('notifications.stats', 'إحصائيات')}>
+                    {/* ✅ تم إزالة زر اللغة من هنا */}
+                    <button className="stats-toggle-btn" onClick={() => setShowStats(!showStats)} title={isArabic ? 'إحصائيات' : 'Stats'}>
                         📊
                     </button>
-                    <button className="stats-toggle-btn" onClick={() => setShowPreferences(!showPreferences)} title={t('notifications.preferences', 'إعدادات')}>
+                    <button className="stats-toggle-btn" onClick={() => setShowPreferences(!showPreferences)} title={isArabic ? 'إعدادات' : 'Settings'}>
                         ⚙️
                     </button>
                     {stats.unread > 0 && (
                         <button className="mark-all-read-btn" onClick={markAllAsRead}>
-                            {t('notifications.markAllRead', 'تحديد الكل كمقروء')}
+                            {isArabic ? 'تحديد الكل كمقروء' : 'Mark all as read'}
                         </button>
                     )}
                 </div>
@@ -384,19 +406,19 @@ function Notifications({ isAuthReady }) {
             {showStats && (
                 <div className="notifications-stats">
                     <div className="stat-card">
-                        <span className="stat-label">{t('notifications.stats.total', 'الإجمالي')}</span>
+                        <span className="stat-label">{isArabic ? 'الإجمالي' : 'Total'}</span>
                         <span className="stat-value">{stats.total}</span>
                     </div>
                     <div className="stat-card">
-                        <span className="stat-label">{t('notifications.stats.unread', 'غير مقروء')}</span>
+                        <span className="stat-label">{isArabic ? 'غير مقروء' : 'Unread'}</span>
                         <span className="stat-value">{stats.unread}</span>
                     </div>
                     <div className="stat-card">
-                        <span className="stat-label">{t('notifications.stats.read', 'مقروء')}</span>
+                        <span className="stat-label">{isArabic ? 'مقروء' : 'Read'}</span>
                         <span className="stat-value">{stats.read}</span>
                     </div>
                     <div className="stat-card">
-                        <span className="stat-label">{t('notifications.stats.last7Days', 'آخر 7 أيام')}</span>
+                        <span className="stat-label">{isArabic ? 'آخر 7 أيام' : 'Last 7 days'}</span>
                         <span className="stat-value">{stats.last7Days}</span>
                     </div>
                 </div>
@@ -407,53 +429,53 @@ function Notifications({ isAuthReady }) {
                 <div className="notification-settings">
                     <div className="settings-title">
                         <span>⚙️</span>
-                        <span>{t('notifications.preferences', 'إعدادات الإشعارات')}</span>
+                        <span>{isArabic ? 'إعدادات الإشعارات' : 'Notification Settings'}</span>
                     </div>
                     <div className="settings-grid">
                         <div className="setting-item">
-                            <span className="setting-label">🌙 {t('notifications.types.sleep', 'النوم')}</span>
+                            <span className="setting-label">{isArabic ? 'النوم' : 'Sleep'}</span>
                             <label className="toggle-switch">
                                 <input type="checkbox" checked={preferences.sleep} onChange={() => togglePreference('sleep')} />
                                 <span className="toggle-slider"></span>
                             </label>
                         </div>
                         <div className="setting-item">
-                            <span className="setting-label">🥗 {t('notifications.types.nutrition', 'التغذية')}</span>
+                            <span className="setting-label">{isArabic ? 'التغذية' : 'Nutrition'}</span>
                             <label className="toggle-switch">
                                 <input type="checkbox" checked={preferences.nutrition} onChange={() => togglePreference('nutrition')} />
                                 <span className="toggle-slider"></span>
                             </label>
                         </div>
                         <div className="setting-item">
-                            <span className="setting-label">🏃 {t('notifications.types.activity', 'النشاط')}</span>
+                            <span className="setting-label">{isArabic ? 'النشاط' : 'Activity'}</span>
                             <label className="toggle-switch">
                                 <input type="checkbox" checked={preferences.activity} onChange={() => togglePreference('activity')} />
                                 <span className="toggle-slider"></span>
                             </label>
                         </div>
                         <div className="setting-item">
-                            <span className="setting-label">😊 {t('notifications.types.mood', 'المزاج')}</span>
+                            <span className="setting-label">{isArabic ? 'المزاج' : 'Mood'}</span>
                             <label className="toggle-switch">
                                 <input type="checkbox" checked={preferences.mood} onChange={() => togglePreference('mood')} />
                                 <span className="toggle-slider"></span>
                             </label>
                         </div>
                         <div className="setting-item">
-                            <span className="setting-label">❤️ {t('notifications.types.health', 'الصحة')}</span>
+                            <span className="setting-label">{isArabic ? 'الصحة' : 'Health'}</span>
                             <label className="toggle-switch">
                                 <input type="checkbox" checked={preferences.health} onChange={() => togglePreference('health')} />
                                 <span className="toggle-slider"></span>
                             </label>
                         </div>
                         <div className="setting-item">
-                            <span className="setting-label">💊 {t('notifications.types.habit', 'العادات')}</span>
+                            <span className="setting-label">{isArabic ? 'العادات' : 'Habits'}</span>
                             <label className="toggle-switch">
                                 <input type="checkbox" checked={preferences.habits} onChange={() => togglePreference('habits')} />
                                 <span className="toggle-slider"></span>
                             </label>
                         </div>
                         <div className="setting-item">
-                            <span className="setting-label">⚠️ {t('notifications.types.alert', 'تنبيهات')}</span>
+                            <span className="setting-label">{isArabic ? 'تنبيهات' : 'Alerts'}</span>
                             <label className="toggle-switch">
                                 <input type="checkbox" checked={preferences.alerts} onChange={() => togglePreference('alerts')} />
                                 <span className="toggle-slider"></span>
@@ -469,40 +491,40 @@ function Notifications({ isAuthReady }) {
                     className={`type-btn ${filter === 'all' ? 'active' : ''}`}
                     onClick={resetFilters}
                 >
-                    {t('notifications.all', 'الكل')} ({stats.total})
+                    {isArabic ? 'الكل' : 'All'} ({stats.total})
                 </button>
                 <button 
                     className={`type-btn ${filter === 'unread' ? 'active' : ''}`}
                     onClick={() => setFilter('unread')}
                 >
-                    {t('notifications.unread', 'غير مقروء')} ({stats.unread})
+                    {isArabic ? 'غير مقروء' : 'Unread'} ({stats.unread})
                 </button>
                 <button 
                     className={`type-btn ${filter === 'read' ? 'active' : ''}`}
                     onClick={() => setFilter('read')}
                 >
-                    {t('notifications.read', 'مقروء')} ({stats.read})
+                    {isArabic ? 'مقروء' : 'Read'} ({stats.read})
                 </button>
             </div>
 
             <div className="type-filters">
-                <button className="type-btn" onClick={() => filterByType('health')}>❤️ {t('notifications.types.health', 'الصحة')}</button>
-                <button className="type-btn" onClick={() => filterByType('sleep')}>🌙 {t('notifications.types.sleep', 'النوم')}</button>
-                <button className="type-btn" onClick={() => filterByType('habit')}>💊 {t('notifications.types.habit', 'العادات')}</button>
-                <button className="type-btn" onClick={() => filterByType('achievement')}>🏆 {t('notifications.types.achievement', 'إنجازات')}</button>
-                <button className="type-btn" onClick={() => filterByType('alert')}>⚠️ {t('notifications.types.alert', 'تنبيهات')}</button>
-                <button className="type-btn" onClick={() => filterByType('nutrition')}>🥗 {t('notifications.types.nutrition', 'التغذية')}</button>
-                <button className="type-btn" onClick={() => filterByType('mood')}>😊 {t('notifications.types.mood', 'المزاج')}</button>
-                <button className="type-btn" onClick={() => filterByType('reminder')}>⏰ {t('notifications.types.reminder', 'تذكيرات')}</button>
-                <button className="type-btn" onClick={() => filterByType('tip')}>💡 {t('notifications.types.tip', 'نصائح')}</button>
+                <button className="type-btn" onClick={() => filterByType('health')}>❤️ {isArabic ? 'الصحة' : 'Health'}</button>
+                <button className="type-btn" onClick={() => filterByType('sleep')}>🌙 {isArabic ? 'النوم' : 'Sleep'}</button>
+                <button className="type-btn" onClick={() => filterByType('habit')}>💊 {isArabic ? 'العادات' : 'Habits'}</button>
+                <button className="type-btn" onClick={() => filterByType('achievement')}>🏆 {isArabic ? 'إنجازات' : 'Achievements'}</button>
+                <button className="type-btn" onClick={() => filterByType('alert')}>⚠️ {isArabic ? 'تنبيهات' : 'Alerts'}</button>
+                <button className="type-btn" onClick={() => filterByType('nutrition')}>🥗 {isArabic ? 'التغذية' : 'Nutrition'}</button>
+                <button className="type-btn" onClick={() => filterByType('mood')}>😊 {isArabic ? 'المزاج' : 'Mood'}</button>
+                <button className="type-btn" onClick={() => filterByType('reminder')}>⏰ {isArabic ? 'تذكيرات' : 'Reminders'}</button>
+                <button className="type-btn" onClick={() => filterByType('tip')}>💡 {isArabic ? 'نصائح' : 'Tips'}</button>
             </div>
 
             {/* قائمة الإشعارات */}
             {filteredNotifications.length === 0 ? (
                 <div className="empty-notifications">
                     <div className="empty-icon">🔔</div>
-                    <h3 className="empty-title">{t('notifications.noNotifications', 'لا توجد إشعارات')}</h3>
-                    <p className="empty-message">{t('notifications.noNotificationsDesc', 'ستظهر الإشعارات هنا عند توفرها')}</p>
+                    <h3 className="empty-title">{isArabic ? 'لا توجد إشعارات' : 'No notifications'}</h3>
+                    <p className="empty-message">{isArabic ? 'ستظهر الإشعارات هنا عند توفرها' : 'Notifications will appear here when available'}</p>
                 </div>
             ) : (
                 <div className="notifications-list">
@@ -522,7 +544,7 @@ function Notifications({ isAuthReady }) {
                                         <span>{notification.title}</span>
                                         {notification.priority && (
                                             <span className={`priority-badge priority-${notification.priority}`}>
-                                                {getPriorityText(notification.priority, t)}
+                                                {getPriorityText(notification.priority, isArabic)}
                                             </span>
                                         )}
                                     </div>
@@ -540,13 +562,13 @@ function Notifications({ isAuthReady }) {
                                 
                                 {notification.action_url && (
                                     <a href={notification.action_url} className="notification-action" style={{ display: 'inline-block', marginTop: '8px', color: 'var(--primary)', textDecoration: 'none' }}>
-                                        {notification.action_text || t('notifications.view', 'عرض')} →
+                                        {notification.action_text || (isArabic ? 'عرض' : 'View')} →
                                     </a>
                                 )}
                                 
                                 {notification.suggestions && notification.suggestions.length > 0 && (
                                     <div className="notification-suggestions" style={{ marginTop: '8px', padding: '8px', background: 'var(--tertiary-bg)', borderRadius: '8px' }}>
-                                        <strong>💡 {t('notifications.suggestions', 'اقتراحات')}:</strong>
+                                        <strong>💡 {isArabic ? 'اقتراحات' : 'Suggestions'}:</strong>
                                         <ul style={{ margin: '4px 0 0 20px' }}>
                                             {notification.suggestions.map((s, i) => (
                                                 <li key={i}>{s}</li>
@@ -560,17 +582,17 @@ function Notifications({ isAuthReady }) {
                                         <button 
                                             className="notification-action-btn"
                                             onClick={() => markAsRead(notification.id)}
-                                            title={t('notifications.markRead', 'تحديد كمقروء')}
+                                            title={isArabic ? 'تحديد كمقروء' : 'Mark as read'}
                                         >
-                                            ✓ {t('notifications.markRead', 'تحديد كمقروء')}
+                                            ✓ {isArabic ? 'تحديد كمقروء' : 'Mark read'}
                                         </button>
                                     )}
                                     <button 
                                         className="notification-action-btn"
                                         onClick={() => deleteNotification(notification.id)}
-                                        title={t('common.delete', 'حذف')}
+                                        title={isArabic ? 'حذف' : 'Delete'}
                                     >
-                                        🗑️ {t('common.delete', 'حذف')}
+                                        🗑️ {isArabic ? 'حذف' : 'Delete'}
                                     </button>
                                 </div>
                             </div>
@@ -583,14 +605,14 @@ function Notifications({ isAuthReady }) {
             {notifications.length > 0 && (
                 <div className="notifications-footer">
                     <div className="footer-stats">
-                        <span>📊 {t('notifications.total', 'الإجمالي')}: {stats.total}</span>
-                        <span>🔵 {t('notifications.unread', 'غير مقروء')}: {stats.unread}</span>
-                        <span>✅ {t('notifications.read', 'مقروء')}: {stats.read}</span>
+                        <span>📊 {isArabic ? 'الإجمالي' : 'Total'}: {stats.total}</span>
+                        <span>🔵 {isArabic ? 'غير مقروء' : 'Unread'}: {stats.unread}</span>
+                        <span>✅ {isArabic ? 'مقروء' : 'Read'}: {stats.read}</span>
                     </div>
                     
                     {stats.read > 0 && (
                         <button className="delete-read-btn" onClick={deleteAllRead}>
-                            🗑️ {t('notifications.deleteAllRead', 'حذف المقروء')}
+                            🗑️ {isArabic ? 'حذف المقروء' : 'Delete read'}
                         </button>
                     )}
                 </div>

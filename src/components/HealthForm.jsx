@@ -1,13 +1,16 @@
 // src/components/HealthForm.jsx
 'use client'
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../services/api';
 import '../index.css';
 
 function HealthForm({ onDataSubmitted }) {
-    const { t, i18n } = useTranslation();
-    const isArabic = i18n.language === 'ar';
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
     
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
@@ -27,6 +30,26 @@ function HealthForm({ onDataSubmitted }) {
     const [validationErrors, setValidationErrors] = useState({});
     const [autoSave, setAutoSave] = useState(false);
     const [lastAutoSave, setLastAutoSave] = useState(null);
+
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // تطبيق اتجاه الصفحة
+                document.documentElement.dir = event.detail.isArabic ? 'rtl' : 'ltr';
+                document.documentElement.lang = event.detail.isArabic ? 'ar' : 'en';
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     // حدود التحقق من الصحة
     const VALIDATION_LIMITS = {
@@ -61,7 +84,7 @@ function HealthForm({ onDataSubmitted }) {
             try {
                 const parsedData = JSON.parse(savedData);
                 setFormData(parsedData);
-                setMessage(t('health.form.autoRestored'));
+                setMessage(isArabic ? 'تم استعادة البيانات المحفوظة' : 'Auto-saved data restored');
                 setMessageType('info');
                 setTimeout(() => {
                     if (isMountedRef.current) {
@@ -73,7 +96,7 @@ function HealthForm({ onDataSubmitted }) {
                 console.error('Error loading auto-saved data:', error);
             }
         }
-    }, [t]);
+    }, [isArabic]);
 
     // دالة التحقق
     const validateForm = () => {
@@ -84,9 +107,9 @@ function HealthForm({ onDataSubmitted }) {
             hasAnyData = true;
             const weight = parseFloat(formData.weight);
             if (isNaN(weight)) {
-                errors.weight = t('health.form.errors.invalidNumber');
+                errors.weight = isArabic ? 'رقم غير صالح' : 'Invalid number';
             } else if (weight < VALIDATION_LIMITS.weight.min || weight > VALIDATION_LIMITS.weight.max) {
-                errors.weight = `${VALIDATION_LIMITS.weight.min} - ${VALIDATION_LIMITS.weight.max} ${t('health.form.kg')}`;
+                errors.weight = `${VALIDATION_LIMITS.weight.min} - ${VALIDATION_LIMITS.weight.max} ${isArabic ? 'كجم' : 'kg'}`;
             }
         }
 
@@ -94,7 +117,7 @@ function HealthForm({ onDataSubmitted }) {
             hasAnyData = true;
             const systolic = parseInt(formData.systolic);
             if (isNaN(systolic)) {
-                errors.systolic = t('health.form.errors.invalidNumber');
+                errors.systolic = isArabic ? 'رقم غير صالح' : 'Invalid number';
             } else if (systolic < VALIDATION_LIMITS.systolic.min || systolic > VALIDATION_LIMITS.systolic.max) {
                 errors.systolic = `${VALIDATION_LIMITS.systolic.min} - ${VALIDATION_LIMITS.systolic.max} mmHg`;
             }
@@ -104,14 +127,14 @@ function HealthForm({ onDataSubmitted }) {
             hasAnyData = true;
             const diastolic = parseInt(formData.diastolic);
             if (isNaN(diastolic)) {
-                errors.diastolic = t('health.form.errors.invalidNumber');
+                errors.diastolic = isArabic ? 'رقم غير صالح' : 'Invalid number';
             } else if (diastolic < VALIDATION_LIMITS.diastolic.min || diastolic > VALIDATION_LIMITS.diastolic.max) {
                 errors.diastolic = `${VALIDATION_LIMITS.diastolic.min} - ${VALIDATION_LIMITS.diastolic.max} mmHg`;
             }
             if (formData.systolic && formData.systolic.trim() !== '') {
                 const systolic = parseInt(formData.systolic);
                 if (!isNaN(systolic) && !isNaN(diastolic) && systolic <= diastolic) {
-                    errors.diastolic = t('health.form.errors.systolicGreater');
+                    errors.diastolic = isArabic ? 'الضغط الانقباضي يجب أن يكون أكبر من الانبساطي' : 'Systolic must be greater than diastolic';
                 }
             }
         }
@@ -120,7 +143,7 @@ function HealthForm({ onDataSubmitted }) {
             hasAnyData = true;
             const glucose = parseFloat(formData.glucose);
             if (isNaN(glucose)) {
-                errors.glucose = t('health.form.errors.invalidNumber');
+                errors.glucose = isArabic ? 'رقم غير صالح' : 'Invalid number';
             } else if (glucose < VALIDATION_LIMITS.glucose.min || glucose > VALIDATION_LIMITS.glucose.max) {
                 errors.glucose = `${VALIDATION_LIMITS.glucose.min} - ${VALIDATION_LIMITS.glucose.max} mg/dL`;
             }
@@ -130,7 +153,7 @@ function HealthForm({ onDataSubmitted }) {
             hasAnyData = true;
             const heartRate = parseInt(formData.heartRate);
             if (isNaN(heartRate)) {
-                errors.heartRate = t('health.form.errors.invalidNumber');
+                errors.heartRate = isArabic ? 'رقم غير صالح' : 'Invalid number';
             } else if (heartRate < VALIDATION_LIMITS.heartRate.min || heartRate > VALIDATION_LIMITS.heartRate.max) {
                 errors.heartRate = `${VALIDATION_LIMITS.heartRate.min} - ${VALIDATION_LIMITS.heartRate.max} BPM`;
             }
@@ -140,14 +163,14 @@ function HealthForm({ onDataSubmitted }) {
             hasAnyData = true;
             const spo2 = parseInt(formData.spo2);
             if (isNaN(spo2)) {
-                errors.spo2 = t('health.form.errors.invalidNumber');
+                errors.spo2 = isArabic ? 'رقم غير صالح' : 'Invalid number';
             } else if (spo2 < VALIDATION_LIMITS.spo2.min || spo2 > VALIDATION_LIMITS.spo2.max) {
                 errors.spo2 = `${VALIDATION_LIMITS.spo2.min} - ${VALIDATION_LIMITS.spo2.max}%`;
             }
         }
 
         if (!hasAnyData) {
-            errors._general = t('health.form.errors.noData');
+            errors._general = isArabic ? 'الرجاء إدخال قيمة واحدة على الأقل' : 'Please enter at least one value';
             return false;
         }
 
@@ -186,7 +209,7 @@ function HealthForm({ onDataSubmitted }) {
         });
         setValidationErrors({});
         localStorage.removeItem('healthForm_autoSave');
-        setMessage(t('health.form.formCleared'));
+        setMessage(isArabic ? 'تم مسح النموذج' : 'Form cleared');
         setMessageType('info');
     };
 
@@ -196,7 +219,7 @@ function HealthForm({ onDataSubmitted }) {
         if (isSubmittingRef.current || !isMountedRef.current) return;
         
         if (!validateForm()) {
-            setMessage(t('health.form.correctErrors'));
+            setMessage(isArabic ? 'يرجى تصحيح الأخطاء في النموذج' : 'Please correct errors in the form');
             setMessageType('error');
             return;
         }
@@ -236,7 +259,7 @@ function HealthForm({ onDataSubmitted }) {
             const response = await axiosInstance.post('/health_status/', data);
             
             if (isMountedRef.current) {
-                setMessage(t('health.form.submissionSuccess'));
+                setMessage(isArabic ? 'تم حفظ البيانات بنجاح' : 'Data saved successfully');
                 setMessageType('success');
                 
                 resetForm();
@@ -252,7 +275,7 @@ function HealthForm({ onDataSubmitted }) {
             
             if (!isMountedRef.current) return;
             
-            let errorMessage = t('health.form.submissionError');
+            let errorMessage = isArabic ? 'فشل حفظ البيانات' : 'Failed to save data';
             
             if (err.response?.status === 400) {
                 const errorData = err.response.data;
@@ -272,9 +295,9 @@ function HealthForm({ onDataSubmitted }) {
                     errorMessage = errorData;
                 }
             } else if (err.response?.status === 401) {
-                errorMessage = t('health.form.sessionExpired');
+                errorMessage = isArabic ? 'انتهت الجلسة، الرجاء تسجيل الدخول مرة أخرى' : 'Session expired, please login again';
             } else if (err.response?.status === 500) {
-                errorMessage = t('health.form.serverError');
+                errorMessage = isArabic ? 'خطأ في الخادم' : 'Server error';
             } else if (err.code === 'ERR_NETWORK') {
                 errorMessage = isArabic ? 'خطأ في الاتصال بالخادم' : 'Network error';
             }
@@ -287,7 +310,7 @@ function HealthForm({ onDataSubmitted }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [formData, t, onDataSubmitted, isArabic]);
+    }, [formData, onDataSubmitted, isArabic]);
 
     const calculateHealthIndicators = () => {
         const indicators = [];
@@ -431,9 +454,9 @@ function HealthForm({ onDataSubmitted }) {
 
     return (
         <div className="analytics-container">
-            {/* رأس النموذج - ✅ بدون أيقونة مكررة */}
+            {/* رأس النموذج */}
             <div className="analytics-header">
-                <h2>{t('health.form.title')}</h2>
+                <h2>{isArabic ? 'إضافة قياس صحي' : 'Add Health Reading'}</h2>
                 <div className="header-controls" style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
                     <label className="auto-save-toggle" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}>
                         <input
@@ -461,7 +484,7 @@ function HealthForm({ onDataSubmitted }) {
                                 transition: 'all var(--transition-fast)'
                             }}></span>
                         </span>
-                        <span className="stat-label">{t('health.form.autoSave')}</span>
+                        <span className="stat-label">{isArabic ? 'حفظ تلقائي' : 'Auto Save'}</span>
                     </label>
                     {lastAutoSave && (
                         <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
@@ -469,27 +492,28 @@ function HealthForm({ onDataSubmitted }) {
                             <span>{lastAutoSave.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}</span>
                         </div>
                     )}
+                    {/* ✅ تم إزالة زر اللغة من هنا */}
                 </div>
             </div>
 
             <form onSubmit={handleSubmit}>
-                {/* شبكة حقول الإدخال - ✅ بدون أيقونات مكررة في labels */}
+                {/* شبكة حقول الإدخال */}
                 <div className="analytics-stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
                     
                     {/* الوزن */}
                     <div className="field-group">
-                        <label className="stat-label">{t('health.form.weight')}</label>
+                        <label className="stat-label">{isArabic ? 'الوزن' : 'Weight'}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
                                 step="0.1"
                                 value={formData.weight}
                                 onChange={(e) => handleInputChange('weight', e.target.value)}
-                                placeholder={t('health.form.weightPlaceholder')}
+                                placeholder={isArabic ? 'مثال: 70.5' : 'Example: 70.5'}
                                 className={`search-input ${validationErrors.weight ? 'error' : ''}`}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
-                                {t('health.form.kg')}
+                                {isArabic ? 'كجم' : 'kg'}
                             </span>
                         </div>
                         {validationErrors.weight && (
@@ -501,13 +525,13 @@ function HealthForm({ onDataSubmitted }) {
 
                     {/* الضغط الانقباضي */}
                     <div className="field-group">
-                        <label className="stat-label">{t('health.form.systolic')}</label>
+                        <label className="stat-label">{isArabic ? 'الضغط الانقباضي' : 'Systolic'}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
                                 value={formData.systolic}
                                 onChange={(e) => handleInputChange('systolic', e.target.value)}
-                                placeholder={t('health.form.systolicPlaceholder')}
+                                placeholder={isArabic ? 'مثال: 120' : 'Example: 120'}
                                 className={`search-input ${validationErrors.systolic ? 'error' : ''}`}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
@@ -523,13 +547,13 @@ function HealthForm({ onDataSubmitted }) {
 
                     {/* الضغط الانبساطي */}
                     <div className="field-group">
-                        <label className="stat-label">{t('health.form.diastolic')}</label>
+                        <label className="stat-label">{isArabic ? 'الضغط الانبساطي' : 'Diastolic'}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
                                 value={formData.diastolic}
                                 onChange={(e) => handleInputChange('diastolic', e.target.value)}
-                                placeholder={t('health.form.diastolicPlaceholder')}
+                                placeholder={isArabic ? 'مثال: 80' : 'Example: 80'}
                                 className={`search-input ${validationErrors.diastolic ? 'error' : ''}`}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
@@ -545,14 +569,14 @@ function HealthForm({ onDataSubmitted }) {
 
                     {/* الجلوكوز */}
                     <div className="field-group">
-                        <label className="stat-label">{t('health.form.glucose')}</label>
+                        <label className="stat-label">{isArabic ? 'سكر الدم' : 'Blood Glucose'}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
                                 step="0.1"
                                 value={formData.glucose}
                                 onChange={(e) => handleInputChange('glucose', e.target.value)}
-                                placeholder={t('health.form.glucosePlaceholder')}
+                                placeholder={isArabic ? 'مثال: 95' : 'Example: 95'}
                                 className={`search-input ${validationErrors.glucose ? 'error' : ''}`}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
@@ -568,13 +592,13 @@ function HealthForm({ onDataSubmitted }) {
 
                     {/* نبضات القلب */}
                     <div className="field-group">
-                        <label className="stat-label">{t('health.form.heartRate') || 'Heart Rate'}</label>
+                        <label className="stat-label">{isArabic ? 'نبضات القلب' : 'Heart Rate'}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
                                 value={formData.heartRate}
                                 onChange={(e) => handleInputChange('heartRate', e.target.value)}
-                                placeholder={t('health.form.heartRatePlaceholder') || '60-100 BPM'}
+                                placeholder={isArabic ? 'مثال: 75' : 'Example: 75'}
                                 className={`search-input ${validationErrors.heartRate ? 'error' : ''}`}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
@@ -593,13 +617,13 @@ function HealthForm({ onDataSubmitted }) {
 
                     {/* نسبة الأكسجين */}
                     <div className="field-group">
-                        <label className="stat-label">{t('health.form.spo2') || 'Oxygen Level'}</label>
+                        <label className="stat-label">{isArabic ? 'نسبة الأكسجين' : 'Oxygen Level'}</label>
                         <div className="input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 type="number"
                                 value={formData.spo2}
                                 onChange={(e) => handleInputChange('spo2', e.target.value)}
-                                placeholder={t('health.form.spo2Placeholder') || '95-100%'}
+                                placeholder={isArabic ? 'مثال: 98' : 'Example: 98'}
                                 className={`search-input ${validationErrors.spo2 ? 'error' : ''}`}
                             />
                             <span className="input-unit" style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
@@ -622,7 +646,7 @@ function HealthForm({ onDataSubmitted }) {
                     <div className="recommendations-section">
                         <div className="rec-header">
                             <span className="rec-icon">💡</span>
-                            <span className="rec-category">{t('health.form.healthIndicators')}</span>
+                            <span className="rec-category">{isArabic ? 'مؤشرات صحية' : 'Health Indicators'}</span>
                         </div>
                         <div className="recommendations-list">
                             {healthIndicators.map((indicator, index) => (
@@ -638,7 +662,7 @@ function HealthForm({ onDataSubmitted }) {
                     </div>
                 )}
 
-                {/* أزرار الإجراء - ✅ بدون أيقونات مكررة */}
+                {/* أزرار الإجراء */}
                 <div className="form-actions" style={{ display: 'flex', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>
                     <button 
                         type="button" 
@@ -647,7 +671,7 @@ function HealthForm({ onDataSubmitted }) {
                         disabled={loading}
                         style={{ flex: 1 }}
                     >
-                        {t('health.form.reset')}
+                        {isArabic ? 'مسح النموذج' : 'Clear Form'}
                     </button>
                     <button 
                         type="submit" 
@@ -658,10 +682,10 @@ function HealthForm({ onDataSubmitted }) {
                         {loading ? (
                             <>
                                 <span className="spinner"></span>
-                                {t('health.form.saving')}
+                                {isArabic ? 'جاري الحفظ...' : 'Saving...'}
                             </>
                         ) : (
-                            <>{t('health.form.save')}</>
+                            <>{isArabic ? 'حفظ' : 'Save'}</>
                         )}
                     </button>
                 </div>
@@ -703,6 +727,8 @@ function HealthForm({ onDataSubmitted }) {
                     animation: spin 0.8s linear infinite;
                     margin-right: var(--spacing-sm);
                 }
+
+                /* ✅ تم إزالة .lang-btn styles */
 
                 @keyframes spin {
                     to { transform: rotate(360deg); }

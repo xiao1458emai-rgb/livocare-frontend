@@ -1,14 +1,23 @@
 // src/components/Analytics/ActivityAnalytics.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import * as stats from 'simple-statistics';
 import * as math from 'mathjs';
 import axiosInstance from '../../services/api';
 import './Analytics.css';
 
 const ActivityAnalytics = ({ refreshTrigger }) => {
-    const { t, i18n } = useTranslation();
-    const [darkMode, setDarkMode] = useState(false);
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
+    const [darkMode, setDarkMode] = useState(() => {
+        const saved = localStorage.getItem('livocare_darkMode') === 'true';
+        return saved || window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+    
     const [activityInsights, setActivityInsights] = useState(null);
     const [healthData, setHealthData] = useState({
         bloodPressure: null,
@@ -24,7 +33,22 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
 
-    const isArabic = i18n.language.startsWith('ar');
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
@@ -81,9 +105,13 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         const best = Object.entries(activityCounts).sort((a, b) => b[1] - a[1])[0];
         if (best) {
             const activityNames = {
-                walking: '🚶 المشي', running: '🏃 الجري', yoga: '🧘 يوجا', 
-                cardio: '❤️ تمارين قلب', weightlifting: '🏋️ رفع أثقال',
-                cycling: '🚴 ركوب دراجة', swimming: '🏊 سباحة'
+                walking: isArabic ? '🚶 المشي' : '🚶 Walking',
+                running: isArabic ? '🏃 الجري' : '🏃 Running',
+                yoga: isArabic ? '🧘 يوجا' : '🧘 Yoga', 
+                cardio: isArabic ? '❤️ تمارين قلب' : '❤️ Cardio',
+                weightlifting: isArabic ? '🏋️ رفع أثقال' : '🏋️ Weightlifting',
+                cycling: isArabic ? '🚴 ركوب دراجة' : '🚴 Cycling',
+                swimming: isArabic ? '🏊 سباحة' : '🏊 Swimming'
             };
             return activityNames[best[0]] || best[0];
         }
@@ -101,12 +129,26 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             const glucose = healthData.bloodGlucose;
             if (glucose < 70) {
                 score -= 30;
-                warnings.push({ type: 'glucose', severity: 'danger', message: '⚠️ سكر منخفض', value: `${glucose} mg/dL` });
+                warnings.push({ 
+                    type: 'glucose', 
+                    severity: 'danger', 
+                    message: isArabic ? '⚠️ سكر منخفض' : '⚠️ Low blood sugar', 
+                    value: `${glucose} mg/dL` 
+                });
             } else if (glucose > 180) {
                 score -= 20;
-                warnings.push({ type: 'glucose', severity: 'warning', message: '⚠️ سكر مرتفع', value: `${glucose} mg/dL` });
+                warnings.push({ 
+                    type: 'glucose', 
+                    severity: 'warning', 
+                    message: isArabic ? '⚠️ سكر مرتفع' : '⚠️ High blood sugar', 
+                    value: `${glucose} mg/dL` 
+                });
             } else {
-                positives.push({ type: 'glucose', message: '✅ سكر طبيعي', value: `${glucose} mg/dL` });
+                positives.push({ 
+                    type: 'glucose', 
+                    message: isArabic ? '✅ سكر طبيعي' : '✅ Normal blood sugar', 
+                    value: `${glucose} mg/dL` 
+                });
             }
         }
 
@@ -115,15 +157,34 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             const hr = healthData.heartRate;
             if (hr > 140) {
                 score -= 35;
-                warnings.push({ type: 'heartRate', severity: 'danger', message: '🚨 نبض خطير جداً', value: `${hr} BPM` });
+                warnings.push({ 
+                    type: 'heartRate', 
+                    severity: 'danger', 
+                    message: isArabic ? '🚨 نبض خطير جداً' : '🚨 Very dangerous heart rate', 
+                    value: `${hr} BPM` 
+                });
             } else if (hr > 100) {
                 score -= 20;
-                warnings.push({ type: 'heartRate', severity: 'warning', message: '⚠️ نبض مرتفع', value: `${hr} BPM` });
+                warnings.push({ 
+                    type: 'heartRate', 
+                    severity: 'warning', 
+                    message: isArabic ? '⚠️ نبض مرتفع' : '⚠️ High heart rate', 
+                    value: `${hr} BPM` 
+                });
             } else if (hr < 60) {
                 score -= 10;
-                warnings.push({ type: 'heartRate', severity: 'warning', message: '⚠️ نبض منخفض', value: `${hr} BPM` });
+                warnings.push({ 
+                    type: 'heartRate', 
+                    severity: 'warning', 
+                    message: isArabic ? '⚠️ نبض منخفض' : '⚠️ Low heart rate', 
+                    value: `${hr} BPM` 
+                });
             } else {
-                positives.push({ type: 'heartRate', message: '✅ نبض طبيعي', value: `${hr} BPM` });
+                positives.push({ 
+                    type: 'heartRate', 
+                    message: isArabic ? '✅ نبض طبيعي' : '✅ Normal heart rate', 
+                    value: `${hr} BPM` 
+                });
             }
         }
 
@@ -132,12 +193,26 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             const o2 = healthData.oxygenLevel;
             if (o2 < 90) {
                 score -= 30;
-                warnings.push({ type: 'oxygen', severity: 'danger', message: '⚠️ نقص أكسجين خطير', value: `${o2}%` });
+                warnings.push({ 
+                    type: 'oxygen', 
+                    severity: 'danger', 
+                    message: isArabic ? '⚠️ نقص أكسجين خطير' : '⚠️ Critical low oxygen', 
+                    value: `${o2}%` 
+                });
             } else if (o2 < 95) {
                 score -= 15;
-                warnings.push({ type: 'oxygen', severity: 'warning', message: '⚠️ أكسجين منخفض', value: `${o2}%` });
+                warnings.push({ 
+                    type: 'oxygen', 
+                    severity: 'warning', 
+                    message: isArabic ? '⚠️ أكسجين منخفض' : '⚠️ Low oxygen', 
+                    value: `${o2}%` 
+                });
             } else {
-                positives.push({ type: 'oxygen', message: '✅ أكسجين ممتاز', value: `${o2}%` });
+                positives.push({ 
+                    type: 'oxygen', 
+                    message: isArabic ? '✅ أكسجين ممتاز' : '✅ Excellent oxygen', 
+                    value: `${o2}%` 
+                });
             }
         }
 
@@ -146,12 +221,26 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             const { systolic, diastolic } = healthData.bloodPressure;
             if (systolic > 140 || diastolic > 90) {
                 score -= 20;
-                warnings.push({ type: 'bp', severity: 'warning', message: '⚠️ ضغط مرتفع', value: `${systolic} / ${diastolic} mmHg` });
+                warnings.push({ 
+                    type: 'bp', 
+                    severity: 'warning', 
+                    message: isArabic ? '⚠️ ضغط مرتفع' : '⚠️ High blood pressure', 
+                    value: `${systolic} / ${diastolic} mmHg` 
+                });
             } else if (systolic < 90 || diastolic < 60) {
                 score -= 15;
-                warnings.push({ type: 'bp', severity: 'warning', message: '⚠️ ضغط منخفض', value: `${systolic} / ${diastolic} mmHg` });
+                warnings.push({ 
+                    type: 'bp', 
+                    severity: 'warning', 
+                    message: isArabic ? '⚠️ ضغط منخفض' : '⚠️ Low blood pressure', 
+                    value: `${systolic} / ${diastolic} mmHg` 
+                });
             } else {
-                positives.push({ type: 'bp', message: '✅ ضغط طبيعي', value: `${systolic} / ${diastolic} mmHg` });
+                positives.push({ 
+                    type: 'bp', 
+                    message: isArabic ? '✅ ضغط طبيعي' : '✅ Normal blood pressure', 
+                    value: `${systolic} / ${diastolic} mmHg` 
+                });
             }
         }
 
@@ -159,12 +248,26 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         const totalMinutes = activityData.totalMinutes || 0;
         if (totalMinutes === 0) {
             score -= 25;
-            warnings.push({ type: 'activity', severity: 'warning', message: '⚠️ لا يوجد نشاط', value: '0 دقيقة' });
+            warnings.push({ 
+                type: 'activity', 
+                severity: 'warning', 
+                message: isArabic ? '⚠️ لا يوجد نشاط' : '⚠️ No activity', 
+                value: isArabic ? '0 دقيقة' : '0 minutes' 
+            });
         } else if (totalMinutes < 150) {
             score -= 15;
-            warnings.push({ type: 'activity', severity: 'info', message: '⚠️ نشاط أقل من الموصى به', value: `${totalMinutes} / 150 دقيقة` });
+            warnings.push({ 
+                type: 'activity', 
+                severity: 'info', 
+                message: isArabic ? '⚠️ نشاط أقل من الموصى به' : '⚠️ Activity below recommendation', 
+                value: `${totalMinutes} / 150 ${isArabic ? 'دقيقة' : 'minutes'}` 
+            });
         } else {
-            positives.push({ type: 'activity', message: '✅ نشاط ممتاز', value: `${totalMinutes} دقيقة` });
+            positives.push({ 
+                type: 'activity', 
+                message: isArabic ? '✅ نشاط ممتاز' : '✅ Excellent activity', 
+                value: `${totalMinutes} ${isArabic ? 'دقيقة' : 'minutes'}` 
+            });
         }
 
         score = Math.max(0, Math.min(100, score));
@@ -196,9 +299,19 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             }).length;
             
             if (lastWeek > previousWeek && previousWeek > 0) {
-                trends.push({ type: 'activity', direction: 'up', message: '📈 النشاط في ارتفاع', change: `${Math.round((lastWeek - previousWeek) / previousWeek * 100)}% زيادة` });
+                trends.push({ 
+                    type: 'activity', 
+                    direction: 'up', 
+                    message: isArabic ? '📈 النشاط في ارتفاع' : '📈 Activity increasing', 
+                    change: `${Math.round((lastWeek - previousWeek) / previousWeek * 100)}% ${isArabic ? 'زيادة' : 'increase'}` 
+                });
             } else if (lastWeek < previousWeek) {
-                trends.push({ type: 'activity', direction: 'down', message: '📉 النشاط في انخفاض', change: `${Math.round((previousWeek - lastWeek) / previousWeek * 100)}% نقصان` });
+                trends.push({ 
+                    type: 'activity', 
+                    direction: 'down', 
+                    message: isArabic ? '📉 النشاط في انخفاض' : '📉 Activity decreasing', 
+                    change: `${Math.round((previousWeek - lastWeek) / previousWeek * 100)}% ${isArabic ? 'نقصان' : 'decrease'}` 
+                });
             }
         }
 
@@ -215,27 +328,17 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 correlations.push({
                     type: 'glucose_heart_rate',
                     severity: 'danger',
-                    message: '🚨 ارتباط خطير: انخفاض السكر مع ارتفاع النبض',
-                    advice: 'علامات إجهاد حاد، يحتاج تدخل فوري'
+                    message: isArabic ? '🚨 ارتباط خطير: انخفاض السكر مع ارتفاع النبض' : '🚨 Serious correlation: Low sugar with high heart rate',
+                    advice: isArabic ? 'علامات إجهاد حاد، يحتاج تدخل فوري' : 'Signs of acute stress, needs immediate attention'
                 });
             } else if (healthData.bloodGlucose < 70 && healthData.heartRate > 90) {
                 correlations.push({
                     type: 'glucose_heart_rate',
                     severity: 'warning',
-                    message: '⚠️ ارتباط: انخفاض السكر مصحوب بارتفاع النبض',
-                    advice: 'يُنصح بأخذ قسط من الراحة وتناول سكر سريع'
+                    message: isArabic ? '⚠️ ارتباط: انخفاض السكر مصحوب بارتفاع النبض' : '⚠️ Correlation: Low sugar with high heart rate',
+                    advice: isArabic ? 'يُنصح بأخذ قسط من الراحة وتناول سكر سريع' : 'Rest and eat fast-acting sugar'
                 });
             }
-        }
-        
-        // ربط النشاط مع النوم
-        if (healthData.sleepData && healthData.sleepData.hours < 6 && healthData.heartRate > 90) {
-            correlations.push({
-                type: 'sleep_heart_rate',
-                severity: 'warning',
-                message: '😴 قلة النوم تؤثر على نبضات قلبك',
-                advice: 'النوم أقل من 6 ساعات يزيد من إجهاد القلب'
-            });
         }
         
         return correlations;
@@ -249,130 +352,15 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             risks.push({
                 type: 'heart',
                 severity: 'high',
-                message: '🚨 خطر محتمل على القلب',
-                details: 'ارتفاع شديد في النبض قد يشير إلى إجهاد قلبي أو عدم انتظام ضربات القلب',
-                action: 'يُنصح باستشارة طبيب فوراً'
-            });
-        } else if (healthData.heartRate && healthData.heartRate > 100 && healthData.bloodGlucose && healthData.bloodGlucose < 70) {
-            risks.push({
-                type: 'combined',
-                severity: 'high',
-                message: '🚨 خطر مركب: إجهاد حاد',
-                details: 'انخفاض السكر + ارتفاع النبض',
-                action: 'تناول سكر سريع واسترح فوراً'
-            });
-        } else if (healthData.heartRate && healthData.heartRate > 100) {
-            risks.push({
-                type: 'tachycardia',
-                severity: 'medium',
-                message: '⚠️ خطر محتمل: تسارع نبضات القلب',
-                details: 'استمرار ارتفاع النبض قد يدل على إجهاد أو مشكلة قلبية',
-                action: 'راقب نبضك، تجنب المنبهات، استشر طبيباً إذا استمر'
-            });
-        }
-        
-        if (healthData.oxygenLevel && healthData.oxygenLevel < 90) {
-            risks.push({
-                type: 'oxygen',
-                severity: 'high',
-                message: '🚨 نقص أكسجة خطر',
-                details: 'نسبة الأكسجين أقل من 90% تحتاج تدخل طبي',
-                action: 'استشر طبيباً فوراً'
+                message: isArabic ? '🚨 خطر محتمل على القلب' : '🚨 Potential cardiac risk',
+                details: isArabic ? 'ارتفاع شديد في النبض قد يشير إلى إجهاد قلبي' : 'Very high heart rate may indicate cardiac stress',
+                action: isArabic ? 'يُنصح باستشارة طبيب فوراً' : 'Consult a doctor immediately'
             });
         }
         
         return risks;
     };
 
-    // 💡 توصيات ذكية مخصصة
-    const generateSmartRecommendations = (globalHealth, healthData, activityData) => {
-        const recommendations = [];
-        
-        // توصيات فورية بناءً على الحالة الحرجة
-        if (globalHealth.score < 50) {
-            // حالة خطيرة - توصيات فورية
-            if (healthData.bloodGlucose && healthData.bloodGlucose < 70) {
-                recommendations.push({
-                    timing: 'immediate',
-                    priority: 'critical',
-                    icon: '🍬',
-                    title: 'توصية عاجلة - انخفاض السكر',
-                    advice: 'تناول مصدر سكر سريع فوراً',
-                    details: ['تمر (3-4 حبات)', 'عصير فواكه طبيعي', 'ملعقة عسل'],
-                    warning: '⚠️ لا تمارس أي نشاط رياضي حتى يعود السكر إلى مستواه الطبيعي'
-                });
-            }
-            
-            if (healthData.heartRate && healthData.heartRate > 140) {
-                recommendations.push({
-                    timing: 'immediate',
-                    priority: 'critical',
-                    icon: '❤️',
-                    title: 'توصية عاجلة - ارتفاع خطير بالنبض',
-                    advice: 'توقف عن أي نشاط واسترح فوراً',
-                    details: ['اجلس في مكان هادئ', 'اشرب ماء ببطء', 'تنفس بعمق'],
-                    warning: '🚨 إذا استمر الارتفاع، استشر طبيباً فوراً'
-                });
-            }
-        }
-        
-        // توصيات فورية - حالة متوسطة
-        else if (globalHealth.score < 75) {
-            if (healthData.bloodGlucose && healthData.bloodGlucose < 70) {
-                recommendations.push({
-                    timing: 'immediate',
-                    priority: 'high',
-                    icon: '🍎',
-                    title: 'انخفاض السكر',
-                    advice: 'تناول وجبة خفيفة تحتوي على سكر',
-                    details: ['ثمرة فاكهة', 'قطعة تمر', 'كوب حليب'],
-                    warning: 'تجنب النشاط المكثف حتى تتحسن حالتك'
-                });
-            }
-            
-            if (activityData.totalMinutes === 0) {
-                recommendations.push({
-                    timing: 'today',
-                    priority: 'medium',
-                    icon: '🚶',
-                    title: 'ابدأ بحركة بسيطة',
-                    advice: 'جرب المشي الخفيف لمدة 10 دقائق فقط',
-                    details: ['اختر وقتاً مناسباً', 'ارتد ملابس مريحة', 'استمع لموسيقى تحبها'],
-                    warning: healthData.bloodGlucose && healthData.bloodGlucose < 80 ? '⚠️ تأكد من تناول وجبة خفيفة قبل المشي' : null
-                });
-            }
-        }
-        
-        // توصيات مبنية على التاريخ والنمط
-        if (activityData.bestActivity) {
-            recommendations.push({
-                timing: 'general',
-                priority: 'low',
-                icon: getBestActivityIcon(activityData.bestActivity),
-                title: 'استمر على نشاطك المفضل',
-                advice: `${activityData.bestActivity} هو نشاطك المفضل`,
-                details: [`حاول ممارسته ${activityData.activitiesCount > 5 ? '3-4 مرات' : 'مرتين'} في الأسبوع`],
-                basedOn: 'بناءً على تاريخ نشاطاتك السابقة'
-            });
-        }
-        
-        // توصيات مبنية على الوقت المفضل
-        const preferredTime = detectPreferredActivityTime(activityData.activities);
-        if (preferredTime) {
-            recommendations.push({
-                timing: 'general',
-                priority: 'low',
-                icon: '⏰',
-                title: 'أفضل وقت لممارسة النشاط',
-                advice: `عادةً تمارس نشاطك ${preferredTime}`,
-                details: ['هذا الوقت مناسب لطبيعة جسمك', 'حاول الالتزام به يومياً'],
-                basedOn: 'تحليل أوقات نشاطك السابقة'
-            });
-        }
-        
-        return recommendations;
-    };
-    
     // كشف الوقت المفضل للنشاط
     const detectPreferredActivityTime = (activities) => {
         if (!activities || activities.length === 0) return null;
@@ -389,21 +377,19 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         });
         
         const max = Math.max(morning, afternoon, evening, night);
-        if (max === morning) return 'في الصباح (5-12 صباحاً)';
-        if (max === afternoon) return 'في الظهيرة (12-5 مساءً)';
-        if (max === evening) return 'في المساء (5-9 مساءً)';
-        if (max === night) return 'في الليل (9-5 صباحاً)';
+        if (max === morning) return isArabic ? 'في الصباح (5-12 صباحاً)' : 'in the morning (5-12 AM)';
+        if (max === afternoon) return isArabic ? 'في الظهيرة (12-5 مساءً)' : 'in the afternoon (12-5 PM)';
+        if (max === evening) return isArabic ? 'في المساء (5-9 مساءً)' : 'in the evening (5-9 PM)';
+        if (max === night) return isArabic ? 'في الليل (9-5 صباحاً)' : 'at night (9-5 AM)';
         return null;
     };
     
     // الحصول على أيقونة النشاط المفضل
     const getBestActivityIcon = (activity) => {
         if (!activity) return '🏃';
-        if (activity.includes('مشي')) return '🚶';
-        if (activity.includes('جري')) return '🏃';
-        if (activity.includes('يوجا')) return '🧘';
-        if (activity.includes('قلب')) return '❤️';
-        if (activity.includes('أثقال')) return '🏋️';
+        if (activity.includes('مشي') || activity.includes('Walk')) return '🚶';
+        if (activity.includes('جري') || activity.includes('Run')) return '🏃';
+        if (activity.includes('يوجا') || activity.includes('Yoga')) return '🧘';
         return '🏅';
     };
 
@@ -416,7 +402,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         setError(null);
         
         try {
-            // جلب الأنشطة
             const activitiesRes = await axiosInstance.get('/activities/').catch(() => ({ data: [] }));
             let activitiesData = [];
             if (activitiesRes.data?.results) {
@@ -425,7 +410,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 activitiesData = activitiesRes.data;
             }
             
-            // جلب آخر قياسات صحية
             const healthRes = await axiosInstance.get('/health_status/').catch(() => ({ data: [] }));
             let healthRecords = [];
             if (healthRes.data?.results) {
@@ -434,7 +418,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 healthRecords = healthRes.data;
             }
             
-            // جلب آخر قياس سكر
             const glucoseRes = await axiosInstance.get('/blood-sugar/').catch(() => ({ data: [] }));
             let glucoseRecords = [];
             if (glucoseRes.data?.results) {
@@ -445,7 +428,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             
             if (!isMountedRef.current) return;
             
-            // تجميع البيانات الصحية
             const latestHealth = healthRecords[0] || {};
             const latestGlucose = glucoseRecords[0] || {};
             
@@ -459,7 +441,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 moodData: null
             };
             
-            // حساب إحصائيات النشاط
             const activityMinutes = activitiesData
                 .map(a => a.duration_minutes || 0)
                 .filter(m => m > 0 && m <= 180);
@@ -479,12 +460,10 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 activities: activitiesData
             };
             
-            // 🧠 التحليلات الذكية
             const globalHealth = calculateGlobalHealthScore(activitySummary, currentHealthData);
             const trends = calculateTrends(activitiesData, []);
             const correlations = analyzeCorrelations(currentHealthData);
             const risks = analyzeRisks(currentHealthData);
-            const smartRecommendations = generateSmartRecommendations(globalHealth, currentHealthData, activitySummary);
             
             setActivityInsights({
                 summary: activitySummary,
@@ -492,7 +471,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 trends,
                 correlations,
                 risks,
-                recommendations: smartRecommendations,
                 healthData: currentHealthData,
                 lastUpdated: new Date().toISOString()
             });
@@ -500,7 +478,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         } catch (err) {
             console.error('❌ Error fetching analytics:', err);
             if (isMountedRef.current) {
-                setError('حدث خطأ في تحميل التحليلات');
+                setError(isArabic ? 'حدث خطأ في تحميل التحليلات' : 'Error loading analytics');
                 setActivityInsights(null);
             }
         } finally {
@@ -525,12 +503,12 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
     
     const getHealthStatusText = (status) => {
         switch(status) {
-            case 'excellent': return 'ممتازة';
-            case 'good': return 'جيدة';
-            case 'fair': return 'متوسطة';
-            case 'poor': return 'سيئة';
-            case 'critical': return 'حرجة';
-            default: return 'غير معروفة';
+            case 'excellent': return isArabic ? 'ممتازة' : 'Excellent';
+            case 'good': return isArabic ? 'جيدة' : 'Good';
+            case 'fair': return isArabic ? 'متوسطة' : 'Fair';
+            case 'poor': return isArabic ? 'سيئة' : 'Poor';
+            case 'critical': return isArabic ? 'حرجة' : 'Critical';
+            default: return isArabic ? 'غير معروفة' : 'Unknown';
         }
     };
 
@@ -538,7 +516,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return (
             <div className={`analytics-loading ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="spinner"></div>
-                <p>🧠 جاري التحليل الذكي...</p>
+                <p>{isArabic ? '🧠 جاري التحليل الذكي...' : '🧠 Running smart analysis...'}</p>
             </div>
         );
     }
@@ -548,7 +526,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             <div className={`analytics-error ${darkMode ? 'dark-mode' : ''}`}>
                 <p>⚠️ {error}</p>
                 <button onClick={fetchAllData} className="retry-btn">
-                    🔄 إعادة المحاولة
+                    🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                 </button>
             </div>
         );
@@ -558,14 +536,15 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return (
             <div className={`analytics-container activity-analytics ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="analytics-header">
-                    <h2>🧠 تحليلات النشاط الذكية</h2>
-                    <button onClick={fetchAllData} className="refresh-btn" title="تحديث">
+                    <h2>{isArabic ? '🧠 تحليلات النشاط الذكية' : '🧠 Smart Activity Analytics'}</h2>
+                    <button onClick={fetchAllData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                         🔄
                     </button>
+                    {/* ✅ تم إزالة زر اللغة من هنا */}
                 </div>
                 <div className="no-data">
-                    <p>📊 لا توجد بيانات كافية للتحليل</p>
-                    <p className="hint">قم بتسجيل أنشطتك وقياساتك الصحية للحصول على تحليلات مخصصة</p>
+                    <p>📊 {isArabic ? 'لا توجد بيانات كافية للتحليل' : 'Insufficient data for analysis'}</p>
+                    <p className="hint">{isArabic ? 'قم بتسجيل أنشطتك وقياساتك الصحية للحصول على تحليلات مخصصة' : 'Log your activities and health measurements for personalized insights'}</p>
                 </div>
             </div>
         );
@@ -574,16 +553,17 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
     return (
         <div className={`analytics-container activity-analytics ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
-                <h2>🧠 تحليلات النشاط الذكية</h2>
-                <button onClick={fetchAllData} className="refresh-btn" title="تحديث">
+                <h2>{isArabic ? '🧠 تحليلات النشاط الذكية' : '🧠 Smart Activity Analytics'}</h2>
+                <button onClick={fetchAllData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
             <div className="insights-container">
                 {/* 🧠 الحالة الصحية الشاملة */}
                 <div className="global-health-card">
-                    <h3>🧠 الحالة الصحية اليوم</h3>
+                    <h3>{isArabic ? '🧠 الحالة الصحية اليوم' : '🧠 Daily Health Status'}</h3>
                     <div className="health-score-container">
                         <div className="health-score-circle">
                             <svg width="120" height="120" viewBox="0 0 120 120">
@@ -613,7 +593,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                     <div className="health-analysis">
                         {activityInsights.globalHealth.positives.length > 0 && (
                             <div className="positives-list">
-                                <strong>✅ الإيجابيات</strong>
+                                <strong>{isArabic ? '✅ الإيجابيات' : '✅ Positives'}</strong>
                                 {activityInsights.globalHealth.positives.map((p, i) => (
                                     <div key={i} className="positive-item">
                                         {p.message}: <span>{p.value}</span>
@@ -624,7 +604,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                         
                         {activityInsights.globalHealth.warnings.length > 0 && (
                             <div className="warnings-list">
-                                <strong>⚠️ يحتاج انتباه</strong>
+                                <strong>{isArabic ? '⚠️ يحتاج انتباه' : '⚠️ Needs attention'}</strong>
                                 {activityInsights.globalHealth.warnings.map((w, i) => (
                                     <div key={i} className={`warning-item severity-${w.severity}`}>
                                         {w.message}: <span>{w.value}</span>
@@ -638,7 +618,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 {/* 📉 تحليل الاتجاهات */}
                 {activityInsights.trends && activityInsights.trends.length > 0 && (
                     <div className="trends-card">
-                        <h3>📉 تحليل الاتجاه</h3>
+                        <h3>{isArabic ? '📉 تحليل الاتجاه' : '📉 Trend Analysis'}</h3>
                         <div className="trends-list">
                             {activityInsights.trends.map((trend, i) => (
                                 <div key={i} className={`trend-item direction-${trend.direction}`}>
@@ -653,7 +633,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 {/* 🧠 ملاحظات ذكية - تحليل العلاقات */}
                 {activityInsights.correlations && activityInsights.correlations.length > 0 && (
                     <div className="correlations-card">
-                        <h3>🧠 ملاحظات ذكية</h3>
+                        <h3>{isArabic ? '🧠 ملاحظات ذكية' : '🧠 Smart Insights'}</h3>
                         <div className="correlations-list">
                             {activityInsights.correlations.map((corr, i) => (
                                 <div key={i} className={`correlation-item severity-${corr.severity}`}>
@@ -668,14 +648,16 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 {/* 🚨 تحليل المخاطر */}
                 {activityInsights.risks && activityInsights.risks.length > 0 && (
                     <div className="risks-card">
-                        <h3>🚨 تحليل المخاطر</h3>
+                        <h3>{isArabic ? '🚨 تحليل المخاطر' : '🚨 Risk Analysis'}</h3>
                         <div className="risks-list">
                             {activityInsights.risks.map((risk, i) => (
                                 <div key={i} className={`risk-item severity-${risk.severity}`}>
                                     <div className="risk-header">
                                         <span className="risk-message">{risk.message}</span>
                                         <span className={`risk-badge severity-${risk.severity}`}>
-                                            {risk.severity === 'high' ? 'خطر مرتفع' : risk.severity === 'medium' ? 'خطر متوسط' : 'تنبيه'}
+                                            {risk.severity === 'high' ? (isArabic ? 'خطر مرتفع' : 'High Risk') : 
+                                             risk.severity === 'medium' ? (isArabic ? 'خطر متوسط' : 'Medium Risk') : 
+                                             (isArabic ? 'تنبيه' : 'Alert')}
                                         </span>
                                     </div>
                                     <p className="risk-details">{risk.details}</p>
@@ -686,51 +668,21 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* 💡 التوصيات الذكية */}
-                {activityInsights.recommendations && activityInsights.recommendations.length > 0 && (
-                    <div className="recommendations-card">
-                        <h3>💡 توصيات ذكية</h3>
-                        <div className="recommendations-list">
-                            {activityInsights.recommendations.map((rec, idx) => (
-                                <div key={idx} className={`recommendation timing-${rec.timing} priority-${rec.priority}`}>
-                                    <div className="rec-header">
-                                        <span className="rec-icon">{rec.icon}</span>
-                                        <span className="rec-title">{rec.title}</span>
-                                        <span className={`rec-timing timing-${rec.timing}`}>
-                                            {rec.timing === 'immediate' ? '⚠️ فوراً' : rec.timing === 'today' ? '📅 اليوم' : '💡 عام'}
-                                        </span>
-                                    </div>
-                                    <p className="rec-advice">{rec.advice}</p>
-                                    {rec.details && (
-                                        <ul className="rec-details">
-                                            {rec.details.map((detail, i) => (
-                                                <li key={i}>✓ {detail}</li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                    {rec.warning && <p className="rec-warning">🚨 {rec.warning}</p>}
-                                    {rec.basedOn && <p className="rec-based">📌 {rec.basedOn}</p>}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
                 {/* بطاقة الملخص الأساسي */}
                 <div className="summary-card">
-                    <h3>📊 ملخص النشاط</h3>
+                    <h3>{isArabic ? '📊 ملخص النشاط' : '📊 Activity Summary'}</h3>
                     <div className="summary-stats">
                         <div className="stat">
                             <span className="stat-value">{activityInsights.summary.totalMinutes}</span>
-                            <span className="stat-label">إجمالي الدقائق</span>
+                            <span className="stat-label">{isArabic ? 'إجمالي الدقائق' : 'Total Minutes'}</span>
                         </div>
                         <div className="stat">
                             <span className="stat-value">{activityInsights.summary.totalCalories}</span>
-                            <span className="stat-label">إجمالي السعرات</span>
+                            <span className="stat-label">{isArabic ? 'إجمالي السعرات' : 'Total Calories'}</span>
                         </div>
                         <div className="stat">
                             <span className="stat-value">{activityInsights.summary.activitiesCount}</span>
-                            <span className="stat-label">عدد الأنشطة</span>
+                            <span className="stat-label">{isArabic ? 'عدد الأنشطة' : 'Activities Count'}</span>
                         </div>
                     </div>
                     
@@ -742,7 +694,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                                 style={{ width: `${activityInsights.summary.weekProgress}%` }}
                             >
                                 <span className="progress-text">
-                                    {activityInsights.summary.weekProgress}% من هدف الأسبوع
+                                    {activityInsights.summary.weekProgress}% {isArabic ? 'من هدف الأسبوع' : 'of weekly goal'}
                                 </span>
                             </div>
                         </div>
@@ -753,7 +705,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                         <div className="best-activity">
                             <span className="best-icon">{getBestActivityIcon(activityInsights.summary.bestActivity)}</span>
                             <span className="best-text">
-                                نشاطك المفضل: {activityInsights.summary.bestActivity}
+                                {isArabic ? 'نشاطك المفضل' : 'Your favorite activity'}: {activityInsights.summary.bestActivity}
                             </span>
                         </div>
                     )}
@@ -761,7 +713,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 
                 <div className="analytics-footer">
                     <small>
-                        آخر تحديث: {new Date(activityInsights.lastUpdated).toLocaleString(isArabic ? 'ar-EG' : 'en-US')}
+                        {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(activityInsights.lastUpdated).toLocaleString(isArabic ? 'ar-EG' : 'en-US')}
                     </small>
                 </div>
             </div>

@@ -1,6 +1,5 @@
 // src/components/SmartFeatures/SmartRecommendations.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import './SmartFeatures.css';
 
@@ -38,7 +37,13 @@ const calculateCorrelation = (x, y) => {
 };
 
 const SmartRecommendations = () => {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة مباشرة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const [recommendations, setRecommendations] = useState([]);
     const [healthScore, setHealthScore] = useState(null);
     const [correlations, setCorrelations] = useState([]);
@@ -50,7 +55,24 @@ const SmartRecommendations = () => {
     const [predictions, setPredictions] = useState(null);
     const [activeTab, setActiveTab] = useState('analysis'); // analysis, recommendations, predictions
 
-    const isArabic = i18n.language.startsWith('ar');
+    // ✅ إزالة useTranslation - استخدام اللغة المحلية مباشرة
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+                // إعادة جلب البيانات عند تغيير اللغة
+                fetchAllData();
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true';
@@ -95,7 +117,7 @@ const SmartRecommendations = () => {
                 activities: activitiesRes.data || [],
                 habitDefinitions: habitDefRes.data || [],
                 weather: weatherRes.data?.success ? weatherRes.data.data : null,
-                language: i18n.language
+                language: isArabic ? 'ar' : 'en'
             };
 
             const analyzedData = analyzeAllData(allData);

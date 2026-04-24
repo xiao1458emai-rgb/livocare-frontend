@@ -1,22 +1,42 @@
 // src/components/SmartFeatures/SmartDashboard.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/api';
 import WeatherWidget from './WeatherWidget';
 import './SmartFeatures.css';
 
 const SmartDashboard = () => {
-    const { t, i18n } = useTranslation();
+    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    const [lang, setLang] = useState(() => {
+        const saved = localStorage.getItem('app_lang');
+        return saved === 'en' ? 'en' : 'ar';
+    });
+    const isArabic = lang === 'ar';
+    
     const [insights, setInsights] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [healthScore, setHealthScore] = useState(null);
-    const [activeTab, setActiveTab] = useState('analysis'); // analysis, recommendations, predictions
+    const [activeTab, setActiveTab] = useState('analysis');
 
-    const isArabic = i18n.language.startsWith('ar');
+    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+
+    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        
+        window.addEventListener('languageChange', handleLanguageChange);
+        
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange);
+        };
+    }, [lang]);
 
     // ===========================================
-    // 🎯 دوال حساب درجة الصحة (مع تفسير)
+    // 🎯 دوال حساب درجة الصحة
     // ===========================================
     
     const calculateSleepScore = (hours) => {
@@ -61,27 +81,25 @@ const SmartDashboard = () => {
         let totalScore = 0;
         const factors = [];
 
-        // 1. النوم (30 نقطة)
         if (data?.sleep?.avgHours) {
             const sleepResult = calculateSleepScore(data.sleep.avgHours);
             totalScore += sleepResult.score;
             factors.push({
-                name: t('smartDashboard.factors.sleep'),
+                name: isArabic ? 'النوم' : 'Sleep',
                 icon: '🌙',
                 score: sleepResult.score,
                 max: 30,
-                value: `${data.sleep.avgHours.toFixed(1)} ${t('smartDashboard.factors.hours')}`,
+                value: `${data.sleep.avgHours.toFixed(1)} ${isArabic ? 'ساعات' : 'hours'}`,
                 status: sleepResult.status,
                 isGood: sleepResult.isGood
             });
         }
 
-        // 2. المزاج (20 نقطة)
         if (data?.mood?.avgScore) {
             const moodResult = calculateMoodScore(data.mood.avgScore);
             totalScore += moodResult.score;
             factors.push({
-                name: t('smartDashboard.factors.mood'),
+                name: isArabic ? 'المزاج' : 'Mood',
                 icon: '😊',
                 score: moodResult.score,
                 max: 20,
@@ -91,42 +109,39 @@ const SmartDashboard = () => {
             });
         }
 
-        // 3. النشاط البدني (20 نقطة)
         if (data?.activity?.weeklyMinutes) {
             const activityResult = calculateActivityScore(data.activity.weeklyMinutes);
             totalScore += activityResult.score;
             factors.push({
-                name: t('smartDashboard.factors.activity'),
+                name: isArabic ? 'النشاط' : 'Activity',
                 icon: '🏃',
                 score: activityResult.score,
                 max: 20,
-                value: `${data.activity.weeklyMinutes} ${t('smartDashboard.factors.minutesPerWeek')}`,
+                value: `${data.activity.weeklyMinutes} ${isArabic ? 'دقيقة/أسبوع' : 'min/week'}`,
                 status: activityResult.status,
                 isGood: activityResult.isGood
             });
         }
 
-        // 4. التغذية (15 نقطة)
         if (data?.nutrition?.avgCalories) {
             const nutritionResult = calculateNutritionScore(data.nutrition.avgCalories);
             totalScore += nutritionResult.score;
             factors.push({
-                name: t('smartDashboard.factors.nutrition'),
+                name: isArabic ? 'التغذية' : 'Nutrition',
                 icon: '🥗',
                 score: nutritionResult.score,
                 max: 15,
-                value: `${Math.round(data.nutrition.avgCalories)} ${t('smartDashboard.factors.caloriesPerDay')}`,
+                value: `${Math.round(data.nutrition.avgCalories)} ${isArabic ? 'سعرة/يوم' : 'cal/day'}`,
                 status: nutritionResult.status,
                 isGood: nutritionResult.isGood
             });
         }
 
-        // 5. العادات (15 نقطة)
         if (data?.habits?.completionRate) {
             const habitsResult = calculateHabitsScore(data.habits.completionRate);
             totalScore += habitsResult.score;
             factors.push({
-                name: t('smartDashboard.factors.habits'),
+                name: isArabic ? 'العادات' : 'Habits',
                 icon: '💊',
                 score: habitsResult.score,
                 max: 15,
@@ -155,7 +170,7 @@ const SmartDashboard = () => {
         }
 
         return { total: finalScore, max: 100, factors, grade, statusText };
-    }, [t, isArabic]);
+    }, [isArabic]);
 
     // ===========================================
     // 📊 جلب البيانات من API
@@ -165,14 +180,13 @@ const SmartDashboard = () => {
         setError(null);
         
         try {
-            const currentLang = i18n.language.startsWith('en') ? 'en' : 'ar';
+            const currentLang = isArabic ? 'ar' : 'en';
             const response = await axiosInstance.get('/analytics/smart-insights/', {
                 params: { lang: currentLang }
             });
             
             setInsights(response.data);
             
-            // حساب درجة الصحة من البيانات المستلمة
             const insightsData = response.data?.data || {};
             const score = calculateHealthScore({
                 sleep: insightsData.summary ? { avgHours: insightsData.summary.avg_sleep } : null,
@@ -184,9 +198,8 @@ const SmartDashboard = () => {
             
         } catch (err) {
             console.error('Error fetching smart insights:', err);
-            setError(t('smartDashboard.error'));
+            setError(isArabic ? 'حدث خطأ في تحميل البيانات' : 'Error loading data');
             
-            // بيانات تجريبية (تقديرية فقط)
             const mockScore = calculateHealthScore({
                 sleep: { avgHours: 6.2 },
                 mood: { avgScore: 3.5 },
@@ -199,7 +212,7 @@ const SmartDashboard = () => {
         } finally {
             setLoading(false);
         }
-    }, [i18n.language, t, calculateHealthScore]);
+    }, [isArabic, calculateHealthScore]);
 
     useEffect(() => {
         fetchSmartInsights();
@@ -215,7 +228,7 @@ const SmartDashboard = () => {
         return (
             <div className="health-score-card">
                 <div className="score-header">
-                    <h3>{isArabic ? '📊 درجة صحتك' : 'Your Health Score'}</h3>
+                    <h3>{isArabic ? 'درجة صحتك' : 'Your Health Score'}</h3>
                     <div className="score-main">
                         <div className="score-circle">
                             <div className="circle-bg">
@@ -235,20 +248,19 @@ const SmartDashboard = () => {
                     </div>
                 </div>
                 
-                {/* ✅ تفسير طريقة الحساب */}
                 <details className="score-method">
-                    <summary>{isArabic ? '📖 كيف تم حساب هذه الدرجة؟' : '📖 How is this score calculated?'}</summary>
+                    <summary>{isArabic ? 'كيف تم حساب هذه الدرجة؟' : 'How is this score calculated?'}</summary>
                     <div className="method-content">
                         <p>{isArabic 
                             ? 'تعتمد الدرجة على 5 عوامل صحية رئيسية:' 
                             : 'The score is based on 5 key health factors:'}
                         </p>
                         <ul>
-                            <li>{isArabic ? '😴 النوم: 30 نقطة' : '😴 Sleep: 30 points'}</li>
-                            <li>{isArabic ? '😊 الحالة المزاجية: 20 نقطة' : '😊 Mood: 20 points'}</li>
-                            <li>{isArabic ? '🏃 النشاط البدني: 20 نقطة' : '🏃 Physical activity: 20 points'}</li>
-                            <li>{isArabic ? '🥗 التغذية: 15 نقطة' : '🥗 Nutrition: 15 points'}</li>
-                            <li>{isArabic ? '💊 الالتزام بالعادات: 15 نقطة' : '💊 Habit adherence: 15 points'}</li>
+                            <li>{isArabic ? 'النوم: 30 نقطة' : 'Sleep: 30 points'}</li>
+                            <li>{isArabic ? 'الحالة المزاجية: 20 نقطة' : 'Mood: 20 points'}</li>
+                            <li>{isArabic ? 'النشاط البدني: 20 نقطة' : 'Physical activity: 20 points'}</li>
+                            <li>{isArabic ? 'التغذية: 15 نقطة' : 'Nutrition: 15 points'}</li>
+                            <li>{isArabic ? 'الالتزام بالعادات: 15 نقطة' : 'Habit adherence: 15 points'}</li>
                         </ul>
                         <p className="method-note">
                             {isArabic 
@@ -282,12 +294,11 @@ const SmartDashboard = () => {
         );
     };
 
-    // ✅ العلاقات مع تفسير واضح (دون أرقام قطعية)
+    // العلاقات
     const CorrelationsSection = () => (
         <section className="correlations-section">
-            <h3>{isArabic ? '🔗 علاقات ملحوظة في بياناتك' : '🔗 Notable correlations in your data'}</h3>
+            <h3>{isArabic ? 'علاقات ملحوظة في بياناتك' : 'Notable correlations in your data'}</h3>
             <div className="correlations-list">
-                {/* النوم والمزاج */}
                 <div className="correlation-item">
                     <div className="correlation-header">
                         <span className="corr-icon">😊 ↔️ 😴</span>
@@ -316,7 +327,6 @@ const SmartDashboard = () => {
                     </small>
                 </div>
 
-                {/* النشاط والضغط */}
                 <div className="correlation-item">
                     <div className="correlation-header">
                         <span className="corr-icon">🏃 ↔️ ❤️</span>
@@ -350,10 +360,10 @@ const SmartDashboard = () => {
         </section>
     );
 
-    // ✅ توصيات محتملة (غير قطعية)
+    // توصيات
     const RecommendationsSection = () => (
         <section className="recommendations-section">
-            <h3>{isArabic ? '🎯 توصيات مقترحة' : 'Suggested Recommendations'}</h3>
+            <h3>{isArabic ? 'توصيات مقترحة' : 'Suggested Recommendations'}</h3>
             <div className="recommendations-timeline">
                 <div className="rec-item important">
                     <div className="rec-header">
@@ -404,16 +414,16 @@ const SmartDashboard = () => {
         </section>
     );
 
-    // ✅ توقعات تقريبية (غير قطعية)
+    // توقعات
     const PredictionsSection = () => (
         <section className="predictions-section">
-            <h3>{isArabic ? '🔮 توقعات تقريبية' : 'Approximate Predictions'}</h3>
+            <h3>{isArabic ? 'توقعات تقريبية' : 'Approximate Predictions'}</h3>
             <div className="predictions-grid">
                 <div className="pred-card">
                     <span className="pred-icon">⚖️</span>
                     <div className="pred-info">
                         <span className="pred-label">{isArabic ? 'الوزن' : 'Weight'}</span>
-                        <span className="pred-value">77.2 كجم</span>
+                        <span className="pred-value">77.2 kg</span>
                     </div>
                     <span className="pred-trend stable">{isArabic ? 'مستقر ➡️' : 'Stable ➡️'}</span>
                 </div>
@@ -429,7 +439,7 @@ const SmartDashboard = () => {
                     <span className="pred-icon">🌙</span>
                     <div className="pred-info">
                         <span className="pred-label">{isArabic ? 'مدة النوم' : 'Sleep duration'}</span>
-                        <span className="pred-value">6.5 ساعات</span>
+                        <span className="pred-value">6.5 {isArabic ? 'ساعات' : 'hours'}</span>
                     </div>
                     <span className="pred-trend up">{isArabic ? 'ارتفاع محتمل ⬆️' : 'Possible increase ⬆️'}</span>
                 </div>
@@ -461,6 +471,7 @@ const SmartDashboard = () => {
                 <button onClick={fetchSmartInsights} className="retry-btn">
                     🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                 </button>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
         );
     }
@@ -471,13 +482,14 @@ const SmartDashboard = () => {
     return (
         <div className="smart-dashboard">
             <div className="dashboard-header">
-                <h2>{isArabic ? '🧠 تحليل صحتك الذكي' : 'Smart Health Analysis'}</h2>
+                <h2>{isArabic ? 'تحليل صحتك الذكي' : 'Smart Health Analysis'}</h2>
                 <button onClick={fetchSmartInsights} className="refresh-dashboard-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
+                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
             
-            {/* تبويبات منظمة لتقليل الازدحام */}
+            {/* تبويبات منظمة */}
             <div className="analytics-tabs">
                 <button 
                     className={activeTab === 'analysis' ? 'active' : ''}
