@@ -16,7 +16,7 @@ import SleepTracker from './SleepTracker';
 import HabitTracker from './HabitTracker';
 import ActivityForm from './ActivityForm';
 import MoodTracker from './MoodTracker'; 
-import ProfileManager from './ProfileManager';  // ✅ تصحيح المسار
+import ProfileManager from './usermangment';  // ✅ تصحيح المسار
 import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
 import Notifications from './Notifications/Notifications';
