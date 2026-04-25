@@ -58,7 +58,9 @@ function Dashboard({ onLogout }) {
     const [refreshKey, setRefreshKey] = useState(0); 
     const [activeSection, setActiveSection] = useState('health');
     const [isAuthReady, setIsAuthReady] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [autoRefresh, setAutoRefresh] = useState(false);
+    const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     
     // ✅ الوضع المظلم
     const [darkMode, setDarkMode] = useState(() => {
@@ -70,10 +72,22 @@ function Dashboard({ onLogout }) {
         return false;
     });
 
+    // ✅ كشف حجم الشاشة
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
+
     // ✅ الاستماع لإغلاق السايدبار من المكون نفسه
     useEffect(() => {
         const handleCloseSidebar = () => {
-            setSidebarOpen(false);
+            setIsSidebarVisible(false);
         };
         
         window.addEventListener('closeSidebar', handleCloseSidebar);
@@ -195,6 +209,21 @@ function Dashboard({ onLogout }) {
         }
     }, [refreshKey, isAuthReady, fetchHealthData]);
     
+    // ✅ التحديث التلقائي
+    useEffect(() => {
+        if (!autoRefresh || !isAuthReady) return;
+        
+        refreshIntervalRef.current = setInterval(() => {
+            setRefreshKey(prev => prev + 1);
+        }, 60000);
+        
+        return () => {
+            if (refreshIntervalRef.current) {
+                clearInterval(refreshIntervalRef.current);
+            }
+        };
+    }, [autoRefresh, isAuthReady]);
+    
     // ✅ تطبيق اللغة عند التحميل
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -243,7 +272,7 @@ function Dashboard({ onLogout }) {
     
     // ✅ تبديل السايدبار
     const toggleSidebar = useCallback(() => {
-        setSidebarOpen(prev => !prev);
+        setIsSidebarVisible(prev => !prev);
     }, []);
     
     // ✅ عناوين الأقسام
@@ -272,24 +301,48 @@ function Dashboard({ onLogout }) {
         return today.toLocaleDateString(locale, options);
     }, [isArabic]);
     
+    // ✅ عدد القياسات المسجلة
+    const getMeasuredCount = useCallback(() => {
+        let count = 0;
+        if (latestHealthData?.weight !== null && latestHealthData?.weight !== undefined) count++;
+        if (latestHealthData?.systolic !== null && latestHealthData?.systolic !== undefined) count++;
+        if (latestHealthData?.diastolic !== null && latestHealthData?.diastolic !== undefined) count++;
+        if (latestHealthData?.glucose !== null && latestHealthData?.glucose !== undefined) count++;
+        return count;
+    }, [latestHealthData]);
+    
     // ✅ عرض محتوى القسم المحدد
     const renderSectionContent = useCallback(() => {
         const healthSectionContent = (
             <div className="health-section">
-                <div className="summary-cards">
+                <div className="summary-section">
                     <div className="summary-header">
                         <h3 className="summary-title">📊 {isArabic ? 'ملخص اليوم' : 'Daily Summary'}</h3>
                         <span className="summary-date">{getTodayDate()}</span>
                     </div>
                     
+                    <div className="metrics-badge">
+                        <span className="metrics-count">
+                            📋 {getMeasuredCount()}/4 {isArabic ? 'قياسات مسجلة' : 'Measurements Recorded'}
+                        </span>
+                        {getMeasuredCount() < 4 && getMeasuredCount() > 0 && (
+                            <span className="metrics-hint">
+                                💡 {isArabic ? 'يمكنك إضافة القياسات المتبقية من النموذج أدناه' : 'Add remaining measurements from the form below'}
+                            </span>
+                        )}
+                    </div>
+                    
                     <div className="summary-grid">
-                        <div className="summary-card weight">
+                        <div className={`summary-card ${!latestHealthData?.weight ? 'empty' : ''}`}>
                             <div className="card-icon">⚖️</div>
                             <div className="card-content">
                                 <div className="card-label">{isArabic ? 'آخر وزن' : 'Last Weight'}</div>
                                 <div className="card-value">
                                     {displayValue(latestHealthData?.weight, isArabic ? 'كجم' : 'kg')}
                                 </div>
+                                {!latestHealthData?.weight && (
+                                    <div className="card-warning">⚠️ {isArabic ? 'غير مسجل' : 'Not recorded'}</div>
+                                )}
                                 {latestHealthData?.recorded_at && latestHealthData?.weight && (
                                     <div className="card-time">
                                         🕐 {new Date(latestHealthData.recorded_at).toLocaleTimeString(
@@ -301,31 +354,37 @@ function Dashboard({ onLogout }) {
                             </div>
                         </div>
                         
-                        <div className="summary-card blood-pressure">
+                        <div className={`summary-card ${(!latestHealthData?.systolic || !latestHealthData?.diastolic) ? 'empty' : ''}`}>
                             <div className="card-icon">❤️</div>
                             <div className="card-content">
                                 <div className="card-label">{isArabic ? 'ضغط الدم' : 'Blood Pressure'}</div>
                                 <div className="card-value">
                                     {displayBloodPressure(latestHealthData?.systolic, latestHealthData?.diastolic)}
                                 </div>
+                                {(!latestHealthData?.systolic || !latestHealthData?.diastolic) && (
+                                    <div className="card-warning">⚠️ {isArabic ? 'غير مسجل' : 'Not recorded'}</div>
+                                )}
                                 <div className="card-sub">{isArabic ? 'انقباضي / انبساطي' : 'Systolic / Diastolic'}</div>
                             </div>
                         </div>
                         
-                        <div className="summary-card glucose">
+                        <div className={`summary-card ${!latestHealthData?.glucose ? 'empty' : ''}`}>
                             <div className="card-icon">🩸</div>
                             <div className="card-content">
                                 <div className="card-label">{isArabic ? 'سكر الدم' : 'Blood Glucose'}</div>
                                 <div className="card-value">
                                     {displayValue(latestHealthData?.glucose, 'mg/dL')}
                                 </div>
+                                {!latestHealthData?.glucose && (
+                                    <div className="card-warning">⚠️ {isArabic ? 'غير مسجل' : 'Not recorded'}</div>
+                                )}
                                 <div className="card-sub">{isArabic ? 'مستوى السكر' : 'Glucose Level'}</div>
                             </div>
                         </div>
                     </div>
                     
-                    {!latestHealthData && healthRecords.length === 0 && (
-                        <div className="empty-data-state">
+                    {getMeasuredCount() === 0 && (
+                        <div className="empty-state">
                             <div className="empty-icon">📊</div>
                             <h4>{isArabic ? 'لا توجد بيانات صحية' : 'No Health Data'}</h4>
                             <p>{isArabic ? 'أضف قراءاتك الصحية الأولى للبدء' : 'Add your first health readings to get started'}</p>
@@ -334,7 +393,7 @@ function Dashboard({ onLogout }) {
                                     const healthForm = document.querySelector('.health-form-section');
                                     if (healthForm) healthForm.scrollIntoView({ behavior: 'smooth' });
                                 }}
-                                className="add-data-btn"
+                                className="add-btn"
                             >
                                 ➕ {isArabic ? 'أضف قراءة' : 'Add Reading'}
                             </button>
@@ -378,7 +437,7 @@ function Dashboard({ onLogout }) {
             case 'reports': return <Reports isAuthReady={isAuthReady} isArabic={isArabic} />;
             default: return healthSectionContent;
         }
-    }, [activeSection, isAuthReady, isArabic, refreshKey, handleDataSubmitted, getTodayDate, latestHealthData, healthRecords, displayValue, displayBloodPressure]);
+    }, [activeSection, isAuthReady, isArabic, refreshKey, handleDataSubmitted, getTodayDate, getMeasuredCount, latestHealthData, displayValue, displayBloodPressure]);
     
     // ✅ حالة التحميل
     if (loading && healthRecords.length === 0) {
@@ -414,6 +473,14 @@ function Dashboard({ onLogout }) {
             {/* شريط التحكم العلوي */}
             <div className="control-bar">
                 <div className="control-left">
+                    {/* ✅ زر القائمة لفتح السايدبار */}
+                    <button 
+                        className="menu-toggle" 
+                        onClick={toggleSidebar} 
+                        aria-label={isArabic ? 'القائمة' : 'Menu'}
+                    >
+                        ☰
+                    </button>
                     <div className="app-name">
                         <span className="logo">🫀</span>
                         <span>LivoCare</span>
@@ -425,6 +492,28 @@ function Dashboard({ onLogout }) {
                 </div>
                 
                 <div className="control-right">
+                    <div className="refresh-controls">
+                        <button 
+                            onClick={() => setRefreshKey(prev => prev + 1)} 
+                            disabled={loading} 
+                            className={`refresh-btn ${loading ? 'loading' : ''}`}
+                        >
+                            {loading ? '⏳' : '🔄'} {isArabic ? 'تحديث' : 'Refresh'}
+                        </button>
+                        
+                        <label className="auto-refresh-toggle">
+                            <input 
+                                type="checkbox" 
+                                checked={autoRefresh} 
+                                onChange={(e) => setAutoRefresh(e.target.checked)} 
+                            />
+                            <span className="toggle-slider"></span>
+                            <span className="toggle-label">
+                                {isArabic ? 'تحديث تلقائي' : 'Auto Refresh'}
+                            </span>
+                        </label>
+                    </div>
+                    
                     <button 
                         className="theme-toggle" 
                         onClick={toggleDarkMode} 
@@ -440,21 +529,23 @@ function Dashboard({ onLogout }) {
                 </div>
             </div>
 
-            {/* ✅ السايدبار - يظهر فوق المحتوى بشكل مستقل */}
-            <Sidebar 
-                activeSection={activeSection} 
-                onSectionChange={(section) => {
-                    setActiveSection(section);
-                    setSidebarOpen(false);
-                }}
-                isArabic={isArabic}
-            />
+            {/* ✅ السايدبار - يظهر فقط عند الضغط على الزر */}
+            {isSidebarVisible && (
+                <Sidebar 
+                    activeSection={activeSection} 
+                    onSectionChange={(section) => {
+                        setActiveSection(section);
+                        setIsSidebarVisible(false);
+                    }}
+                    isArabic={isArabic}
+                />
+            )}
             
             {/* ✅ Overlay للجوال */}
-            {sidebarOpen && (
+            {isSidebarVisible && isMobile && (
                 <div 
                     className="sidebar-overlay" 
-                    onClick={toggleSidebar}
+                    onClick={() => setIsSidebarVisible(false)}
                     role="button"
                     aria-label={isArabic ? 'إغلاق القائمة' : 'Close menu'}
                 />
@@ -464,6 +555,11 @@ function Dashboard({ onLogout }) {
             <main className="dashboard-content">
                 <div className="section-header">
                     <h1 className="section-title">{getSectionTitle(activeSection)}</h1>
+                    {autoRefresh && (
+                        <span className="auto-refresh-status">
+                            🔄 {isArabic ? 'التحديث التلقائي نشط' : 'Auto refresh active'}
+                        </span>
+                    )}
                     {latestHealthData?.recorded_at && (
                         <div className="last-updated">
                             🕐 {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(latestHealthData.recorded_at).toLocaleDateString(
@@ -523,23 +619,6 @@ function Dashboard({ onLogout }) {
                     gap: 16px;
                 }
                 
-                .app-name {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 1.3rem;
-                    font-weight: 700;
-                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                }
-                
-                .app-name .logo {
-                    font-size: 1.5rem;
-                    -webkit-text-fill-color: initial;
-                }
-                
                 .menu-toggle {
                     width: 42px;
                     height: 42px;
@@ -566,6 +645,23 @@ function Dashboard({ onLogout }) {
                     transform: scale(1.05);
                 }
                 
+                .app-name {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 1.3rem;
+                    font-weight: 700;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                }
+                
+                .app-name .logo {
+                    font-size: 1.5rem;
+                    -webkit-text-fill-color: initial;
+                }
+                
                 .control-center {
                     flex: 1;
                     text-align: center;
@@ -590,6 +686,94 @@ function Dashboard({ onLogout }) {
                     display: flex;
                     align-items: center;
                     gap: 16px;
+                }
+                
+                .refresh-controls {
+                    display: flex;
+                    gap: 12px;
+                    align-items: center;
+                }
+                
+                .refresh-btn {
+                    padding: 0.5rem 1rem;
+                    background: var(--primary, #6366f1);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 0.85rem;
+                    transition: all 0.15s;
+                }
+                
+                .refresh-btn:hover:not(:disabled) {
+                    background: var(--primary-dark, #4f46e5);
+                    transform: translateY(-2px);
+                }
+                
+                .refresh-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+                
+                .auto-refresh-toggle {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    cursor: pointer;
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 9999px;
+                    background: var(--secondary-bg, #f1f5f9);
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                
+                .dark-mode .auto-refresh-toggle {
+                    background: var(--secondary-bg, #0f1420);
+                    border-color: var(--border-light, #334155);
+                }
+                
+                .auto-refresh-toggle input {
+                    position: absolute;
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+                
+                .toggle-slider {
+                    width: 40px;
+                    height: 20px;
+                    background: var(--border-light, #cbd5e1);
+                    border-radius: 20px;
+                    position: relative;
+                    transition: all 0.15s;
+                }
+                
+                .toggle-slider::before {
+                    content: '';
+                    position: absolute;
+                    width: 16px;
+                    height: 16px;
+                    background: white;
+                    border-radius: 50%;
+                    top: 2px;
+                    left: 2px;
+                    transition: all 0.15s;
+                }
+                
+                input:checked + .toggle-slider {
+                    background: #6366f1;
+                }
+                
+                input:checked + .toggle-slider::before {
+                    transform: translateX(20px);
+                }
+                
+                [dir="rtl"] input:checked + .toggle-slider::before {
+                    transform: translateX(-20px);
+                }
+                
+                .toggle-label {
+                    font-size: 0.75rem;
+                    color: var(--text-secondary, #475569);
                 }
                 
                 .theme-toggle {
@@ -703,6 +887,15 @@ function Dashboard({ onLogout }) {
                     color: var(--text-primary, #f1f5f9);
                 }
                 
+                .auto-refresh-status {
+                    font-size: 0.75rem;
+                    color: #10b981;
+                    background: rgba(16, 185, 129, 0.1);
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 9999px;
+                    animation: pulse 2s infinite;
+                }
+                
                 .last-updated {
                     padding: 0.5rem 1rem;
                     background: var(--secondary-bg, #ffffff);
@@ -718,10 +911,15 @@ function Dashboard({ onLogout }) {
                     color: var(--text-secondary, #94a3b8);
                 }
                 
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.6; }
+                }
+                
                 /* ===========================================
                    بطاقات الملخص
                 =========================================== */
-                .summary-cards {
+                .summary-section {
                     background: var(--card-bg, #ffffff);
                     border-radius: 20px;
                     padding: 24px;
@@ -730,7 +928,7 @@ function Dashboard({ onLogout }) {
                     border: 1px solid var(--border-light, #e2e8f0);
                 }
                 
-                .dark-mode .summary-cards {
+                .dark-mode .summary-section {
                     background: var(--card-bg, #1e293b);
                     border-color: var(--border-light, #334155);
                 }
@@ -741,13 +939,33 @@ function Dashboard({ onLogout }) {
                     align-items: center;
                     flex-wrap: wrap;
                     gap: 16px;
-                    margin-bottom: 24px;
+                    margin-bottom: 16px;
                     padding-bottom: 16px;
                     border-bottom: 2px solid var(--border-light, #e2e8f0);
                 }
                 
-                .dark-mode .summary-header {
-                    border-color: var(--border-light, #334155);
+                .metrics-badge {
+                    display: flex;
+                    gap: 12px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    margin-bottom: 20px;
+                }
+                
+                .metrics-count {
+                    padding: 0.25rem 0.75rem;
+                    background: var(--primary-bg, #f1f5f9);
+                    border-radius: 9999px;
+                    font-size: 0.75rem;
+                    color: var(--text-secondary, #475569);
+                }
+                
+                .metrics-hint {
+                    padding: 0.25rem 0.75rem;
+                    background: rgba(245, 158, 11, 0.1);
+                    border-radius: 9999px;
+                    font-size: 0.7rem;
+                    color: #f59e0b;
                 }
                 
                 .summary-title {
@@ -756,21 +974,12 @@ function Dashboard({ onLogout }) {
                     font-size: 1.2rem;
                 }
                 
-                .dark-mode .summary-title {
-                    color: var(--text-primary, #f1f5f9);
-                }
-                
                 .summary-date {
                     padding: 0.25rem 0.75rem;
                     background: var(--tertiary-bg, #f1f5f9);
                     border-radius: 9999px;
                     font-size: 0.75rem;
                     color: var(--text-secondary, #475569);
-                }
-                
-                .dark-mode .summary-date {
-                    background: var(--tertiary-bg, #334155);
-                    color: var(--text-secondary, #94a3b8);
                 }
                 
                 .summary-grid {
@@ -800,7 +1009,12 @@ function Dashboard({ onLogout }) {
                     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
                 }
                 
-                .summary-card .card-icon {
+                .summary-card.empty {
+                    opacity: 0.8;
+                    background: rgba(245, 158, 11, 0.05);
+                }
+                
+                .card-icon {
                     font-size: 2rem;
                     width: 50px;
                     height: 50px;
@@ -815,44 +1029,77 @@ function Dashboard({ onLogout }) {
                 .summary-card.blood-pressure .card-icon { background: rgba(239, 68, 68, 0.1); }
                 .summary-card.glucose .card-icon { background: rgba(245, 158, 11, 0.1); }
                 
-                .summary-card .card-content {
+                .card-content {
                     flex: 1;
                 }
                 
-                .summary-card .card-label {
+                .card-label {
                     font-size: 0.7rem;
                     color: var(--text-tertiary, #64748b);
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
                 }
                 
-                .summary-card .card-value {
+                .card-value {
                     font-size: 1.5rem;
                     font-weight: bold;
                     color: var(--text-primary, #0f172a);
                     line-height: 1.2;
                 }
                 
-                .dark-mode .summary-card .card-value {
-                    color: var(--text-primary, #f1f5f9);
-                }
-                
-                .summary-card .card-unit {
-                    font-size: 0.8rem;
-                    font-weight: normal;
-                    margin-left: 4px;
-                }
-                
-                .summary-card .card-time {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary, #64748b);
+                .card-warning {
+                    font-size: 0.65rem;
+                    color: #f59e0b;
                     margin-top: 4px;
                 }
                 
-                .summary-card .card-sub {
+                .card-time {
                     font-size: 0.65rem;
                     color: var(--text-tertiary, #64748b);
                     margin-top: 4px;
+                }
+                
+                .card-sub {
+                    font-size: 0.65rem;
+                    color: var(--text-tertiary, #64748b);
+                    margin-top: 4px;
+                }
+                
+                .empty-state {
+                    text-align: center;
+                    padding: 48px;
+                    margin-top: 24px;
+                }
+                
+                .empty-state .empty-icon {
+                    font-size: 3rem;
+                    margin-bottom: 16px;
+                    opacity: 0.5;
+                }
+                
+                .empty-state h4 {
+                    margin: 0 0 8px;
+                    color: var(--text-primary, #0f172a);
+                }
+                
+                .empty-state p {
+                    color: var(--text-secondary, #475569);
+                    margin-bottom: 24px;
+                }
+                
+                .add-btn {
+                    padding: 0.75rem 1.5rem;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 9999px;
+                    cursor: pointer;
+                    transition: all 0.25s ease;
+                }
+                
+                .add-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
                 }
                 
                 /* ===========================================
@@ -864,51 +1111,16 @@ function Dashboard({ onLogout }) {
                     gap: 32px;
                 }
                 
-                .analytics-section,
-                .history-section {
+                .analytics-section {
                     display: grid;
                     grid-template-columns: repeat(2, 1fr);
                     gap: 24px;
                 }
                 
-                /* ===========================================
-                   حالة عدم وجود بيانات
-                =========================================== */
-                .empty-data-state {
-                    text-align: center;
-                    padding: 48px;
-                    margin-top: 24px;
-                }
-                
-                .empty-data-state .empty-icon {
-                    font-size: 3rem;
-                    margin-bottom: 16px;
-                    opacity: 0.5;
-                }
-                
-                .empty-data-state h4 {
-                    margin: 0 0 8px;
-                    color: var(--text-primary, #0f172a);
-                }
-                
-                .empty-data-state p {
-                    color: var(--text-secondary, #475569);
-                    margin-bottom: 24px;
-                }
-                
-                .add-data-btn {
-                    padding: 0.75rem 1.5rem;
-                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                    color: white;
-                    border: none;
-                    border-radius: 9999px;
-                    cursor: pointer;
-                    transition: all 0.25s ease;
-                }
-                
-                .add-data-btn:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                .history-section {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 24px;
                 }
                 
                 /* ===========================================
@@ -934,7 +1146,7 @@ function Dashboard({ onLogout }) {
                     margin: 24px;
                 }
                 
-                .loading-spinner .spinner {
+                .spinner {
                     width: 48px;
                     height: 48px;
                     margin: 0 auto 24px;
@@ -959,6 +1171,7 @@ function Dashboard({ onLogout }) {
                 }
                 
                 .retry-btn {
+                    margin-top: 24px;
                     padding: 0.75rem 1.5rem;
                     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
                     color: white;
@@ -1004,6 +1217,19 @@ function Dashboard({ onLogout }) {
                         padding: 8px;
                     }
                     
+                    .refresh-controls {
+                        gap: 8px;
+                    }
+                    
+                    .refresh-btn {
+                        padding: 0.25rem 0.75rem;
+                        font-size: 0.75rem;
+                    }
+                    
+                    .toggle-label {
+                        display: none;
+                    }
+                    
                     .summary-grid {
                         grid-template-columns: 1fr;
                     }
@@ -1011,6 +1237,11 @@ function Dashboard({ onLogout }) {
                     .section-header {
                         flex-direction: column;
                         align-items: flex-start;
+                    }
+                    
+                    .analytics-section,
+                    .history-section {
+                        grid-template-columns: 1fr;
                     }
                 }
                 
@@ -1051,8 +1282,18 @@ function Dashboard({ onLogout }) {
                     flex-direction: row-reverse;
                 }
                 
+                [dir="rtl"] .refresh-controls {
+                    flex-direction: row-reverse;
+                }
+                
                 [dir="rtl"] .summary-card {
                     flex-direction: row-reverse;
+                }
+                
+                @media (max-width: 768px) {
+                    [dir="rtl"] .refresh-controls {
+                        flex-direction: row-reverse;
+                    }
                 }
                 
                 /* ===========================================
@@ -1068,11 +1309,13 @@ function Dashboard({ onLogout }) {
                     
                     .summary-card:hover,
                     .logout-btn:hover,
-                    .theme-toggle:hover {
+                    .theme-toggle:hover,
+                    .refresh-btn:hover {
                         transform: none !important;
                     }
                     
-                    .sidebar-overlay {
+                    .sidebar-overlay,
+                    .auto-refresh-status {
                         animation: none !important;
                     }
                 }
