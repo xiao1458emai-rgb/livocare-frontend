@@ -495,8 +495,9 @@ function Dashboard({ onLogout }) {
             {/* شريط التحكم العلوي */}
             <div className="control-bar">
                 <div className="control-left">
-                    <button className="menu-toggle" onClick={toggleSidebar}>
-                    </button>
+            <button className="menu-toggle" onClick={toggleSidebar} aria-label={isArabic ? 'القائمة' : 'Menu'}>
+                ☰   {/* ✅ أضف هذه الأيقونة */}
+            </button>
                     <div className="app-name">
                         <span className="logo">🫀</span>
                         <span>LivoCare</span>
@@ -536,6 +537,7 @@ function Dashboard({ onLogout }) {
                         }
                     }}
                     isArabic={isArabic}
+                    isOpen={sidebarOpen}
                 />
             </div>
             
