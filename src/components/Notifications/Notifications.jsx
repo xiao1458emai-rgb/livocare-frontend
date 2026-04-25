@@ -4,10 +4,15 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axiosInstance from '../../services/api';
 import './Notifications.css';
 
-// دالة لتقريب الأرقام
-const roundNumber = (num, decimals = 1) => {
-    if (isNaN(num)) return 0;
-    return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
+// ============================================================
+// دوال مساعدة
+// ============================================================
+
+// دالة مساعدة لاستخراج البيانات من API response
+const extractData = (response) => {
+    if (response?.results) return response.results;
+    if (Array.isArray(response)) return response;
+    return [];
 };
 
 // دالة لحساب درجة الخطورة
@@ -75,21 +80,15 @@ const getPriorityText = (priority, isArabic) => {
     return priorities[priority] || priority;
 };
 
-// دالة مساعدة لاستخراج البيانات
-const extractData = (response) => {
-    if (response?.results) return response.results;
-    if (Array.isArray(response)) return response;
-    return [];
-};
-
 function Notifications({ isAuthReady }) {
-    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    // ✅ إعدادات اللغة
     const [lang, setLang] = useState(() => {
-        const saved = localStorage.getItem('app_lang');
-        return saved === 'en' ? 'en' : 'ar';
+        const saved = localStorage.getItem('app_lang') || localStorage.getItem('i18nextLng') || 'ar';
+        return saved.startsWith('ar') ? 'ar' : 'en';
     });
     const isArabic = lang === 'ar';
     
+    // ✅ الحالات (States)
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
@@ -106,56 +105,34 @@ function Notifications({ isAuthReady }) {
         alerts: true
     });
 
-    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+    // ============================================================
+    // التأثيرات (Effects)
+    // ============================================================
 
-    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
-            if (event.detail && event.detail.lang !== lang) {
-                setLang(event.detail.lang);
+            const newLang = event.detail?.lang || event.detail?.language;
+            if (newLang) {
+                setLang(newLang.startsWith('ar') ? 'ar' : 'en');
             }
         };
         
+        window.addEventListener('languageChanged', handleLanguageChange);
         window.addEventListener('languageChange', handleLanguageChange);
         
         return () => {
+            window.removeEventListener('languageChanged', handleLanguageChange);
             window.removeEventListener('languageChange', handleLanguageChange);
         };
-    }, [lang]);
+    }, []);
 
-    // حساب الإحصائيات من البيانات الفعلية
-    const stats = useMemo(() => {
-        const total = notifications.length;
-        const unread = notifications.filter(n => !n.is_read).length;
-        const read = total - unread;
-        
-        const byType = {};
-        notifications.forEach(n => {
-            const type = n.type || 'general';
-            byType[type] = (byType[type] || 0) + 1;
-        });
-        
-        const byPriority = {};
-        notifications.forEach(n => {
-            const priority = n.priority || 'medium';
-            byPriority[priority] = (byPriority[priority] || 0) + 1;
-        });
-        
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const last7Days = notifications.filter(n => {
-            const date = new Date(n.sent_at || n.created_at);
-            return date >= weekAgo;
-        }).length;
-        
-        return { total, unread, read, byType, byPriority, last7Days };
-    }, [notifications]);
-
-    // تحميل إعدادات الوضع المظلم
+    // ✅ تحميل التفضيلات
     useEffect(() => {
         loadPreferences();
     }, []);
 
+    // ✅ جلب الإشعارات عند التحميل
     useEffect(() => {
         if (isAuthReady) {
             fetchNotifications();
@@ -168,6 +145,11 @@ function Notifications({ isAuthReady }) {
         }
     }, [isAuthReady, preferences]);
 
+    // ============================================================
+    // الدوال (Functions)
+    // ============================================================
+
+    // تحميل التفضيلات
     const loadPreferences = () => {
         try {
             const saved = localStorage.getItem('notificationPreferences');
@@ -179,17 +161,21 @@ function Notifications({ isAuthReady }) {
         }
     };
 
+    // حفظ التفضيلات
     const savePreferences = (newPrefs) => {
         setPreferences(newPrefs);
         localStorage.setItem('notificationPreferences', JSON.stringify(newPrefs));
     };
 
+    // جلب الإشعارات من API
     const fetchNotifications = async () => {
         setLoading(true);
         try {
-            const response = await axiosInstance.get('/notifications-simple/');
+            const response = await axiosInstance.get('/notifications/');
             
             let notificationsData = extractData(response.data);
+            
+            console.log('🔔 Notifications fetched:', notificationsData.length);
             
             // تصفية حسب التفضيلات
             const filtered = notificationsData.filter(n => {
@@ -214,6 +200,7 @@ function Notifications({ isAuthReady }) {
         }
     };
 
+    // تحديد إشعار كمقروء
     const markAsRead = async (id) => {
         try {
             await axiosInstance.post(`/notifications/${id}/mark_read/`);
@@ -227,6 +214,7 @@ function Notifications({ isAuthReady }) {
         }
     };
 
+    // تحديد جميع الإشعارات كمقروءة
     const markAllAsRead = async () => {
         try {
             await axiosInstance.post('/notifications/mark_all_read/');
@@ -240,6 +228,7 @@ function Notifications({ isAuthReady }) {
         }
     };
 
+    // حذف إشعار واحد
     const deleteNotification = async (id) => {
         if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف هذا الإشعار؟' : 'Are you sure you want to delete this notification?')) return;
         
@@ -253,6 +242,7 @@ function Notifications({ isAuthReady }) {
         }
     };
 
+    // حذف جميع الإشعارات المقروءة
     const deleteAllRead = async () => {
         if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف جميع الإشعارات المقروءة؟' : 'Are you sure you want to delete all read notifications?')) return;
         
@@ -266,6 +256,7 @@ function Notifications({ isAuthReady }) {
         }
     };
 
+    // تصفية حسب النوع
     const filterByType = async (type) => {
         try {
             setLoading(true);
@@ -292,21 +283,50 @@ function Notifications({ isAuthReady }) {
         }
     };
 
+    // إعادة تعيين الفلاتر
     const resetFilters = () => {
         setFilter('all');
         fetchNotifications();
     };
 
+    // إظهار رسالة مؤقتة
     const showTemporaryMessage = (msg, type = 'success') => {
         setMessage({ text: msg, type });
         setTimeout(() => setMessage(null), 3000);
     };
 
+    // تبديل تفضيل
     const togglePreference = (key) => {
         const newPrefs = { ...preferences, [key]: !preferences[key] };
         savePreferences(newPrefs);
         fetchNotifications();
     };
+
+    // ============================================================
+    // الإحصائيات المحسوبة
+    // ============================================================
+
+    // حساب الإحصائيات من البيانات الفعلية
+    const stats = useMemo(() => {
+        const total = notifications.length;
+        const unread = notifications.filter(n => !n.is_read).length;
+        const read = total - unread;
+        
+        const byType = {};
+        notifications.forEach(n => {
+            const type = n.type || 'general';
+            byType[type] = (byType[type] || 0) + 1;
+        });
+        
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const last7Days = notifications.filter(n => {
+            const date = new Date(n.sent_at || n.created_at);
+            return !isNaN(date.getTime()) && date >= weekAgo;
+        }).length;
+        
+        return { total, unread, read, byType, last7Days };
+    }, [notifications]);
 
     // تصفية الإشعارات المعروضة
     const filteredNotifications = useMemo(() => {
@@ -320,21 +340,24 @@ function Notifications({ isAuthReady }) {
         
         return filtered;
     }, [notifications, filter]);
-        const formatTime = (notification) => {
-            if (notification.time_ago) {
-                return notification.time_ago;
-            }
-            
-            // ✅ تأكد من استخدام sent_at أولاً
-            const dateStr = notification.sent_at || notification.created_at;
-            console.log('Raw date string:', dateStr);  // ✅ للتشخيص
-            
-            if (!dateStr) {
-                return isArabic ? 'تاريخ غير معروف' : 'Unknown date';
-            }
-            
+
+    // ============================================================
+    // تنسيق الوقت
+    // ============================================================
+
+    const formatTime = (notification) => {
+        if (notification.time_ago) {
+            return notification.time_ago;
+        }
+        
+        const dateStr = notification.sent_at || notification.created_at;
+        
+        if (!dateStr) {
+            return isArabic ? 'تاريخ غير معروف' : 'Unknown date';
+        }
+        
+        try {
             const date = new Date(dateStr);
-            console.log('Parsed date:', date);  // ✅ للتشخيص
             
             if (isNaN(date.getTime())) {
                 return isArabic ? 'تاريخ غير صالح' : 'Invalid date';
@@ -346,7 +369,6 @@ function Notifications({ isAuthReady }) {
             const diffHours = Math.floor(diffMs / 3600000);
             const diffDays = Math.floor(diffMs / 86400000);
 
-            // عرض التاريخ الكامل للإشعارات القديمة
             if (diffDays > 7) {
                 return date.toLocaleDateString(isArabic ? 'ar-EG' : 'en-US', {
                     year: 'numeric',
@@ -366,8 +388,16 @@ function Notifications({ isAuthReady }) {
             }
             
             return isArabic ? 'الآن' : 'Just now';
-        };
+        } catch (error) {
+            console.error('Error formatting date:', error);
+            return isArabic ? 'تاريخ غير معروف' : 'Unknown date';
+        }
+    };
 
+    // ============================================================
+    // حالة التحميل
+    // ============================================================
+    
     if (loading && notifications.length === 0) {
         return (
             <div className="analytics-container">
@@ -379,6 +409,10 @@ function Notifications({ isAuthReady }) {
         );
     }
 
+    // ============================================================
+    // العرض الرئيسي
+    // ============================================================
+    
     return (
         <div className="analytics-container">
             {/* رسالة تأكيد */}
@@ -395,26 +429,13 @@ function Notifications({ isAuthReady }) {
                 <h2>
                     {isArabic ? 'الإشعارات' : 'Notifications'}
                     {stats.unread > 0 && (
-                        <span className="unread-badge" style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minWidth: '24px',
-                            height: '24px',
-                            background: '#ef4444',
-                            color: 'white',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            padding: '0 6px',
-                            marginLeft: '8px'
-                        }}>{stats.unread}</span>
+                        <span className="unread-badge">{stats.unread}</span>
                     )}
                 </h2>
-                <div className="header-actions" style={{ display: 'flex', gap: '8px' }}>
+                <div className="header-actions">
                     <button className="refresh-btn" onClick={fetchNotifications} title={isArabic ? 'تحديث' : 'Refresh'}>
                         🔄
                     </button>
-                    {/* ✅ تم إزالة زر اللغة من هنا */}
                     <button className="stats-toggle-btn" onClick={() => setShowStats(!showStats)} title={isArabic ? 'إحصائيات' : 'Stats'}>
                         📊
                     </button>
@@ -512,7 +533,7 @@ function Notifications({ isAuthReady }) {
                 </div>
             )}
 
-            {/* فلاتر */}
+            {/* فلاتر الحالة */}
             <div className="filter-row">
                 <button 
                     className={`type-btn ${filter === 'all' ? 'active' : ''}`}
@@ -534,6 +555,7 @@ function Notifications({ isAuthReady }) {
                 </button>
             </div>
 
+            {/* فلاتر النوع */}
             <div className="type-filters">
                 <button className="type-btn" onClick={() => filterByType('health')}>❤️ {isArabic ? 'الصحة' : 'Health'}</button>
                 <button className="type-btn" onClick={() => filterByType('sleep')}>🌙 {isArabic ? 'النوم' : 'Sleep'}</button>
@@ -564,11 +586,12 @@ function Notifications({ isAuthReady }) {
                             <div 
                                 key={notification.id} 
                                 className={`notification-card ${!notification.is_read ? 'unread' : 'read'}`}
+                                style={{ borderRight: `4px solid ${color}` }}
                             >
                                 <div className="notification-header">
                                     <div className="notification-title">
                                         <span className="notification-icon">{icon}</span>
-                                        <span>{notification.title}</span>
+                                        <span className="notification-title-text">{notification.title}</span>
                                         {notification.priority && (
                                             <span className={`priority-badge priority-${notification.priority}`}>
                                                 {getPriorityText(notification.priority, isArabic)}
@@ -577,27 +600,18 @@ function Notifications({ isAuthReady }) {
                                     </div>
                                     <div className="notification-meta">
                                         <span className="notification-time">{formatTime(notification)}</span>
-                                        <span className="notification-type">
-                                            {notification.type}
-                                        </span>
                                     </div>
                                 </div>
                                 
-                                <div className="notification-content">
+                                <div className="notification-message">
                                     {notification.message}
                                 </div>
                                 
-                                {notification.action_url && (
-                                    <a href={notification.action_url} className="notification-action" style={{ display: 'inline-block', marginTop: '8px', color: 'var(--primary)', textDecoration: 'none' }}>
-                                        {notification.action_text || (isArabic ? 'عرض' : 'View')} →
-                                    </a>
-                                )}
-                                
                                 {notification.suggestions && notification.suggestions.length > 0 && (
-                                    <div className="notification-suggestions" style={{ marginTop: '8px', padding: '8px', background: 'var(--tertiary-bg)', borderRadius: '8px' }}>
-                                        <strong>💡 {isArabic ? 'اقتراحات' : 'Suggestions'}:</strong>
-                                        <ul style={{ margin: '4px 0 0 20px' }}>
-                                            {notification.suggestions.map((s, i) => (
+                                    <div className="notification-suggestions">
+                                        <strong>💡 {isArabic ? 'اقتراحات' : 'Suggestions'}</strong>
+                                        <ul>
+                                            {notification.suggestions.slice(0, 3).map((s, i) => (
                                                 <li key={i}>{s}</li>
                                             ))}
                                         </ul>
@@ -607,17 +621,15 @@ function Notifications({ isAuthReady }) {
                                 <div className="notification-actions">
                                     {!notification.is_read && (
                                         <button 
-                                            className="notification-action-btn"
+                                            className="action-btn mark-read-btn"
                                             onClick={() => markAsRead(notification.id)}
-                                            title={isArabic ? 'تحديد كمقروء' : 'Mark as read'}
                                         >
                                             ✓ {isArabic ? 'تحديد كمقروء' : 'Mark read'}
                                         </button>
                                     )}
                                     <button 
-                                        className="notification-action-btn"
+                                        className="action-btn delete-btn"
                                         onClick={() => deleteNotification(notification.id)}
-                                        title={isArabic ? 'حذف' : 'Delete'}
                                     >
                                         🗑️ {isArabic ? 'حذف' : 'Delete'}
                                     </button>
