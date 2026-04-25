@@ -529,17 +529,20 @@ function Dashboard({ onLogout }) {
                 </div>
             </div>
 
-            {/* ✅ السايدبار - يظهر فقط عند الضغط على الزر */}
-            {isSidebarVisible && (
-                <Sidebar 
-                    activeSection={activeSection} 
-                    onSectionChange={(section) => {
-                        setActiveSection(section);
-                        setIsSidebarVisible(false);
-                    }}
-                    isArabic={isArabic}
-                />
-            )}
+                {/* ✅ السايدبار - يظهر فقط عند الضغط على الزر */}
+                {isSidebarVisible && (
+                    <div className={`sidebar-container ${isSidebarVisible ? 'visible' : ''}`}>
+                        <Sidebar 
+                            activeSection={activeSection} 
+                            onSectionChange={(section) => {
+                                setActiveSection(section);
+                                setIsSidebarVisible(false);
+                            }}
+                            isArabic={isArabic}
+                            isVisible={isSidebarVisible}
+                        />
+                    </div>
+                )}
             
             {/* ✅ Overlay للجوال */}
             {isSidebarVisible && isMobile && (

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axiosInstance from '../services/api';
 import '../index.css';
 
-function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
+function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic, isVisible }) {
     // ✅ إعدادات اللغة
     const [lang, setLang] = useState(() => {
         const saved = localStorage.getItem('app_lang');
@@ -171,11 +171,13 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
     // ✅ معالج الضغط على عنصر القائمة
     const handleSectionClick = (sectionId) => {
         onSectionChange(sectionId);
+        // إرسال حدث لإغلاق السايدبار بعد اختيار قسم
+        window.dispatchEvent(new CustomEvent('closeSidebar'));
     };
 
     return (
         <aside 
-            className={`sidebar ${isRTL ? 'rtl' : 'ltr'}`}
+            className={`sidebar ${isVisible ? 'visible' : ''} ${isRTL ? 'rtl' : 'ltr'}`}
             dir={isRTL ? 'rtl' : 'ltr'}
         >
             {/* رأس السايدبار */}
@@ -305,7 +307,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
                 }
                 
-                /* عندما يظهر السايدبار (تضاف هذه الفئة من Dashboard) */
+                /* عندما يظهر السايدبار */
                 .sidebar.visible {
                     transform: translateX(0);
                 }
