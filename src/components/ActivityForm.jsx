@@ -602,352 +602,327 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
     const [messageType, setMessageType] = useState('success');
     
     return (
-        <div 
-            className="activity-form-root"
-            style={{ 
-                width: '100%', 
-                maxWidth: '100%',
-                margin: 0,
-                padding: 0,
-                boxSizing: 'border-box'
-            }}
-        >
-            <div className="activity-form-container">
-                {/* ✅ قسم ESP32 Monitor */}
-                <div className={`sensor-section ${sensorStatus === 'connected' ? 'connected' : ''}`}>
-                    <div className="sensor-header">
-                        <div className="sensor-title">
-                            <div className="sensor-icon-wrapper">
-                                <span className="sensor-icon">🫀</span>
-                                {sensorActive && <span className="sensor-status-dot"></span>}
-                            </div>
-                            <div>
-                                <h3 className="sensor-heading">{isArabic ? 'مراقب الصحة ESP32' : 'ESP32 Health Monitor'}</h3>
-                                <p className="sensor-subtitle">{isArabic ? 'قراءات النبض والأكسجين لحظياً' : 'Real-time BPM & SpO₂ readings'}</p>
-                            </div>
+        <div className="activity-form-wrapper">
+            {/* ✅ قسم ESP32 Monitor */}
+            <div className={`sensor-section ${sensorStatus === 'connected' ? 'connected' : ''}`}>
+                <div className="sensor-header">
+                    <div className="sensor-title">
+                        <div className="sensor-icon-wrapper">
+                            <span className="sensor-icon">🫀</span>
+                            {sensorActive && <span className="sensor-status-dot"></span>}
                         </div>
-                        
-                        {!sensorActive ? (
-                            <button 
-                                onClick={connectSensor} 
-                                disabled={sensorConnecting} 
-                                className="connect-sensor-btn"
-                            >
-                                {sensorConnecting ? (
-                                    <>
-                                        <span className="spinner-small"></span>
-                                        {isArabic ? 'جاري الاتصال...' : 'Connecting...'}
-                                    </>
-                                ) : (
-                                    <>
-                                        🔌 {isArabic ? 'اتصال ESP32' : 'Connect ESP32'}
-                                    </>
-                                )}
-                            </button>
-                        ) : (
-                            <button onClick={disconnectSensor} className="disconnect-sensor-btn">
-                                🔌 {isArabic ? 'قطع الاتصال' : 'Disconnect'}
-                            </button>
-                        )}
+                        <div>
+                            <h3 className="sensor-heading">{isArabic ? 'مراقب الصحة ESP32' : 'ESP32 Health Monitor'}</h3>
+                            <p className="sensor-subtitle">{isArabic ? 'قراءات النبض والأكسجين لحظياً' : 'Real-time BPM & SpO₂ readings'}</p>
+                        </div>
                     </div>
                     
-                    {sensorStatus === 'connecting' && (
-                        <div className="sensor-loading">
-                            <div className="spinner"></div>
-                            <span>{isArabic ? 'جاري الاتصال بـ ESP32...' : 'Connecting to ESP32...'}</span>
-                        </div>
-                    )}
-                    
-                    {sensorActive && (
-                        <div className="sensor-data">
-                            <div className="sensor-stats">
-                                <div className="sensor-stat heart-rate">
-                                    <div className="stat-icon">❤️</div>
-                                    <div className="stat-details">
-                                        <div className="stat-value">
-                                            {safeValue(sensorHeartRate, '---')} 
-                                            <span className="stat-unit">BPM</span>
-                                        </div>
-                                        <div className="stat-status">
-                                            {sensorHeartRate > 100 && <span className="status-high">{isArabic ? 'مرتفع ⬆️' : 'High ⬆️'}</span>}
-                                            {sensorHeartRate < 60 && sensorHeartRate > 0 && <span className="status-low">{isArabic ? 'منخفض ⬇️' : 'Low ⬇️'}</span>}
-                                            {sensorHeartRate >= 60 && sensorHeartRate <= 100 && sensorHeartRate && <span className="status-normal">{isArabic ? 'طبيعي ✅' : 'Normal ✅'}</span>}
-                                            {!sensorHeartRate && <span className="status-waiting">{isArabic ? 'بانتظار البيانات...' : 'Waiting...'}</span>}
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div className="sensor-stat spo2">
-                                    <div className="stat-icon">💨</div>
-                                    <div className="stat-details">
-                                        <div className="stat-value">
-                                            {safeValue(sensorSpO2, '---')} 
-                                            <span className="stat-unit">SpO₂%</span>
-                                        </div>
-                                        <div className="stat-status">
-                                            {sensorSpO2 && sensorSpO2 < 90 && <span className="status-low">{isArabic ? 'منخفض ⬇️' : 'Low ⬇️'}</span>}
-                                            {sensorSpO2 && sensorSpO2 >= 90 && <span className="status-normal">{isArabic ? 'طبيعي ✅' : 'Normal ✅'}</span>}
-                                            {!sensorSpO2 && <span className="status-waiting">{isArabic ? 'بانتظار البيانات...' : 'Waiting...'}</span>}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            {sensorData.lastUpdate && (
-                                <div className="sensor-timestamp">
-                                    {isArabic ? 'آخر تحديث' : 'Last update'}: {new Date(sensorData.lastUpdate).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
-                                </div>
+                    {!sensorActive ? (
+                        <button 
+                            onClick={connectSensor} 
+                            disabled={sensorConnecting} 
+                            className="connect-sensor-btn"
+                        >
+                            {sensorConnecting ? (
+                                <>
+                                    <span className="spinner-small"></span>
+                                    {isArabic ? 'جاري الاتصال...' : 'Connecting...'}
+                                </>
+                            ) : (
+                                <>
+                                    🔌 {isArabic ? 'اتصال ESP32' : 'Connect ESP32'}
+                                </>
                             )}
-                            
-                            <div className="sensor-actions">
-                                <button onClick={requestMeasurement} disabled={loading} className="sensor-action-btn measure">
-                                    📊 {isArabic ? 'طلب قياس' : 'Request Measurement'}
-                                </button>
-                                <button onClick={addSensorDataAsHealthRecord} disabled={loading || (!sensorHeartRate && !sensorSpO2)} className="sensor-action-btn health">
-                                    💾 {isArabic ? 'حفظ كقراءة صحية' : 'Save as Health Record'}
-                                </button>
-                                <button onClick={addSensorDataAsActivity} disabled={loading || (!sensorHeartRate && !sensorSpO2)} className="sensor-action-btn activity">
-                                    ➕ {isArabic ? 'إضافة كنشاط' : 'Add as Activity'}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {sensorAlerts.length > 0 && (
-                        <div className="sensor-alerts">
-                            {sensorAlerts.map((alert, i) => (
-                                <div key={i} className={`sensor-alert ${alert.type}`}>
-                                    ⚠️ {alert.message}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    
-                    {sensorError && (
-                        <div className="sensor-error">
-                            ❌ {sensorError}
-                        </div>
+                        </button>
+                    ) : (
+                        <button onClick={disconnectSensor} className="disconnect-sensor-btn">
+                            🔌 {isArabic ? 'قطع الاتصال' : 'Disconnect'}
+                        </button>
                     )}
                 </div>
                 
-                {/* ✅ نموذج إضافة/تعديل النشاط */}
-                <div className="activity-form-card">
-                    <div className="activity-form-header">
-                        <h3 className="activity-form-title">
-                            {isEditing ? (
-                                <>✏️ {isArabic ? 'تعديل النشاط' : 'Edit Activity'}</>
-                            ) : (
-                                <>➕ {isArabic ? 'إضافة نشاط جديد' : 'Add New Activity'}</>
-                            )}
-                        </h3>
-                        {isEditing && (
-                            <button onClick={cancelEdit} className="cancel-edit-btn">
-                                ✖ {isArabic ? 'إلغاء' : 'Cancel'}
-                            </button>
-                        )}
+                {sensorStatus === 'connecting' && (
+                    <div className="sensor-loading">
+                        <div className="spinner"></div>
+                        <span>{isArabic ? 'جاري الاتصال بـ ESP32...' : 'Connecting to ESP32...'}</span>
                     </div>
-                    
-                    <form onSubmit={handleSubmit} className="activity-form">
-                        <div className="form-group">
-                            <label className="form-label">{isArabic ? 'نوع النشاط' : 'Activity Type'}</label>
-                            <select 
-                                name="activity_type" 
-                                value={formData.activity_type} 
-                                onChange={handleChange} 
-                                required 
-                                className="form-select"
-                            >
-                                <option value="">{isArabic ? 'اختر نوع النشاط' : 'Select activity type'}</option>
-                                {getActivityOptions().map(opt => (
-                                    <option key={opt.value} value={opt.value}>
-                                        {opt.icon} {opt.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">{isArabic ? 'المدة (دقائق)' : 'Duration (minutes)'}</label>
-                                <input 
-                                    type="number" 
-                                    name="duration_minutes" 
-                                    value={formData.duration_minutes} 
-                                    onChange={handleChange} 
-                                    required 
-                                    min="1" 
-                                    max="180" 
-                                    placeholder={isArabic ? 'مثال: 30' : 'e.g., 30'}
-                                    className="form-input"
-                                />
-                            </div>
-                            
-                            <div className="form-group">
-                                <label className="form-label">{isArabic ? 'وقت البداية' : 'Start Time'}</label>
-                                <input 
-                                    type="datetime-local" 
-                                    name="start_time" 
-                                    value={formData.start_time} 
-                                    onChange={handleChange} 
-                                    required 
-                                    className="form-input"
-                                />
-                            </div>
-                        </div>
-                        
-                        {formData.activity_type && formData.duration_minutes && (
-                            <div className="calories-card">
-                                <div className="calories-icon">🔥</div>
-                                <div className="calories-details">
-                                    <div className="calories-label">{isArabic ? 'السعرات الحرارية المقدرة' : 'Estimated Calories Burned'}</div>
-                                    <div className="calories-value">
-                                        {calculateCalories(formData.activity_type, formData.duration_minutes)}
-                                        <span className="calories-unit">{isArabic ? 'سعرة' : 'kcal'}</span>
+                )}
+                
+                {sensorActive && (
+                    <div className="sensor-data">
+                        <div className="sensor-stats">
+                            <div className="sensor-stat heart-rate">
+                                <div className="stat-icon">❤️</div>
+                                <div className="stat-details">
+                                    <div className="stat-value">
+                                        {safeValue(sensorHeartRate, '---')} 
+                                        <span className="stat-unit">BPM</span>
+                                    </div>
+                                    <div className="stat-status">
+                                        {sensorHeartRate > 100 && <span className="status-high">{isArabic ? 'مرتفع ⬆️' : 'High ⬆️'}</span>}
+                                        {sensorHeartRate < 60 && sensorHeartRate > 0 && <span className="status-low">{isArabic ? 'منخفض ⬇️' : 'Low ⬇️'}</span>}
+                                        {sensorHeartRate >= 60 && sensorHeartRate <= 100 && sensorHeartRate && <span className="status-normal">{isArabic ? 'طبيعي ✅' : 'Normal ✅'}</span>}
+                                        {!sensorHeartRate && <span className="status-waiting">{isArabic ? 'بانتظار البيانات...' : 'Waiting...'}</span>}
                                     </div>
                                 </div>
                             </div>
+                            
+                            <div className="sensor-stat spo2">
+                                <div className="stat-icon">💨</div>
+                                <div className="stat-details">
+                                    <div className="stat-value">
+                                        {safeValue(sensorSpO2, '---')} 
+                                        <span className="stat-unit">SpO₂%</span>
+                                    </div>
+                                    <div className="stat-status">
+                                        {sensorSpO2 && sensorSpO2 < 90 && <span className="status-low">{isArabic ? 'منخفض ⬇️' : 'Low ⬇️'}</span>}
+                                        {sensorSpO2 && sensorSpO2 >= 90 && <span className="status-normal">{isArabic ? 'طبيعي ✅' : 'Normal ✅'}</span>}
+                                        {!sensorSpO2 && <span className="status-waiting">{isArabic ? 'بانتظار البيانات...' : 'Waiting...'}</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {sensorData.lastUpdate && (
+                            <div className="sensor-timestamp">
+                                {isArabic ? 'آخر تحديث' : 'Last update'}: {new Date(sensorData.lastUpdate).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
+                            </div>
                         )}
                         
+                        <div className="sensor-actions">
+                            <button onClick={requestMeasurement} disabled={loading} className="sensor-action-btn measure">
+                                📊 {isArabic ? 'طلب قياس' : 'Request Measurement'}
+                            </button>
+                            <button onClick={addSensorDataAsHealthRecord} disabled={loading || (!sensorHeartRate && !sensorSpO2)} className="sensor-action-btn health">
+                                💾 {isArabic ? 'حفظ كقراءة صحية' : 'Save as Health Record'}
+                            </button>
+                            <button onClick={addSensorDataAsActivity} disabled={loading || (!sensorHeartRate && !sensorSpO2)} className="sensor-action-btn activity">
+                                ➕ {isArabic ? 'إضافة كنشاط' : 'Add as Activity'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+                
+                {sensorAlerts.length > 0 && (
+                    <div className="sensor-alerts">
+                        {sensorAlerts.map((alert, i) => (
+                            <div key={i} className={`sensor-alert ${alert.type}`}>
+                                ⚠️ {alert.message}
+                            </div>
+                        ))}
+                    </div>
+                )}
+                
+                {sensorError && (
+                    <div className="sensor-error">
+                        ❌ {sensorError}
+                    </div>
+                )}
+            </div>
+            
+            {/* ✅ نموذج إضافة/تعديل النشاط */}
+            <div className="activity-form-card">
+                <div className="activity-form-header">
+                    <h3 className="activity-form-title">
+                        {isEditing ? (
+                            <>✏️ {isArabic ? 'تعديل النشاط' : 'Edit Activity'}</>
+                        ) : (
+                            <>➕ {isArabic ? 'إضافة نشاط جديد' : 'Add New Activity'}</>
+                        )}
+                    </h3>
+                    {isEditing && (
+                        <button onClick={cancelEdit} className="cancel-edit-btn">
+                            ✖ {isArabic ? 'إلغاء' : 'Cancel'}
+                        </button>
+                    )}
+                </div>
+                
+                <form onSubmit={handleSubmit} className="activity-form">
+                    <div className="form-group">
+                        <label className="form-label">{isArabic ? 'نوع النشاط' : 'Activity Type'}</label>
+                        <select 
+                            name="activity_type" 
+                            value={formData.activity_type} 
+                            onChange={handleChange} 
+                            required 
+                            className="form-select"
+                        >
+                            <option value="">{isArabic ? 'اختر نوع النشاط' : 'Select activity type'}</option>
+                            {getActivityOptions().map(opt => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.icon} {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    
+                    <div className="form-row">
                         <div className="form-group">
-                            <label className="form-label">{isArabic ? 'ملاحظات (اختياري)' : 'Notes (Optional)'}</label>
-                            <textarea 
-                                name="notes" 
-                                value={formData.notes} 
+                            <label className="form-label">{isArabic ? 'المدة (دقائق)' : 'Duration (minutes)'}</label>
+                            <input 
+                                type="number" 
+                                name="duration_minutes" 
+                                value={formData.duration_minutes} 
                                 onChange={handleChange} 
-                                rows="3" 
-                                placeholder={isArabic ? 'أضف أي ملاحظات إضافية عن النشاط...' : 'Add any additional notes about the activity...'} 
-                                className="form-textarea"
+                                required 
+                                min="1" 
+                                max="180" 
+                                placeholder={isArabic ? 'مثال: 30' : 'e.g., 30'}
+                                className="form-input"
                             />
                         </div>
                         
-                        {(error || message) && (
-                            <div className={`form-message ${messageType}`}>
-                                {messageType === 'error' ? '❌' : messageType === 'success' ? '✅' : 'ℹ️'} {error || message}
-                            </div>
-                        )}
-                        
-                        <div className="form-actions">
-                            <button type="submit" disabled={loading} className="submit-btn">
-                                {loading ? (
-                                    <><span className="spinner-small"></span> {isArabic ? 'جاري الحفظ...' : 'Saving...'}</>
-                                ) : (
-                                    <>{isEditing ? (isArabic ? '💾 تحديث' : '💾 Update') : (isArabic ? '💾 حفظ' : '💾 Save')}</>
-                                )}
-                            </button>
+                        <div className="form-group">
+                            <label className="form-label">{isArabic ? 'وقت البداية' : 'Start Time'}</label>
+                            <input 
+                                type="datetime-local" 
+                                name="start_time" 
+                                value={formData.start_time} 
+                                onChange={handleChange} 
+                                required 
+                                className="form-input"
+                            />
                         </div>
-                    </form>
-                </div>
-                
-                {/* ✅ قائمة الأنشطة */}
-                <div className="activities-list-card">
-                    <div className="activities-header">
-                        <h3 className="activities-title">
-                            📋 {isArabic ? 'سجل الأنشطة' : 'Activity History'}
-                        </h3>
-                        <button onClick={fetchActivities} className="refresh-activities-btn" disabled={fetching || loading}>
-                            {fetching ? '⏳' : '🔄'}
-                        </button>
                     </div>
                     
-                    {fetching ? (
-                        <div className="loading-state">
-                            <div className="spinner"></div>
-                            <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
-                        </div>
-                    ) : error ? (
-                        <div className="error-state">
-                            <p>⚠️ {error}</p>
-                            <button onClick={fetchActivities} className="retry-btn">
-                                🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
-                            </button>
-                        </div>
-                    ) : activities.length === 0 ? (
-                        <div className="empty-state">
-                            <div className="empty-icon">🏃‍♀️</div>
-                            <h4>{isArabic ? 'لا توجد أنشطة' : 'No Activities'}</h4>
-                            <p>{isArabic ? 'ابدأ بإضافة أول نشاط رياضي لك' : 'Start by adding your first physical activity'}</p>
-                        </div>
-                    ) : (
-                        <div className="activities-list">
-                            {activities.map((activity) => (
-                                <div key={activity.id} className={`activity-item ${editingId === activity.id ? 'editing' : ''}`}>
-                                    <div className="activity-item-header">
-                                        <div className="activity-type">
-                                            <span className="activity-icon">{getActivityIcon(activity.activity_type)}</span>
-                                            <span className="activity-name">
-                                                {getActivityOptions().find(o => o.value === activity.activity_type)?.label || activity.activity_type}
-                                            </span>
-                                        </div>
-                                        <div className="activity-actions">
-                                            <button 
-                                                onClick={() => loadActivityForEdit(activity)} 
-                                                className="edit-activity-btn" 
-                                                disabled={loading}
-                                                title={isArabic ? 'تعديل' : 'Edit'}
-                                            >
-                                                ✏️
-                                            </button>
-                                            <button 
-                                                onClick={() => deleteActivity(activity.id)} 
-                                                className="delete-activity-btn" 
-                                                disabled={loading}
-                                                title={isArabic ? 'حذف' : 'Delete'}
-                                            >
-                                                🗑️
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="activity-item-details">
-                                        <div className="activity-detail">
-                                            <span className="detail-icon">⏱️</span>
-                                            <span>{isArabic ? 'المدة' : 'Duration'}: {safeValue(activity.duration_minutes)} {isArabic ? 'دقيقة' : 'min'}</span>
-                                        </div>
-                                        <div className="activity-detail">
-                                            <span className="detail-icon">🔥</span>
-                                            <span>{isArabic ? 'السعرات' : 'Calories'}: {safeValue(activity.calories_burned)} {isArabic ? 'سعرة' : 'kcal'}</span>
-                                        </div>
-                                        <div className="activity-detail">
-                                            <span className="detail-icon">📅</span>
-                                            <span>{formatDate(activity.start_time)}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    {activity.notes && (
-                                        <div className="activity-notes">
-                                            💬 {activity.notes}
-                                        </div>
-                                    )}
+                    {formData.activity_type && formData.duration_minutes && (
+                        <div className="calories-card">
+                            <div className="calories-icon">🔥</div>
+                            <div className="calories-details">
+                                <div className="calories-label">{isArabic ? 'السعرات الحرارية المقدرة' : 'Estimated Calories Burned'}</div>
+                                <div className="calories-value">
+                                    {calculateCalories(formData.activity_type, formData.duration_minutes)}
+                                    <span className="calories-unit">{isArabic ? 'سعرة' : 'kcal'}</span>
                                 </div>
-                            ))}
+                            </div>
                         </div>
                     )}
+                    
+                    <div className="form-group">
+                        <label className="form-label">{isArabic ? 'ملاحظات (اختياري)' : 'Notes (Optional)'}</label>
+                        <textarea 
+                            name="notes" 
+                            value={formData.notes} 
+                            onChange={handleChange} 
+                            rows="3" 
+                            placeholder={isArabic ? 'أضف أي ملاحظات إضافية عن النشاط...' : 'Add any additional notes about the activity...'} 
+                            className="form-textarea"
+                        />
+                    </div>
+                    
+                    {(error || message) && (
+                        <div className={`form-message ${messageType}`}>
+                            {messageType === 'error' ? '❌' : messageType === 'success' ? '✅' : 'ℹ️'} {error || message}
+                        </div>
+                    )}
+                    
+                    <div className="form-actions">
+                        <button type="submit" disabled={loading} className="submit-btn">
+                            {loading ? (
+                                <><span className="spinner-small"></span> {isArabic ? 'جاري الحفظ...' : 'Saving...'}</>
+                            ) : (
+                                <>{isEditing ? (isArabic ? '💾 تحديث' : '💾 Update') : (isArabic ? '💾 حفظ' : '💾 Save')}</>
+                            )}
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            {/* ✅ قائمة الأنشطة */}
+            <div className="activities-list-card">
+                <div className="activities-header">
+                    <h3 className="activities-title">
+                        📋 {isArabic ? 'سجل الأنشطة' : 'Activity History'}
+                    </h3>
+                    <button onClick={fetchActivities} className="refresh-activities-btn" disabled={fetching || loading}>
+                        {fetching ? '⏳' : '🔄'}
+                    </button>
                 </div>
+                
+                {fetching ? (
+                    <div className="loading-state">
+                        <div className="spinner"></div>
+                        <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
+                    </div>
+                ) : error ? (
+                    <div className="error-state">
+                        <p>⚠️ {error}</p>
+                        <button onClick={fetchActivities} className="retry-btn">
+                            🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
+                        </button>
+                    </div>
+                ) : activities.length === 0 ? (
+                    <div className="empty-state">
+                        <div className="empty-icon">🏃‍♀️</div>
+                        <h4>{isArabic ? 'لا توجد أنشطة' : 'No Activities'}</h4>
+                        <p>{isArabic ? 'ابدأ بإضافة أول نشاط رياضي لك' : 'Start by adding your first physical activity'}</p>
+                    </div>
+                ) : (
+                    <div className="activities-list">
+                        {activities.map((activity) => (
+                            <div key={activity.id} className={`activity-item ${editingId === activity.id ? 'editing' : ''}`}>
+                                <div className="activity-item-header">
+                                    <div className="activity-type">
+                                        <span className="activity-icon">{getActivityIcon(activity.activity_type)}</span>
+                                        <span className="activity-name">
+                                            {getActivityOptions().find(o => o.value === activity.activity_type)?.label || activity.activity_type}
+                                        </span>
+                                    </div>
+                                    <div className="activity-actions">
+                                        <button 
+                                            onClick={() => loadActivityForEdit(activity)} 
+                                            className="edit-activity-btn" 
+                                            disabled={loading}
+                                            title={isArabic ? 'تعديل' : 'Edit'}
+                                        >
+                                            ✏️
+                                        </button>
+                                        <button 
+                                            onClick={() => deleteActivity(activity.id)} 
+                                            className="delete-activity-btn" 
+                                            disabled={loading}
+                                            title={isArabic ? 'حذف' : 'Delete'}
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div className="activity-item-details">
+                                    <div className="activity-detail">
+                                        <span className="detail-icon">⏱️</span>
+                                        <span>{isArabic ? 'المدة' : 'Duration'}: {safeValue(activity.duration_minutes)} {isArabic ? 'دقيقة' : 'min'}</span>
+                                    </div>
+                                    <div className="activity-detail">
+                                        <span className="detail-icon">🔥</span>
+                                        <span>{isArabic ? 'السعرات' : 'Calories'}: {safeValue(activity.calories_burned)} {isArabic ? 'سعرة' : 'kcal'}</span>
+                                    </div>
+                                    <div className="activity-detail">
+                                        <span className="detail-icon">📅</span>
+                                        <span>{formatDate(activity.start_time)}</span>
+                                    </div>
+                                </div>
+                                
+                                {activity.notes && (
+                                    <div className="activity-notes">
+                                        💬 {activity.notes}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
             
             <style jsx>{`
                 /* ===========================================
-                   الحاوية الرئيسية - مقاومة للتداخل الخارجي
+                   الحاوية الرئيسية - تأخذ العرض الكامل
                 =========================================== */
-                .activity-form-root {
+                .activity-form-wrapper {
                     width: 100%;
                     max-width: 100%;
                     margin: 0;
                     padding: 0;
-                    box-sizing: border-box;
-                }
-                
-                .activity-form-container {
-                    width: 100%;
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    padding: 0 1rem;
-                    box-sizing: border-box;
-                }
-                
-                /* منع أي تداخل من السايدبار أو التخطيط الخارجي */
-                .activity-form-root *,
-                .activity-form-container * {
                     box-sizing: border-box;
                 }
                 
@@ -958,7 +933,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
                     border-radius: 20px;
                     padding: 1.5rem;
-                    margin-bottom: 2rem;
+                    margin-bottom: 1.5rem;
                     transition: all 0.25s;
                     width: 100%;
                 }
@@ -982,6 +957,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     display: flex;
                     align-items: center;
                     gap: 1rem;
+                    flex-wrap: wrap;
                 }
                 
                 .sensor-icon-wrapper {
@@ -989,15 +965,15 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 }
                 
                 .sensor-icon {
-                    font-size: 2.5rem;
+                    font-size: 2rem;
                 }
                 
                 .sensor-status-dot {
                     position: absolute;
                     bottom: 0;
                     right: 0;
-                    width: 12px;
-                    height: 12px;
+                    width: 10px;
+                    height: 10px;
                     background: #10b981;
                     border-radius: 50%;
                     animation: pulse 1.5s infinite;
@@ -1007,13 +983,13 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 .sensor-heading {
                     margin: 0;
                     color: white;
-                    font-size: 1.25rem;
+                    font-size: 1.1rem;
                 }
                 
                 .sensor-subtitle {
                     margin: 4px 0 0;
                     color: rgba(255,255,255,0.7);
-                    font-size: 0.75rem;
+                    font-size: 0.7rem;
                 }
                 
                 .connect-sensor-btn,
@@ -1024,6 +1000,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     cursor: pointer;
                     font-weight: 500;
                     transition: all 0.15s;
+                    font-size: 0.85rem;
                 }
                 
                 .connect-sensor-btn {
@@ -1056,14 +1033,14 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     background: rgba(255,255,255,0.1);
                     backdrop-filter: blur(10px);
                     border-radius: 12px;
-                    padding: 1rem;
+                    padding: 0.75rem;
                     display: flex;
                     align-items: center;
-                    gap: 1rem;
+                    gap: 0.75rem;
                 }
                 
                 .sensor-stat .stat-icon {
-                    font-size: 2rem;
+                    font-size: 1.5rem;
                 }
                 
                 .stat-details {
@@ -1071,20 +1048,21 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 }
                 
                 .stat-value {
-                    font-size: 1.8rem;
+                    font-size: 1.3rem;
                     font-weight: bold;
                     color: white;
+                    line-height: 1.2;
                 }
                 
                 .stat-unit {
-                    font-size: 0.85rem;
+                    font-size: 0.7rem;
                     font-weight: normal;
                     opacity: 0.8;
                 }
                 
                 .stat-status {
-                    font-size: 0.7rem;
-                    margin-top: 4px;
+                    font-size: 0.6rem;
+                    margin-top: 2px;
                 }
                 
                 .status-high { color: #f87171; }
@@ -1095,7 +1073,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 .sensor-timestamp {
                     text-align: center;
                     color: rgba(255,255,255,0.6);
-                    font-size: 0.7rem;
+                    font-size: 0.65rem;
                     margin-bottom: 1rem;
                 }
                 
@@ -1107,12 +1085,12 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 }
                 
                 .sensor-action-btn {
-                    padding: 0.5rem 1rem;
+                    padding: 0.4rem 0.75rem;
                     background: rgba(255,255,255,0.1);
                     border: 1px solid rgba(255,255,255,0.2);
                     border-radius: 8px;
                     color: white;
-                    font-size: 0.8rem;
+                    font-size: 0.75rem;
                     cursor: pointer;
                     transition: all 0.15s;
                 }
@@ -1142,7 +1120,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 .sensor-alert {
                     padding: 0.5rem;
                     border-radius: 8px;
-                    font-size: 0.8rem;
+                    font-size: 0.75rem;
                 }
                 
                 .sensor-alert.error {
@@ -1162,6 +1140,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     border-radius: 8px;
                     color: #f87171;
                     text-align: center;
+                    font-size: 0.75rem;
                 }
                 
                 /* ===========================================
@@ -1170,7 +1149,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 .activity-form-card {
                     background: var(--card-bg, #ffffff);
                     border-radius: 20px;
-                    padding: 1.5rem;
+                    padding: 1.25rem;
                     margin-bottom: 1.5rem;
                     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
                     border: 1px solid var(--border-light, #e2e8f0);
@@ -1187,16 +1166,16 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     justify-content: space-between;
                     align-items: center;
                     flex-wrap: wrap;
-                    gap: 1rem;
-                    margin-bottom: 1.5rem;
-                    padding-bottom: 1rem;
+                    gap: 0.75rem;
+                    margin-bottom: 1rem;
+                    padding-bottom: 0.75rem;
                     border-bottom: 2px solid var(--border-light, #e2e8f0);
                 }
                 
                 .activity-form-title {
                     margin: 0;
                     color: var(--text-primary, #0f172a);
-                    font-size: 1.2rem;
+                    font-size: 1.1rem;
                 }
                 
                 .cancel-edit-btn {
@@ -1206,23 +1185,25 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     border-radius: 8px;
                     color: #ef4444;
                     cursor: pointer;
+                    font-size: 0.8rem;
                 }
                 
                 .form-row {
                     display: grid;
                     grid-template-columns: repeat(2, 1fr);
-                    gap: 1rem;
-                    margin-bottom: 1rem;
+                    gap: 0.75rem;
+                    margin-bottom: 0.75rem;
                 }
                 
                 .form-group {
-                    margin-bottom: 1rem;
+                    margin-bottom: 0.75rem;
                 }
                 
                 .form-label {
                     display: block;
                     margin-bottom: 0.5rem;
                     font-weight: 500;
+                    font-size: 0.85rem;
                     color: var(--text-primary, #0f172a);
                 }
                 
@@ -1235,20 +1216,21 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     border-radius: 8px;
                     background: var(--input-bg, #ffffff);
                     color: var(--text-primary, #0f172a);
+                    font-size: 0.85rem;
                 }
                 
                 .calories-card {
                     display: flex;
                     align-items: center;
-                    gap: 1rem;
-                    padding: 1rem;
+                    gap: 0.75rem;
+                    padding: 0.75rem;
                     background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
                     border-radius: 12px;
-                    margin-bottom: 1rem;
+                    margin-bottom: 0.75rem;
                 }
                 
                 .calories-icon {
-                    font-size: 2rem;
+                    font-size: 1.5rem;
                 }
                 
                 .calories-details {
@@ -1256,25 +1238,26 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 }
                 
                 .calories-label {
-                    font-size: 0.8rem;
+                    font-size: 0.7rem;
                     color: #92400e;
                 }
                 
                 .calories-value {
-                    font-size: 1.5rem;
+                    font-size: 1.2rem;
                     font-weight: bold;
                     color: #d97706;
                 }
                 
                 .calories-unit {
-                    font-size: 0.8rem;
+                    font-size: 0.7rem;
                     font-weight: normal;
                 }
                 
                 .form-message {
-                    padding: 0.75rem;
+                    padding: 0.5rem;
                     border-radius: 8px;
-                    margin-bottom: 1rem;
+                    margin-bottom: 0.75rem;
+                    font-size: 0.8rem;
                 }
                 
                 .form-message.success {
@@ -1294,19 +1277,20 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 
                 .form-actions {
                     display: flex;
-                    gap: 1rem;
-                    margin-top: 1rem;
+                    gap: 0.75rem;
+                    margin-top: 0.75rem;
                 }
                 
                 .submit-btn {
                     flex: 1;
-                    padding: 0.75rem;
+                    padding: 0.6rem;
                     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
                     color: white;
                     border: none;
                     border-radius: 8px;
                     font-weight: 600;
                     cursor: pointer;
+                    font-size: 0.85rem;
                 }
                 
                 /* ===========================================
@@ -1315,7 +1299,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 .activities-list-card {
                     background: var(--card-bg, #ffffff);
                     border-radius: 20px;
-                    padding: 1.5rem;
+                    padding: 1.25rem;
                     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
                     border: 1px solid var(--border-light, #e2e8f0);
                     width: 100%;
@@ -1325,15 +1309,15 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    margin-bottom: 1.5rem;
-                    padding-bottom: 1rem;
+                    margin-bottom: 1rem;
+                    padding-bottom: 0.75rem;
                     border-bottom: 2px solid var(--border-light, #e2e8f0);
                 }
                 
                 .activities-title {
                     margin: 0;
                     color: var(--text-primary, #0f172a);
-                    font-size: 1.1rem;
+                    font-size: 1rem;
                 }
                 
                 .refresh-activities-btn {
@@ -1343,6 +1327,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     background: var(--secondary-bg, #f1f5f9);
                     border-radius: 8px;
                     cursor: pointer;
+                    font-size: 1rem;
                 }
                 
                 .activities-list {
@@ -1356,7 +1341,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 .activity-item {
                     background: var(--secondary-bg, #f8fafc);
                     border-radius: 12px;
-                    padding: 1rem;
+                    padding: 0.75rem;
                     border: 1px solid var(--border-light, #e2e8f0);
                 }
                 
@@ -1369,6 +1354,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     justify-content: space-between;
                     align-items: center;
                     margin-bottom: 0.5rem;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
                 }
                 
                 .activity-type {
@@ -1378,24 +1365,25 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 }
                 
                 .activity-icon {
-                    font-size: 1.5rem;
+                    font-size: 1.2rem;
                 }
                 
                 .activity-name {
                     font-weight: 600;
+                    font-size: 0.85rem;
                     color: var(--text-primary, #0f172a);
                 }
                 
                 .activity-actions {
                     display: flex;
-                    gap: 0.5rem;
+                    gap: 0.25rem;
                 }
                 
                 .edit-activity-btn,
                 .delete-activity-btn {
                     background: none;
                     border: none;
-                    font-size: 1rem;
+                    font-size: 0.9rem;
                     cursor: pointer;
                     padding: 0.25rem;
                     border-radius: 6px;
@@ -1412,8 +1400,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 .activity-item-details {
                     display: flex;
                     flex-wrap: wrap;
-                    gap: 1rem;
-                    font-size: 0.8rem;
+                    gap: 0.75rem;
+                    font-size: 0.7rem;
                     color: var(--text-secondary, #475569);
                 }
                 
@@ -1428,7 +1416,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     padding: 0.5rem;
                     background: var(--tertiary-bg, #f1f5f9);
                     border-radius: 8px;
-                    font-size: 0.75rem;
+                    font-size: 0.7rem;
                     color: var(--text-secondary, #475569);
                 }
                 
@@ -1436,29 +1424,29 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 .error-state,
                 .empty-state {
                     text-align: center;
-                    padding: 2rem;
+                    padding: 1.5rem;
                 }
                 
                 .empty-icon {
-                    font-size: 3rem;
-                    margin-bottom: 1rem;
+                    font-size: 2rem;
+                    margin-bottom: 0.75rem;
                     opacity: 0.5;
                 }
                 
                 .spinner {
-                    width: 40px;
-                    height: 40px;
+                    width: 32px;
+                    height: 32px;
                     border: 3px solid var(--border-light, #e2e8f0);
                     border-top-color: #6366f1;
                     border-radius: 50%;
                     animation: spin 0.8s linear infinite;
-                    margin: 0 auto 1rem;
+                    margin: 0 auto 0.75rem;
                 }
                 
                 .spinner-small {
                     display: inline-block;
-                    width: 14px;
-                    height: 14px;
+                    width: 12px;
+                    height: 12px;
                     border: 2px solid rgba(255,255,255,0.3);
                     border-top-color: white;
                     border-radius: 50%;
@@ -1479,16 +1467,19 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                    استجابة الجوال
                 =========================================== */
                 @media (max-width: 768px) {
-                    .activity-form-container {
-                        padding: 0 0.75rem;
-                    }
-                    
                     .sensor-section {
                         padding: 1rem;
+                        margin-bottom: 1rem;
+                    }
+                    
+                    .sensor-header {
+                        flex-direction: column;
+                        align-items: flex-start;
                     }
                     
                     .sensor-stats {
                         grid-template-columns: 1fr;
+                        gap: 0.75rem;
                     }
                     
                     .sensor-actions {
@@ -1513,7 +1504,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     .activity-item-header {
                         flex-direction: column;
                         align-items: flex-start;
-                        gap: 0.5rem;
                     }
                     
                     .activity-item-details {
@@ -1523,16 +1513,44 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 }
                 
                 @media (max-width: 480px) {
-                    .activity-form-container {
-                        padding: 0 0.5rem;
-                    }
-                    
                     .sensor-heading {
-                        font-size: 1rem;
+                        font-size: 0.95rem;
                     }
                     
                     .stat-value {
-                        font-size: 1.3rem;
+                        font-size: 1rem;
+                    }
+                    
+                    .activity-form-title {
+                        font-size: 0.95rem;
+                    }
+                    
+                    .form-label {
+                        font-size: 0.75rem;
+                    }
+                    
+                    .form-select,
+                    .form-input,
+                    .form-textarea {
+                        font-size: 0.75rem;
+                        padding: 0.4rem 0.6rem;
+                    }
+                    
+                    .calories-value {
+                        font-size: 1rem;
+                    }
+                    
+                    .submit-btn {
+                        padding: 0.5rem;
+                        font-size: 0.75rem;
+                    }
+                    
+                    .activities-title {
+                        font-size: 0.9rem;
+                    }
+                    
+                    .activity-name {
+                        font-size: 0.8rem;
                     }
                 }
                 
@@ -1553,6 +1571,10 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 
                 [dir="rtl"] .form-group {
                     text-align: right;
+                }
+                
+                [dir="rtl"] .form-actions {
+                    flex-direction: row-reverse;
                 }
             `}</style>
         </div>
