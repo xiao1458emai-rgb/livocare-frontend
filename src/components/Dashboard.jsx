@@ -1000,4 +1000,92 @@ function Dashboard({ onLogout }) {
                     }
                     
                     .date-display {
-                        display
+                        display: none;
+                    }
+                    
+                    .logout-text {
+                        display: none;
+                    }
+                    
+                    .logout-btn {
+                        padding: 8px;
+                    }
+                    
+                    .summary-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .section-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+                }
+                
+                @media (max-width: 480px) {
+                    .control-left {
+                        gap: 8px;
+                    }
+                    
+                    .menu-toggle,
+                    .theme-toggle {
+                        width: 38px;
+                        height: 38px;
+                    }
+                    
+                    .summary-card {
+                        padding: 12px;
+                    }
+                    
+                    .summary-card .card-icon {
+                        width: 40px;
+                        height: 40px;
+                        font-size: 1.5rem;
+                    }
+                    
+                    .summary-card .card-value {
+                        font-size: 1.2rem;
+                    }
+                }
+                
+                /* ===========================================
+                   دعم RTL
+                =========================================== */
+                [dir="rtl"] .control-left {
+                    flex-direction: row-reverse;
+                }
+                
+                [dir="rtl"] .control-right {
+                    flex-direction: row-reverse;
+                }
+                
+                [dir="rtl"] .summary-card {
+                    flex-direction: row-reverse;
+                }
+                
+                /* ===========================================
+                   دعم الحركة المخفضة
+                =========================================== */
+                @media (prefers-reduced-motion: reduce) {
+                    *,
+                    *::before,
+                    *::after {
+                        animation-duration: 0.01ms !important;
+                        transition-duration: 0.01ms !important;
+                    }
+                    
+                    .summary-card:hover,
+                    .logout-btn:hover,
+                    .theme-toggle:hover {
+                        transform: none !important;
+                    }
+                    
+                    .sidebar-overlay {
+                        animation: none !important;
+                    }
+                }
+            `}</style>
+        </div>
+    );
+}
+
+export default Dashboard;
