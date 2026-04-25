@@ -16,14 +16,13 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
     const [notificationCount, setNotificationCount] = useState(0);
     const [hoveredItem, setHoveredItem] = useState(null);
     const [isMobile, setIsMobile] = useState(false);
-    const [isSidebarVisible, setIsSidebarVisible] = useState(false);
     
     const isMountedRef = useRef(true);
     const intervalRef = useRef(null);
     const abortControllerRef = useRef(null);
     const isFetchingRef = useRef(false);
 
-    // ✅ كشف حجم الشاشة فقط لمعرفة ما إذا كنا على جوال
+    // ✅ كشف حجم الشاشة
     useEffect(() => {
         const checkScreenSize = () => {
             setIsMobile(window.innerWidth < 768);
@@ -169,210 +168,126 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
         };
     }, []);
 
-    // ✅ تبديل ظهور السايدبار
-    const toggleSidebar = () => {
-        setIsSidebarVisible(!isSidebarVisible);
-    };
-
     // ✅ معالج الضغط على عنصر القائمة
     const handleSectionClick = (sectionId) => {
         onSectionChange(sectionId);
-        // إخفاء السايدبار بعد الضغط على عنصر في الجوال
-        if (isMobile) {
-            setIsSidebarVisible(false);
-        }
     };
 
     return (
-        <>
-            {/* ✅ زر تبديل السايدبار */}
-            <button 
-                className={`sidebar-toggle-btn ${isSidebarVisible ? 'active' : ''} ${isRTL ? 'rtl' : 'ltr'}`}
-                onClick={toggleSidebar}
-                aria-label={isArabic ? 'فتح/إغلاق القائمة' : 'Toggle menu'}
-                title={isArabic ? 'فتح/إغلاق القائمة' : 'Toggle menu'}
-            >
-                <div className="toggle-icon">
-                    <span className="icon-bar"></span>
-                    <span className="icon-bar"></span>
-                    <span className="icon-bar"></span>
-                </div>
-            </button>
-
-            {/* ✅ السايدبار */}
-            <aside 
-                className={`sidebar ${isSidebarVisible ? 'visible' : 'hidden'} ${isRTL ? 'rtl' : 'ltr'}`}
-                dir={isRTL ? 'rtl' : 'ltr'}
-            >
-                {/* رأس السايدبار */}
-                <div className="sidebar-header">
-                    <div className="app-logo">
-                        <div className="logo-wrapper">
-                            <div className="logo-glow"></div>
-                            <div className="logo-icon" aria-hidden="true">🏥</div>
-                        </div>
-                        <div className="logo-text">
-                            <span className="app-name">LivoCare</span>
-                            <span className="app-tagline">{isArabic ? 'العناية بصحتك' : 'Your Health Care'}</span>
-                        </div>
+        <aside 
+            className={`sidebar ${isRTL ? 'rtl' : 'ltr'}`}
+            dir={isRTL ? 'rtl' : 'ltr'}
+        >
+            {/* رأس السايدبار */}
+            <div className="sidebar-header">
+                <div className="app-logo">
+                    <div className="logo-wrapper">
+                        <div className="logo-glow"></div>
+                        <div className="logo-icon" aria-hidden="true">🏥</div>
                     </div>
-                    
+                    <div className="logo-text">
+                        <span className="app-name">LivoCare</span>
+                        <span className="app-tagline">{isArabic ? 'العناية بصحتك' : 'Your Health Care'}</span>
+                    </div>
                 </div>
+                
+                {/* زر إغلاق السايدبار */}
+                <button 
+                    className="sidebar-close-btn"
+                    onClick={() => window.dispatchEvent(new CustomEvent('closeSidebar'))}
+                    aria-label={isArabic ? 'إغلاق القائمة' : 'Close menu'}
+                >
+                    ✕
+                </button>
+            </div>
 
-                {/* قائمة التنقل */}
-                <nav className="sidebar-nav">
-                    <div className="nav-items">
-                        {sections.map(section => {
-                            const isActive = activeSection === section.id;
-                            const sectionInfo = getSectionInfo(section.id);
-                            const isHovered = hoveredItem === section.id;
-                            
-                            return (
-                                <button
-                                    key={section.id}
-                                    className={`nav-item ${isActive ? 'active' : ''}`}
-                                    onClick={() => handleSectionClick(section.id)}
-                                    onMouseEnter={() => setHoveredItem(section.id)}
-                                    onMouseLeave={() => setHoveredItem(null)}
-                                    style={{ 
-                                        '--active-color': section.color,
-                                        '--active-gradient': section.gradient 
-                                    }}
-                                    aria-label={sectionInfo.name}
-                                >
-                                    <div className="nav-item-content">
-                                        <div className="nav-icon-wrapper" style={{ 
-                                            background: isActive ? section.gradient : 'rgba(255,255,255,0.1)'
-                                        }}>
-                                            <span className="nav-icon" aria-hidden="true">{section.icon}</span>
-                                        </div>
-                                        <div className="nav-text">
-                                            <span className="nav-name">{sectionInfo.name}</span>
-                                            <span className="nav-description">
-                                                {sectionInfo.description}
-                                            </span>
-                                        </div>
+            {/* قائمة التنقل */}
+            <nav className="sidebar-nav">
+                <div className="nav-items">
+                    {sections.map(section => {
+                        const isActive = activeSection === section.id;
+                        const sectionInfo = getSectionInfo(section.id);
+                        const isHovered = hoveredItem === section.id;
+                        
+                        return (
+                            <button
+                                key={section.id}
+                                className={`nav-item ${isActive ? 'active' : ''}`}
+                                onClick={() => handleSectionClick(section.id)}
+                                onMouseEnter={() => setHoveredItem(section.id)}
+                                onMouseLeave={() => setHoveredItem(null)}
+                                style={{ 
+                                    '--active-color': section.color,
+                                    '--active-gradient': section.gradient 
+                                }}
+                                aria-label={sectionInfo.name}
+                            >
+                                <div className="nav-item-content">
+                                    <div className="nav-icon-wrapper" style={{ 
+                                        background: isActive ? section.gradient : 'rgba(255,255,255,0.1)'
+                                    }}>
+                                        <span className="nav-icon" aria-hidden="true">{section.icon}</span>
                                     </div>
-                                    
-                                    {section.id === 'notifications' && notificationCount > 0 && (
-                                        <span className="nav-badge">
-                                            {notificationCount > 99 ? '99+' : notificationCount}
+                                    <div className="nav-text">
+                                        <span className="nav-name">{sectionInfo.name}</span>
+                                        <span className="nav-description">
+                                            {sectionInfo.description}
                                         </span>
-                                    )}
-                                    
-                                    {isActive && (
-                                        <>
-                                            <div className="active-indicator"></div>
-                                            <div className="active-glow"></div>
-                                        </>
-                                    )}
-                                    
-                                    {isHovered && (
-                                        <div className="nav-tooltip">
-                                            <span className="tooltip-name">{sectionInfo.name}</span>
-                                            <span className="tooltip-desc">{sectionInfo.description}</span>
-                                        </div>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </nav>
+                                    </div>
+                                </div>
+                                
+                                {section.id === 'notifications' && notificationCount > 0 && (
+                                    <span className="nav-badge">
+                                        {notificationCount > 99 ? '99+' : notificationCount}
+                                    </span>
+                                )}
+                                
+                                {isActive && (
+                                    <>
+                                        <div className="active-indicator"></div>
+                                        <div className="active-glow"></div>
+                                    </>
+                                )}
+                                
+                                {isHovered && (
+                                    <div className="nav-tooltip">
+                                        <span className="tooltip-name">{sectionInfo.name}</span>
+                                        <span className="tooltip-desc">{sectionInfo.description}</span>
+                                    </div>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </nav>
 
-                {/* تذييل السايدبار */}
-                <div className="sidebar-footer">
-                    <div className="user-stats">
-                        <div className="stat-item">
-                            <span className="stat-value">10</span>
-                            <span className="stat-label">{isArabic ? 'أقسام' : 'Sections'}</span>
-                        </div>
-                        <div className="stat-divider" aria-hidden="true"></div>
-                        <div className="stat-item">
-                            <span className="stat-value">✓</span>
-                            <span className="stat-label">{isArabic ? 'متابعة صحية' : 'Tracking'}</span>
-                        </div>
+            {/* تذييل السايدبار */}
+            <div className="sidebar-footer">
+                <div className="user-stats">
+                    <div className="stat-item">
+                        <span className="stat-value">10</span>
+                        <span className="stat-label">{isArabic ? 'أقسام' : 'Sections'}</span>
                     </div>
-
-                    <div className="user-profile">
-                        <div className="user-avatar">
-                            <span className="avatar-icon" aria-hidden="true">👤</span>
-                            <div className="avatar-status online"></div>
-                        </div>
-                        <div className="user-info">
-                            <span className="user-name">{isArabic ? 'مستخدم LivoCare' : 'LivoCare User'}</span>
-                            <span className="user-role">{isArabic ? 'مستخدم نشط' : 'Active User'}</span>
-                        </div>
+                    <div className="stat-divider" aria-hidden="true"></div>
+                    <div className="stat-item">
+                        <span className="stat-value">✓</span>
+                        <span className="stat-label">{isArabic ? 'متابعة صحية' : 'Tracking'}</span>
                     </div>
                 </div>
-            </aside>
 
-            {/* ✅ Overlay عند ظهور السايدبار على الجوال */}
-            {isSidebarVisible && isMobile && (
-                <div className="sidebar-overlay" onClick={() => setIsSidebarVisible(false)}></div>
-            )}
+                <div className="user-profile">
+                    <div className="user-avatar">
+                        <span className="avatar-icon" aria-hidden="true">👤</span>
+                        <div className="avatar-status online"></div>
+                    </div>
+                    <div className="user-info">
+                        <span className="user-name">{isArabic ? 'مستخدم LivoCare' : 'LivoCare User'}</span>
+                        <span className="user-role">{isArabic ? 'مستخدم نشط' : 'Active User'}</span>
+                    </div>
+                </div>
+            </div>
 
             <style jsx>{`
-                /* ===== زر تبديل السايدبار ===== */
-                .sidebar-toggle-btn {
-                    position: fixed;
-                    top: 20px;
-                    left: 20px;
-                    width: 50px;
-                    height: 50px;
-                    background: linear-gradient(135deg, #60a5fa, #a78bfa);
-                    border: none;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    z-index: 1001;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all 0.3s ease;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                }
-                
-                .sidebar-toggle-btn.rtl {
-                    left: auto;
-                    right: 20px;
-                }
-                
-                .sidebar-toggle-btn:hover {
-                    transform: scale(1.05);
-                    box-shadow: 0 6px 20px rgba(96, 165, 250, 0.4);
-                }
-                
-                .sidebar-toggle-btn:active {
-                    transform: scale(0.95);
-                }
-                
-                .toggle-icon {
-                    width: 24px;
-                    height: 18px;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-between;
-                }
-                
-                .icon-bar {
-                    width: 100%;
-                    height: 2px;
-                    background: white;
-                    border-radius: 2px;
-                    transition: all 0.3s ease;
-                }
-                
-                .sidebar-toggle-btn.active .icon-bar:nth-child(1) {
-                    transform: translateY(8px) rotate(45deg);
-                }
-                
-                .sidebar-toggle-btn.active .icon-bar:nth-child(2) {
-                    opacity: 0;
-                }
-                
-                .sidebar-toggle-btn.active .icon-bar:nth-child(3) {
-                    transform: translateY(-8px) rotate(-45deg);
-                }
-                
                 /* ===== السايدبار الرئيسي ===== */
                 .sidebar {
                     position: fixed;
@@ -385,27 +300,25 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     display: flex;
                     flex-direction: column;
                     z-index: 1000;
+                    transform: translateX(-100%);
                     transition: transform 0.3s ease;
                     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
                 }
                 
+                /* عندما يظهر السايدبار (تضاف هذه الفئة من Dashboard) */
+                .sidebar.visible {
+                    transform: translateX(0);
+                }
+                
+                /* دعم RTL */
                 .sidebar.rtl {
                     left: auto;
                     right: 0;
+                    transform: translateX(100%);
                     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
                 }
                 
-                /* السايدبار مخفي */
-                .sidebar.hidden {
-                    transform: translateX(-100%);
-                }
-                
-                .sidebar.rtl.hidden {
-                    transform: translateX(100%);
-                }
-                
-                /* السايدبار ظاهر */
-                .sidebar.visible {
+                .sidebar.rtl.visible {
                     transform: translateX(0);
                 }
                 
@@ -787,27 +700,6 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     color: rgba(255, 255, 255, 0.7);
                 }
                 
-                /* ===== Overlay للجوال ===== */
-                .sidebar-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.5);
-                    z-index: 999;
-                    animation: fadeIn 0.3s ease;
-                }
-                
-                @keyframes fadeIn {
-                    from {
-                        opacity: 0;
-                    }
-                    to {
-                        opacity: 1;
-                    }
-                }
-                
                 /* ===== شريط التمرير ===== */
                 .sidebar-nav::-webkit-scrollbar {
                     width: 4px;
@@ -834,7 +726,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     }
                 }
             `}</style>
-        </>
+        </aside>
     );
 }
 
