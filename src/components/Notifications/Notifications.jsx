@@ -326,7 +326,7 @@ function Notifications({ isAuthReady }) {
                 return notification.time_ago;
             }
             
-            // ✅ التحقق من وجود التاريخ
+            // التحقق من وجود التاريخ
             const dateStr = notification.sent_at || notification.created_at;
             if (!dateStr) {
                 return isArabic ? 'الآن' : 'Just now';
@@ -334,7 +334,7 @@ function Notifications({ isAuthReady }) {
             
             const date = new Date(dateStr);
             
-            // ✅ التحقق من صحة التاريخ
+            // التحقق من صحة التاريخ
             if (isNaN(date.getTime())) {
                 return isArabic ? 'الآن' : 'Just now';
             }
@@ -347,7 +347,7 @@ function Notifications({ isAuthReady }) {
 
             if (diffMins < 1) return isArabic ? 'الآن' : 'Just now';
             if (diffMins < 60) return isArabic ? `منذ ${diffMins} دقيقة` : `${diffMins} minutes ago`;
-            if (diffHours < 24) return isArabic ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`;
+            if (diffHours < 12) return isArabic ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`;
             if (diffDays < 7) return isArabic ? `منذ ${diffDays} يوم` : `${diffDays} days ago`;
             
             return date.toLocaleDateString(isArabic ? 'ar-EG' : 'en-US');
