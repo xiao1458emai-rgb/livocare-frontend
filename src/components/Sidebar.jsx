@@ -223,7 +223,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                         onClick={() => setIsSidebarVisible(false)}
                         aria-label={isArabic ? 'إغلاق القائمة' : 'Close menu'}
                     >
-                        ✕
+                       ✕ 
                     </button>
                 </div>
 
