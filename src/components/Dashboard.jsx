@@ -407,7 +407,7 @@ function Dashboard({ onLogout }) {
                     </div>
                     
                     <div className="activity-form-section">
-                        <ActivityForm onDataSubmitted={handleDataSubmitted} isArabic={isArabic} />
+                        <ActivityForm onDataSubmitted={handleDataSubmitted} onActivityChange={handleDataSubmitted} isArabic={isArabic} />
                     </div>
                     
                     <div className="analytics-section">
@@ -428,7 +428,7 @@ function Dashboard({ onLogout }) {
             case 'nutrition': return <NutritionMain onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} isArabic={isArabic} />;
             case 'sleep': return <SleepTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} isArabic={isArabic} />;
             case 'habits': return <HabitTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} isArabic={isArabic} />;
-            case 'activity': return <ActivityForm onDataSubmitted={handleDataSubmitted} isArabic={isArabic} />;
+            case 'activity': return <ActivityForm onDataSubmitted={handleDataSubmitted} onActivityChange={handleDataSubmitted} isArabic={isArabic} />;
             case 'mood': return <MoodTracker isAuthReady={isAuthReady} isArabic={isArabic} />;
             case 'chat': return <ChatInterface isAuthReady={isAuthReady} isArabic={isArabic} />;
             case 'profile': return <ProfileManager isAuthReady={isAuthReady} />;
@@ -529,20 +529,18 @@ function Dashboard({ onLogout }) {
                 </div>
             </div>
 
-                {/* ✅ السايدبار - يظهر فقط عند الضغط على الزر */}
-                {isSidebarVisible && (
-                    <div className={`sidebar-container ${isSidebarVisible ? 'visible' : ''}`}>
-                        <Sidebar 
-                            activeSection={activeSection} 
-                            onSectionChange={(section) => {
-                                setActiveSection(section);
-                                setIsSidebarVisible(false);
-                            }}
-                            isArabic={isArabic}
-                            isVisible={isSidebarVisible}
-                        />
-                    </div>
-                )}
+            {/* ✅ السايدبار - يظهر فقط عند الضغط على الزر (بدون حاوية إضافية) */}
+            {isSidebarVisible && (
+                <Sidebar 
+                    activeSection={activeSection} 
+                    onSectionChange={(section) => {
+                        setActiveSection(section);
+                        setIsSidebarVisible(false);
+                    }}
+                    isArabic={isArabic}
+                    isVisible={isSidebarVisible}
+                />
+            )}
             
             {/* ✅ Overlay للجوال */}
             {isSidebarVisible && isMobile && (
@@ -579,7 +577,7 @@ function Dashboard({ onLogout }) {
             
             <style jsx>{`
                 /* ===========================================
-                   التخطيط الرئيسي
+                   التخطيط الرئيسي (نفس الأنماط السابقة)
                 =========================================== */
                 .dashboard-layout {
                     min-height: 100vh;
@@ -689,6 +687,7 @@ function Dashboard({ onLogout }) {
                     display: flex;
                     align-items: center;
                     gap: 16px;
+                    flex-wrap: wrap;
                 }
                 
                 .refresh-controls {
