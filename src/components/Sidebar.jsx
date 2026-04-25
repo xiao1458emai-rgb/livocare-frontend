@@ -794,40 +794,79 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     color: rgba(255, 255, 255, 0.7);
                 }
                 
-                /* ✅ وضع مصغر - إخفاء النصوص */
-                .sidebar.collapsed .nav-text {
-                    display: none;
-                }
-                
-                .sidebar.collapsed .sidebar-footer {
-                    display: none;
-                }
-                
-                .sidebar.collapsed .logo-text {
-                    display: none;
-                }
-                
-                /* ✅ RTL */
-                [dir="rtl"] .nav-item-content {
-                    flex-direction: row-reverse;
-                }
-                
-                [dir="rtl"] .user-profile {
-                    flex-direction: row-reverse;
-                }
-                
-                @media (prefers-reduced-motion: reduce) {
-                    *,
-                    *::before,
-                    *::after {
-                        animation-duration: 0.01ms !important;
-                        transition-duration: 0.01ms !important;
-                    }
-                    
-                    .logo-glow {
-                        animation: none;
-                    }
-                }
+              /* ✅ وضع مصغر - فقط تقليص العرض، لا إخفاء */
+.sidebar.collapsed {
+    width: 80px;
+    min-width: 80px;
+}
+
+/* اخفي النصوص فقط */
+.sidebar.collapsed .nav-text,
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .user-info,
+.sidebar.collapsed .user-stats {
+    display: none;
+}
+
+/* أبقِ الأيقونات ظاهرة وكبيرة */
+.sidebar.collapsed .nav-icon-wrapper {
+    width: 44px;
+    height: 44px;
+    margin: 0;
+}
+
+.sidebar.collapsed .nav-icon {
+    font-size: 1.5rem;
+}
+
+.sidebar.collapsed .nav-item-content {
+    justify-content: center;
+    padding: 0.75rem;
+}
+
+.sidebar.collapsed .nav-item {
+    margin: 0 0.5rem;
+}
+
+/* التذييل المصغر */
+.sidebar.collapsed .sidebar-footer {
+    padding: 1rem 0.5rem;
+}
+
+.sidebar.collapsed .user-profile {
+    justify-content: center;
+    padding: 0.5rem;
+}
+
+.sidebar.collapsed .user-avatar {
+    width: 36px;
+    height: 36px;
+}
+
+.sidebar.collapsed .avatar-icon {
+    font-size: 1.2rem;
+}
+
+/* الشعار المصغر */
+.sidebar.collapsed .logo-wrapper {
+    width: 40px;
+    height: 40px;
+}
+
+.sidebar.collapsed .logo-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.5rem;
+}
+
+.sidebar.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 1rem 0.5rem;
+}
+
+.sidebar.collapsed .collapse-toggle {
+    display: none;
+}
             `}</style>
         </>
     );
