@@ -102,7 +102,7 @@ function Dashboard({ onLogout }) {
     return () => {
         window.removeEventListener('closeSidebar', handleCloseSidebarFromComponent);
     };
-}, []);ر
+}, []);
     // ✅ تطبيق الوضع المظلم
     useEffect(() => {
         if (typeof window !== 'undefined') {
