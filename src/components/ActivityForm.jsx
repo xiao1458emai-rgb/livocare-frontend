@@ -1372,6 +1372,118 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+    /* ===========================================
+   تخطيط الصفحة - محاذاة مع السايدبار
+   =========================================== */
+
+/* الحاوية الرئيسية لتخطيط الصفحة */
+.page-layout {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* منطقة المحتوى الرئيسي - تأخذ المساحة المتبقية */
+.main-content-area {
+    flex: 1;
+    min-width: 0; /* يمنع overflow */
+    padding: var(--spacing-lg, 1.5rem);
+    margin-left: 0;
+    transition: all 0.3s ease;
+}
+
+/* عندما يكون هناك سايدبار على اليسار */
+.has-sidebar .main-content-area {
+    margin-left: 0;
+}
+
+/* عندما يكون هناك سايدبار على اليمين (في وضع RTL) */
+[dir="rtl"] .has-sidebar .main-content-area {
+    margin-right: 0;
+}
+
+/* ✅ جعل جميع محتويات ActivityForm محاذاة لليسار */
+.analytics-container {
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+}
+
+/* تأكيد المحاذاة لليسار لجميع العناصر */
+.analytics-container * {
+    text-align: left;
+}
+
+/* في وضع RTL، نحتاج لعكس المحاذاة */
+[dir="rtl"] .analytics-container,
+[dir="rtl"] .analytics-container * {
+    text-align: right;
+}
+
+/* ===========================================
+   تصميم متجاوب مع السايدبار
+   =========================================== */
+
+/* للشاشات المتوسطة والكبيرة - السايدبار موجود */
+@media (min-width: 769px) {
+    .main-content-area {
+        padding: 1.5rem;
+        margin-left: 280px; /* عرض السايدبار + مسافة */
+        width: calc(100% - 280px);
+    }
+    
+    /* في وضع RTL */
+    [dir="rtl"] .main-content-area {
+        margin-left: 0;
+        margin-right: 280px;
+        width: calc(100% - 280px);
+    }
+    
+    /* تصغير الحاوية قليلاً لتعطي مسافة من السايدبار */
+    .analytics-container {
+        max-width: 100%;
+        padding-right: 0;
+    }
+}
+
+/* للشاشات الصغيرة - لا مساحة جانبية */
+@media (max-width: 768px) {
+    .main-content-area {
+        padding: 1rem;
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    [dir="rtl"] .main-content-area {
+        margin-right: 0;
+    }
+}
+
+/* ✅ تحسين عرض البطاقات لتكون منسقة بشكل أفضل */
+.sensor-section,
+.activity-form-card,
+.activities-list-card {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* جعل الحقول تأخذ العرض الكامل */
+.form-field {
+    width: 100%;
+}
+
+.form-select,
+.form-input,
+.form-textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* تحسين شبكة الأيقونات لتملأ المساحة بشكل أفضل */
+.activities-list {
+    width: 100%;
+}
             `}</style>
         </div>
     );
