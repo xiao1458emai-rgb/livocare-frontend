@@ -619,28 +619,29 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                         </div>
                     </div>
                     
-                    {!sensorActive ? (
-                        <button 
-                            onClick={connectSensor} 
-                            disabled={sensorConnecting} 
-                            className="sensor-connect-btn"
-                        >
-                            {sensorConnenting ? (
-                                <>
-                                    <span className="spinner-small"></span>
-                                    {isArabic ? 'جاري الاتصال...' : 'Connecting...'}
-                                </>
-                            ) : (
-                                <>
-                                    🔌 {isArabic ? 'اتصال ESP32' : 'Connect ESP32'}
-                                </>
-                            )}
-                        </button>
-                    ) : (
-                        <button onClick={disconnectSensor} className="sensor-disconnect-btn">
-                            🔌 {isArabic ? 'قطع الاتصال' : 'Disconnect'}
-                        </button>
-                    )}
+                        {!sensorActive ? (
+                            <button 
+                                onClick={connectSensor} 
+                                disabled={sensorConnecting} 
+                                className="type-btn active" 
+                                style={{ background: 'var(--success)', color: 'white' }}
+                            >
+                                {sensorConnecting ? (
+                                    <>
+                                        <span className="spinner-small"></span>
+                                        {isArabic ? 'جاري الاتصال...' : 'Connecting...'}
+                                    </>
+                                ) : (
+                                    <>
+                                        🔌 {isArabic ? 'اتصال ESP32' : 'Connect ESP32'}
+                                    </>
+                                )}
+                            </button>
+                        ) : (
+                            <button onClick={disconnectSensor} className="type-btn" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
+                                🔌 {isArabic ? 'قطع الاتصال' : 'Disconnect'}
+                            </button>
+                        )}
                 </div>
                 
                 {sensorStatus === 'connecting' && (
