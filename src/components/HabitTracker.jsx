@@ -781,6 +781,888 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
             <div className="analytics-wrapper">
                 <HabitAnalytics refreshTrigger={refreshAnalytics} isArabic={isArabic} />
             </div>
+
+            {/* ✅ أنماط CSS المضمنة */}
+            <style jsx>{`
+                /* ===========================================
+                   الرأس
+                =========================================== */
+                .habits-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: var(--spacing-md);
+                    margin-bottom: var(--spacing-lg);
+                    padding-bottom: var(--spacing-md);
+                    border-bottom: 2px solid var(--border-light);
+                }
+                
+                .habits-title {
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.3rem;
+                }
+                
+                .habits-date {
+                    padding: 0.25rem 0.75rem;
+                    background: var(--tertiary-bg);
+                    border-radius: var(--radius-full);
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+                
+                /* ===========================================
+                   رأس الأقسام
+                =========================================== */
+                .section-header-inline {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: var(--spacing-md);
+                    margin-bottom: var(--spacing-lg);
+                }
+                
+                .section-title-icon {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm);
+                }
+                
+                .section-title-icon .icon {
+                    font-size: 1.3rem;
+                }
+                
+                .section-title-icon h3 {
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.1rem;
+                }
+                
+                .section-desc {
+                    margin: 0;
+                    font-size: 0.75rem;
+                    color: var(--text-tertiary);
+                }
+                
+                /* ===========================================
+                   البحث عن الأدوية
+                =========================================== */
+                .drug-search-section {
+                    background: var(--card-bg);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    border: 1px solid var(--border-light);
+                    box-shadow: var(--shadow-sm);
+                }
+                
+                .dark-mode .drug-search-section {
+                    background: var(--card-bg);
+                    border-color: var(--border-light);
+                }
+                
+                .search-bar {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-md);
+                }
+                
+                .search-bar .search-input {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    font-size: 0.9rem;
+                }
+                
+                .search-actions {
+                    display: flex;
+                    gap: var(--spacing-sm);
+                    flex-wrap: wrap;
+                }
+                
+                .search-btn {
+                    padding: 0.5rem 1rem;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: var(--radius-full);
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    font-size: 0.85rem;
+                }
+                
+                .search-btn.active {
+                    background: var(--primary);
+                    color: white;
+                    border-color: var(--primary);
+                }
+                
+                .search-btn:hover:not(:disabled) {
+                    background: var(--hover-bg);
+                    transform: translateY(-2px);
+                }
+                
+                .scan-btn {
+                    padding: 0.5rem 1rem;
+                    background: linear-gradient(135deg, #10b981, #059669);
+                    color: white;
+                    border: none;
+                    border-radius: var(--radius-full);
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                }
+                
+                .scan-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+                
+                .drug-results {
+                    margin-top: var(--spacing-lg);
+                }
+                
+                .results-header {
+                    font-weight: 600;
+                    margin-bottom: var(--spacing-sm);
+                    color: var(--text-secondary);
+                    font-size: 0.85rem;
+                }
+                
+                .results-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-sm);
+                    max-height: 300px;
+                    overflow-y: auto;
+                }
+                
+                .drug-result-item {
+                    padding: var(--spacing-md);
+                    background: var(--secondary-bg);
+                    border-radius: var(--radius-lg);
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    border: 1px solid var(--border-light);
+                }
+                
+                .drug-result-item:hover {
+                    background: var(--hover-bg);
+                    transform: translateX(4px);
+                }
+                
+                [dir="rtl"] .drug-result-item:hover {
+                    transform: translateX(-4px);
+                }
+                
+                .drug-name {
+                    font-weight: 600;
+                    margin-bottom: var(--spacing-xs);
+                    color: var(--text-primary);
+                }
+                
+                .drug-generic {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    margin-left: var(--spacing-sm);
+                }
+                
+                .drug-details {
+                    display: flex;
+                    gap: var(--spacing-md);
+                    flex-wrap: wrap;
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+                
+                /* ===========================================
+                   نقاط المستخدم
+                =========================================== */
+                .points-section {
+                    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    color: white;
+                }
+                
+                .points-header {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm);
+                    margin-bottom: var(--spacing-md);
+                }
+                
+                .points-icon {
+                    font-size: 1.5rem;
+                }
+                
+                .points-header h3 {
+                    margin: 0;
+                    color: white;
+                }
+                
+                .points-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: var(--spacing-md);
+                }
+                
+                .point-card {
+                    background: rgba(255,255,255,0.15);
+                    backdrop-filter: blur(5px);
+                    border-radius: var(--radius-lg);
+                    padding: var(--spacing-md);
+                    text-align: center;
+                }
+                
+                .point-value {
+                    font-size: 2rem;
+                    font-weight: bold;
+                    color: white;
+                }
+                
+                .point-label {
+                    font-size: 0.7rem;
+                    opacity: 0.9;
+                }
+                
+                /* ===========================================
+                   تقدم العادات
+                =========================================== */
+                .progress-section {
+                    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    color: white;
+                }
+                
+                .progress-header {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm);
+                    margin-bottom: var(--spacing-md);
+                }
+                
+                .progress-icon {
+                    font-size: 1.5rem;
+                }
+                
+                .progress-header h3 {
+                    margin: 0;
+                    color: white;
+                }
+                
+                .progress-stats {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-sm);
+                }
+                
+                .progress-count {
+                    font-size: 1rem;
+                }
+                
+                .progress-bar-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-md);
+                }
+                
+                .progress-bar-wrapper .progress-bar {
+                    flex: 1;
+                    background: rgba(255,255,255,0.3);
+                }
+                
+                .progress-bar-wrapper .progress-fill {
+                    background: white;
+                }
+                
+                .progress-percentage {
+                    font-size: 1rem;
+                    font-weight: bold;
+                }
+                
+                /* ===========================================
+                   إضافة عادة
+                =========================================== */
+                .add-habit-section {
+                    background: var(--card-bg);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    border: 1px solid var(--border-light);
+                }
+                
+                .add-habit-form {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-md);
+                }
+                
+                .form-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-xs);
+                }
+                
+                .form-group label {
+                    font-weight: 500;
+                    color: var(--text-secondary);
+                    font-size: 0.85rem;
+                }
+                
+                .form-group input,
+                .form-group textarea {
+                    padding: 0.75rem 1rem;
+                    border: 1px solid var(--border-light);
+                    border-radius: var(--radius-md);
+                    background: var(--secondary-bg);
+                    color: var(--text-primary);
+                    font-size: 0.9rem;
+                }
+                
+                .form-group input:focus,
+                .form-group textarea:focus {
+                    outline: none;
+                    border-color: var(--primary);
+                    box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+                }
+                
+                .submit-btn {
+                    padding: 0.875rem;
+                    background: var(--primary-gradient);
+                    color: white;
+                    border: none;
+                    border-radius: var(--radius-md);
+                    font-size: 1rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                }
+                
+                .submit-btn:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+                
+                .submit-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+                
+                /* ===========================================
+                   قائمة العادات
+                =========================================== */
+                .habits-list-section {
+                    background: var(--card-bg);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    border: 1px solid var(--border-light);
+                }
+                
+                .habits-count,
+                .medications-count {
+                    padding: 0.25rem 0.75rem;
+                    background: var(--tertiary-bg);
+                    border-radius: var(--radius-full);
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+                
+                .habits-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                    gap: var(--spacing-md);
+                }
+                
+                .habit-card {
+                    background: var(--secondary-bg);
+                    border-radius: var(--radius-lg);
+                    padding: var(--spacing-md);
+                    border: 1px solid var(--border-light);
+                    transition: all var(--transition-medium);
+                }
+                
+                .habit-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+                
+                .habit-card.completed {
+                    background: rgba(16, 185, 129, 0.05);
+                    border-color: rgba(16, 185, 129, 0.3);
+                }
+                
+                .habit-card-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: var(--spacing-md);
+                }
+                
+                .habit-info {
+                    display: flex;
+                    gap: var(--spacing-sm);
+                    flex: 1;
+                }
+                
+                .habit-icon {
+                    font-size: 1.5rem;
+                }
+                
+                .habit-name {
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    margin-bottom: var(--spacing-xs);
+                }
+                
+                .habit-description {
+                    font-size: 0.75rem;
+                    color: var(--text-tertiary);
+                }
+                
+                .habit-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm);
+                }
+                
+                .points-badge {
+                    background: rgba(245, 158, 11, 0.15);
+                    color: #f59e0b;
+                    padding: 0.25rem 0.5rem;
+                    border-radius: var(--radius-full);
+                    font-size: 0.7rem;
+                    font-weight: bold;
+                }
+                
+                .complete-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-xs);
+                    padding: 0.5rem 1rem;
+                    background: rgba(16, 185, 129, 0.1);
+                    border: 1px solid rgba(16, 185, 129, 0.3);
+                    border-radius: var(--radius-full);
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    color: #10b981;
+                    font-size: 0.8rem;
+                }
+                
+                .complete-btn:hover:not(:disabled) {
+                    background: #10b981;
+                    color: white;
+                }
+                
+                .complete-btn.undo {
+                    background: rgba(239, 68, 68, 0.1);
+                    border-color: rgba(239, 68, 68, 0.3);
+                    color: #ef4444;
+                }
+                
+                .complete-btn.undo:hover:not(:disabled) {
+                    background: #ef4444;
+                    color: white;
+                }
+                
+                .complete-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                
+                /* ===========================================
+                   قائمة الأدوية
+                =========================================== */
+                .medications-section {
+                    background: var(--card-bg);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    border: 1px solid var(--border-light);
+                }
+                
+                .medications-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                    gap: var(--spacing-md);
+                }
+                
+                .medication-card {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: var(--spacing-md);
+                    background: var(--secondary-bg);
+                    border-radius: var(--radius-lg);
+                    border: 1px solid var(--border-light);
+                    transition: all var(--transition-medium);
+                }
+                
+                .medication-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+                
+                .medication-card.completed {
+                    background: rgba(16, 185, 129, 0.05);
+                    border-color: rgba(16, 185, 129, 0.3);
+                }
+                
+                .medication-info {
+                    display: flex;
+                    gap: var(--spacing-sm);
+                    flex: 1;
+                }
+                
+                .medication-icon {
+                    font-size: 1.5rem;
+                }
+                
+                .medication-name {
+                    font-weight: 600;
+                    color: var(--text-primary);
+                }
+                
+                .medication-description {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    margin-top: var(--spacing-xs);
+                }
+                
+                .take-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-xs);
+                    padding: 0.5rem 1rem;
+                    background: rgba(59, 130, 246, 0.1);
+                    border: 1px solid rgba(59, 130, 246, 0.3);
+                    border-radius: var(--radius-full);
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    color: #3b82f6;
+                    font-size: 0.8rem;
+                }
+                
+                .take-btn:hover:not(:disabled) {
+                    background: #3b82f6;
+                    color: white;
+                }
+                
+                .take-btn.undo {
+                    background: rgba(239, 68, 68, 0.1);
+                    border-color: rgba(239, 68, 68, 0.3);
+                    color: #ef4444;
+                }
+                
+                .take-btn.undo:hover:not(:disabled) {
+                    background: #ef4444;
+                    color: white;
+                }
+                
+                /* ===========================================
+                   ماسح الباركود
+                =========================================== */
+                .scanner-modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.85);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                    animation: fadeIn 0.3s ease;
+                }
+                
+                .scanner-modal-content {
+                    background: var(--card-bg);
+                    border-radius: var(--radius-xl);
+                    width: 90%;
+                    max-width: 500px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    padding: var(--spacing-lg);
+                }
+                
+                .scanner-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: var(--spacing-md);
+                    padding-bottom: var(--spacing-sm);
+                    border-bottom: 1px solid var(--border-light);
+                }
+                
+                .scanner-header h3 {
+                    margin: 0;
+                    color: var(--text-primary);
+                }
+                
+                .close-btn {
+                    background: none;
+                    border: none;
+                    font-size: 1.2rem;
+                    cursor: pointer;
+                    color: var(--text-secondary);
+                    transition: all var(--transition-fast);
+                }
+                
+                .close-btn:hover {
+                    color: var(--error);
+                }
+                
+                .scanner-footer {
+                    margin-top: var(--spacing-md);
+                    text-align: center;
+                }
+                
+                .scanner-footer p {
+                    color: var(--text-secondary);
+                    font-size: 0.8rem;
+                    margin-bottom: var(--spacing-sm);
+                }
+                
+                .cancel-btn {
+                    padding: var(--spacing-sm) var(--spacing-lg);
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: var(--radius-full);
+                    cursor: pointer;
+                    color: var(--text-primary);
+                    transition: all var(--transition-fast);
+                }
+                
+                /* ===========================================
+                   إشعارات
+                =========================================== */
+                .notification-toast {
+                    position: fixed;
+                    bottom: var(--spacing-lg);
+                    right: var(--spacing-lg);
+                    padding: var(--spacing-md) var(--spacing-lg);
+                    border-radius: var(--radius-lg);
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-md);
+                    animation: slideIn 0.3s ease;
+                    z-index: 1000;
+                    box-shadow: var(--shadow-lg);
+                }
+                
+                [dir="rtl"] .notification-toast {
+                    right: auto;
+                    left: var(--spacing-lg);
+                }
+                
+                .notification-toast.success {
+                    background: var(--success);
+                    color: white;
+                }
+                
+                .notification-toast.error {
+                    background: var(--error);
+                    color: white;
+                }
+                
+                .notification-toast.info {
+                    background: var(--info);
+                    color: white;
+                }
+                
+                .notification-toast button {
+                    background: none;
+                    border: none;
+                    color: white;
+                    cursor: pointer;
+                    font-size: 1rem;
+                }
+                
+                /* ===========================================
+                   حالات فارغة
+                =========================================== */
+                .loading-state,
+                .empty-state {
+                    text-align: center;
+                    padding: var(--spacing-2xl);
+                }
+                
+                .spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid var(--border-light);
+                    border-top-color: var(--primary);
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    margin: 0 auto var(--spacing-md);
+                }
+                
+                .spinner-small {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    animation: spin 0.6s linear infinite;
+                    display: inline-block;
+                }
+                
+                .empty-icon {
+                    font-size: 3rem;
+                    margin-bottom: var(--spacing-md);
+                    opacity: 0.5;
+                }
+                
+                /* ===========================================
+                   أنيميشن
+                =========================================== */
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                
+                @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateX(100%);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+                
+                [dir="rtl"] @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-100%);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+                
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+                
+                .analytics-wrapper {
+                    margin-top: var(--spacing-xl);
+                }
+                
+                /* ===========================================
+                   استجابة الشاشات
+                =========================================== */
+                @media (max-width: 768px) {
+                    .habits-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+                    
+                    .points-grid {
+                        grid-template-columns: 1fr;
+                        gap: var(--spacing-sm);
+                    }
+                    
+                    .habits-grid,
+                    .medications-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .habit-card-header {
+                        flex-direction: column;
+                    }
+                    
+                    .medication-card {
+                        flex-direction: column;
+                        gap: var(--spacing-md);
+                        text-align: center;
+                    }
+                    
+                    .medication-info {
+                        flex-direction: column;
+                        align-items: center;
+                        text-align: center;
+                    }
+                    
+                    .notification-toast {
+                        left: var(--spacing-md);
+                        right: var(--spacing-md);
+                        bottom: var(--spacing-md);
+                    }
+                    
+                    [dir="rtl"] .notification-toast {
+                        left: var(--spacing-md);
+                        right: var(--spacing-md);
+                    }
+                }
+                
+                @media (max-width: 480px) {
+                    .search-actions {
+                        flex-direction: column;
+                    }
+                    
+                    .search-btn,
+                    .scan-btn {
+                        width: 100%;
+                        text-align: center;
+                    }
+                }
+                
+                /* ===========================================
+                   دعم RTL
+                =========================================== */
+                [dir="rtl"] .habit-card-header {
+                    flex-direction: row-reverse;
+                }
+                
+                [dir="rtl"] .habit-info {
+                    flex-direction: row-reverse;
+                }
+                
+                [dir="rtl"] .medication-info {
+                    flex-direction: row-reverse;
+                }
+                
+                @media (max-width: 768px) {
+                    [dir="rtl"] .habit-card-header {
+                        flex-direction: column;
+                    }
+                    
+                    [dir="rtl"] .habit-info {
+                        flex-direction: column;
+                    }
+                    
+                    [dir="rtl"] .medication-info {
+                        flex-direction: column;
+                    }
+                }
+                
+                /* ===========================================
+                   دعم الحركة المخفضة
+                =========================================== */
+                @media (prefers-reduced-motion: reduce) {
+                    .scanner-modal,
+                    .notification-toast {
+                        animation: none !important;
+                    }
+                    
+                    .habit-card:hover,
+                    .medication-card:hover,
+                    .drug-result-item:hover {
+                        transform: none !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

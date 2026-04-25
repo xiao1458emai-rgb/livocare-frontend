@@ -759,6 +759,494 @@ function HealthForm({ onDataSubmitted }) {
                     </button>
                 </div>
             )}
+
+            {/* ✅ أنماط CSS المضمنة */}
+            <style jsx>{`
+                .health-form-container {
+                    background: var(--card-bg);
+                    border-radius: 24px;
+                    padding: 1.5rem;
+                    border: 1px solid var(--border-light);
+                    transition: all var(--transition-medium);
+                }
+
+                /* ===== رأس النموذج ===== */
+                .form-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid var(--border-light);
+                }
+
+                .header-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                .header-title h2 {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.3rem;
+                }
+
+                .title-icon {
+                    font-size: 1.5rem;
+                }
+
+                .fields-badge {
+                    padding: 0.35rem 0.85rem;
+                    background: var(--tertiary-bg);
+                    border-radius: 50px;
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                .header-controls {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                /* ===== زر الحفظ التلقائي ===== */
+                .auto-save-toggle {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    cursor: pointer;
+                }
+
+                .auto-save-toggle input {
+                    position: absolute;
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+
+                .toggle-slider {
+                    width: 44px;
+                    height: 22px;
+                    background: var(--border-light);
+                    border-radius: 22px;
+                    position: relative;
+                    transition: all var(--transition-fast);
+                }
+
+                .toggle-slider::before {
+                    content: '';
+                    position: absolute;
+                    width: 18px;
+                    height: 18px;
+                    background: white;
+                    border-radius: 50%;
+                    top: 2px;
+                    left: 2px;
+                    transition: all var(--transition-fast);
+                    box-shadow: var(--shadow-sm);
+                }
+
+                input:checked + .toggle-slider {
+                    background: var(--success);
+                }
+
+                input:checked + .toggle-slider::before {
+                    transform: translateX(22px);
+                }
+
+                [dir="rtl"] input:checked + .toggle-slider::before {
+                    transform: translateX(-22px);
+                }
+
+                .toggle-label {
+                    font-size: 0.8rem;
+                    color: var(--text-secondary);
+                }
+
+                .auto-save-time {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    padding: 0.25rem 0.5rem;
+                    background: var(--tertiary-bg);
+                    border-radius: 8px;
+                }
+
+                /* ===== شبكة الحقول ===== */
+                .form-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                    gap: 1.25rem;
+                    margin-bottom: 1.5rem;
+                }
+
+                .form-field {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+
+                .field-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    font-size: 0.85rem;
+                }
+
+                .field-icon {
+                    font-size: 1rem;
+                }
+
+                .field-unit {
+                    color: var(--text-tertiary);
+                    font-weight: normal;
+                    font-size: 0.75rem;
+                }
+
+                .input-wrapper {
+                    position: relative;
+                }
+
+                .form-input {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    padding-right: 60px;
+                    border: 1px solid var(--border-light);
+                    border-radius: 12px;
+                    background: var(--secondary-bg);
+                    color: var(--text-primary);
+                    font-size: 0.9rem;
+                    transition: all var(--transition-fast);
+                }
+
+                [dir="rtl"] .form-input {
+                    padding-right: 1rem;
+                    padding-left: 60px;
+                }
+
+                .form-input:focus {
+                    outline: none;
+                    border-color: var(--primary);
+                    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+                }
+
+                .form-input.error {
+                    border-color: var(--error);
+                }
+
+                .input-suffix {
+                    position: absolute;
+                    right: 1rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: var(--text-tertiary);
+                    font-size: 0.8rem;
+                }
+
+                [dir="rtl"] .input-suffix {
+                    right: auto;
+                    left: 1rem;
+                }
+
+                .field-error {
+                    font-size: 0.7rem;
+                    color: var(--error);
+                }
+
+                .field-hint {
+                    font-size: 0.65rem;
+                    color: var(--text-tertiary);
+                }
+
+                .hint-normal {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                }
+
+                /* ===== المؤشرات الصحية ===== */
+                .indicators-section {
+                    background: var(--secondary-bg);
+                    border-radius: 16px;
+                    padding: 1rem;
+                    margin-bottom: 1.5rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                .section-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin-bottom: 1rem;
+                }
+
+                .section-icon {
+                    font-size: 1.2rem;
+                }
+
+                .section-header h3 {
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1rem;
+                }
+
+                .indicators-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                }
+
+                .indicator-card {
+                    padding: 0.75rem;
+                    border-radius: 12px;
+                    transition: all var(--transition-fast);
+                }
+
+                .indicator-card.severity-critical {
+                    background: rgba(220, 38, 38, 0.1);
+                    border-left: 3px solid #dc2626;
+                }
+
+                .indicator-card.severity-high {
+                    background: rgba(245, 158, 11, 0.1);
+                    border-left: 3px solid #f59e0b;
+                }
+
+                .indicator-card.severity-medium {
+                    background: rgba(59, 130, 246, 0.1);
+                    border-left: 3px solid #3b82f6;
+                }
+
+                .indicator-card.severity-good {
+                    background: rgba(16, 185, 129, 0.1);
+                    border-left: 3px solid #10b981;
+                }
+
+                [dir="rtl"] .indicator-card {
+                    border-left: none;
+                    border-right: 3px solid;
+                }
+
+                [dir="rtl"] .indicator-card.severity-critical { border-right-color: #dc2626; }
+                [dir="rtl"] .indicator-card.severity-high { border-right-color: #f59e0b; }
+                [dir="rtl"] .indicator-card.severity-medium { border-right-color: #3b82f6; }
+                [dir="rtl"] .indicator-card.severity-good { border-right-color: #10b981; }
+
+                .indicator-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    flex-wrap: wrap;
+                    margin-bottom: 0.5rem;
+                }
+
+                .indicator-icon {
+                    font-size: 1.1rem;
+                }
+
+                .indicator-message {
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    font-size: 0.85rem;
+                }
+
+                .indicator-value {
+                    font-size: 0.75rem;
+                    color: var(--text-tertiary);
+                    background: var(--card-bg);
+                    padding: 0.15rem 0.5rem;
+                    border-radius: 12px;
+                }
+
+                .indicator-advice {
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                /* ===== أزرار الإجراء ===== */
+                .form-actions {
+                    display: flex;
+                    gap: 1rem;
+                }
+
+                .action-btn {
+                    flex: 1;
+                    padding: 0.75rem;
+                    border: none;
+                    border-radius: 12px;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                }
+
+                .action-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                .clear-btn {
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    color: var(--text-secondary);
+                }
+
+                .clear-btn:hover:not(:disabled) {
+                    background: rgba(239, 68, 68, 0.1);
+                    border-color: var(--error);
+                    color: var(--error);
+                }
+
+                .submit-btn {
+                    background: var(--primary-gradient);
+                    color: white;
+                }
+
+                .submit-btn:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+
+                .spinner-small {
+                    width: 14px;
+                    height: 14px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    animation: spin 0.6s linear infinite;
+                }
+
+                /* ===== إشعار ===== */
+                .notification-toast {
+                    position: fixed;
+                    bottom: 1.5rem;
+                    right: 1.5rem;
+                    padding: 0.75rem 1.25rem;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    z-index: 1000;
+                    animation: slideIn 0.3s ease;
+                    box-shadow: var(--shadow-lg);
+                }
+
+                [dir="rtl"] .notification-toast {
+                    right: auto;
+                    left: 1.5rem;
+                }
+
+                .notification-toast.success {
+                    background: var(--success);
+                    color: white;
+                }
+
+                .notification-toast.error {
+                    background: var(--error);
+                    color: white;
+                }
+
+                .notification-toast.info {
+                    background: var(--info);
+                    color: white;
+                }
+
+                .toast-close {
+                    background: none;
+                    border: none;
+                    color: white;
+                    cursor: pointer;
+                    font-size: 1rem;
+                    opacity: 0.8;
+                    transition: opacity var(--transition-fast);
+                }
+
+                .toast-close:hover {
+                    opacity: 1;
+                }
+
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+
+                @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateX(100%);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+
+                [dir="rtl"] @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-100%);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+
+                /* ===== استجابة الشاشات ===== */
+                @media (max-width: 768px) {
+                    .health-form-container {
+                        padding: 1rem;
+                    }
+
+                    .form-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    .form-actions {
+                        flex-direction: column;
+                    }
+
+                    .notification-toast {
+                        left: 1rem;
+                        right: 1rem;
+                        bottom: 1rem;
+                    }
+
+                    [dir="rtl"] .notification-toast {
+                        left: 1rem;
+                        right: 1rem;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    .form-grid {
+                        grid-template-columns: 1fr;
+                    }
+                }
+
+                @media (prefers-reduced-motion: reduce) {
+                    .spinner-small {
+                        animation: none;
+                    }
+                    
+                    .notification-toast {
+                        animation: none;
+                    }
+                }
+            `}</style>
         </div>
     );
 }
