@@ -16,10 +16,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
     const [notificationCount, setNotificationCount] = useState(0);
     const [hoveredItem, setHoveredItem] = useState(null);
     const [isMobile, setIsMobile] = useState(false);
-    
-    // ✅ حالة السايدبار - تدار من الـ Dashboard
-    // ملاحظة: السايدبار نفسه لا يحتوي على زر إغلاق أو تصغير
-    // فقط يستقبل "isOpen" من الـ Dashboard
+    const [isSidebarVisible, setIsSidebarVisible] = useState(false);
     
     const isMountedRef = useRef(true);
     const intervalRef = useRef(null);
@@ -53,7 +50,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
         };
     }, [lang]);
 
-    // ✅ أقسام القائمة (بدون أي تعديل)
+    // ✅ أقسام القائمة
     const getSections = () => [
         { id: 'health', icon: '❤️', color: '#ef4444', gradient: 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)', tooltip: isArabic ? 'العلامات الحيوية' : 'Vital Signs' },
         { id: 'nutrition', icon: '🥗', color: '#10b981', gradient: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)', tooltip: isArabic ? 'التغذية' : 'Nutrition' },
@@ -172,133 +169,219 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
         };
     }, []);
 
-    // ✅ معالج الضغط على عنصر القائمة - يغلق السايدبار تلقائياً على الجوال
+    // ✅ تبديل ظهور السايدبار
+    const toggleSidebar = () => {
+        setIsSidebarVisible(!isSidebarVisible);
+    };
+
+    // ✅ معالج الضغط على عنصر القائمة
     const handleSectionClick = (sectionId) => {
         onSectionChange(sectionId);
-        // ✅ نرسل حدث لإغلاق السايدبار على الجوال
+        // إخفاء السايدبار بعد الضغط على عنصر في الجوال
         if (isMobile) {
-            window.dispatchEvent(new CustomEvent('closeSidebar'));
+            setIsSidebarVisible(false);
         }
     };
 
     return (
-        <aside 
-            className={`sidebar ${isRTL ? 'rtl' : 'ltr'}`}
-            dir={isRTL ? 'rtl' : 'ltr'}
-        >
-{/* رأس السايدبار */}
-<div className="sidebar-header">
-    <div className="app-logo">
-        <div className="logo-wrapper">
-            <div className="logo-glow"></div>
-            <div className="logo-icon" aria-hidden="true">🏥</div>
-        </div>
-        <div className="logo-text">
-            <span className="app-name">LivoCare</span>
-            <span className="app-tagline">{isArabic ? 'العناية بصحتك' : 'Your Health Care'}</span>
-        </div>
-    </div>
-    
-    {/* ✅ زر إغلاق يظهر فقط على الجوال */}
-    {isMobile && (
-        <button 
-            className="mobile-close-btn"
-            onClick={() => window.dispatchEvent(new CustomEvent('closeSidebar'))}
-            aria-label={isArabic ? 'إغلاق القائمة' : 'Close menu'}
-        >
-            ✕
-        </button>
-    )}
-</div>
+        <>
+            {/* ✅ زر تبديل السايدبار */}
+            <button 
+                className={`sidebar-toggle-btn ${isSidebarVisible ? 'active' : ''} ${isRTL ? 'rtl' : 'ltr'}`}
+                onClick={toggleSidebar}
+                aria-label={isArabic ? 'فتح/إغلاق القائمة' : 'Toggle menu'}
+                title={isArabic ? 'فتح/إغلاق القائمة' : 'Toggle menu'}
+            >
+                <div className="toggle-icon">
+                    <span className="icon-bar"></span>
+                    <span className="icon-bar"></span>
+                    <span className="icon-bar"></span>
+                </div>
+            </button>
 
-            {/* قائمة التنقل */}
-            <nav className="sidebar-nav">
-                <div className="nav-items">
-                    {sections.map(section => {
-                        const isActive = activeSection === section.id;
-                        const sectionInfo = getSectionInfo(section.id);
-                        const isHovered = hoveredItem === section.id;
-                        
-                        return (
-                            <button
-                                key={section.id}
-                                className={`nav-item ${isActive ? 'active' : ''}`}
-                                onClick={() => handleSectionClick(section.id)}
-                                onMouseEnter={() => setHoveredItem(section.id)}
-                                onMouseLeave={() => setHoveredItem(null)}
-                                style={{ 
-                                    '--active-color': section.color,
-                                    '--active-gradient': section.gradient 
-                                }}
-                                aria-label={sectionInfo.name}
-                            >
-                                <div className="nav-item-content">
-                                    <div className="nav-icon-wrapper" style={{ 
-                                        background: isActive ? section.gradient : 'rgba(255,255,255,0.1)'
-                                    }}>
-                                        <span className="nav-icon" aria-hidden="true">{section.icon}</span>
+            {/* ✅ السايدبار */}
+            <aside 
+                className={`sidebar ${isSidebarVisible ? 'visible' : 'hidden'} ${isRTL ? 'rtl' : 'ltr'}`}
+                dir={isRTL ? 'rtl' : 'ltr'}
+            >
+                {/* رأس السايدبار */}
+                <div className="sidebar-header">
+                    <div className="app-logo">
+                        <div className="logo-wrapper">
+                            <div className="logo-glow"></div>
+                            <div className="logo-icon" aria-hidden="true">🏥</div>
+                        </div>
+                        <div className="logo-text">
+                            <span className="app-name">LivoCare</span>
+                            <span className="app-tagline">{isArabic ? 'العناية بصحتك' : 'Your Health Care'}</span>
+                        </div>
+                    </div>
+                    
+                    {/* زر إغلاق داخل السايدبار */}
+                    <button 
+                        className="sidebar-close-btn"
+                        onClick={() => setIsSidebarVisible(false)}
+                        aria-label={isArabic ? 'إغلاق القائمة' : 'Close menu'}
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                {/* قائمة التنقل */}
+                <nav className="sidebar-nav">
+                    <div className="nav-items">
+                        {sections.map(section => {
+                            const isActive = activeSection === section.id;
+                            const sectionInfo = getSectionInfo(section.id);
+                            const isHovered = hoveredItem === section.id;
+                            
+                            return (
+                                <button
+                                    key={section.id}
+                                    className={`nav-item ${isActive ? 'active' : ''}`}
+                                    onClick={() => handleSectionClick(section.id)}
+                                    onMouseEnter={() => setHoveredItem(section.id)}
+                                    onMouseLeave={() => setHoveredItem(null)}
+                                    style={{ 
+                                        '--active-color': section.color,
+                                        '--active-gradient': section.gradient 
+                                    }}
+                                    aria-label={sectionInfo.name}
+                                >
+                                    <div className="nav-item-content">
+                                        <div className="nav-icon-wrapper" style={{ 
+                                            background: isActive ? section.gradient : 'rgba(255,255,255,0.1)'
+                                        }}>
+                                            <span className="nav-icon" aria-hidden="true">{section.icon}</span>
+                                        </div>
+                                        <div className="nav-text">
+                                            <span className="nav-name">{sectionInfo.name}</span>
+                                            <span className="nav-description">
+                                                {sectionInfo.description}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="nav-text">
-                                        <span className="nav-name">{sectionInfo.name}</span>
-                                        <span className="nav-description">
-                                            {sectionInfo.description}
+                                    
+                                    {section.id === 'notifications' && notificationCount > 0 && (
+                                        <span className="nav-badge">
+                                            {notificationCount > 99 ? '99+' : notificationCount}
                                         </span>
-                                    </div>
-                                </div>
-                                
-                                {section.id === 'notifications' && notificationCount > 0 && (
-                                    <span className="nav-badge">
-                                        {notificationCount > 99 ? '99+' : notificationCount}
-                                    </span>
-                                )}
-                                
-                                {isActive && (
-                                    <>
-                                        <div className="active-indicator"></div>
-                                        <div className="active-glow"></div>
-                                    </>
-                                )}
-                                
-                                {isHovered && (
-                                    <div className="nav-tooltip">
-                                        <span className="tooltip-name">{sectionInfo.name}</span>
-                                        <span className="tooltip-desc">{sectionInfo.description}</span>
-                                    </div>
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
-            </nav>
+                                    )}
+                                    
+                                    {isActive && (
+                                        <>
+                                            <div className="active-indicator"></div>
+                                            <div className="active-glow"></div>
+                                        </>
+                                    )}
+                                    
+                                    {isHovered && (
+                                        <div className="nav-tooltip">
+                                            <span className="tooltip-name">{sectionInfo.name}</span>
+                                            <span className="tooltip-desc">{sectionInfo.description}</span>
+                                        </div>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </nav>
 
-            {/* تذييل السايدبار */}
-            <div className="sidebar-footer">
-                <div className="user-stats">
-                    <div className="stat-item">
-                        <span className="stat-value">10</span>
-                        <span className="stat-label">{isArabic ? 'أقسام' : 'Sections'}</span>
+                {/* تذييل السايدبار */}
+                <div className="sidebar-footer">
+                    <div className="user-stats">
+                        <div className="stat-item">
+                            <span className="stat-value">10</span>
+                            <span className="stat-label">{isArabic ? 'أقسام' : 'Sections'}</span>
+                        </div>
+                        <div className="stat-divider" aria-hidden="true"></div>
+                        <div className="stat-item">
+                            <span className="stat-value">✓</span>
+                            <span className="stat-label">{isArabic ? 'متابعة صحية' : 'Tracking'}</span>
+                        </div>
                     </div>
-                    <div className="stat-divider" aria-hidden="true"></div>
-                    <div className="stat-item">
-                        <span className="stat-value">✓</span>
-                        <span className="stat-label">{isArabic ? 'متابعة صحية' : 'Tracking'}</span>
-                    </div>
-                </div>
 
-                <div className="user-profile">
-                    <div className="user-avatar">
-                        <span className="avatar-icon" aria-hidden="true">👤</span>
-                        <div className="avatar-status online"></div>
-                    </div>
-                    <div className="user-info">
-                        <span className="user-name">{isArabic ? 'مستخدم LivoCare' : 'LivoCare User'}</span>
-                        <span className="user-role">{isArabic ? 'مستخدم نشط' : 'Active User'}</span>
+                    <div className="user-profile">
+                        <div className="user-avatar">
+                            <span className="avatar-icon" aria-hidden="true">👤</span>
+                            <div className="avatar-status online"></div>
+                        </div>
+                        <div className="user-info">
+                            <span className="user-name">{isArabic ? 'مستخدم LivoCare' : 'LivoCare User'}</span>
+                            <span className="user-role">{isArabic ? 'مستخدم نشط' : 'Active User'}</span>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </aside>
+
+            {/* ✅ Overlay عند ظهور السايدبار على الجوال */}
+            {isSidebarVisible && isMobile && (
+                <div className="sidebar-overlay" onClick={() => setIsSidebarVisible(false)}></div>
+            )}
 
             <style jsx>{`
-                /* ===== السايدبار الرئيسي - دائماً ظاهر على الكمبيوتر ===== */
+                /* ===== زر تبديل السايدبار ===== */
+                .sidebar-toggle-btn {
+                    position: fixed;
+                    top: 20px;
+                    left: 20px;
+                    width: 50px;
+                    height: 50px;
+                    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    z-index: 1001;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                }
+                
+                .sidebar-toggle-btn.rtl {
+                    left: auto;
+                    right: 20px;
+                }
+                
+                .sidebar-toggle-btn:hover {
+                    transform: scale(1.05);
+                    box-shadow: 0 6px 20px rgba(96, 165, 250, 0.4);
+                }
+                
+                .sidebar-toggle-btn:active {
+                    transform: scale(0.95);
+                }
+                
+                .toggle-icon {
+                    width: 24px;
+                    height: 18px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                }
+                
+                .icon-bar {
+                    width: 100%;
+                    height: 2px;
+                    background: white;
+                    border-radius: 2px;
+                    transition: all 0.3s ease;
+                }
+                
+                .sidebar-toggle-btn.active .icon-bar:nth-child(1) {
+                    transform: translateY(8px) rotate(45deg);
+                }
+                
+                .sidebar-toggle-btn.active .icon-bar:nth-child(2) {
+                    opacity: 0;
+                }
+                
+                .sidebar-toggle-btn.active .icon-bar:nth-child(3) {
+                    transform: translateY(-8px) rotate(-45deg);
+                }
+                
+                /* ===== السايدبار الرئيسي ===== */
                 .sidebar {
                     position: fixed;
                     top: 0;
@@ -314,33 +397,33 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
                 }
                 
-                [dir="rtl"] .sidebar {
+                .sidebar.rtl {
                     left: auto;
                     right: 0;
                     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
                 }
                 
-                /* ✅ على الجوال - يكون مخفياً ويظهر عبر الـ Dashboard */
-                @media (max-width: 767px) {
-                    .sidebar {
-                        transform: translateX(-100%);
-                        width: 85%;
-                    }
-                    
-                    [dir="rtl"] .sidebar {
-                        transform: translateX(100%);
-                    }
-                    
-                    /* هذه الفئة ستضاف من الـ Dashboard */
-                    .sidebar.sidebar-open-mobile {
-                        transform: translateX(0) !important;
-                    }
+                /* السايدبار مخفي */
+                .sidebar.hidden {
+                    transform: translateX(-100%);
                 }
                 
-                /* ===== رأس السايدبار (بدون أزرار) ===== */
+                .sidebar.rtl.hidden {
+                    transform: translateX(100%);
+                }
+                
+                /* السايدبار ظاهر */
+                .sidebar.visible {
+                    transform: translateX(0);
+                }
+                
+                /* ===== رأس السايدبار ===== */
                 .sidebar-header {
                     padding: 2rem 1.5rem;
                     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
                 }
                 
                 .app-logo {
@@ -405,6 +488,30 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     color: rgba(255, 255, 255, 0.7);
                 }
                 
+                .sidebar-close-btn {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    color: white;
+                    font-size: 1.2rem;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s ease;
+                }
+                
+                .sidebar-close-btn:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                    transform: scale(1.05);
+                }
+                
+                .sidebar-close-btn:active {
+                    transform: scale(0.95);
+                }
+                
                 /* ===== قائمة التنقل ===== */
                 .sidebar-nav {
                     flex: 1;
@@ -432,7 +539,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     text-align: left;
                 }
                 
-                [dir="rtl"] .nav-item {
+                .rtl .nav-item {
                     text-align: right;
                 }
                 
@@ -450,7 +557,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     transform: translateX(5px);
                 }
                 
-                [dir="rtl"] .nav-item:hover .nav-item-content {
+                .rtl .nav-item:hover .nav-item-content {
                     transform: translateX(-5px);
                 }
                 
@@ -515,7 +622,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     text-align: center;
                 }
                 
-                [dir="rtl"] .nav-badge {
+                .rtl .nav-badge {
                     right: auto;
                     left: 1rem;
                 }
@@ -531,7 +638,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     border-radius: 0 4px 4px 0;
                 }
                 
-                [dir="rtl"] .active-indicator {
+                .rtl .active-indicator {
                     left: auto;
                     right: 0;
                     border-radius: 4px 0 0 4px;
@@ -565,7 +672,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     border: 1px solid rgba(255,255,255,0.1);
                 }
                 
-                [dir="rtl"] .nav-tooltip {
+                .rtl .nav-tooltip {
                     left: auto;
                     right: 100%;
                     margin-left: 0;
@@ -663,7 +770,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     border: 2px solid #1e293b;
                 }
                 
-                [dir="rtl"] .avatar-status {
+                .rtl .avatar-status {
                     right: auto;
                     left: -2px;
                 }
@@ -688,6 +795,27 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     color: rgba(255, 255, 255, 0.7);
                 }
                 
+                /* ===== Overlay للجوال ===== */
+                .sidebar-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    z-index: 999;
+                    animation: fadeIn 0.3s ease;
+                }
+                
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                    }
+                    to {
+                        opacity: 1;
+                    }
+                }
+                
                 /* ===== شريط التمرير ===== */
                 .sidebar-nav::-webkit-scrollbar {
                     width: 4px;
@@ -706,39 +834,15 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                 .sidebar-nav::-webkit-scrollbar-thumb:hover {
                     background: rgba(255,255,255,0.3);
                 }
-                    /* ✅ زر إغلاق الجوال - يظهر فقط على الشاشات الصغيرة */
-.mobile-close-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    font-size: 1.2rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.mobile-close-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.05);
-}
-
-.mobile-close-btn:active {
-    transform: scale(0.95);
-}
-
-/* إخفاء الزر على الشاشات الكبيرة */
-@media (min-width: 768px) {
-    .mobile-close-btn {
-        display: none;
-    }
-}
+                
+                /* ===== استجابة للشاشات الصغيرة ===== */
+                @media (max-width: 768px) {
+                    .sidebar {
+                        width: 85%;
+                    }
+                }
             `}</style>
-        </aside>
+        </>
     );
 }
 

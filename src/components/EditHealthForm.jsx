@@ -16,14 +16,14 @@ import SleepTracker from './SleepTracker';
 import HabitTracker from './HabitTracker';
 import ActivityForm from './ActivityForm';
 import MoodTracker from './MoodTracker'; 
-import ProfileManager from './usermangment';  // ✅ تصحيح المسار - اسم الملف الصحيح
+import ProfileManager from './usermangment';
 import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
 import Notifications from './Notifications/Notifications';
 import Reports from './Reports';
 import AdvancedHealthInsights from './Analytics/AdvancedHealthInsights';
 
-// ✅ دالة عامة لتطبيق اللغة (مطابقة مع ProfileManager)
+// ✅ دالة عامة لتطبيق اللغة
 const applyLanguage = (lang) => {
     const isArabic = lang === 'ar';
     localStorage.setItem('app_lang', lang);
@@ -37,7 +37,7 @@ const applyLanguage = (lang) => {
 };
 
 function Dashboard({ onLogout }) {
-    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    // ✅ إعدادات اللغة
     const [lang, setLang] = useState(() => {
         const saved = localStorage.getItem('app_lang');
         return saved === 'en' ? 'en' : 'ar';
@@ -59,7 +59,7 @@ function Dashboard({ onLogout }) {
     const [activeSection, setActiveSection] = useState('health');
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [autoRefresh, setAutoRefresh] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isSidebarVisible, setIsSidebarVisible] = useState(false);
     
     const [darkMode, setDarkMode] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -78,12 +78,11 @@ function Dashboard({ onLogout }) {
         }
     }, []);
 
-    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
                 setLang(event.detail.lang);
-                // تحديث اتجاه الصفحة
                 document.documentElement.dir = event.detail.isArabic ? 'rtl' : 'ltr';
                 document.documentElement.lang = event.detail.isArabic ? 'ar' : 'en';
             }
@@ -215,7 +214,7 @@ function Dashboard({ onLogout }) {
         
         refreshIntervalRef.current = setInterval(() => {
             setRefreshKey(prev => prev + 1);
-        }, 60000); // كل 60 ثانية
+        }, 60000);
         
         return () => {
             if (refreshIntervalRef.current) {
@@ -266,12 +265,11 @@ function Dashboard({ onLogout }) {
         const newDarkMode = !darkMode;
         setDarkMode(newDarkMode);
         localStorage.setItem('livocare_darkMode', newDarkMode.toString());
-        // ✅ إرسال حدث تغيير الثيم لجميع المكونات
         window.dispatchEvent(new CustomEvent('themeChange', { detail: { darkMode: newDarkMode } }));
     };
 
     const toggleSidebar = () => {
-        setSidebarOpen(!sidebarOpen);
+        setIsSidebarVisible(!isSidebarVisible);
     };
 
     const handleManualRefresh = () => {
@@ -449,7 +447,6 @@ function Dashboard({ onLogout }) {
             case 'chat':
                 return <ChatInterface isAuthReady={isAuthReady} isArabic={isArabic}/>;
             case 'profile':
-                // ✅ ProfileManager يدير اللغة والثيم بنفسه
                 return <ProfileManager isAuthReady={isAuthReady} />;
             case 'smart':
                 return <SmartDashboard isArabic={isArabic} />;
@@ -491,13 +488,13 @@ function Dashboard({ onLogout }) {
     }
 
     return (
-        <div className="dashboard-layout">
+        <div className={`dashboard-layout ${isSidebarVisible ? 'sidebar-visible' : ''}`}>
             {/* شريط التحكم العلوي */}
             <div className="control-bar">
                 <div className="control-left">
-            <button className="menu-toggle" onClick={toggleSidebar} aria-label={isArabic ? 'القائمة' : 'Menu'}>
-                ☰   {/* ✅ أضف هذه الأيقونة */}
-            </button>
+                    <button className="menu-toggle" onClick={toggleSidebar} aria-label={isArabic ? 'القائمة' : 'Menu'}>
+                        ☰
+                    </button>
                     <div className="app-name">
                         <span className="logo">🫀</span>
                         <span>LivoCare</span>
@@ -509,7 +506,6 @@ function Dashboard({ onLogout }) {
                 </div>
                 
                 <div className="control-right">
-                    {/* ✅ زر تبديل الوضع المظلم */}
                     <button 
                         className="theme-toggle" 
                         onClick={toggleDarkMode} 
@@ -518,7 +514,6 @@ function Dashboard({ onLogout }) {
                         {darkMode ? '☀️' : '🌙'}
                     </button>
                     
-                    {/* ✅ زر تسجيل الخروج */}
                     <button className="logout-btn" onClick={onLogout} title={isArabic ? 'تسجيل خروج' : 'Logout'}>
                         <span className="logout-icon">🚪</span>
                         <span className="logout-text">{isArabic ? 'تسجيل خروج' : 'Logout'}</span>
@@ -526,31 +521,18 @@ function Dashboard({ onLogout }) {
                 </div>
             </div>
 
-            {/* السايدبار */}
-            <div className={`sidebar-wrapper ${sidebarOpen ? 'open' : ''}`}>
-                <Sidebar 
-                    activeSection={activeSection} 
-                    onSectionChange={(section) => {
-                        setActiveSection(section);
-                        if (window.innerWidth <= 768) {
-                            setSidebarOpen(false);
-                        }
-                    }}
-                    isArabic={isArabic}
-                    isOpen={sidebarOpen}
-                />
-            </div>
+            {/* السايدبار - يظهر فوق المحتوى */}
+            <Sidebar 
+                activeSection={activeSection} 
+                onSectionChange={(section) => {
+                    setActiveSection(section);
+                    if (window.innerWidth <= 768) {
+                        setIsSidebarVisible(false);
+                    }
+                }}
+                isArabic={isArabic}
+            />
             
-            {/* Overlay للجوال */}
-            {sidebarOpen && (
-                <div 
-                    className="sidebar-overlay" 
-                    onClick={toggleSidebar}
-                    role="button"
-                    aria-label={isArabic ? 'إغلاق القائمة' : 'Close menu'}
-                />
-            )}
-
             {/* المحتوى الرئيسي */}
             <main className="dashboard-content">
                 <div className="section-header">
@@ -600,7 +582,6 @@ function Dashboard({ onLogout }) {
                 </div>
             </main>
 
-            {/* ✅ أنماط CSS المضمنة المحسنة */}
             <style jsx>{`
                 /* ===========================================
                    التخطيط الرئيسي
@@ -639,7 +620,9 @@ function Dashboard({ onLogout }) {
                 }
 
                 .menu-toggle {
-                    display: none;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                     width: 42px;
                     height: 42px;
                     border: none;
@@ -650,6 +633,11 @@ function Dashboard({ onLogout }) {
                     cursor: pointer;
                     transition: all var(--transition-fast);
                     border: 1px solid var(--border-light);
+                }
+
+                .menu-toggle:hover {
+                    background: var(--hover-bg);
+                    transform: scale(1.05);
                 }
 
                 .menu-toggle:active {
@@ -735,49 +723,6 @@ function Dashboard({ onLogout }) {
                 }
 
                 /* ===========================================
-                   السايدبار
-                =========================================== */
-                .sidebar-wrapper {
-                    position: fixed;
-                    top: 70px;
-                    bottom: 0;
-                    width: 280px;
-                    z-index: 999;
-                    transition: transform var(--transition-medium);
-                }
-
-                [dir="ltr"] .sidebar-wrapper {
-                    left: 0;
-                    transform: translateX(-100%);
-                }
-
-                [dir="rtl"] .sidebar-wrapper {
-                    right: 0;
-                    transform: translateX(100%);
-                }
-
-                .sidebar-wrapper.open {
-                    transform: translateX(0);
-                }
-
-                .sidebar-overlay {
-                    position: fixed;
-                    top: 70px;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.5);
-                    z-index: 998;
-                    animation: fadeIn 0.3s ease;
-                    cursor: pointer;
-                }
-
-                @keyframes fadeIn {
-                    from { opacity: 0; visibility: hidden; }
-                    to { opacity: 1; visibility: visible; }
-                }
-
-                /* ===========================================
                    المحتوى الرئيسي
                 =========================================== */
                 .dashboard-content {
@@ -785,15 +730,7 @@ function Dashboard({ onLogout }) {
                     padding: var(--spacing-xl);
                     min-height: calc(100vh - 70px);
                     background: var(--primary-bg);
-                    transition: margin var(--transition-medium);
-                }
-
-                [dir="ltr"] .dashboard-content {
-                    margin-left: 0;
-                }
-
-                [dir="rtl"] .dashboard-content {
-                    margin-right: 0;
+                    transition: all var(--transition-medium);
                 }
 
                 /* ===========================================
@@ -1189,64 +1126,9 @@ function Dashboard({ onLogout }) {
                 }
 
                 /* ===========================================
-                   استجابة الشاشات الكبيرة
-                =========================================== */
-                @media (min-width: 1025px) {
-                    .sidebar-wrapper {
-                        transform: translateX(0) !important;
-                    }
-
-                    .menu-toggle {
-                        display: none !important;
-                    }
-
-                    [dir="ltr"] .dashboard-content {
-                        margin-left: 280px !important;
-                    }
-
-                    [dir="rtl"] .dashboard-content {
-                        margin-right: 280px !important;
-                    }
-                }
-
-                @media (min-width: 1400px) {
-                    .sidebar-wrapper {
-                        width: 320px;
-                    }
-
-                    [dir="ltr"] .dashboard-content {
-                        margin-left: 320px !important;
-                    }
-
-                    [dir="rtl"] .dashboard-content {
-                        margin-right: 320px !important;
-                    }
-
-                    .dashboard-content {
-                        padding: var(--spacing-xl) var(--spacing-2xl);
-                    }
-
-                    .section-title {
-                        font-size: 2rem;
-                    }
-                }
-
-                /* ===========================================
                    استجابة التابلت
                 =========================================== */
                 @media (min-width: 768px) and (max-width: 1024px) {
-                    .sidebar-wrapper {
-                        width: 260px;
-                    }
-
-                    [dir="ltr"] .dashboard-content {
-                        margin-left: 260px !important;
-                    }
-
-                    [dir="rtl"] .dashboard-content {
-                        margin-right: 260px !important;
-                    }
-
                     .dashboard-content {
                         padding: var(--spacing-lg);
                     }
@@ -1264,12 +1146,6 @@ function Dashboard({ onLogout }) {
                     .control-bar {
                         height: 60px;
                         padding: 0 var(--spacing-md);
-                    }
-
-                    .menu-toggle {
-                        display: flex !important;
-                        align-items: center;
-                        justify-content: center;
                     }
 
                     .app-name span:not(.logo) {
@@ -1374,29 +1250,12 @@ function Dashboard({ onLogout }) {
                         transition-duration: 0.01ms !important;
                     }
                     
-                    .sidebar-overlay {
-                        animation: none !important;
-                    }
-                    
                     .auto-refresh-status {
                         animation: none !important;
                     }
                     
                     .summary-card:hover {
                         transform: none !important;
-                    }
-                }
-
-                /* ===========================================
-                   دعم التباين العالي
-                =========================================== */
-                @media (prefers-contrast: high) {
-                    .summary-card {
-                        border-width: 2px;
-                    }
-                    
-                    .logout-btn {
-                        border-width: 2px;
                     }
                 }
             `}</style>

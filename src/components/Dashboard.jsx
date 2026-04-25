@@ -17,7 +17,7 @@ import SleepTracker from './SleepTracker';
 import HabitTracker from './HabitTracker';
 import ActivityForm from './ActivityForm';
 import MoodTracker from './MoodTracker'; 
-import ProfileManager from './usermangment';  // ✅ اسم الملف الصحيح
+import ProfileManager from './usermangment';
 import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
 import Notifications from './Notifications/Notifications';
@@ -31,7 +31,6 @@ const applyLanguage = (lang) => {
     document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
     document.documentElement.lang = isArabic ? 'ar' : 'en';
     
-    // ✅ إرسال حدث للتغيير
     const languageChangeEvent = new CustomEvent('languageChange', { 
         detail: { lang, isArabic } 
     });
@@ -48,12 +47,10 @@ function Dashboard({ onLogout }) {
     
     const navigate = useNavigate();
     
-    // مراجع لمنع التكرار
     const isMountedRef = useRef(true);
     const refreshIntervalRef = useRef(null);
     const isFetchingRef = useRef(false);
     
-    // حالات البيانات
     const [healthRecords, setHealthRecords] = useState([]);
     const [latestHealthData, setLatestHealthData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -62,9 +59,6 @@ function Dashboard({ onLogout }) {
     const [activeSection, setActiveSection] = useState('health');
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const closeSidebar = useCallback(() => {
-        setSidebarOpen(false);
-    }, []);
     
     // ✅ الوضع المظلم
     const [darkMode, setDarkMode] = useState(() => {
@@ -75,6 +69,19 @@ function Dashboard({ onLogout }) {
         }
         return false;
     });
+
+    // ✅ الاستماع لإغلاق السايدبار من المكون نفسه
+    useEffect(() => {
+        const handleCloseSidebar = () => {
+            setSidebarOpen(false);
+        };
+        
+        window.addEventListener('closeSidebar', handleCloseSidebar);
+        
+        return () => {
+            window.removeEventListener('closeSidebar', handleCloseSidebar);
+        };
+    }, []);
 
     // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
@@ -90,19 +97,7 @@ function Dashboard({ onLogout }) {
             window.removeEventListener('languageChange', handleLanguageChange);
         };
     }, [lang]);
-    useEffect(() => {
-    const handleCloseSidebarFromComponent = () => {
-        if (window.innerWidth <= 768) {
-            setSidebarOpen(false);
-        }
-    };
     
-    window.addEventListener('closeSidebar', handleCloseSidebarFromComponent);
-    
-    return () => {
-        window.removeEventListener('closeSidebar', handleCloseSidebarFromComponent);
-    };
-}, []);
     // ✅ تطبيق الوضع المظلم
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -116,7 +111,6 @@ function Dashboard({ onLogout }) {
             }
             localStorage.setItem('livocare_darkMode', darkMode.toString());
             
-            // ✅ إرسال حدث تغيير الثيم
             window.dispatchEvent(new CustomEvent('themeChange', { detail: { darkMode } }));
         }
     }, [darkMode]);
@@ -144,8 +138,6 @@ function Dashboard({ onLogout }) {
     
     // ✅ جلب البيانات الصحية
     const fetchHealthData = useCallback(async () => {
-        console.log('🔄 fetchHealthData called, refreshKey:', refreshKey);
-        
         if (!isAuthReady || !isMountedRef.current || isFetchingRef.current) return;
         
         isFetchingRef.current = true;
@@ -153,7 +145,6 @@ function Dashboard({ onLogout }) {
         
         try {
             const response = await axiosInstance.get('/health_status/');
-            console.log('📊 API Response:', response.data);
             
             if (!isMountedRef.current) return;
             
@@ -164,7 +155,6 @@ function Dashboard({ onLogout }) {
                 records = response.data;
             }
             
-            console.log('📊 Processed records:', records.length);
             setHealthRecords(records);
             
             if (records.length > 0) {
@@ -179,7 +169,6 @@ function Dashboard({ onLogout }) {
                     diastolic: latest.diastolic_pressure || null,
                     glucose: latest.glucose_mgdl || latest.blood_glucose || null,
                     recorded_at: latest.recorded_at || latest.created_at,
-                    date: latest.recorded_at ? new Date(latest.recorded_at).toLocaleDateString(isArabic ? 'ar-EG' : 'en-US') : null
                 });
             } else {
                 setLatestHealthData(null);
@@ -187,7 +176,7 @@ function Dashboard({ onLogout }) {
             
             setError(null);
         } catch (err) {
-            console.error('❌ Error fetching health data:', err);
+            console.error('Error fetching health data:', err);
             if (isMountedRef.current) {
                 setError(err.response?.data?.message || (isArabic ? 'حدث خطأ في جلب البيانات' : 'Error fetching data'));
             }
@@ -227,7 +216,6 @@ function Dashboard({ onLogout }) {
     
     // ✅ معالج تحديث البيانات
     const handleDataSubmitted = useCallback(() => {
-        console.log('🔄 Data submitted, refreshing dashboard...');
         setRefreshKey(prev => prev + 1);
     }, []);
     
@@ -253,14 +241,6 @@ function Dashboard({ onLogout }) {
         setDarkMode(prev => !prev);
     }, []);
     
-    // ✅ الحصول على تاريخ اليوم
-    const getTodayDate = useCallback(() => {
-        const today = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const locale = isArabic ? 'ar-EG' : 'en-US';
-        return today.toLocaleDateString(locale, options);
-    }, [isArabic]);
-    
     // ✅ تبديل السايدبار
     const toggleSidebar = useCallback(() => {
         setSidebarOpen(prev => !prev);
@@ -284,35 +264,33 @@ function Dashboard({ onLogout }) {
         return titles[sectionKey] || (isArabic ? '🏠 لوحة التحكم' : '🏠 Dashboard');
     }, [isArabic]);
     
+    // ✅ الحصول على تاريخ اليوم
+    const getTodayDate = useCallback(() => {
+        const today = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const locale = isArabic ? 'ar-EG' : 'en-US';
+        return today.toLocaleDateString(locale, options);
+    }, [isArabic]);
+    
     // ✅ عرض محتوى القسم المحدد
     const renderSectionContent = useCallback(() => {
-        // محتوى قسم الصحة
         const healthSectionContent = (
             <div className="health-section">
-                {/* بطاقات الملخص */}
                 <div className="summary-cards">
                     <div className="summary-header">
-                        <h3 className="summary-title">
-                            📊 {isArabic ? 'ملخص اليوم' : 'Daily Summary'}
-                        </h3>
+                        <h3 className="summary-title">📊 {isArabic ? 'ملخص اليوم' : 'Daily Summary'}</h3>
                         <span className="summary-date">{getTodayDate()}</span>
                     </div>
                     
                     <div className="summary-grid">
-                        {/* بطاقة الوزن */}
                         <div className="summary-card weight">
                             <div className="card-icon">⚖️</div>
                             <div className="card-content">
                                 <div className="card-label">{isArabic ? 'آخر وزن' : 'Last Weight'}</div>
                                 <div className="card-value">
-                                    {latestHealthData?.weight ? (
-                                        <>
-                                            {latestHealthData.weight}
-                                            <span className="card-unit">{isArabic ? 'كجم' : 'kg'}</span>
-                                        </>
-                                    ) : '—'}
+                                    {displayValue(latestHealthData?.weight, isArabic ? 'كجم' : 'kg')}
                                 </div>
-                                {latestHealthData?.recorded_at && (
+                                {latestHealthData?.recorded_at && latestHealthData?.weight && (
                                     <div className="card-time">
                                         🕐 {new Date(latestHealthData.recorded_at).toLocaleTimeString(
                                             isArabic ? 'ar-EG' : 'en-US',
@@ -323,7 +301,6 @@ function Dashboard({ onLogout }) {
                             </div>
                         </div>
                         
-                        {/* بطاقة ضغط الدم */}
                         <div className="summary-card blood-pressure">
                             <div className="card-icon">❤️</div>
                             <div className="card-content">
@@ -331,13 +308,10 @@ function Dashboard({ onLogout }) {
                                 <div className="card-value">
                                     {displayBloodPressure(latestHealthData?.systolic, latestHealthData?.diastolic)}
                                 </div>
-                                <div className="card-sub">
-                                    {isArabic ? 'انقباضي / انبساطي' : 'Systolic / Diastolic'}
-                                </div>
+                                <div className="card-sub">{isArabic ? 'انقباضي / انبساطي' : 'Systolic / Diastolic'}</div>
                             </div>
                         </div>
                         
-                        {/* بطاقة السكر */}
                         <div className="summary-card glucose">
                             <div className="card-icon">🩸</div>
                             <div className="card-content">
@@ -345,14 +319,11 @@ function Dashboard({ onLogout }) {
                                 <div className="card-value">
                                     {displayValue(latestHealthData?.glucose, 'mg/dL')}
                                 </div>
-                                <div className="card-sub">
-                                    {isArabic ? 'مستوى السكر' : 'Glucose Level'}
-                                </div>
+                                <div className="card-sub">{isArabic ? 'مستوى السكر' : 'Glucose Level'}</div>
                             </div>
                         </div>
                     </div>
                     
-                    {/* حالة عدم وجود بيانات */}
                     {!latestHealthData && healthRecords.length === 0 && (
                         <div className="empty-data-state">
                             <div className="empty-icon">📊</div>
@@ -371,7 +342,6 @@ function Dashboard({ onLogout }) {
                     )}
                 </div>
                 
-                {/* المكونات */}
                 <div className="health-components">
                     <div className="health-form-section">
                         <HealthForm onDataSubmitted={handleDataSubmitted} isArabic={isArabic} />
@@ -394,85 +364,21 @@ function Dashboard({ onLogout }) {
             </div>
         );
         
-        // اختيار القسم المناسب
         switch (activeSection) {
-            case 'health':
-                return healthSectionContent;
-            case 'nutrition':
-                return (
-                    <NutritionMain 
-                        onDataSubmitted={handleDataSubmitted} 
-                        isAuthReady={isAuthReady}
-                        isArabic={isArabic}
-                    />
-                );
-            case 'sleep':
-                return (
-                    <SleepTracker 
-                        onDataSubmitted={handleDataSubmitted} 
-                        isAuthReady={isAuthReady}
-                        isArabic={isArabic}
-                    />
-                );
-            case 'habits':
-                return (
-                    <HabitTracker 
-                        onDataSubmitted={handleDataSubmitted} 
-                        isAuthReady={isAuthReady}
-                        isArabic={isArabic}
-                    />
-                );
-            case 'activity':
-                return (
-                    <ActivityForm 
-                        onDataSubmitted={handleDataSubmitted} 
-                        isArabic={isArabic}
-                    />
-                );
-            case 'mood':
-                return (
-                    <MoodTracker 
-                        isAuthReady={isAuthReady}
-                        isArabic={isArabic}
-                    />
-                );
-            case 'chat':
-                return (
-                    <ChatInterface 
-                        isAuthReady={isAuthReady}
-                        isArabic={isArabic}
-                    />
-                );
-            case 'profile':
-                return (
-                    <ProfileManager 
-                        isAuthReady={isAuthReady}
-                    />
-                );
-            case 'smart':
-                return (
-                    <SmartDashboard 
-                        isArabic={isArabic}
-                    />
-                );
-            case 'notifications':
-                return (
-                    <Notifications 
-                        isAuthReady={isAuthReady}
-                        isArabic={isArabic}
-                    />
-                );
-            case 'reports':
-                return (
-                    <Reports 
-                        isAuthReady={isAuthReady}
-                        isArabic={isArabic}
-                    />
-                );
-            default:
-                return healthSectionContent;
+            case 'health': return healthSectionContent;
+            case 'nutrition': return <NutritionMain onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} isArabic={isArabic} />;
+            case 'sleep': return <SleepTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} isArabic={isArabic} />;
+            case 'habits': return <HabitTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} isArabic={isArabic} />;
+            case 'activity': return <ActivityForm onDataSubmitted={handleDataSubmitted} isArabic={isArabic} />;
+            case 'mood': return <MoodTracker isAuthReady={isAuthReady} isArabic={isArabic} />;
+            case 'chat': return <ChatInterface isAuthReady={isAuthReady} isArabic={isArabic} />;
+            case 'profile': return <ProfileManager isAuthReady={isAuthReady} />;
+            case 'smart': return <SmartDashboard isArabic={isArabic} />;
+            case 'notifications': return <Notifications isAuthReady={isAuthReady} isArabic={isArabic} />;
+            case 'reports': return <Reports isAuthReady={isAuthReady} isArabic={isArabic} />;
+            default: return healthSectionContent;
         }
-    }, [activeSection, isAuthReady, isArabic, refreshKey, handleDataSubmitted, getTodayDate, latestHealthData, healthRecords, displayBloodPressure, displayValue]);
+    }, [activeSection, isAuthReady, isArabic, refreshKey, handleDataSubmitted, getTodayDate, latestHealthData, healthRecords, displayValue, displayBloodPressure]);
     
     // ✅ حالة التحميل
     if (loading && healthRecords.length === 0) {
@@ -508,14 +414,13 @@ function Dashboard({ onLogout }) {
             {/* شريط التحكم العلوي */}
             <div className="control-bar">
                 <div className="control-left">
-            {/* ✅ زر القائمة - بدون تغيير شكله ولا يظهر ✕ */}
-            <button 
-                className="menu-toggle" 
-                onClick={toggleSidebar} 
-                aria-label={isArabic ? 'القائمة' : 'Menu'}
-            >
-                ☰   {/* ✅ دائماً ☰ فقط، وليس ✕ */}
-            </button>
+                    <button 
+                        className="menu-toggle" 
+                        onClick={toggleSidebar} 
+                        aria-label={isArabic ? 'القائمة' : 'Menu'}
+                    >
+                        ☰
+                    </button>
                     <div className="app-name">
                         <span className="logo">🫀</span>
                         <span>LivoCare</span>
@@ -523,46 +428,34 @@ function Dashboard({ onLogout }) {
                 </div>
                 
                 <div className="control-center">
-                    <div className="date-display">
-                        📅 {getTodayDate()}
-                    </div>
+                    <div className="date-display">📅 {getTodayDate()}</div>
                 </div>
                 
                 <div className="control-right">
-                    {/* ✅ زر تبديل الثيم */}
                     <button 
                         className="theme-toggle" 
                         onClick={toggleDarkMode} 
                         title={darkMode ? (isArabic ? '☀️ الوضع الفاتح' : '☀️ Light Mode') : (isArabic ? '🌙 الوضع المظلم' : '🌙 Dark Mode')}
-                        aria-label={darkMode ? (isArabic ? 'الوضع الفاتح' : 'Light Mode') : (isArabic ? 'الوضع المظلم' : 'Dark Mode')}
                     >
                         {darkMode ? '☀️' : '🌙'}
                     </button>
                     
-                    {/* ✅ زر تسجيل الخروج */}
-                    <button 
-                        className="logout-btn" 
-                        onClick={onLogout} 
-                        title={isArabic ? 'تسجيل خروج' : 'Logout'}
-                        aria-label={isArabic ? 'تسجيل خروج' : 'Logout'}
-                    >
+                    <button className="logout-btn" onClick={onLogout} title={isArabic ? 'تسجيل خروج' : 'Logout'}>
                         <span className="logout-icon">🚪</span>
                         <span className="logout-text">{isArabic ? 'تسجيل خروج' : 'Logout'}</span>
                     </button>
                 </div>
             </div>
 
-                <div className={`sidebar-wrapper ${sidebarOpen ? 'open' : ''}`}>
-                    <Sidebar 
-                        activeSection={activeSection} 
-                        onSectionChange={(section) => {
-                            setActiveSection(section);
-                            closeSidebar();
-                        }}
-                        isArabic={isArabic}
-                        isOpen={sidebarOpen}      // ✅ أضف هذا السطر
-                    />
-                </div>
+            {/* ✅ السايدبار - يظهر فوق المحتوى بشكل مستقل */}
+            <Sidebar 
+                activeSection={activeSection} 
+                onSectionChange={(section) => {
+                    setActiveSection(section);
+                    setSidebarOpen(false);
+                }}
+                isArabic={isArabic}
+            />
             
             {/* ✅ Overlay للجوال */}
             {sidebarOpen && (
@@ -580,7 +473,7 @@ function Dashboard({ onLogout }) {
                     <h1 className="section-title">{getSectionTitle(activeSection)}</h1>
                     {latestHealthData?.recorded_at && (
                         <div className="last-updated">
-                            🔄 {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(latestHealthData.recorded_at).toLocaleDateString(
+                            🕐 {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(latestHealthData.recorded_at).toLocaleDateString(
                                 isArabic ? 'ar-EG' : 'en-US'
                             )}
                         </div>
@@ -592,84 +485,244 @@ function Dashboard({ onLogout }) {
                 </div>
             </main>
             
-            {/* ✅ أنماط CSS المضمنة */}
             <style jsx>{`
                 /* ===========================================
-                   حالة التحميل
+                   التخطيط الرئيسي
                 =========================================== */
-                .dashboard-loading {
+                .dashboard-layout {
                     min-height: 100vh;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
                     background: var(--primary-bg, #f8fafc);
+                    transition: all 0.3s ease;
                 }
                 
-                .loading-spinner {
-                    text-align: center;
-                    padding: var(--spacing-2xl, 48px);
-                }
-                
-                .loading-spinner .spinner {
-                    width: 48px;
-                    height: 48px;
-                    margin: 0 auto var(--spacing-lg, 24px);
-                }
-                
-                .loading-spinner h2 {
-                    margin: 0 0 var(--spacing-sm, 8px);
-                    color: var(--text-primary, #0f172a);
-                }
-                
-                .loading-spinner p {
-                    color: var(--text-secondary, #475569);
+                .dark-mode .dashboard-layout {
+                    background: var(--primary-bg, #0f172a);
                 }
                 
                 /* ===========================================
-                   حالة الخطأ
+                   شريط التحكم العلوي
                 =========================================== */
-                .dashboard-error {
-                    min-height: 100vh;
+                .control-bar {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 70px;
+                    background: var(--card-bg, #ffffff);
+                    border-bottom: 1px solid var(--border-light, #e2e8f0);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 0 32px;
+                    z-index: 100;
+                    backdrop-filter: blur(10px);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                }
+                
+                .dark-mode .control-bar {
+                    background: var(--card-bg, #1e293b);
+                    border-color: var(--border-light, #334155);
+                }
+                
+                .control-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                }
+                
+                .app-name {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 1.3rem;
+                    font-weight: 700;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                }
+                
+                .app-name .logo {
+                    font-size: 1.5rem;
+                    -webkit-text-fill-color: initial;
+                }
+                
+                .menu-toggle {
+                    width: 42px;
+                    height: 42px;
+                    border: none;
+                    border-radius: 8px;
+                    background: var(--secondary-bg, #ffffff);
+                    color: var(--text-primary, #0f172a);
+                    font-size: 1.2rem;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
                     display: flex;
                     align-items: center;
                     justify-content: center;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                
+                .dark-mode .menu-toggle {
+                    background: var(--secondary-bg, #0f1420);
+                    border-color: var(--border-light, #334155);
+                }
+                
+                .menu-toggle:hover {
+                    background: rgba(99,102,241,0.08);
+                    transform: scale(1.05);
+                }
+                
+                .control-center {
+                    flex: 1;
+                    text-align: center;
+                }
+                
+                .date-display {
+                    display: inline-block;
+                    padding: 0.5rem 1rem;
+                    background: var(--secondary-bg, #ffffff);
+                    border-radius: 9999px;
+                    color: var(--text-secondary, #475569);
+                    font-size: 0.85rem;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                
+                .dark-mode .date-display {
+                    background: var(--secondary-bg, #0f1420);
+                    border-color: var(--border-light, #334155);
+                }
+                
+                .control-right {
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                }
+                
+                .theme-toggle {
+                    width: 42px;
+                    height: 42px;
+                    border: none;
+                    border-radius: 8px;
+                    background: var(--secondary-bg, #ffffff);
+                    color: var(--text-primary, #0f172a);
+                    font-size: 1.2rem;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                
+                .dark-mode .theme-toggle {
+                    background: var(--secondary-bg, #0f1420);
+                    border-color: var(--border-light, #334155);
+                }
+                
+                .theme-toggle:hover {
+                    background: rgba(99,102,241,0.08);
+                    transform: rotate(15deg);
+                }
+                
+                .logout-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 0.5rem 1rem;
+                    background: rgba(239, 68, 68, 0.1);
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                    border-radius: 9999px;
+                    cursor: pointer;
+                    transition: all 0.25s ease;
+                    color: #ef4444;
+                    font-weight: 500;
+                    font-size: 0.9rem;
+                }
+                
+                .logout-btn:hover {
+                    background: #ef4444;
+                    color: white;
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                }
+                
+                /* ===========================================
+                   Overlay للجوال
+                =========================================== */
+                .sidebar-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    z-index: 998;
+                    animation: fadeIn 0.3s ease;
+                    cursor: pointer;
+                }
+                
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                
+                /* ===========================================
+                   المحتوى الرئيسي
+                =========================================== */
+                .dashboard-content {
+                    margin-top: 70px;
+                    padding: 32px;
+                    min-height: calc(100vh - 70px);
                     background: var(--primary-bg, #f8fafc);
                 }
                 
-                .error-content {
-                    text-align: center;
-                    padding: var(--spacing-2xl, 48px);
-                    background: var(--card-bg, #ffffff);
-                    border-radius: var(--radius-xl, 20px);
-                    box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0,0,0,0.1));
-                    max-width: 400px;
-                    margin: var(--spacing-lg, 24px);
+                .dark-mode .dashboard-content {
+                    background: var(--primary-bg, #0f172a);
                 }
                 
-                .error-icon {
-                    font-size: 3rem;
-                    margin-bottom: var(--spacing-md, 16px);
+                /* ===========================================
+                   رأس القسم
+                =========================================== */
+                .section-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 16px;
+                    margin-bottom: 32px;
+                    padding-bottom: 16px;
+                    border-bottom: 2px solid var(--border-light, #e2e8f0);
                 }
                 
-                .error-content h2 {
-                    margin: 0 0 var(--spacing-lg, 24px);
-                    color: var(--error, #ef4444);
+                .dark-mode .section-header {
+                    border-color: var(--border-light, #334155);
                 }
                 
-                .retry-btn {
-                    padding: 0.75rem 1.5rem;
-                    background: var(--primary-gradient, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%));
-                    color: white;
-                    border: none;
-                    border-radius: var(--radius-md, 8px);
-                    font-size: 1rem;
-                    cursor: pointer;
-                    transition: all var(--transition-medium, 0.25s);
+                .section-title {
+                    margin: 0;
+                    color: var(--text-primary, #0f172a);
+                    font-size: clamp(1.3rem, 4vw, 1.8rem);
+                    font-weight: 700;
                 }
                 
-                .retry-btn:hover {
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1));
+                .dark-mode .section-title {
+                    color: var(--text-primary, #f1f5f9);
+                }
+                
+                .last-updated {
+                    padding: 0.5rem 1rem;
+                    background: var(--secondary-bg, #ffffff);
+                    border-radius: 9999px;
+                    font-size: 0.75rem;
+                    color: var(--text-secondary, #475569);
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                
+                .dark-mode .last-updated {
+                    background: var(--secondary-bg, #0f1420);
+                    border-color: var(--border-light, #334155);
+                    color: var(--text-secondary, #94a3b8);
                 }
                 
                 /* ===========================================
@@ -677,10 +730,10 @@ function Dashboard({ onLogout }) {
                 =========================================== */
                 .summary-cards {
                     background: var(--card-bg, #ffffff);
-                    border-radius: var(--radius-xl, 20px);
-                    padding: var(--spacing-lg, 24px);
-                    margin-bottom: var(--spacing-xl, 32px);
-                    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1));
+                    border-radius: 20px;
+                    padding: 24px;
+                    margin-bottom: 32px;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
                     border: 1px solid var(--border-light, #e2e8f0);
                 }
                 
@@ -694,10 +747,14 @@ function Dashboard({ onLogout }) {
                     justify-content: space-between;
                     align-items: center;
                     flex-wrap: wrap;
-                    gap: var(--spacing-md, 16px);
-                    margin-bottom: var(--spacing-lg, 24px);
-                    padding-bottom: var(--spacing-md, 16px);
+                    gap: 16px;
+                    margin-bottom: 24px;
+                    padding-bottom: 16px;
                     border-bottom: 2px solid var(--border-light, #e2e8f0);
+                }
+                
+                .dark-mode .summary-header {
+                    border-color: var(--border-light, #334155);
                 }
                 
                 .summary-title {
@@ -706,29 +763,38 @@ function Dashboard({ onLogout }) {
                     font-size: 1.2rem;
                 }
                 
+                .dark-mode .summary-title {
+                    color: var(--text-primary, #f1f5f9);
+                }
+                
                 .summary-date {
                     padding: 0.25rem 0.75rem;
                     background: var(--tertiary-bg, #f1f5f9);
-                    border-radius: var(--radius-full, 9999px);
+                    border-radius: 9999px;
                     font-size: 0.75rem;
                     color: var(--text-secondary, #475569);
+                }
+                
+                .dark-mode .summary-date {
+                    background: var(--tertiary-bg, #334155);
+                    color: var(--text-secondary, #94a3b8);
                 }
                 
                 .summary-grid {
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: var(--spacing-md, 16px);
+                    gap: 16px;
                 }
                 
                 .summary-card {
                     display: flex;
                     align-items: center;
-                    gap: var(--spacing-md, 16px);
-                    padding: var(--spacing-md, 16px);
+                    gap: 16px;
+                    padding: 16px;
                     background: var(--secondary-bg, #ffffff);
-                    border-radius: var(--radius-lg, 12px);
+                    border-radius: 12px;
                     border: 1px solid var(--border-light, #e2e8f0);
-                    transition: all var(--transition-medium, 0.25s);
+                    transition: all 0.25s ease;
                 }
                 
                 .dark-mode .summary-card {
@@ -738,7 +804,7 @@ function Dashboard({ onLogout }) {
                 
                 .summary-card:hover {
                     transform: translateY(-2px);
-                    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1));
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
                 }
                 
                 .summary-card .card-icon {
@@ -748,8 +814,8 @@ function Dashboard({ onLogout }) {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    background: var(--hover-bg, rgba(99,102,241,0.08));
-                    border-radius: var(--radius-md, 8px);
+                    background: rgba(99,102,241,0.08);
+                    border-radius: 8px;
                 }
                 
                 .summary-card.weight .card-icon { background: rgba(16, 185, 129, 0.1); }
@@ -774,6 +840,10 @@ function Dashboard({ onLogout }) {
                     line-height: 1.2;
                 }
                 
+                .dark-mode .summary-card .card-value {
+                    color: var(--text-primary, #f1f5f9);
+                }
+                
                 .summary-card .card-unit {
                     font-size: 0.8rem;
                     font-weight: normal;
@@ -793,251 +863,115 @@ function Dashboard({ onLogout }) {
                 }
                 
                 /* ===========================================
-                   حالة عدم وجود بيانات
-                =========================================== */
-                .empty-data-state {
-                    text-align: center;
-                    padding: var(--spacing-2xl, 48px);
-                    margin-top: var(--spacing-lg, 24px);
-                }
-                
-                .empty-data-state .empty-icon {
-                    font-size: 3rem;
-                    margin-bottom: var(--spacing-md, 16px);
-                    opacity: 0.5;
-                }
-                
-                .empty-data-state h4 {
-                    margin: 0 0 var(--spacing-sm, 8px);
-                    color: var(--text-primary, #0f172a);
-                }
-                
-                .empty-data-state p {
-                    color: var(--text-secondary, #475569);
-                    margin-bottom: var(--spacing-lg, 24px);
-                }
-                
-                .add-data-btn {
-                    padding: 0.75rem 1.5rem;
-                    background: var(--primary-gradient, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%));
-                    color: white;
-                    border: none;
-                    border-radius: var(--radius-full, 9999px);
-                    cursor: pointer;
-                    transition: all var(--transition-medium, 0.25s);
-                }
-                
-                .add-data-btn:hover {
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1));
-                }
-                
-                /* ===========================================
                    مكونات الصحة
                 =========================================== */
                 .health-components {
                     display: flex;
                     flex-direction: column;
-                    gap: var(--spacing-xl, 32px);
+                    gap: 32px;
                 }
                 
-                .analytics-section {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: var(--spacing-lg, 24px);
-                }
-                
+                .analytics-section,
                 .history-section {
                     display: grid;
                     grid-template-columns: repeat(2, 1fr);
-                    gap: var(--spacing-lg, 24px);
+                    gap: 24px;
                 }
                 
                 /* ===========================================
-                   رأس القسم
+                   حالة عدم وجود بيانات
                 =========================================== */
-                .section-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: var(--spacing-md, 16px);
-                    margin-bottom: var(--spacing-xl, 32px);
-                    padding-bottom: var(--spacing-md, 16px);
-                    border-bottom: 2px solid var(--border-light, #e2e8f0);
-                }
-                
-                .section-title {
-                    margin: 0;
-                    color: var(--text-primary, #0f172a);
-                    font-size: clamp(1.3rem, 4vw, 1.8rem);
-                    font-weight: 700;
-                }
-                
-                .last-updated {
-                    padding: 0.5rem 1rem;
-                    background: var(--secondary-bg, #ffffff);
-                    border-radius: var(--radius-full, 9999px);
-                    font-size: 0.75rem;
-                    color: var(--text-secondary, #475569);
-                    border: 1px solid var(--border-light, #e2e8f0);
-                }
-                
-                .dark-mode .last-updated {
-                    background: var(--secondary-bg, #0f1420);
-                    border-color: var(--border-light, #334155);
-                }
-                
-                /* ===========================================
-                   شريط التحكم
-                =========================================== */
-                .control-bar {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: var(--control-bar-height, 70px);
-                    background: var(--card-bg, #ffffff);
-                    border-bottom: 1px solid var(--border-light, #e2e8f0);
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 0 var(--spacing-xl, 32px);
-                    z-index: 100;
-                    backdrop-filter: blur(10px);
-                    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
-                }
-                
-                .dark-mode .control-bar {
-                    background: var(--card-bg, #1e293b);
-                    border-color: var(--border-light, #334155);
-                }
-                
-                .control-left {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-md, 16px);
-                }
-                
-                .app-name {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm, 8px);
-                    font-size: 1.3rem;
-                    font-weight: 700;
-                    background: var(--primary-gradient);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                }
-                
-                .app-name .logo {
-                    font-size: 1.5rem;
-                    -webkit-text-fill-color: initial;
-                }
-                
-                .menu-toggle {
-                    width: 42px;
-                    height: 42px;
-                    border: none;
-                    border-radius: var(--radius-md, 8px);
-                    background: var(--secondary-bg, #ffffff);
-                    color: var(--text-primary, #0f172a);
-                    font-size: 1.2rem;
-                    cursor: pointer;
-                    transition: all var(--transition-fast, 0.15s);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    border: 1px solid var(--border-light, #e2e8f0);
-                }
-                
-                .dark-mode .menu-toggle {
-                    background: var(--secondary-bg, #0f1420);
-                    border-color: var(--border-light, #334155);
-                }
-                
-                .menu-toggle:hover {
-                    background: var(--hover-bg, rgba(99,102,241,0.08));
-                    transform: scale(1.05);
-                }
-                
-                .control-center {
-                    flex: 1;
+                .empty-data-state {
                     text-align: center;
+                    padding: 48px;
+                    margin-top: 24px;
                 }
                 
-                .date-display {
-                    display: inline-block;
-                    padding: 0.5rem 1rem;
-                    background: var(--secondary-bg, #ffffff);
-                    border-radius: var(--radius-full, 9999px);
-                    color: var(--text-secondary, #475569);
-                    font-size: 0.85rem;
-                    border: 1px solid var(--border-light, #e2e8f0);
+                .empty-data-state .empty-icon {
+                    font-size: 3rem;
+                    margin-bottom: 16px;
+                    opacity: 0.5;
                 }
                 
-                .dark-mode .date-display {
-                    background: var(--secondary-bg, #0f1420);
-                    border-color: var(--border-light, #334155);
-                }
-                
-                .control-right {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-md, 16px);
-                }
-                
-                .theme-toggle {
-                    width: 42px;
-                    height: 42px;
-                    border: none;
-                    border-radius: var(--radius-md, 8px);
-                    background: var(--secondary-bg, #ffffff);
+                .empty-data-state h4 {
+                    margin: 0 0 8px;
                     color: var(--text-primary, #0f172a);
-                    font-size: 1.2rem;
+                }
+                
+                .empty-data-state p {
+                    color: var(--text-secondary, #475569);
+                    margin-bottom: 24px;
+                }
+                
+                .add-data-btn {
+                    padding: 0.75rem 1.5rem;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 9999px;
                     cursor: pointer;
-                    transition: all var(--transition-fast, 0.15s);
+                    transition: all 0.25s ease;
+                }
+                
+                .add-data-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                }
+                
+                /* ===========================================
+                   حالة التحميل والخطأ
+                =========================================== */
+                .dashboard-loading,
+                .dashboard-error {
+                    min-height: 100vh;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    border: 1px solid var(--border-light, #e2e8f0);
+                    background: var(--primary-bg, #f8fafc);
                 }
                 
-                .dark-mode .theme-toggle {
-                    background: var(--secondary-bg, #0f1420);
-                    border-color: var(--border-light, #334155);
+                .loading-spinner,
+                .error-content {
+                    text-align: center;
+                    padding: 48px;
+                    background: var(--card-bg, #ffffff);
+                    border-radius: 20px;
+                    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+                    max-width: 400px;
+                    margin: 24px;
                 }
                 
-                .theme-toggle:hover {
-                    background: var(--hover-bg, rgba(99,102,241,0.08));
-                    transform: rotate(15deg);
+                .loading-spinner .spinner {
+                    width: 48px;
+                    height: 48px;
+                    margin: 0 auto 24px;
+                    border: 3px solid var(--border-light, #e2e8f0);
+                    border-top-color: #6366f1;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
                 }
                 
-                .logout-btn {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm, 8px);
-                    padding: 0.5rem 1rem;
-                    background: rgba(239, 68, 68, 0.1);
-                    border: 1px solid rgba(239, 68, 68, 0.3);
-                    border-radius: var(--radius-full, 9999px);
-                    cursor: pointer;
-                    transition: all var(--transition-medium, 0.25s);
-                    color: var(--error, #ef4444);
-                    font-weight: 500;
-                    font-size: 0.9rem;
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
                 }
                 
-                .logout-btn:hover {
-                    background: var(--error, #ef4444);
+                .error-icon {
+                    font-size: 3rem;
+                    margin-bottom: 16px;
+                }
+                
+                .error-content h2 {
+                    margin: 0 0 24px;
+                    color: #ef4444;
+                }
+                
+                .retry-btn {
+                    padding: 0.75rem 1.5rem;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
                     color: white;
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1));
-                }
-                
-                .logout-btn:active {
-                    transform: scale(0.96);
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
                 }
                 
                 /* ===========================================
@@ -1052,8 +986,13 @@ function Dashboard({ onLogout }) {
                 
                 @media (max-width: 768px) {
                     .control-bar {
-                        padding: 0 var(--spacing-md, 16px);
+                        padding: 0 16px;
                         height: 60px;
+                    }
+                    
+                    .dashboard-content {
+                        margin-top: 60px;
+                        padding: 16px;
                     }
                     
                     .app-name span:not(.logo) {
@@ -1061,170 +1000,4 @@ function Dashboard({ onLogout }) {
                     }
                     
                     .date-display {
-                        display: none;
-                    }
-                    
-                    .logout-text {
-                        display: none;
-                    }
-                    
-                    .logout-btn {
-                        padding: var(--spacing-sm, 8px);
-                    }
-                    
-                    .summary-grid {
-                        grid-template-columns: 1fr;
-                    }
-                    
-                    .section-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-                }
-                
-                @media (max-width: 480px) {
-                    .control-left {
-                        gap: var(--spacing-sm, 8px);
-                    }
-                    
-                    .menu-toggle,
-                    .theme-toggle {
-                        width: 38px;
-                        height: 38px;
-                    }
-                    
-                    .summary-card {
-                        padding: var(--spacing-sm, 8px);
-                    }
-                    
-                    .summary-card .card-icon {
-                        width: 40px;
-                        height: 40px;
-                        font-size: 1.5rem;
-                    }
-                    
-                    .summary-card .card-value {
-                        font-size: 1.2rem;
-                    }
-                }
-                
-                /* ===========================================
-                   دعم RTL
-                =========================================== */
-                [dir="rtl"] .control-left {
-                    flex-direction: row-reverse;
-                }
-                
-                [dir="rtl"] .control-right {
-                    flex-direction: row-reverse;
-                }
-                
-                [dir="rtl"] .summary-card {
-                    flex-direction: row-reverse;
-                }
-                
-                /* ===========================================
-                   دعم الحركة المخفضة
-                =========================================== */
-                @media (prefers-reduced-motion: reduce) {
-                    *,
-                    *::before,
-                    *::after {
-                        animation-duration: 0.01ms !important;
-                        transition-duration: 0.01ms !important;
-                    }
-                    
-                    .summary-card:hover,
-                    .logout-btn:hover,
-                    .theme-toggle:hover {
-                        transform: none !important;
-                    }
-                }
-                 /* ===========================================
-                تحسينات السايدبار - بدون زر إغلاق
-                =========================================== */
-
-                /* السايدبار نفسه */
-                .sidebar-wrapper {
-                    position: fixed;
-                    top: var(--control-bar-height, 70px);
-                    right: -300px;
-                    width: 280px;
-                    height: calc(100% - var(--control-bar-height, 70px));
-                    z-index: 1000;
-                    transition: right 0.3s ease-in-out;
-                    overflow-y: auto;
-                }
-
-                .sidebar-wrapper.open {
-                    right: 0;
-                }
-
-                /* Overlay للجوال */
-                .sidebar-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.5);
-                    z-index: 999;
-                    animation: fadeIn 0.3s ease;
-                }
-
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-
-                /* تحسين للشاشات الصغيرة */
-                @media (max-width: 768px) {
-                    .sidebar-wrapper {
-                        top: 60px;
-                        width: 85%;
-                        right: -85%;
-                        height: calc(100% - 60px);
-                    }
-                    
-                    .sidebar-wrapper.open {
-                        right: 0;
-                    }
-                }
-
-                /* دعم RTL */
-                [dir="rtl"] .sidebar-wrapper {
-                    right: auto;
-                    left: -300px;
-                }
-
-                [dir="rtl"] .sidebar-wrapper.open {
-                    left: 0;
-                    right: auto;
-                }
-
-                @media (max-width: 768px) {
-                    [dir="rtl"] .sidebar-wrapper {
-                        left: -85%;
-                        right: auto;
-                    }
-                    
-                    [dir="rtl"] .sidebar-wrapper.open {
-                        left: 0;
-                        right: auto;
-                    }
-                }
-
-                /* تقليل الحركة للمستخدمين الذين يفضلون ذلك */
-                @media (prefers-reduced-motion: reduce) {
-                    .sidebar-wrapper,
-                    .sidebar-overlay {
-                        transition: none;
-                        animation: none;
-                    }
-                }
-            `}</style>
-        </div>
-    );
-}
-
-export default Dashboard;
+                        display
