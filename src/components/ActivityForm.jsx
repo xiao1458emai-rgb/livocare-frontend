@@ -160,7 +160,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     setSensorStatus('connected');
                     setSensorError(null);
                     
-                    // تحذيرات النبض
                     if (data > 100) {
                         addSensorAlert(isArabic ? `⚠️ نبض مرتفع: ${data} BPM` : `⚠️ High heart rate: ${data} BPM`, 'error');
                     } else if (data < 60 && data > 0) {
@@ -176,7 +175,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     setSensorStatus('connected');
                     setSensorError(null);
                     
-                    // تحذيرات الأكسجين
                     if (data < 90 && data > 0) {
                         addSensorAlert(isArabic ? `⚠️ أكسجين منخفض: ${data}%` : `⚠️ Low oxygen: ${data}%`, 'error');
                     }
@@ -604,8 +602,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
     const [messageType, setMessageType] = useState('success');
     
     return (
-        <div className="analytics-container">
-            {/* ✅ قسم ESP32 Monitor - مصمم بشكل احترافي */}
+        <div className="activity-form-wrapper">
+            {/* ✅ قسم ESP32 Monitor */}
             <div className={`sensor-section ${sensorStatus === 'connected' ? 'connected' : ''}`}>
                 <div className="sensor-header">
                     <div className="sensor-title">
@@ -619,29 +617,28 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                         </div>
                     </div>
                     
-                        {!sensorActive ? (
-                            <button 
-                                onClick={connectSensor} 
-                                disabled={sensorConnecting} 
-                                className="type-btn active" 
-                                style={{ background: 'var(--success)', color: 'white' }}
-                            >
-                                {sensorConnecting ? (
-                                    <>
-                                        <span className="spinner-small"></span>
-                                        {isArabic ? 'جاري الاتصال...' : 'Connecting...'}
-                                    </>
-                                ) : (
-                                    <>
-                                        🔌 {isArabic ? 'اتصال ESP32' : 'Connect ESP32'}
-                                    </>
-                                )}
-                            </button>
-                        ) : (
-                            <button onClick={disconnectSensor} className="type-btn" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
-                                🔌 {isArabic ? 'قطع الاتصال' : 'Disconnect'}
-                            </button>
-                        )}
+                    {!sensorActive ? (
+                        <button 
+                            onClick={connectSensor} 
+                            disabled={sensorConnecting} 
+                            className="connect-sensor-btn"
+                        >
+                            {sensorConnecting ? (
+                                <>
+                                    <span className="spinner-small"></span>
+                                    {isArabic ? 'جاري الاتصال...' : 'Connecting...'}
+                                </>
+                            ) : (
+                                <>
+                                    🔌 {isArabic ? 'اتصال ESP32' : 'Connect ESP32'}
+                                </>
+                            )}
+                        </button>
+                    ) : (
+                        <button onClick={disconnectSensor} className="disconnect-sensor-btn">
+                            🔌 {isArabic ? 'قطع الاتصال' : 'Disconnect'}
+                        </button>
+                    )}
                 </div>
                 
                 {sensorStatus === 'connecting' && (
@@ -658,7 +655,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                                 <div className="stat-icon">❤️</div>
                                 <div className="stat-details">
                                     <div className="stat-value">
-                                        {sensorHeartRate || '---'} 
+                                        {safeValue(sensorHeartRate, '---')} 
                                         <span className="stat-unit">BPM</span>
                                     </div>
                                     <div className="stat-status">
@@ -674,7 +671,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                                 <div className="stat-icon">💨</div>
                                 <div className="stat-details">
                                     <div className="stat-value">
-                                        {sensorSpO2 || '---'} 
+                                        {safeValue(sensorSpO2, '---')} 
                                         <span className="stat-unit">SpO₂%</span>
                                     </div>
                                     <div className="stat-status">
@@ -693,7 +690,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                         )}
                         
                         <div className="sensor-actions">
-                            <button onClick={requestMeasurement} disabled={loading} className="sensor-action-btn">
+                            <button onClick={requestMeasurement} disabled={loading} className="sensor-action-btn measure">
                                 📊 {isArabic ? 'طلب قياس' : 'Request Measurement'}
                             </button>
                             <button onClick={addSensorDataAsHealthRecord} disabled={loading || (!sensorHeartRate && !sensorSpO2)} className="sensor-action-btn health">
@@ -740,40 +737,27 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     )}
                 </div>
                 
-                <p className="activity-form-desc">
-                    {isEditing 
-                        ? (isArabic ? 'قم بتعديل بيانات النشاط الرياضي' : 'Edit your physical activity details')
-                        : (isArabic ? 'أضف نشاطك الرياضي لتتبع تقدمك' : 'Add your physical activity to track your progress')}
-                </p>
-                
                 <form onSubmit={handleSubmit} className="activity-form">
-                    <div className="form-row">
-                        <div className="form-field">
-                            <label className="form-label">{isArabic ? 'نوع النشاط' : 'Activity Type'}</label>
-                            <select 
-                                name="activity_type" 
-                                value={formData.activity_type} 
-                                onChange={handleChange} 
-                                required 
-                                className="form-select"
-                            >
-                                <option value="">{isArabic ? 'اختر نوع النشاط' : 'Select activity type'}</option>
-                                {getActivityOptions().map(opt => (
-                                    <option key={opt.value} value={opt.value}>
-                                        {opt.icon} {opt.label}
-                                    </option>
-                                ))}
-                            </select>
-                            {formData.activity_type && (
-                                <small className="form-hint">
-                                    {getActivityOptions().find(o => o.value === formData.activity_type)?.description}
-                                </small>
-                            )}
-                        </div>
+                    <div className="form-group">
+                        <label className="form-label">{isArabic ? 'نوع النشاط' : 'Activity Type'}</label>
+                        <select 
+                            name="activity_type" 
+                            value={formData.activity_type} 
+                            onChange={handleChange} 
+                            required 
+                            className="form-select"
+                        >
+                            <option value="">{isArabic ? 'اختر نوع النشاط' : 'Select activity type'}</option>
+                            {getActivityOptions().map(opt => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.icon} {opt.label}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     
-                    <div className="form-row two-cols">
-                        <div className="form-field">
+                    <div className="form-row">
+                        <div className="form-group">
                             <label className="form-label">{isArabic ? 'المدة (دقائق)' : 'Duration (minutes)'}</label>
                             <input 
                                 type="number" 
@@ -786,10 +770,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                                 placeholder={isArabic ? 'مثال: 30' : 'e.g., 30'}
                                 className="form-input"
                             />
-                            <small className="form-hint">{isArabic ? 'أدخل المدة بالدقائق (1-180)' : 'Enter duration in minutes (1-180)'}</small>
                         </div>
                         
-                        <div className="form-field">
+                        <div className="form-group">
                             <label className="form-label">{isArabic ? 'وقت البداية' : 'Start Time'}</label>
                             <input 
                                 type="datetime-local" 
@@ -815,22 +798,20 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                         </div>
                     )}
                     
-                    <div className="form-row">
-                        <div className="form-field">
-                            <label className="form-label">{isArabic ? 'ملاحظات (اختياري)' : 'Notes (Optional)'}</label>
-                            <textarea 
-                                name="notes" 
-                                value={formData.notes} 
-                                onChange={handleChange} 
-                                rows="3" 
-                                placeholder={isArabic ? 'أضف أي ملاحظات إضافية عن النشاط...' : 'Add any additional notes about the activity...'} 
-                                className="form-textarea"
-                            />
-                        </div>
+                    <div className="form-group">
+                        <label className="form-label">{isArabic ? 'ملاحظات (اختياري)' : 'Notes (Optional)'}</label>
+                        <textarea 
+                            name="notes" 
+                            value={formData.notes} 
+                            onChange={handleChange} 
+                            rows="3" 
+                            placeholder={isArabic ? 'أضف أي ملاحظات إضافية عن النشاط...' : 'Add any additional notes about the activity...'} 
+                            className="form-textarea"
+                        />
                     </div>
                     
                     {(error || message) && (
-                        <div className={`form-message ${messageType === 'error' ? 'error' : messageType === 'success' ? 'success' : 'info'}`}>
+                        <div className={`form-message ${messageType}`}>
                             {messageType === 'error' ? '❌' : messageType === 'success' ? '✅' : 'ℹ️'} {error || message}
                         </div>
                     )}
@@ -843,11 +824,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                                 <>{isEditing ? (isArabic ? '💾 تحديث' : '💾 Update') : (isArabic ? '💾 حفظ' : '💾 Save')}</>
                             )}
                         </button>
-                        {isEditing && (
-                            <button type="button" onClick={cancelEdit} className="cancel-btn">
-                                ✖ {isArabic ? 'إلغاء' : 'Cancel'}
-                            </button>
-                        )}
                     </div>
                 </form>
             </div>
@@ -858,12 +834,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     <h3 className="activities-title">
                         📋 {isArabic ? 'سجل الأنشطة' : 'Activity History'}
                     </h3>
-                    <div className="activities-stats">
-                        <span className="activities-count">{activities.length} {isArabic ? 'نشاط' : 'activities'}</span>
-                        <button onClick={fetchActivities} className="refresh-activities-btn" disabled={fetching || loading}>
-                            {fetching ? '⏳' : '🔄'}
-                        </button>
-                    </div>
+                    <button onClick={fetchActivities} className="refresh-activities-btn" disabled={fetching || loading}>
+                        {fetching ? '⏳' : '🔄'}
+                    </button>
                 </div>
                 
                 {fetching ? (
@@ -941,487 +914,590 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 )}
             </div>
             
-            {/* ✅ أنماط CSS المضمنة */}
             <style jsx>{`
-/* ===========================================
-   ActivityForm.css - أنماط موحدة
-   =========================================== */
-
-/* قسم المستشعر */
-.sensor-section {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    border-radius: 20px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    transition: all 0.25s;
-}
-
-.sensor-section.connected {
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
-}
-
-.sensor-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-}
-
-.sensor-title {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.sensor-icon-wrapper {
-    position: relative;
-}
-
-.sensor-icon {
-    font-size: 2.5rem;
-}
-
-.sensor-status-dot {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 12px;
-    height: 12px;
-    background: #10b981;
-    border-radius: 50%;
-    animation: pulse 1.5s infinite;
-    border: 2px solid white;
-}
-
-.sensor-heading {
-    margin: 0;
-    color: white;
-    font-size: 1.25rem;
-}
-
-.sensor-subtitle {
-    margin: 4px 0 0;
-    color: rgba(255,255,255,0.7);
-    font-size: 0.75rem;
-}
-
-.sensor-stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.sensor-stat {
-    background: rgba(255,255,255,0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    padding: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.sensor-stat .stat-icon {
-    font-size: 2rem;
-}
-
-.stat-details {
-    flex: 1;
-}
-
-.stat-value {
-    font-size: 1.8rem;
-    font-weight: bold;
-    color: white;
-}
-
-.stat-unit {
-    font-size: 0.85rem;
-    font-weight: normal;
-    opacity: 0.8;
-}
-
-.stat-status {
-    font-size: 0.7rem;
-    margin-top: 4px;
-}
-
-.status-high { color: #f87171; }
-.status-low { color: #fbbf24; }
-.status-normal { color: #34d399; }
-.status-waiting { color: #94a3b8; }
-
-.sensor-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.sensor-action-btn {
-    padding: 0.5rem 1rem;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 8px;
-    color: white;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.sensor-action-btn:hover:not(:disabled) {
-    background: rgba(255,255,255,0.2);
-    transform: translateY(-2px);
-}
-
-.sensor-action-btn.health:hover {
-    background: #10b981;
-    border-color: #10b981;
-}
-
-.sensor-action-btn.activity:hover {
-    background: #6366f1;
-    border-color: #6366f1;
-}
-
-/* ===========================================
-   استجابة الهواتف لقسم المستشعر
-   =========================================== */
-@media (max-width: 768px) {
-    .sensor-section {
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .sensor-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .sensor-stats {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-    }
-    
-    .sensor-actions {
-        flex-direction: column;
-    }
-    
-    .sensor-action-btn {
-        width: 100%;
-        text-align: center;
-    }
-    
-    .sensor-stat {
-        padding: 0.75rem;
-    }
-    
-    .stat-value {
-        font-size: 1.3rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .sensor-section {
-        padding: 0.75rem;
-    }
-    
-    .sensor-icon {
-        font-size: 1.8rem;
-    }
-    
-    .sensor-heading {
-        font-size: 1rem;
-    }
-    
-    .stat-value {
-        font-size: 1.1rem;
-    }
-}
-
-/* ===========================================
-   نموذج النشاط
-   =========================================== */
-.activity-form-card {
-    background: var(--card-bg);
-    border-radius: 20px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
-}
-
-.activity-form-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.activity-form-title {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.2rem;
-}
-
-.activity-form-desc {
-    margin: 0 0 1.5rem 0;
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.form-row.two-cols {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.calories-card {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border-radius: 12px;
-    margin-bottom: 1rem;
-}
-
-.calories-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #d97706;
-}
-
-.form-actions {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1rem;
-}
-
-.submit-btn {
-    flex: 2;
-    padding: 0.75rem;
-    background: var(--primary-gradient);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.cancel-btn {
-    flex: 1;
-    padding: 0.75rem;
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-/* استجابة الهاتف لنموذج النشاط */
-@media (max-width: 768px) {
-    .activity-form-card {
-        padding: 1rem;
-    }
-    
-    .form-row.two-cols {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-    }
-    
-    .form-actions {
-        flex-direction: column;
-    }
-    
-    .submit-btn,
-    .cancel-btn {
-        width: 100%;
-    }
-    
-    .calories-value {
-        font-size: 1.2rem;
-    }
-}
-
-/* ===========================================
-   قائمة الأنشطة
-   =========================================== */
-.activities-list-card {
-    background: var(--card-bg);
-    border-radius: 20px;
-    padding: 1.5rem;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
-}
-
-.activities-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--border-light);
-}
-
-.activities-title {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.1rem;
-}
-
-.activities-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.activity-item {
-    background: var(--secondary-bg);
-    border-radius: 12px;
-    padding: 1rem;
-    border: 1px solid var(--border-light);
-}
-
-.activity-item-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.activity-name {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.activity-item-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
-
-.activity-notes {
-    margin-top: 0.5rem;
-    padding: 0.5rem;
-    background: var(--tertiary-bg);
-    border-radius: 8px;
-    font-size: 0.75rem;
-}
-
-.edit-activity-btn,
-.delete-activity-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 6px;
-}
-
-.edit-activity-btn:hover {
-    background: rgba(59, 130, 246, 0.1);
-}
-
-.delete-activity-btn:hover {
-    background: rgba(239, 68, 68, 0.1);
-}
-
-/* استجابة الهاتف لقائمة الأنشطة */
-@media (max-width: 768px) {
-    .activities-list-card {
-        padding: 1rem;
-    }
-    
-    .activity-item-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .activity-item-details {
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-}
-
-/* ===========================================
-   أنيميشن
-   =========================================== */
-@keyframes pulse {
-    0% { transform: scale(0.95); opacity: 1; }
-    100% { transform: scale(1.5); opacity: 0; }
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-    /* ===========================================
-   تخطيط الصفحة - محاذاة مع السايدبار
-   =========================================== */
-
-/* الحاوية الرئيسية لتخطيط الصفحة */
-.page-layout {
-    display: flex;
-    min-height: 100vh;
-    width: 100%;
-}
-
-/* منطقة المحتوى الرئيسي - تأخذ المساحة المتبقية */
-.main-content-area {
-    flex: 1;
-    min-width: 0; /* يمنع overflow */
-    padding: var(--spacing-lg, 1.5rem);
-    margin-left: 0;
-    transition: all 0.3s ease;
-}
-
-/* عندما يكون هناك سايدبار على اليسار */
-.has-sidebar .main-content-area {
-    margin-left: 0;
-}
-
-/* عندما يكون هناك سايدبار على اليمين (في وضع RTL) */
-[dir="rtl"] .has-sidebar .main-content-area {
-    margin-right: 0;
-}
-
-/* ✅ جعل جميع محتويات ActivityForm محاذاة لليسار */
-.analytics-container {
-    max-width: 100%;
-    margin: 0;
-    padding: 0;
-    text-align: left;
-}
-
-/* تأكيد المحاذاة لليسار لجميع العناصر */
-.analytics-container * {
-    text-align: left;
-}
-
-/* في وضع RTL، نحتاج لعكس المحاذاة */
-[dir="rtl"] .analytics-container,
-[dir="rtl"] .analytics-container * {
-    text-align: right;
-}
-
-
+                .activity-form-wrapper {
+                    width: 100%;
+                    max-width: 100%;
+                }
+                
+                /* ===========================================
+                   قسم المستشعر
+                =========================================== */
+                .sensor-section {
+                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                    border-radius: 20px;
+                    padding: 1.5rem;
+                    margin-bottom: 2rem;
+                    transition: all 0.25s;
+                }
+                
+                .sensor-section.connected {
+                    box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+                }
+                
+                .sensor-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                }
+                
+                .sensor-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                }
+                
+                .sensor-icon-wrapper {
+                    position: relative;
+                }
+                
+                .sensor-icon {
+                    font-size: 2.5rem;
+                }
+                
+                .sensor-status-dot {
+                    position: absolute;
+                    bottom: 0;
+                    right: 0;
+                    width: 12px;
+                    height: 12px;
+                    background: #10b981;
+                    border-radius: 50%;
+                    animation: pulse 1.5s infinite;
+                    border: 2px solid white;
+                }
+                
+                .sensor-heading {
+                    margin: 0;
+                    color: white;
+                    font-size: 1.25rem;
+                }
+                
+                .sensor-subtitle {
+                    margin: 4px 0 0;
+                    color: rgba(255,255,255,0.7);
+                    font-size: 0.75rem;
+                }
+                
+                .connect-sensor-btn,
+                .disconnect-sensor-btn {
+                    padding: 0.5rem 1rem;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    transition: all 0.15s;
+                }
+                
+                .connect-sensor-btn {
+                    background: #10b981;
+                    color: white;
+                }
+                
+                .connect-sensor-btn:hover:not(:disabled) {
+                    background: #059669;
+                    transform: translateY(-2px);
+                }
+                
+                .disconnect-sensor-btn {
+                    background: rgba(239, 68, 68, 0.2);
+                    color: #ef4444;
+                }
+                
+                .disconnect-sensor-btn:hover {
+                    background: rgba(239, 68, 68, 0.3);
+                }
+                
+                .sensor-stats {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                }
+                
+                .sensor-stat {
+                    background: rgba(255,255,255,0.1);
+                    backdrop-filter: blur(10px);
+                    border-radius: 12px;
+                    padding: 1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                }
+                
+                .sensor-stat .stat-icon {
+                    font-size: 2rem;
+                }
+                
+                .stat-details {
+                    flex: 1;
+                }
+                
+                .stat-value {
+                    font-size: 1.8rem;
+                    font-weight: bold;
+                    color: white;
+                }
+                
+                .stat-unit {
+                    font-size: 0.85rem;
+                    font-weight: normal;
+                    opacity: 0.8;
+                }
+                
+                .stat-status {
+                    font-size: 0.7rem;
+                    margin-top: 4px;
+                }
+                
+                .status-high { color: #f87171; }
+                .status-low { color: #fbbf24; }
+                .status-normal { color: #34d399; }
+                .status-waiting { color: #94a3b8; }
+                
+                .sensor-timestamp {
+                    text-align: center;
+                    color: rgba(255,255,255,0.6);
+                    font-size: 0.7rem;
+                    margin-bottom: 1rem;
+                }
+                
+                .sensor-actions {
+                    display: flex;
+                    gap: 0.5rem;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                }
+                
+                .sensor-action-btn {
+                    padding: 0.5rem 1rem;
+                    background: rgba(255,255,255,0.1);
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 8px;
+                    color: white;
+                    font-size: 0.8rem;
+                    cursor: pointer;
+                    transition: all 0.15s;
+                }
+                
+                .sensor-action-btn:hover:not(:disabled) {
+                    background: rgba(255,255,255,0.2);
+                    transform: translateY(-2px);
+                }
+                
+                .sensor-action-btn.health:hover {
+                    background: #10b981;
+                    border-color: #10b981;
+                }
+                
+                .sensor-action-btn.activity:hover {
+                    background: #6366f1;
+                    border-color: #6366f1;
+                }
+                
+                .sensor-alerts {
+                    margin-top: 1rem;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+                
+                .sensor-alert {
+                    padding: 0.5rem;
+                    border-radius: 8px;
+                    font-size: 0.8rem;
+                }
+                
+                .sensor-alert.error {
+                    background: rgba(239, 68, 68, 0.2);
+                    color: #f87171;
+                }
+                
+                .sensor-alert.warning {
+                    background: rgba(245, 158, 11, 0.2);
+                    color: #fbbf24;
+                }
+                
+                .sensor-error {
+                    margin-top: 1rem;
+                    padding: 0.5rem;
+                    background: rgba(239, 68, 68, 0.2);
+                    border-radius: 8px;
+                    color: #f87171;
+                    text-align: center;
+                }
+                
+                /* ===========================================
+                   نموذج النشاط
+                =========================================== */
+                .activity-form-card {
+                    background: var(--card-bg, #ffffff);
+                    border-radius: 20px;
+                    padding: 1.5rem;
+                    margin-bottom: 1.5rem;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                
+                .dark-mode .activity-form-card {
+                    background: var(--card-bg, #1e293b);
+                    border-color: var(--border-light, #334155);
+                }
+                
+                .activity-form-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid var(--border-light, #e2e8f0);
+                }
+                
+                .activity-form-title {
+                    margin: 0;
+                    color: var(--text-primary, #0f172a);
+                    font-size: 1.2rem;
+                }
+                
+                .cancel-edit-btn {
+                    padding: 0.25rem 0.75rem;
+                    background: rgba(239, 68, 68, 0.1);
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                    border-radius: 8px;
+                    color: #ef4444;
+                    cursor: pointer;
+                }
+                
+                .form-row {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 1rem;
+                    margin-bottom: 1rem;
+                }
+                
+                .form-group {
+                    margin-bottom: 1rem;
+                }
+                
+                .form-label {
+                    display: block;
+                    margin-bottom: 0.5rem;
+                    font-weight: 500;
+                    color: var(--text-primary, #0f172a);
+                }
+                
+                .form-select,
+                .form-input,
+                .form-textarea {
+                    width: 100%;
+                    padding: 0.5rem 0.75rem;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                    border-radius: 8px;
+                    background: var(--input-bg, #ffffff);
+                    color: var(--text-primary, #0f172a);
+                }
+                
+                .calories-card {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    padding: 1rem;
+                    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                    border-radius: 12px;
+                    margin-bottom: 1rem;
+                }
+                
+                .calories-icon {
+                    font-size: 2rem;
+                }
+                
+                .calories-details {
+                    flex: 1;
+                }
+                
+                .calories-label {
+                    font-size: 0.8rem;
+                    color: #92400e;
+                }
+                
+                .calories-value {
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                    color: #d97706;
+                }
+                
+                .calories-unit {
+                    font-size: 0.8rem;
+                    font-weight: normal;
+                }
+                
+                .form-message {
+                    padding: 0.75rem;
+                    border-radius: 8px;
+                    margin-bottom: 1rem;
+                }
+                
+                .form-message.success {
+                    background: rgba(16, 185, 129, 0.1);
+                    color: #10b981;
+                }
+                
+                .form-message.error {
+                    background: rgba(239, 68, 68, 0.1);
+                    color: #ef4444;
+                }
+                
+                .form-message.info {
+                    background: rgba(59, 130, 246, 0.1);
+                    color: #3b82f6;
+                }
+                
+                .form-actions {
+                    display: flex;
+                    gap: 1rem;
+                    margin-top: 1rem;
+                }
+                
+                .submit-btn {
+                    flex: 1;
+                    padding: 0.75rem;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    cursor: pointer;
+                }
+                
+                /* ===========================================
+                   قائمة الأنشطة
+                =========================================== */
+                .activities-list-card {
+                    background: var(--card-bg, #ffffff);
+                    border-radius: 20px;
+                    padding: 1.5rem;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                
+                .activities-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid var(--border-light, #e2e8f0);
+                }
+                
+                .activities-title {
+                    margin: 0;
+                    color: var(--text-primary, #0f172a);
+                    font-size: 1.1rem;
+                }
+                
+                .refresh-activities-btn {
+                    width: 32px;
+                    height: 32px;
+                    border: none;
+                    background: var(--secondary-bg, #f1f5f9);
+                    border-radius: 8px;
+                    cursor: pointer;
+                }
+                
+                .activities-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                    max-height: 400px;
+                    overflow-y: auto;
+                }
+                
+                .activity-item {
+                    background: var(--secondary-bg, #f8fafc);
+                    border-radius: 12px;
+                    padding: 1rem;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                
+                .dark-mode .activity-item {
+                    background: var(--secondary-bg, #0f172a);
+                }
+                
+                .activity-item-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 0.5rem;
+                }
+                
+                .activity-type {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                
+                .activity-icon {
+                    font-size: 1.5rem;
+                }
+                
+                .activity-name {
+                    font-weight: 600;
+                    color: var(--text-primary, #0f172a);
+                }
+                
+                .activity-actions {
+                    display: flex;
+                    gap: 0.5rem;
+                }
+                
+                .edit-activity-btn,
+                .delete-activity-btn {
+                    background: none;
+                    border: none;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    padding: 0.25rem;
+                    border-radius: 6px;
+                }
+                
+                .edit-activity-btn:hover {
+                    background: rgba(59, 130, 246, 0.1);
+                }
+                
+                .delete-activity-btn:hover {
+                    background: rgba(239, 68, 68, 0.1);
+                }
+                
+                .activity-item-details {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 1rem;
+                    font-size: 0.8rem;
+                    color: var(--text-secondary, #475569);
+                }
+                
+                .activity-detail {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                }
+                
+                .activity-notes {
+                    margin-top: 0.5rem;
+                    padding: 0.5rem;
+                    background: var(--tertiary-bg, #f1f5f9);
+                    border-radius: 8px;
+                    font-size: 0.75rem;
+                    color: var(--text-secondary, #475569);
+                }
+                
+                .loading-state,
+                .error-state,
+                .empty-state {
+                    text-align: center;
+                    padding: 2rem;
+                }
+                
+                .empty-icon {
+                    font-size: 3rem;
+                    margin-bottom: 1rem;
+                    opacity: 0.5;
+                }
+                
+                .spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid var(--border-light, #e2e8f0);
+                    border-top-color: #6366f1;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    margin: 0 auto 1rem;
+                }
+                
+                .spinner-small {
+                    display: inline-block;
+                    width: 14px;
+                    height: 14px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    animation: spin 0.6s linear infinite;
+                    margin-right: 0.5rem;
+                }
+                
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+                
+                @keyframes pulse {
+                    0% { transform: scale(0.95); opacity: 1; }
+                    100% { transform: scale(1.5); opacity: 0; }
+                }
+                
+                /* ===========================================
+                   استجابة الجوال
+                =========================================== */
+                @media (max-width: 768px) {
+                    .sensor-section {
+                        padding: 1rem;
+                    }
+                    
+                    .sensor-stats {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .sensor-actions {
+                        flex-direction: column;
+                    }
+                    
+                    .sensor-action-btn {
+                        width: 100%;
+                        text-align: center;
+                    }
+                    
+                    .form-row {
+                        grid-template-columns: 1fr;
+                        gap: 0;
+                    }
+                    
+                    .activity-form-card,
+                    .activities-list-card {
+                        padding: 1rem;
+                    }
+                    
+                    .activity-item-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 0.5rem;
+                    }
+                    
+                    .activity-item-details {
+                        flex-direction: column;
+                        gap: 0.25rem;
+                    }
+                }
+                
+                /* ===========================================
+                   دعم RTL
+                =========================================== */
+                [dir="rtl"] .sensor-title {
+                    flex-direction: row-reverse;
+                }
+                
+                [dir="rtl"] .activity-type {
+                    flex-direction: row-reverse;
+                }
+                
+                [dir="rtl"] .activity-detail {
+                    flex-direction: row-reverse;
+                }
             `}</style>
         </div>
     );
