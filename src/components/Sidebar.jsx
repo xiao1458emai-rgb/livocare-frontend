@@ -16,13 +16,34 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
     const [notificationCount, setNotificationCount] = useState(0);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [hoveredItem, setHoveredItem] = useState(null);
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
     
     const isMountedRef = useRef(true);
     const intervalRef = useRef(null);
     const abortControllerRef = useRef(null);
     const isFetchingRef = useRef(false);
 
-    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    // ✅ كشف حجم الشاشة
+    useEffect(() => {
+        const checkScreenSize = () => {
+            const width = window.innerWidth;
+            setIsMobile(width < 768);
+            setIsTablet(width >= 768 && width < 1024);
+            
+            // على الجوال، السايدبار يكون مصغراً تلقائياً
+            if (width < 768) {
+                setIsCollapsed(true);
+            }
+        };
+        
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
+
+    // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
@@ -37,12 +58,14 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
         };
     }, [lang]);
 
+    // ✅ أقسام القائمة الرئيسية
     const getSections = () => [
         { id: 'health', icon: '❤️', color: '#ef4444', gradient: 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)', tooltip: isArabic ? 'العلامات الحيوية' : 'Vital Signs' },
         { id: 'nutrition', icon: '🥗', color: '#10b981', gradient: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)', tooltip: isArabic ? 'التغذية' : 'Nutrition' },
         { id: 'sleep', icon: '🌙', color: '#8b5cf6', gradient: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)', tooltip: isArabic ? 'النوم' : 'Sleep' },
         { id: 'mood', icon: '😊', color: '#f59e0b', gradient: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)', tooltip: isArabic ? 'المزاج' : 'Mood' },
         { id: 'habits', icon: '💊', color: '#f97316', gradient: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)', tooltip: isArabic ? 'العادات' : 'Habits' },
+        { id: 'activity', icon: '🏃', color: '#06b6d4', gradient: 'linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%)', tooltip: isArabic ? 'النشاط' : 'Activity' },
         { id: 'smart', icon: '🧠', color: '#3b82f6', gradient: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)', tooltip: isArabic ? 'الميزات الذكية' : 'Smart Features' },
         { id: 'chat', icon: '💬', color: '#14b8a6', gradient: 'linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%)', tooltip: isArabic ? 'المساعد الذكي' : 'Smart Chat' },
         { id: 'reports', icon: '📊', color: '#a855f7', gradient: 'linear-gradient(135deg, #a855f7 0%, #c084fc 100%)', tooltip: isArabic ? 'التقارير' : 'Reports' },
@@ -51,13 +74,15 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
 
     const sections = getSections();
 
+    // ✅ معلومات الأقسام
     const getSectionInfo = (sectionId) => {
         const sectionNames = {
             health: isArabic ? 'العلامات الحيوية' : 'Vital Signs',
             nutrition: isArabic ? 'التغذية' : 'Nutrition',
             sleep: isArabic ? 'النوم' : 'Sleep',
             mood: isArabic ? 'المزاج' : 'Mood',
-            habits: isArabic ? 'العادات والأدوية' : 'Habits & Medications',
+            habits: isArabic ? 'العادات' : 'Habits',
+            activity: isArabic ? 'النشاط' : 'Activity',
             smart: isArabic ? 'الميزات الذكية' : 'Smart Features',
             chat: isArabic ? 'المساعد الذكي' : 'Smart Chat',
             reports: isArabic ? 'التقارير' : 'Reports',
@@ -70,6 +95,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
             sleep: isArabic ? 'جودة النوم والساعات' : 'Sleep quality and hours',
             mood: isArabic ? 'تتبع المشاعر والأحاسيس' : 'Track emotions and feelings',
             habits: isArabic ? 'المكملات والروتين اليومي' : 'Supplements and daily routine',
+            activity: isArabic ? 'تتبع النشاط البدني' : 'Track physical activity',
             smart: isArabic ? 'توصيات وتحليلات متقدمة' : 'Advanced recommendations & analytics',
             chat: isArabic ? 'مساعد صحي ذكي' : 'Intelligent health assistant',
             reports: isArabic ? 'تقارير وتحليلات صحية' : 'Health reports and analytics',
@@ -82,6 +108,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
         };
     };
 
+    // ✅ جلب عدد الإشعارات
     const fetchNotificationCount = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
@@ -150,12 +177,22 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
     }, []);
 
     const toggleCollapse = () => {
-        setIsCollapsed(!isCollapsed);
+        if (!isMobile) {
+            setIsCollapsed(!isCollapsed);
+        }
+    };
+
+    // عرض الأيقونة المناسبة لزر الطي/التوسيع
+    const getToggleIcon = () => {
+        if (isCollapsed) {
+            return isRTL ? '←' : '→';
+        }
+        return isRTL ? '→' : '←';
     };
 
     return (
         <aside 
-            className={`sidebar ${isRTL ? 'rtl' : 'ltr'} ${isCollapsed ? 'collapsed' : ''}`} 
+            className={`sidebar ${isRTL ? 'rtl' : 'ltr'} ${isCollapsed ? 'collapsed' : ''} ${isMobile ? 'mobile' : ''} ${isTablet ? 'tablet' : ''}`} 
             dir={isRTL ? 'rtl' : 'ltr'}
         >
             {/* خلفية متحركة */}
@@ -164,6 +201,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                 <div className="bg-gradient"></div>
             </div>
 
+            {/* رأس السايدبار */}
             <div className="sidebar-header">
                 <div className="app-logo">
                     <div className="logo-wrapper">
@@ -177,19 +215,22 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                         </div>
                     )}
                 </div>
-                <button 
-                    className="collapse-toggle" 
-                    onClick={toggleCollapse}
-                    aria-label={isCollapsed ? (isArabic ? 'توسيع' : 'Expand') : (isArabic ? 'طي' : 'Collapse')}
-                    title={isCollapsed ? (isArabic ? 'توسيع' : 'Expand') : (isArabic ? 'طي' : 'Collapse')}
-                >
-                    <span className="toggle-icon" aria-hidden="true">{isCollapsed ? (isRTL ? '←' : '→') : (isRTL ? '→' : '←')}</span>
-                </button>
+                {!isMobile && (
+                    <button 
+                        className="collapse-toggle" 
+                        onClick={toggleCollapse}
+                        aria-label={isCollapsed ? (isArabic ? 'توسيع' : 'Expand') : (isArabic ? 'طي' : 'Collapse')}
+                        title={isCollapsed ? (isArabic ? 'توسيع' : 'Expand') : (isArabic ? 'طي' : 'Collapse')}
+                    >
+                        <span className="toggle-icon" aria-hidden="true">{getToggleIcon()}</span>
+                    </button>
+                )}
             </div>
 
+            {/* قائمة التنقل */}
             <nav className="sidebar-nav">
                 <div className="nav-section">
-                    {!isCollapsed && (
+                    {!isCollapsed && !isMobile && (
                         <h3 className="nav-title">
                             <span className="title-icon" aria-hidden="true">📊</span>
                             {isArabic ? 'لوحة التحكم' : 'Dashboard'}
@@ -213,7 +254,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                                         '--active-gradient': section.gradient 
                                     }}
                                     aria-label={sectionInfo.name}
-                                    title={isCollapsed ? sectionInfo.name : undefined}
+                                    title={isCollapsed && !isMobile ? sectionInfo.name : undefined}
                                 >
                                     <div className="nav-item-content">
                                         <div className="nav-icon-wrapper" style={{ 
@@ -221,12 +262,14 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                                         }}>
                                             <span className="nav-icon" aria-hidden="true">{section.icon}</span>
                                         </div>
-                                        {!isCollapsed && (
+                                        {(!isCollapsed || isMobile) && (
                                             <div className="nav-text">
                                                 <span className="nav-name">{sectionInfo.name}</span>
-                                                <span className="nav-description">
-                                                    {sectionInfo.description}
-                                                </span>
+                                                {!isMobile && (
+                                                    <span className="nav-description">
+                                                        {sectionInfo.description}
+                                                    </span>
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -238,7 +281,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                                         </>
                                     )}
                                     
-                                    {isCollapsed && isHovered && (
+                                    {isCollapsed && !isMobile && isHovered && (
                                         <div className="nav-tooltip">
                                             <span className="tooltip-name">{sectionInfo.name}</span>
                                             <span className="tooltip-desc">{sectionInfo.description}</span>
@@ -250,8 +293,9 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                     </div>
                 </div>
 
+                {/* قسم الإضافات */}
                 <div className="nav-section extras">
-                    {!isCollapsed && (
+                    {!isCollapsed && !isMobile && (
                         <h3 className="nav-title">
                             <span className="title-icon" aria-hidden="true">⚡</span>
                             {isArabic ? 'إضافات' : 'Extras'}
@@ -262,16 +306,18 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                             className={`nav-item extra-item ${activeSection === 'notifications' ? 'active' : ''}`}
                             onClick={() => onSectionChange('notifications')}
                             aria-label={isArabic ? 'الإشعارات' : 'Notifications'}
-                            title={isCollapsed ? (isArabic ? 'الإشعارات' : 'Notifications') : undefined}
+                            title={isCollapsed && !isMobile ? (isArabic ? 'الإشعارات' : 'Notifications') : undefined}
                         >
                             <div className="nav-item-content">
                                 <div className="nav-icon-wrapper">
                                     <span className="nav-icon" aria-hidden="true">🔔</span>
                                 </div>
-                                {!isCollapsed && (
+                                {(!isCollapsed || isMobile) && (
                                     <div className="nav-text">
                                         <span className="nav-name">{isArabic ? 'الإشعارات' : 'Notifications'}</span>
-                                        <span className="nav-description">{isArabic ? 'آخر التحديثات والتنبيهات' : 'Latest updates and alerts'}</span>
+                                        {!isMobile && (
+                                            <span className="nav-description">{isArabic ? 'آخر التحديثات والتنبيهات' : 'Latest updates and alerts'}</span>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -285,17 +331,18 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                 </div>
             </nav>
 
-            {!isCollapsed && (
+            {/* تذييل السايدبار - يظهر فقط في الوضع الموسع وغير الجوال */}
+            {!isCollapsed && !isMobile && (
                 <div className="sidebar-footer">
                     <div className="user-stats">
                         <div className="stat-item">
-                            <span className="stat-value">7</span>
-                            <span className="stat-label">{isArabic ? 'أقسام نشطة' : 'Active Sections'}</span>
+                            <span className="stat-value">9</span>
+                            <span className="stat-label">{isArabic ? 'أقسام' : 'Sections'}</span>
                         </div>
                         <div className="stat-divider" aria-hidden="true"></div>
                         <div className="stat-item">
-                            <span className="stat-value">100%</span>
-                            <span className="stat-label">{isArabic ? 'تغطية صحية' : 'Health Coverage'}</span>
+                            <span className="stat-value">✓</span>
+                            <span className="stat-label">{isArabic ? 'متابعة صحية' : 'Tracking'}</span>
                         </div>
                     </div>
 
@@ -306,11 +353,8 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                         </div>
                         <div className="user-info">
                             <span className="user-name">{isArabic ? 'مستخدم LivoCare' : 'LivoCare User'}</span>
-                            <span className="user-role">{isArabic ? 'مستخدم متميز' : 'Premium User'}</span>
+                            <span className="user-role">{isArabic ? 'مستخدم نشط' : 'Active User'}</span>
                         </div>
-                        <button className="user-menu-btn" aria-label={isArabic ? 'قائمة المستخدم' : 'User menu'}>
-                            <span className="menu-dots" aria-hidden="true">⋮</span>
-                        </button>
                     </div>
                 </div>
             )}

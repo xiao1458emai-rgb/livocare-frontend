@@ -6,13 +6,14 @@ import HabitAnalytics from './Analytics/HabitAnalytics';
 import BarcodeScanner from '../components/Camera/BarcodeScanner';
 import '../index.css';
 
-// دالة لتقريب الأرقام
+// ==================== دوال مساعدة ====================
+
 const roundNumber = (num, decimals = 1) => {
     if (isNaN(num)) return 0;
     return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 };
 
-// دالة لحساب النقاط للعادات فقط (بدون أدوية)
+// ✅ حساب النقاط للعادات فقط (بدون أدوية)
 const calculatePoints = (habitName, isCompleted, habitType) => {
     if (!isCompleted) return 0;
     if (habitType === 'medication') return 0;
@@ -24,7 +25,9 @@ const calculatePoints = (habitName, isCompleted, habitType) => {
         'reading': 10,
         'meditation': 15,
         'walk': 15,
-        'healthy_meal': 10
+        'healthy_meal': 10,
+        'study': 10,
+        'work': 10
     };
     
     for (const [key, points] of Object.entries(pointsMap)) {
@@ -39,16 +42,30 @@ const calculatePoints = (habitName, isCompleted, habitType) => {
 const detectHabitType = (habitName, habitDescription = '') => {
     const text = (habitName + ' ' + habitDescription).toLowerCase();
     
-    const medicationKeywords = ['دواء', 'medication', 'حبة', 'pill', 'علاج', 'treatment'];
-    const waterKeywords = ['ماء', 'water', 'ترطيب', 'hydration'];
-    const exerciseKeywords = ['رياضة', 'exercise', 'مشي', 'walk', 'جري', 'run'];
-    const sleepKeywords = ['نوم', 'sleep', 'استرخاء', 'relax'];
+    const medicationKeywords = ['دواء', 'medication', 'حبة', 'pill', 'علاج', 'treatment', 'antibiotic', 'مضاد حيوي'];
+    const waterKeywords = ['ماء', 'water', 'ترطيب', 'hydration', 'شرب'];
+    const exerciseKeywords = ['رياضة', 'exercise', 'مشي', 'walk', 'جري', 'run', 'تمرين', 'workout'];
+    const sleepKeywords = ['نوم', 'sleep', 'استرخاء', 'relax', 'استيقاظ'];
+    const healthyKeywords = ['أكل صحي', 'healthy meal', 'خضروات', 'vegetables', 'فواكه', 'fruits'];
     
     if (medicationKeywords.some(k => text.includes(k))) return 'medication';
     if (waterKeywords.some(k => text.includes(k))) return 'water';
     if (exerciseKeywords.some(k => text.includes(k))) return 'exercise';
     if (sleepKeywords.some(k => text.includes(k))) return 'sleep';
+    if (healthyKeywords.some(k => text.includes(k))) return 'healthy';
     return 'habit';
+};
+
+// ✅ الحصول على أيقونة ونوع العادة
+const getHabitIcon = (habitType) => {
+    switch (habitType) {
+        case 'medication': return '💊';
+        case 'water': return '💧';
+        case 'exercise': return '🏃';
+        case 'sleep': return '😴';
+        case 'healthy': return '🥗';
+        default: return '✅';
+    }
 };
 
 function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
@@ -62,13 +79,14 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
     
+    // حالات البيانات
     const [definitions, setDefinitions] = useState([]);
     const [newHabitName, setNewHabitName] = useState('');
     const [newHabitDescription, setNewHabitDescription] = useState('');
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
-    const [isError, setIsError] = useState(false);
+    const [messageType, setMessageType] = useState('success');
     const [refreshAnalytics, setRefreshAnalytics] = useState(0);
     const [showScanner, setShowScanner] = useState(false);
     const [userPoints, setUserPoints] = useState(0);
@@ -76,12 +94,11 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
     const [streakDays, setStreakDays] = useState(0);
     const [todayLogs, setTodayLogs] = useState([]);
     
-    // State للبحث عن الأدوية (منفصل)
+    // ✅ حالة البحث عن الأدوية (منفصل)
     const [drugSearchQuery, setDrugSearchQuery] = useState('');
     const [drugSearchResults, setDrugSearchResults] = useState([]);
     const [searchingDrug, setSearchingDrug] = useState(false);
-
-    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+    const [searchType, setSearchType] = useState('name');
 
     // ✅ الاستماع لتغييرات اللغة من ProfileManager
     useEffect(() => {
@@ -98,7 +115,18 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         };
     }, [lang]);
 
-    // جلب تعريفات العادات
+    // ✅ عرض رسالة مؤقتة
+    const showMessage = useCallback((msg, type = 'success') => {
+        setMessage(msg);
+        setMessageType(type);
+        setTimeout(() => {
+            if (isMountedRef.current) {
+                setMessage('');
+            }
+        }, 3000);
+    }, []);
+
+    // ✅ جلب تعريفات العادات
     const fetchHabitDefinitions = useCallback(async () => {
         if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
         
@@ -115,25 +143,16 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
             if (!isMountedRef.current) return;
             
             let definitionsData = [];
-            if (defResponse.data?.results) {
-                definitionsData = defResponse.data.results;
-            } else if (Array.isArray(defResponse.data)) {
-                definitionsData = defResponse.data;
-            }
+            if (defResponse.data?.results) definitionsData = defResponse.data.results;
+            else if (Array.isArray(defResponse.data)) definitionsData = defResponse.data;
             
             let logsData = [];
-            if (logsResponse.data?.results) {
-                logsData = logsResponse.data.results;
-            } else if (Array.isArray(logsResponse.data)) {
-                logsData = logsResponse.data;
-            }
+            if (logsResponse.data?.results) logsData = logsResponse.data.results;
+            else if (Array.isArray(logsResponse.data)) logsData = logsResponse.data;
             
             let todayData = [];
-            if (todayResponse.data?.results) {
-                todayData = todayResponse.data.results;
-            } else if (Array.isArray(todayResponse.data)) {
-                todayData = todayResponse.data;
-            }
+            if (todayResponse.data?.results) todayData = todayResponse.data.results;
+            else if (Array.isArray(todayResponse.data)) todayData = todayResponse.data;
             
             console.log('📋 Habits loaded:', definitionsData.length);
             
@@ -144,8 +163,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         } catch (error) {
             console.error('Failed to fetch habits:', error);
             if (isMountedRef.current) {
-                setMessage(isArabic ? 'فشل في تحميل العادات' : 'Failed to load habits');
-                setIsError(true);
+                showMessage(isArabic ? '❌ فشل في تحميل العادات' : '❌ Failed to load habits', 'error');
                 setDefinitions([]);
                 setLogs([]);
                 setTodayLogs([]);
@@ -156,7 +174,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
             }
             isFetchingRef.current = false;
         }
-    }, [isAuthReady, isArabic]);
+    }, [isAuthReady, isArabic, showMessage]);
 
     useEffect(() => {
         if (isAuthReady) {
@@ -197,14 +215,17 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         setUserPoints(todayPoints);
         setWeeklyPoints(weekPoints);
         
+        // حساب الأيام المتتالية
         let streak = 0;
         const checkDate = new Date();
+        checkDate.setHours(0, 0, 0, 0);
         
         while (true) {
             const dateStr = checkDate.toDateString();
             const hasLogOnDate = logs.some(log => {
-                const logDate = new Date(log.log_date).toDateString();
-                return logDate === dateStr && log.is_completed;
+                const logDate = new Date(log.log_date);
+                logDate.setHours(0, 0, 0, 0);
+                return logDate.toDateString() === dateStr && log.is_completed;
             });
             
             if (hasLogOnDate) {
@@ -226,11 +247,9 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
     }, []);
 
     // ✅ البحث في FDA للأدوية فقط
-    const searchDrugInFDA = async (query, searchType = 'name') => {
+    const searchDrugInFDA = useCallback(async (query, type = 'name') => {
         if (!query || query.trim() === '') {
-            setMessage(isArabic ? 'الرجاء إدخال اسم الدواء أو رمز NDC' : 'Please enter drug name or NDC code');
-            setIsError(true);
-            setTimeout(() => setMessage(''), 3000);
+            showMessage(isArabic ? '⚠️ الرجاء إدخال اسم الدواء أو رمز NDC' : '⚠️ Please enter drug name or NDC code', 'error');
             return;
         }
         
@@ -241,10 +260,10 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
             let endpoint = '';
             let searchParam = '';
             
-            if (searchType === 'name') {
+            if (type === 'name') {
                 endpoint = 'drug/drugsfda.json';
                 searchParam = `search=openfda.brand_name:"${encodeURIComponent(query)}"+or+openfda.generic_name:"${encodeURIComponent(query)}"&limit=10`;
-            } else if (searchType === 'ndc') {
+            } else {
                 endpoint = 'drug/ndc.json';
                 let cleanNDC = query.replace(/-/g, '');
                 if (cleanNDC.length === 10 && !cleanNDC.includes('-')) {
@@ -286,25 +305,21 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                 }
                 
                 setDrugSearchResults(uniqueResults.slice(0, 10));
-                setMessage(isArabic ? `تم العثور على ${uniqueResults.length} دواء` : `Found ${uniqueResults.length} medications`);
-                setIsError(false);
+                showMessage(isArabic ? `✅ تم العثور على ${uniqueResults.length} دواء` : `✅ Found ${uniqueResults.length} medications`, 'success');
             } else {
                 setDrugSearchResults([]);
-                setMessage(isArabic ? `لم يتم العثور على دواء: ${query}` : `No medication found: ${query}`);
-                setIsError(true);
+                showMessage(isArabic ? `⚠️ لم يتم العثور على دواء: ${query}` : `⚠️ No medication found: ${query}`, 'error');
             }
         } catch (error) {
             console.error('Error searching FDA:', error);
-            setMessage(isArabic ? 'خطأ في الاتصال بقاعدة البيانات' : 'Error connecting to database');
-            setIsError(true);
+            showMessage(isArabic ? '❌ خطأ في الاتصال بقاعدة البيانات' : '❌ Error connecting to database', 'error');
         } finally {
             setSearchingDrug(false);
-            setTimeout(() => setMessage(''), 3000);
         }
-    };
+    }, [isArabic, showMessage]);
 
     // ✅ اختيار دواء من نتائج البحث
-    const selectDrug = (drug) => {
+    const selectDrug = useCallback((drug) => {
         setNewHabitName(drug.brand_name || drug.generic_name);
         
         const descriptionParts = [];
@@ -315,20 +330,17 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         if (drug.product_ndc) descriptionParts.push(`🔢 ${drug.product_ndc}`);
         
         setNewHabitDescription(descriptionParts.join(' | '));
-        setMessage(isArabic ? `تم اختيار الدواء: ${drug.brand_name || drug.generic_name}` : `Selected: ${drug.brand_name || drug.generic_name}`);
-        setIsError(false);
+        showMessage(isArabic ? `✅ تم اختيار الدواء: ${drug.brand_name || drug.generic_name}` : `✅ Selected: ${drug.brand_name || drug.generic_name}`, 'success');
         setDrugSearchResults([]);
         setDrugSearchQuery('');
-        
-        setTimeout(() => setMessage(''), 3000);
-    };
+    }, [isArabic, showMessage]);
 
-    const handleAddDefinition = async (e) => {
+    // ✅ إضافة عادة جديدة
+    const handleAddDefinition = useCallback(async (e) => {
         e.preventDefault();
         
         if (!isAuthReady) {
-            setMessage(isArabic ? 'الرجاء تسجيل الدخول' : 'Please login');
-            setIsError(true);
+            showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
             return;
         }
 
@@ -337,20 +349,16 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         );
         
         if (existingHabit) {
-            setMessage(isArabic ? `العادة "${newHabitName}" موجودة مسبقاً` : `Habit "${newHabitName}" already exists`);
-            setIsError(true);
+            showMessage(isArabic ? `⚠️ العادة "${newHabitName}" موجودة مسبقاً` : `⚠️ Habit "${newHabitName}" already exists`, 'error');
             return;
         }
 
         if (!newHabitName.trim() || !newHabitDescription.trim()) {
-            setMessage(isArabic ? 'الرجاء إدخال اسم ووصف العادة' : 'Please enter habit name and description');
-            setIsError(true);
+            showMessage(isArabic ? '⚠️ الرجاء إدخال اسم ووصف العادة' : '⚠️ Please enter habit name and description', 'error');
             return;
         }
 
         setLoading(true);
-        setMessage('');
-        setIsError(false);
 
         try {
             await axiosInstance.post('/habit-definitions/', { 
@@ -359,7 +367,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                 frequency: 'Daily'
             });
             
-            setMessage(isArabic ? `تم إضافة "${newHabitName}" بنجاح` : `Successfully added "${newHabitName}"`);
+            showMessage(isArabic ? `✅ تم إضافة "${newHabitName}" بنجاح` : `✅ Successfully added "${newHabitName}"`, 'success');
             setNewHabitName('');
             setNewHabitDescription('');
             await fetchHabitDefinitions();
@@ -367,17 +375,16 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
             
         } catch (error) {
             console.error('Failed to add habit:', error);
-            setMessage(isArabic ? 'فشل في إضافة العادة' : 'Failed to add habit');
-            setIsError(true);
+            showMessage(isArabic ? '❌ فشل في إضافة العادة' : '❌ Failed to add habit', 'error');
         } finally {
             setLoading(false);
         }
-    };
-    
-    const handleToggleLog = async (habitId) => {
+    }, [isAuthReady, definitions, newHabitName, newHabitDescription, isArabic, showMessage, fetchHabitDefinitions]);
+
+    // ✅ تبديل حالة العادة
+    const handleToggleLog = useCallback(async (habitId) => {
         if (!isAuthReady) {
-            setMessage(isArabic ? 'الرجاء تسجيل الدخول' : 'Please login');
-            setIsError(true);
+            showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
             return;
         }
         
@@ -385,13 +392,11 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         const habit = definitions.find(d => d.id === habitId);
         
         setLoading(true);
-        setMessage('');
-        setIsError(false);
 
         try {
             if (existingLog && existingLog.id) {
                 await axiosInstance.delete(`/habit-logs/${existingLog.id}/`);
-                setMessage(isArabic ? `تم إلغاء إنجاز "${habit?.name}"` : `Undid "${habit?.name}"`);
+                showMessage(isArabic ? `↩️ تم إلغاء إنجاز "${habit?.name}"` : `↩️ Undid "${habit?.name}"`, 'info');
             } else {
                 await axiosInstance.post('/habit-logs/complete/', {
                     habit_id: habitId,
@@ -401,9 +406,9 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                 const habitType = detectHabitType(habit?.name || '', habit?.description || '');
                 const points = calculatePoints(habit?.name || '', true, habitType);
                 if (points > 0) {
-                    setMessage(isArabic ? `✓ تم إنجاز "${habit?.name}" (+${points} نقطة)` : `✓ Completed "${habit?.name}" (+${points} points)`);
+                    showMessage(isArabic ? `✅ تم إنجاز "${habit?.name}" (+${points} نقطة)` : `✅ Completed "${habit?.name}" (+${points} points)`, 'success');
                 } else {
-                    setMessage(isArabic ? `✓ تم إنجاز "${habit?.name}"` : `✓ Completed "${habit?.name}"`);
+                    showMessage(isArabic ? `✅ تم إنجاز "${habit?.name}"` : `✅ Completed "${habit?.name}"`, 'success');
                 }
             }
             await fetchHabitDefinitions();
@@ -411,101 +416,118 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
             
         } catch (error) {
             console.error('Failed to update habit log:', error);
-            setMessage(isArabic ? 'فشل في تحديث العادة' : 'Failed to update habit');
-            setIsError(true);
+            showMessage(isArabic ? '❌ فشل في تحديث العادة' : '❌ Failed to update habit', 'error');
         } finally {
             setLoading(false);
         }
-    };
+    }, [isAuthReady, todayLogs, definitions, isArabic, showMessage, fetchHabitDefinitions]);
 
-    // ✅ فصل الأدوية عن العادات
+    // ✅ مسح الباركود
+    const handleScanComplete = useCallback((result) => {
+        if (result) {
+            searchDrugInFDA(result, 'ndc');
+            setShowScanner(false);
+        }
+    }, [searchDrugInFDA]);
+
+    // ✅ تصفية البيانات
     const safeDefinitions = Array.isArray(definitions) ? definitions : [];
     const medications = safeDefinitions.filter(h => detectHabitType(h.name, h.description) === 'medication');
     const regularHabits = safeDefinitions.filter(h => detectHabitType(h.name, h.description) !== 'medication');
     
-    const completedToday = todayLogs.filter(log => log.is_completed).length;
+    const completedTodayCount = todayLogs.filter(log => {
+        const habit = safeDefinitions.find(d => d.id === (log.habit?.id || log.habit));
+        return log.is_completed && habit && detectHabitType(habit.name, habit.description) !== 'medication';
+    }).length;
+    
     const completionPercentage = regularHabits.length > 0 
-        ? Math.round((todayLogs.filter(log => {
-            const habit = safeDefinitions.find(d => d.id === (log.habit?.id || log.habit));
-            return log.is_completed && habit && detectHabitType(habit.name, habit.description) !== 'medication';
-        }).length / regularHabits.length) * 100) 
+        ? Math.round((completedTodayCount / regularHabits.length) * 100) 
         : 0;
 
     return (
         <div className="analytics-container">
-            {/* ماسح الباركود */}
+            {/* ✅ ماسح الباركود */}
             {showScanner && (
                 <div className="scanner-modal" onClick={() => setShowScanner(false)}>
                     <div className="scanner-modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="scanner-header">
-                            <h3>{isArabic ? 'مسح الباركود' : 'Scan Barcode'}</h3>
+                            <h3>📷 {isArabic ? 'مسح الباركود' : 'Scan Barcode'}</h3>
                             <button className="close-btn" onClick={() => setShowScanner(false)}>✕</button>
                         </div>
                         <BarcodeScanner 
-                            onScan={(result) => {
-                                if (result) {
-                                    searchDrugInFDA(result, 'ndc');
-                                    setShowScanner(false);
-                                }
-                            }} 
+                            onScan={handleScanComplete} 
                             onClose={() => setShowScanner(false)} 
                         />
                         <div className="scanner-footer">
-                            <p>{isArabic ? 'ضع رمز المنتج داخل الإطار للمسح' : 'Place the barcode inside the frame to scan'}</p>
-                            <button className="cancel-btn" onClick={() => setShowScanner(false)}>{isArabic ? 'إلغاء' : 'Cancel'}</button>
+                            <p>📱 {isArabic ? 'ضع رمز المنتج داخل الإطار للمسح' : 'Place the barcode inside the frame to scan'}</p>
+                            <button className="cancel-btn" onClick={() => setShowScanner(false)}>
+                                {isArabic ? 'إلغاء' : 'Cancel'}
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* رأس الصفحة - ✅ بدون زر لغة */}
-            <div className="analytics-header">
-                <h2>{isArabic ? 'العادات والأدوية' : 'Habits & Medications'}</h2>
-                <div className="stat-label">
-                    {new Date().toLocaleDateString(isArabic ? 'ar-EG' : 'en-US', {
+            {/* ✅ رأس الصفحة */}
+            <div className="habits-header">
+                <h2 className="habits-title">
+                    {isArabic ? '📋 العادات والأدوية' : '📋 Habits & Medications'}
+                </h2>
+                <div className="habits-date">
+                    📅 {new Date().toLocaleDateString(isArabic ? 'ar-EG' : 'en-US', {
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
                     })}
                 </div>
-                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
-            {/* ✅ قسم البحث عن الأدوية (منفصل) */}
-            <div className="recommendations-section">
-                <div className="rec-header">
-                    <span className="rec-icon">💊</span>
-                    <span className="rec-category">{isArabic ? 'البحث عن دواء' : 'Search Medications'}</span>
+            {/* ✅ قسم البحث عن الأدوية */}
+            <div className="drug-search-section">
+                <div className="section-header-inline">
+                    <div className="section-title-icon">
+                        <span className="icon">💊</span>
+                        <h3>{isArabic ? 'البحث عن دواء' : 'Search Medications'}</h3>
+                    </div>
+                    <p className="section-desc">
+                        {isArabic ? 'ابحث عن الأدوية في قاعدة بيانات FDA العالمية' : 'Search for medications in the FDA database'}
+                    </p>
                 </div>
-                <div className="filter-row" style={{ marginBottom: 0 }}>
+                
+                <div className="search-bar">
                     <input
                         type="text"
                         value={drugSearchQuery}
                         onChange={(e) => setDrugSearchQuery(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && searchDrugInFDA(drugSearchQuery, 'name')}
-                        placeholder={isArabic ? 'أدخل اسم الدواء أو رمز NDC' : 'Enter drug name or NDC code'}
+                        onKeyPress={(e) => e.key === 'Enter' && searchDrugInFDA(drugSearchQuery, searchType)}
+                        placeholder={isArabic ? '🔍 أدخل اسم الدواء أو رمز NDC...' : '🔍 Enter drug name or NDC code...'}
                         className="search-input"
                     />
-                    <div className="type-filters" style={{ marginBottom: 0 }}>
+                    <div className="search-actions">
                         <button 
-                            onClick={() => searchDrugInFDA(drugSearchQuery, 'name')}
+                            onClick={() => {
+                                setSearchType('name');
+                                searchDrugInFDA(drugSearchQuery, 'name');
+                            }}
                             disabled={searchingDrug || !drugSearchQuery}
-                            className="type-btn"
+                            className={`search-btn ${searchType === 'name' ? 'active' : ''}`}
                         >
-                            {searchingDrug ? '⏳' : '🔍'} {isArabic ? 'اسم' : 'Name'}
+                            {searchingDrug && searchType === 'name' ? '⏳' : '🔍'} {isArabic ? 'اسم' : 'Name'}
                         </button>
                         <button 
-                            onClick={() => searchDrugInFDA(drugSearchQuery, 'ndc')}
+                            onClick={() => {
+                                setSearchType('ndc');
+                                searchDrugInFDA(drugSearchQuery, 'ndc');
+                            }}
                             disabled={searchingDrug || !drugSearchQuery}
-                            className="type-btn"
+                            className={`search-btn ${searchType === 'ndc' ? 'active' : ''}`}
                         >
-                            {searchingDrug ? '⏳' : '#️⃣'} NDC
+                            {searchingDrug && searchType === 'ndc' ? '⏳' : '#️⃣'} NDC
                         </button>
                         <button 
                             onClick={() => setShowScanner(true)}
-                            className="type-btn"
-                            style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white' }}
+                            className="scan-btn"
                         >
                             📷 {isArabic ? 'مسح باركود' : 'Scan Barcode'}
                         </button>
@@ -513,96 +535,97 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                 </div>
                 
                 {drugSearchResults.length > 0 && (
-                    <div className="notifications-list" style={{ marginTop: 'var(--spacing-md)' }}>
-                        <div className="stat-label" style={{ marginBottom: 'var(--spacing-sm)' }}>
+                    <div className="drug-results">
+                        <div className="results-header">
                             📋 {isArabic ? `نتائج البحث (${drugSearchResults.length})` : `Search Results (${drugSearchResults.length})`}
                         </div>
-                        {drugSearchResults.map((drug, idx) => (
-                            <div key={idx} className="notification-card" onClick={() => selectDrug(drug)} style={{ cursor: 'pointer' }}>
-                                <div className="notification-title">
-                                    <strong>{drug.brand_name || drug.generic_name}</strong>
-                                    {drug.generic_name && drug.brand_name && (
-                                        <span className="rec-type tip">({drug.generic_name})</span>
-                                    )}
+                        <div className="results-list">
+                            {drugSearchResults.map((drug, idx) => (
+                                <div key={idx} className="drug-result-item" onClick={() => selectDrug(drug)}>
+                                    <div className="drug-name">
+                                        <strong>{drug.brand_name || drug.generic_name}</strong>
+                                        {drug.generic_name && drug.brand_name && (
+                                            <span className="drug-generic">({drug.generic_name})</span>
+                                        )}
+                                    </div>
+                                    <div className="drug-details">
+                                        {drug.manufacturer && <span>🏭 {drug.manufacturer}</span>}
+                                        {drug.route && <span>💉 {drug.route}</span>}
+                                        {drug.dosage_form && <span>📦 {drug.dosage_form}</span>}
+                                    </div>
                                 </div>
-                                <div className="notification-meta">
-                                    {drug.manufacturer && <span>🏭 {drug.manufacturer}</span>}
-                                    {drug.route && <span>💉 {drug.route}</span>}
-                                </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
 
-            {/* ✅ نقاط المستخدم (للعادات فقط) */}
+            {/* ✅ نقاط المستخدم */}
             {(userPoints > 0 || weeklyPoints > 0 || streakDays > 0) && (
-                <div className="insight-card" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)', color: 'white' }}>
-                    <div className="insight-icon">🏆</div>
-                    <div className="insight-content">
-                        <h3 style={{ color: 'white' }}>{isArabic ? 'نقاطك' : 'Your Points'}</h3>
-                        <div className="analytics-stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--spacing-md)' }}>
-                            <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
-                                <div className="stat-content">
-                                    <div className="stat-value" style={{ color: 'white' }}>{userPoints}</div>
-                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'نقاط اليوم' : 'Today\'s Points'}</div>
-                                </div>
-                            </div>
-                            <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
-                                <div className="stat-content">
-                                    <div className="stat-value" style={{ color: 'white' }}>{weeklyPoints}</div>
-                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'نقاط الأسبوع' : 'Week\'s Points'}</div>
-                                </div>
-                            </div>
-                            <div className="analytics-stat-card" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)' }}>
-                                <div className="stat-content">
-                                    <div className="stat-value" style={{ color: 'white' }}>{streakDays}</div>
-                                    <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'أيام متتالية' : 'Day Streak'}</div>
-                                </div>
-                            </div>
+                <div className="points-section">
+                    <div className="points-header">
+                        <span className="points-icon">🏆</span>
+                        <h3>{isArabic ? 'نقاطك' : 'Your Points'}</h3>
+                    </div>
+                    <div className="points-grid">
+                        <div className="point-card">
+                            <div className="point-value">{userPoints}</div>
+                            <div className="point-label">{isArabic ? 'نقاط اليوم' : 'Today\'s Points'}</div>
+                        </div>
+                        <div className="point-card">
+                            <div className="point-value">{weeklyPoints}</div>
+                            <div className="point-label">{isArabic ? 'نقاط الأسبوع' : 'Week\'s Points'}</div>
+                        </div>
+                        <div className="point-card">
+                            <div className="point-value">{streakDays}</div>
+                            <div className="point-label">{isArabic ? 'أيام متتالية' : 'Day Streak'}</div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* رسائل الإشعارات */}
+            {/* ✅ رسائل الإشعارات */}
             {message && (
-                <div className={`notification-message ${isError ? 'error' : 'success'}`}>
-                    <span>{isError ? '⚠️' : '✅'}</span>
+                <div className={`notification-toast ${messageType}`}>
+                    <span>{messageType === 'success' ? '✅' : messageType === 'error' ? '❌' : 'ℹ️'}</span>
                     <span>{message}</span>
                     <button onClick={() => setMessage('')}>✕</button>
                 </div>
             )}
 
-            {/* ✅ بطاقة إحصائيات العادات اليومية (بدون أدوية) */}
+            {/* ✅ تقدم العادات اليومية */}
             {isAuthReady && regularHabits.length > 0 && (
-                <div className="insight-card" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)', color: 'white' }}>
-                    <div className="insight-icon">📊</div>
-                    <div className="insight-content">
-                        <h3 style={{ color: 'white' }}>{isArabic ? 'تقدم العادات اليومية' : 'Daily Habits Progress'}</h3>
-                        <div className="stat-value" style={{ fontSize: '1.5rem', color: 'white' }}>
-                            {todayLogs.filter(log => {
-                                const habit = safeDefinitions.find(d => d.id === (log.habit?.id || log.habit));
-                                return log.is_completed && habit && detectHabitType(habit.name, habit.description) !== 'medication';
-                            }).length}/{regularHabits.length} {isArabic ? 'تم' : 'completed'}
+                <div className="progress-section">
+                    <div className="progress-header">
+                        <span className="progress-icon">📊</span>
+                        <h3>{isArabic ? 'تقدم العادات اليومية' : 'Daily Habits Progress'}</h3>
+                    </div>
+                    <div className="progress-stats">
+                        <div className="progress-count">
+                            {completedTodayCount}/{regularHabits.length} {isArabic ? 'تم' : 'completed'}
                         </div>
-                        <div className="progress-bar" style={{ marginTop: 'var(--spacing-sm)' }}>
-                            <div className="progress-fill" style={{ width: `${completionPercentage}%` }}></div>
+                        <div className="progress-bar-wrapper">
+                            <div className="progress-bar">
+                                <div className="progress-fill" style={{ width: `${completionPercentage}%` }}></div>
+                            </div>
+                            <div className="progress-percentage">{completionPercentage}%</div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* ✅ إضافة عادة جديدة (بدون خلط مع الأدوية) */}
-            <div className="recommendations-section">
-                <div className="rec-header">
-                    <span className="rec-icon">➕</span>
-                    <span className="rec-category">{isArabic ? 'إضافة عادة جديدة' : 'Add New Habit'}</span>
+            {/* ✅ إضافة عادة جديدة */}
+            <div className="add-habit-section">
+                <div className="section-header-inline">
+                    <div className="section-title-icon">
+                        <span className="icon">➕</span>
+                        <h3>{isArabic ? 'إضافة عادة جديدة' : 'Add New Habit'}</h3>
+                    </div>
                 </div>
                 
-                <form onSubmit={handleAddDefinition}>
-                    <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                        <label className="stat-label">{isArabic ? 'اسم العادة' : 'Habit Name'}</label>
+                <form onSubmit={handleAddDefinition} className="add-habit-form">
+                    <div className="form-group">
+                        <label>{isArabic ? 'اسم العادة' : 'Habit Name'}</label>
                         <input
                             type="text"
                             value={newHabitName}
@@ -610,12 +633,11 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                             placeholder={isArabic ? 'مثال: شرب ماء، رياضة، نوم...' : 'Example: Drink water, exercise, sleep...'}
                             required
                             disabled={!isAuthReady || loading}
-                            className="search-input"
                         />
                     </div>
                     
-                    <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                        <label className="stat-label">{isArabic ? 'وصف العادة' : 'Habit Description'}</label>
+                    <div className="form-group">
+                        <label>{isArabic ? 'وصف العادة' : 'Habit Description'}</label>
                         <textarea
                             value={newHabitDescription}
                             onChange={(e) => setNewHabitDescription(e.target.value)}
@@ -623,84 +645,87 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                             required
                             rows="3"
                             disabled={!isAuthReady || loading}
-                            className="search-input"
-                            style={{ resize: 'vertical' }}
                         />
                     </div>
                     
                     <button 
                         type="submit" 
                         disabled={loading || !isAuthReady}
-                        className="type-btn active"
-                        style={{ width: '100%' }}
+                        className="submit-btn"
                     >
-                        {loading ? '⏳ ' + (isArabic ? 'جاري الحفظ...' : 'Saving...') : '➕ ' + (isArabic ? 'إضافة عادة' : 'Add Habit')}
+                        {loading ? (
+                            <><span className="spinner-small"></span> {isArabic ? 'جاري الحفظ...' : 'Saving...'}</>
+                        ) : (
+                            <>{isArabic ? '➕ إضافة عادة' : '➕ Add Habit'}</>
+                        )}
                     </button>
                 </form>
             </div>
 
-            {/* ✅ قائمة العادات اليومية (منفصلة عن الأدوية) */}
-            <div className="recommendations-section">
-                <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
-                    <div className="rec-header">
-                        <span className="rec-icon">✅</span>
-                        <span className="rec-category">{isArabic ? 'عادات اليوم' : 'Today\'s Habits'}</span>
+            {/* ✅ قائمة العادات اليومية */}
+            <div className="habits-list-section">
+                <div className="section-header-inline">
+                    <div className="section-title-icon">
+                        <span className="icon">✅</span>
+                        <h3>{isArabic ? 'عادات اليوم' : 'Today\'s Habits'}</h3>
                     </div>
                     {regularHabits.length > 0 && (
-                        <div className="stat-label">
-                            <span className="stat-value" style={{ fontSize: '1rem' }}>{regularHabits.length}</span> {isArabic ? 'عادة' : 'habits'}
+                        <div className="habits-count">
+                            📋 {regularHabits.length} {isArabic ? 'عادة' : 'habits'}
                         </div>
                     )}
                 </div>
                 
                 {loading && isAuthReady && (
-                    <div className="analytics-loading">
+                    <div className="loading-state">
                         <div className="spinner"></div>
                         <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
                     </div>
                 )}
                 
-                {isAuthReady && regularHabits.length === 0 && !loading ? (
-                    <div className="analytics-empty">
+                {isAuthReady && regularHabits.length === 0 && !loading && (
+                    <div className="empty-state">
                         <div className="empty-icon">✅</div>
                         <h4>{isArabic ? 'لا توجد عادات' : 'No habits'}</h4>
                         <p>{isArabic ? 'أضف عاداتك اليومية أعلاه' : 'Add your daily habits above'}</p>
                     </div>
-                ) : (
-                    <div className="notifications-list">
+                )}
+                
+                {regularHabits.length > 0 && (
+                    <div className="habits-grid">
                         {regularHabits.map((habit) => {
                             const todayLog = todayLogs.find(log => (log.habit?.id || log.habit) === habit.id);
                             const isCompleted = todayLog?.is_completed || false;
                             const habitType = detectHabitType(habit.name, habit.description);
+                            const habitIcon = getHabitIcon(habitType);
                             const points = calculatePoints(habit.name, isCompleted, habitType);
                             
                             return (
-                                <div key={habit.id} className={`notification-card ${isCompleted ? 'unread' : ''}`}>
-                                    <div className="notification-header">
-                                        <div className="notification-title">
-                                            <span>
-                                                {habitType === 'water' ? '💧 ' : 
-                                                 habitType === 'exercise' ? '🏃 ' :
-                                                 habitType === 'sleep' ? '😴 ' : '📋 '}
-                                                {habit.name}
-                                            </span>
-                                            {isCompleted && points > 0 && <span className="priority-badge priority-urgent">✅ +{points}</span>}
+                                <div key={habit.id} className={`habit-card ${isCompleted ? 'completed' : ''}`}>
+                                    <div className="habit-card-header">
+                                        <div className="habit-info">
+                                            <span className="habit-icon">{habitIcon}</span>
+                                            <div>
+                                                <div className="habit-name">{habit.name}</div>
+                                                {habit.description && (
+                                                    <div className="habit-description">{habit.description}</div>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="notification-actions">
+                                        <div className="habit-actions">
+                                            {isCompleted && points > 0 && (
+                                                <span className="points-badge">+{points}</span>
+                                            )}
                                             <button 
                                                 onClick={() => handleToggleLog(habit.id)}
                                                 disabled={loading || !isAuthReady}
-                                                className={`notification-action-btn ${isCompleted ? '' : 'active'}`}
+                                                className={`complete-btn ${isCompleted ? 'undo' : ''}`}
                                             >
-                                                {isCompleted ? '↩️ ' + (isArabic ? 'تراجع' : 'Undo') : '✅ ' + (isArabic ? 'تم' : 'Complete')}
+                                                {isCompleted ? '↩️' : '✅'}
+                                                <span>{isCompleted ? (isArabic ? 'تراجع' : 'Undo') : (isArabic ? 'تم' : 'Complete')}</span>
                                             </button>
                                         </div>
                                     </div>
-                                    {habit.description && (
-                                        <div className="notification-content">
-                                            {habit.description}
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })}
@@ -708,46 +733,43 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                 )}
             </div>
 
-            {/* ✅ قائمة الأدوية (منفصلة تماماً) */}
+            {/* ✅ قائمة الأدوية */}
             {medications.length > 0 && (
-                <div className="recommendations-section">
-                    <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
-                        <div className="rec-header">
-                            <span className="rec-icon">💊</span>
-                            <span className="rec-category">{isArabic ? 'الأدوية' : 'Medications'}</span>
+                <div className="medications-section">
+                    <div className="section-header-inline">
+                        <div className="section-title-icon">
+                            <span className="icon">💊</span>
+                            <h3>{isArabic ? 'الأدوية' : 'Medications'}</h3>
                         </div>
-                        <div className="stat-label">
-                            <span className="stat-value" style={{ fontSize: '1rem' }}>{medications.length}</span> {isArabic ? 'دواء' : 'medications'}
+                        <div className="medications-count">
+                            💊 {medications.length} {isArabic ? 'دواء' : 'medications'}
                         </div>
                     </div>
                     
-                    <div className="notifications-list">
+                    <div className="medications-grid">
                         {medications.map((med) => {
                             const todayLog = todayLogs.find(log => (log.habit?.id || log.habit) === med.id);
                             const isCompleted = todayLog?.is_completed || false;
                             
                             return (
-                                <div key={med.id} className={`notification-card ${isCompleted ? 'unread' : ''}`}>
-                                    <div className="notification-header">
-                                        <div className="notification-title">
-                                            <span>💊 {med.name}</span>
-                                            {isCompleted && <span className="priority-badge priority-urgent">✅ {isArabic ? 'تم' : 'Taken'}</span>}
-                                        </div>
-                                        <div className="notification-actions">
-                                            <button 
-                                                onClick={() => handleToggleLog(med.id)}
-                                                disabled={loading || !isAuthReady}
-                                                className={`notification-action-btn ${isCompleted ? '' : 'active'}`}
-                                            >
-                                                {isCompleted ? '↩️ ' + (isArabic ? 'تراجع' : 'Undo') : '✅ ' + (isArabic ? 'تم' : 'Taken')}
-                                            </button>
+                                <div key={med.id} className={`medication-card ${isCompleted ? 'completed' : ''}`}>
+                                    <div className="medication-info">
+                                        <span className="medication-icon">💊</span>
+                                        <div>
+                                            <div className="medication-name">{med.name}</div>
+                                            {med.description && (
+                                                <div className="medication-description">{med.description}</div>
+                                            )}
                                         </div>
                                     </div>
-                                    {med.description && (
-                                        <div className="notification-content">
-                                            {med.description}
-                                        </div>
-                                    )}
+                                    <button 
+                                        onClick={() => handleToggleLog(med.id)}
+                                        disabled={loading || !isAuthReady}
+                                        className={`take-btn ${isCompleted ? 'undo' : ''}`}
+                                    >
+                                        {isCompleted ? '↩️' : '✅'}
+                                        <span>{isCompleted ? (isArabic ? 'تراجع' : 'Undo') : (isArabic ? 'تم' : 'Taken')}</span>
+                                    </button>
                                 </div>
                             );
                         })}
@@ -755,12 +777,598 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                 </div>
             )}
 
-            {/* تحليلات العادات */}
-            <div className="analytics-wrapper" style={{ marginTop: 'var(--spacing-lg)' }}>
-                <HabitAnalytics refreshTrigger={refreshAnalytics} />
+            {/* ✅ تحليلات العادات */}
+            <div className="analytics-wrapper">
+                <HabitAnalytics refreshTrigger={refreshAnalytics} isArabic={isArabic} />
             </div>
 
-            <style>{`
+            {/* ✅ أنماط CSS المضمنة */}
+            <style jsx>{`
+                /* ===========================================
+                   الرأس
+                =========================================== */
+                .habits-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: var(--spacing-md);
+                    margin-bottom: var(--spacing-lg);
+                    padding-bottom: var(--spacing-md);
+                    border-bottom: 2px solid var(--border-light);
+                }
+                
+                .habits-title {
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.3rem;
+                }
+                
+                .habits-date {
+                    padding: 0.25rem 0.75rem;
+                    background: var(--tertiary-bg);
+                    border-radius: var(--radius-full);
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+                
+                /* ===========================================
+                   رأس الأقسام
+                =========================================== */
+                .section-header-inline {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: var(--spacing-md);
+                    margin-bottom: var(--spacing-lg);
+                }
+                
+                .section-title-icon {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm);
+                }
+                
+                .section-title-icon .icon {
+                    font-size: 1.3rem;
+                }
+                
+                .section-title-icon h3 {
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.1rem;
+                }
+                
+                .section-desc {
+                    margin: 0;
+                    font-size: 0.75rem;
+                    color: var(--text-tertiary);
+                }
+                
+                /* ===========================================
+                   البحث عن الأدوية
+                =========================================== */
+                .drug-search-section {
+                    background: var(--card-bg);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    border: 1px solid var(--border-light);
+                    box-shadow: var(--shadow-sm);
+                }
+                
+                .dark-mode .drug-search-section {
+                    background: var(--card-bg);
+                    border-color: var(--border-light);
+                }
+                
+                .search-bar {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-md);
+                }
+                
+                .search-bar .search-input {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    font-size: 0.9rem;
+                }
+                
+                .search-actions {
+                    display: flex;
+                    gap: var(--spacing-sm);
+                    flex-wrap: wrap;
+                }
+                
+                .search-btn {
+                    padding: 0.5rem 1rem;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: var(--radius-full);
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    font-size: 0.85rem;
+                }
+                
+                .search-btn.active {
+                    background: var(--primary);
+                    color: white;
+                    border-color: var(--primary);
+                }
+                
+                .search-btn:hover:not(:disabled) {
+                    background: var(--hover-bg);
+                    transform: translateY(-2px);
+                }
+                
+                .scan-btn {
+                    padding: 0.5rem 1rem;
+                    background: linear-gradient(135deg, #10b981, #059669);
+                    color: white;
+                    border: none;
+                    border-radius: var(--radius-full);
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                }
+                
+                .scan-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+                
+                .drug-results {
+                    margin-top: var(--spacing-lg);
+                }
+                
+                .results-header {
+                    font-weight: 600;
+                    margin-bottom: var(--spacing-sm);
+                    color: var(--text-secondary);
+                    font-size: 0.85rem;
+                }
+                
+                .results-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-sm);
+                    max-height: 300px;
+                    overflow-y: auto;
+                }
+                
+                .drug-result-item {
+                    padding: var(--spacing-md);
+                    background: var(--secondary-bg);
+                    border-radius: var(--radius-lg);
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    border: 1px solid var(--border-light);
+                }
+                
+                .drug-result-item:hover {
+                    background: var(--hover-bg);
+                    transform: translateX(4px);
+                }
+                
+                [dir="rtl"] .drug-result-item:hover {
+                    transform: translateX(-4px);
+                }
+                
+                .drug-name {
+                    font-weight: 600;
+                    margin-bottom: var(--spacing-xs);
+                    color: var(--text-primary);
+                }
+                
+                .drug-generic {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    margin-left: var(--spacing-sm);
+                }
+                
+                .drug-details {
+                    display: flex;
+                    gap: var(--spacing-md);
+                    flex-wrap: wrap;
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+                
+                /* ===========================================
+                   نقاط المستخدم
+                =========================================== */
+                .points-section {
+                    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    color: white;
+                }
+                
+                .points-header {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm);
+                    margin-bottom: var(--spacing-md);
+                }
+                
+                .points-icon {
+                    font-size: 1.5rem;
+                }
+                
+                .points-header h3 {
+                    margin: 0;
+                    color: white;
+                }
+                
+                .points-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: var(--spacing-md);
+                }
+                
+                .point-card {
+                    background: rgba(255,255,255,0.15);
+                    backdrop-filter: blur(5px);
+                    border-radius: var(--radius-lg);
+                    padding: var(--spacing-md);
+                    text-align: center;
+                }
+                
+                .point-value {
+                    font-size: 2rem;
+                    font-weight: bold;
+                    color: white;
+                }
+                
+                .point-label {
+                    font-size: 0.7rem;
+                    opacity: 0.9;
+                }
+                
+                /* ===========================================
+                   تقدم العادات
+                =========================================== */
+                .progress-section {
+                    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    color: white;
+                }
+                
+                .progress-header {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm);
+                    margin-bottom: var(--spacing-md);
+                }
+                
+                .progress-icon {
+                    font-size: 1.5rem;
+                }
+                
+                .progress-header h3 {
+                    margin: 0;
+                    color: white;
+                }
+                
+                .progress-stats {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-sm);
+                }
+                
+                .progress-count {
+                    font-size: 1rem;
+                }
+                
+                .progress-bar-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-md);
+                }
+                
+                .progress-bar-wrapper .progress-bar {
+                    flex: 1;
+                    background: rgba(255,255,255,0.3);
+                }
+                
+                .progress-bar-wrapper .progress-fill {
+                    background: white;
+                }
+                
+                .progress-percentage {
+                    font-size: 1rem;
+                    font-weight: bold;
+                }
+                
+                /* ===========================================
+                   إضافة عادة
+                =========================================== */
+                .add-habit-section {
+                    background: var(--card-bg);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    border: 1px solid var(--border-light);
+                }
+                
+                .add-habit-form {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-md);
+                }
+                
+                .form-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-xs);
+                }
+                
+                .form-group label {
+                    font-weight: 500;
+                    color: var(--text-secondary);
+                    font-size: 0.85rem;
+                }
+                
+                .form-group input,
+                .form-group textarea {
+                    padding: 0.75rem 1rem;
+                    border: 1px solid var(--border-light);
+                    border-radius: var(--radius-md);
+                    background: var(--secondary-bg);
+                    color: var(--text-primary);
+                    font-size: 0.9rem;
+                }
+                
+                .form-group input:focus,
+                .form-group textarea:focus {
+                    outline: none;
+                    border-color: var(--primary);
+                    box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+                }
+                
+                .submit-btn {
+                    padding: 0.875rem;
+                    background: var(--primary-gradient);
+                    color: white;
+                    border: none;
+                    border-radius: var(--radius-md);
+                    font-size: 1rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                }
+                
+                .submit-btn:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+                
+                .submit-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+                
+                /* ===========================================
+                   قائمة العادات
+                =========================================== */
+                .habits-list-section {
+                    background: var(--card-bg);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    border: 1px solid var(--border-light);
+                }
+                
+                .habits-count,
+                .medications-count {
+                    padding: 0.25rem 0.75rem;
+                    background: var(--tertiary-bg);
+                    border-radius: var(--radius-full);
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+                
+                .habits-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                    gap: var(--spacing-md);
+                }
+                
+                .habit-card {
+                    background: var(--secondary-bg);
+                    border-radius: var(--radius-lg);
+                    padding: var(--spacing-md);
+                    border: 1px solid var(--border-light);
+                    transition: all var(--transition-medium);
+                }
+                
+                .habit-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+                
+                .habit-card.completed {
+                    background: rgba(16, 185, 129, 0.05);
+                    border-color: rgba(16, 185, 129, 0.3);
+                }
+                
+                .habit-card-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: var(--spacing-md);
+                }
+                
+                .habit-info {
+                    display: flex;
+                    gap: var(--spacing-sm);
+                    flex: 1;
+                }
+                
+                .habit-icon {
+                    font-size: 1.5rem;
+                }
+                
+                .habit-name {
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    margin-bottom: var(--spacing-xs);
+                }
+                
+                .habit-description {
+                    font-size: 0.75rem;
+                    color: var(--text-tertiary);
+                }
+                
+                .habit-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm);
+                }
+                
+                .points-badge {
+                    background: rgba(245, 158, 11, 0.15);
+                    color: #f59e0b;
+                    padding: 0.25rem 0.5rem;
+                    border-radius: var(--radius-full);
+                    font-size: 0.7rem;
+                    font-weight: bold;
+                }
+                
+                .complete-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-xs);
+                    padding: 0.5rem 1rem;
+                    background: rgba(16, 185, 129, 0.1);
+                    border: 1px solid rgba(16, 185, 129, 0.3);
+                    border-radius: var(--radius-full);
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    color: #10b981;
+                    font-size: 0.8rem;
+                }
+                
+                .complete-btn:hover:not(:disabled) {
+                    background: #10b981;
+                    color: white;
+                }
+                
+                .complete-btn.undo {
+                    background: rgba(239, 68, 68, 0.1);
+                    border-color: rgba(239, 68, 68, 0.3);
+                    color: #ef4444;
+                }
+                
+                .complete-btn.undo:hover:not(:disabled) {
+                    background: #ef4444;
+                    color: white;
+                }
+                
+                .complete-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                
+                /* ===========================================
+                   قائمة الأدوية
+                =========================================== */
+                .medications-section {
+                    background: var(--card-bg);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    border: 1px solid var(--border-light);
+                }
+                
+                .medications-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                    gap: var(--spacing-md);
+                }
+                
+                .medication-card {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: var(--spacing-md);
+                    background: var(--secondary-bg);
+                    border-radius: var(--radius-lg);
+                    border: 1px solid var(--border-light);
+                    transition: all var(--transition-medium);
+                }
+                
+                .medication-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+                
+                .medication-card.completed {
+                    background: rgba(16, 185, 129, 0.05);
+                    border-color: rgba(16, 185, 129, 0.3);
+                }
+                
+                .medication-info {
+                    display: flex;
+                    gap: var(--spacing-sm);
+                    flex: 1;
+                }
+                
+                .medication-icon {
+                    font-size: 1.5rem;
+                }
+                
+                .medication-name {
+                    font-weight: 600;
+                    color: var(--text-primary);
+                }
+                
+                .medication-description {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    margin-top: var(--spacing-xs);
+                }
+                
+                .take-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-xs);
+                    padding: 0.5rem 1rem;
+                    background: rgba(59, 130, 246, 0.1);
+                    border: 1px solid rgba(59, 130, 246, 0.3);
+                    border-radius: var(--radius-full);
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    color: #3b82f6;
+                    font-size: 0.8rem;
+                }
+                
+                .take-btn:hover:not(:disabled) {
+                    background: #3b82f6;
+                    color: white;
+                }
+                
+                .take-btn.undo {
+                    background: rgba(239, 68, 68, 0.1);
+                    border-color: rgba(239, 68, 68, 0.3);
+                    color: #ef4444;
+                }
+                
+                .take-btn.undo:hover:not(:disabled) {
+                    background: #ef4444;
+                    color: white;
+                }
+                
+                /* ===========================================
+                   ماسح الباركود
+                =========================================== */
                 .scanner-modal {
                     position: fixed;
                     top: 0;
@@ -774,7 +1382,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                     z-index: 1000;
                     animation: fadeIn 0.3s ease;
                 }
-
+                
                 .scanner-modal-content {
                     background: var(--card-bg);
                     border-radius: var(--radius-xl);
@@ -784,7 +1392,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                     overflow-y: auto;
                     padding: var(--spacing-lg);
                 }
-
+                
                 .scanner-header {
                     display: flex;
                     justify-content: space-between;
@@ -793,12 +1401,12 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                     padding-bottom: var(--spacing-sm);
                     border-bottom: 1px solid var(--border-light);
                 }
-
+                
                 .scanner-header h3 {
                     margin: 0;
                     color: var(--text-primary);
                 }
-
+                
                 .close-btn {
                     background: none;
                     border: none;
@@ -807,22 +1415,22 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                     color: var(--text-secondary);
                     transition: all var(--transition-fast);
                 }
-
+                
                 .close-btn:hover {
                     color: var(--error);
                 }
-
+                
                 .scanner-footer {
                     margin-top: var(--spacing-md);
                     text-align: center;
                 }
-
+                
                 .scanner-footer p {
                     color: var(--text-secondary);
                     font-size: 0.8rem;
                     margin-bottom: var(--spacing-sm);
                 }
-
+                
                 .cancel-btn {
                     padding: var(--spacing-sm) var(--spacing-lg);
                     background: var(--secondary-bg);
@@ -832,14 +1440,11 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                     color: var(--text-primary);
                     transition: all var(--transition-fast);
                 }
-
-                .cancel-btn:hover {
-                    background: var(--error-bg);
-                    color: var(--error);
-                    border-color: var(--error);
-                }
-
-                .notification-message {
+                
+                /* ===========================================
+                   إشعارات
+                =========================================== */
+                .notification-toast {
                     position: fixed;
                     bottom: var(--spacing-lg);
                     right: var(--spacing-lg);
@@ -852,35 +1457,78 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                     z-index: 1000;
                     box-shadow: var(--shadow-lg);
                 }
-
-                .notification-message.success {
+                
+                [dir="rtl"] .notification-toast {
+                    right: auto;
+                    left: var(--spacing-lg);
+                }
+                
+                .notification-toast.success {
                     background: var(--success);
                     color: white;
                 }
-
-                .notification-message.error {
+                
+                .notification-toast.error {
                     background: var(--error);
                     color: white;
                 }
-
-                .notification-message button {
+                
+                .notification-toast.info {
+                    background: var(--info);
+                    color: white;
+                }
+                
+                .notification-toast button {
                     background: none;
                     border: none;
                     color: white;
                     cursor: pointer;
-                    font-size: 1.2rem;
+                    font-size: 1rem;
                 }
-
-                [dir="rtl"] .notification-message {
-                    right: auto;
-                    left: var(--spacing-lg);
+                
+                /* ===========================================
+                   حالات فارغة
+                =========================================== */
+                .loading-state,
+                .empty-state {
+                    text-align: center;
+                    padding: var(--spacing-2xl);
                 }
-
+                
+                .spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid var(--border-light);
+                    border-top-color: var(--primary);
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    margin: 0 auto var(--spacing-md);
+                }
+                
+                .spinner-small {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    animation: spin 0.6s linear infinite;
+                    display: inline-block;
+                }
+                
+                .empty-icon {
+                    font-size: 3rem;
+                    margin-bottom: var(--spacing-md);
+                    opacity: 0.5;
+                }
+                
+                /* ===========================================
+                   أنيميشن
+                =========================================== */
                 @keyframes fadeIn {
                     from { opacity: 0; }
                     to { opacity: 1; }
                 }
-
+                
                 @keyframes slideIn {
                     from {
                         opacity: 0;
@@ -891,7 +1539,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                         transform: translateX(0);
                     }
                 }
-
+                
                 [dir="rtl"] @keyframes slideIn {
                     from {
                         opacity: 0;
@@ -902,24 +1550,116 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                         transform: translateX(0);
                     }
                 }
-
+                
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+                
+                .analytics-wrapper {
+                    margin-top: var(--spacing-xl);
+                }
+                
+                /* ===========================================
+                   استجابة الشاشات
+                =========================================== */
                 @media (max-width: 768px) {
-                    .notification-message {
+                    .habits-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+                    
+                    .points-grid {
+                        grid-template-columns: 1fr;
+                        gap: var(--spacing-sm);
+                    }
+                    
+                    .habits-grid,
+                    .medications-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .habit-card-header {
+                        flex-direction: column;
+                    }
+                    
+                    .medication-card {
+                        flex-direction: column;
+                        gap: var(--spacing-md);
+                        text-align: center;
+                    }
+                    
+                    .medication-info {
+                        flex-direction: column;
+                        align-items: center;
+                        text-align: center;
+                    }
+                    
+                    .notification-toast {
                         left: var(--spacing-md);
                         right: var(--spacing-md);
                         bottom: var(--spacing-md);
                     }
                     
-                    [dir="rtl"] .notification-message {
+                    [dir="rtl"] .notification-toast {
                         left: var(--spacing-md);
                         right: var(--spacing-md);
                     }
                 }
-
+                
+                @media (max-width: 480px) {
+                    .search-actions {
+                        flex-direction: column;
+                    }
+                    
+                    .search-btn,
+                    .scan-btn {
+                        width: 100%;
+                        text-align: center;
+                    }
+                }
+                
+                /* ===========================================
+                   دعم RTL
+                =========================================== */
+                [dir="rtl"] .habit-card-header {
+                    flex-direction: row-reverse;
+                }
+                
+                [dir="rtl"] .habit-info {
+                    flex-direction: row-reverse;
+                }
+                
+                [dir="rtl"] .medication-info {
+                    flex-direction: row-reverse;
+                }
+                
+                @media (max-width: 768px) {
+                    [dir="rtl"] .habit-card-header {
+                        flex-direction: column;
+                    }
+                    
+                    [dir="rtl"] .habit-info {
+                        flex-direction: column;
+                    }
+                    
+                    [dir="rtl"] .medication-info {
+                        flex-direction: column;
+                    }
+                }
+                
+                /* ===========================================
+                   دعم الحركة المخفضة
+                =========================================== */
                 @media (prefers-reduced-motion: reduce) {
                     .scanner-modal,
-                    .notification-message {
+                    .notification-toast {
                         animation: none !important;
+                    }
+                    
+                    .habit-card:hover,
+                    .medication-card:hover,
+                    .drug-result-item:hover {
+                        transform: none !important;
                     }
                 }
             `}</style>

@@ -9,6 +9,11 @@ const applyLanguage = (lang) => {
     localStorage.setItem('app_lang', lang);
     document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
     document.documentElement.lang = isArabic ? 'ar' : 'en';
+    
+    const languageChangeEvent = new CustomEvent('languageChange', { 
+        detail: { lang, isArabic } 
+    });
+    window.dispatchEvent(languageChangeEvent);
 };
 
 function Register({ onRegisterSuccess }) {
@@ -35,6 +40,10 @@ function Register({ onRegisterSuccess }) {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState(0);
     const [touched, setTouched] = useState({});
+    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [showTermsModal, setShowTermsModal] = useState(false);
+    const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
@@ -42,19 +51,18 @@ function Register({ onRegisterSuccess }) {
     // رابط خدمة Google Auth المنفصلة
     const GOOGLE_AUTH_URL = import.meta.env.VITE_GOOGLE_AUTH_URL || 'https://google-auth-fwz4.onrender.com';
 
-    // ✅ تبديل اللغة (يتم الاحتفاظ به في صفحة التسجيل)
+    // ✅ تبديل اللغة
     const toggleLanguage = () => {
         const newLang = lang === 'ar' ? 'en' : 'ar';
         setLang(newLang);
         applyLanguage(newLang);
     };
 
-    // ✅ الاستماع لتغييرات اللغة (للتزامن مع أي تغيير يحدث أثناء البقاء في الصفحة)
+    // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
                 setLang(event.detail.lang);
-                // تطبيق اتجاه الصفحة
                 document.documentElement.dir = event.detail.isArabic ? 'rtl' : 'ltr';
                 document.documentElement.lang = event.detail.isArabic ? 'ar' : 'en';
             }
@@ -67,16 +75,17 @@ function Register({ onRegisterSuccess }) {
         };
     }, [lang]);
 
-    // تحميل إعدادات الوضع المظلم
+    // ✅ تحميل الإعدادات المحفوظة
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setIsDarkMode(savedDarkMode);
         
         if (savedDarkMode) {
             document.documentElement.classList.add('dark-mode');
+            document.documentElement.setAttribute('data-theme', 'dark');
         }
         
-        // تطبيق اللغة المحفوظة عند تحميل الصفحة
         const savedLang = localStorage.getItem('app_lang');
         if (savedLang) {
             const isSavedArabic = savedLang === 'ar';
@@ -85,14 +94,18 @@ function Register({ onRegisterSuccess }) {
         }
     }, []);
 
+    // ✅ الاستماع لتغييرات الثيم
     useEffect(() => {
         const handleThemeChange = (e) => {
             const newDarkMode = e.detail?.darkMode ?? false;
+            setIsDarkMode(newDarkMode);
             
             if (newDarkMode) {
                 document.documentElement.classList.add('dark-mode');
+                document.documentElement.setAttribute('data-theme', 'dark');
             } else {
                 document.documentElement.classList.remove('dark-mode');
+                document.documentElement.setAttribute('data-theme', 'light');
             }
         };
         
@@ -100,7 +113,27 @@ function Register({ onRegisterSuccess }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // حساب قوة كلمة المرور
+    // ✅ تبديل الوضع المظلم
+    const toggleDarkMode = () => {
+        const newDarkMode = !isDarkMode;
+        setIsDarkMode(newDarkMode);
+        
+        if (newDarkMode) {
+            document.documentElement.classList.add('dark-mode');
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('livocare_darkMode', 'true');
+        } else {
+            document.documentElement.classList.remove('dark-mode');
+            document.documentElement.setAttribute('data-theme', 'light');
+            localStorage.setItem('livocare_darkMode', 'false');
+        }
+        
+        window.dispatchEvent(new CustomEvent('themeChange', { 
+            detail: { darkMode: newDarkMode }
+        }));
+    };
+
+    // ✅ حساب قوة كلمة المرور
     useEffect(() => {
         if (!formData.password) {
             setPasswordStrength(0);
@@ -110,34 +143,23 @@ function Register({ onRegisterSuccess }) {
         let strength = 0;
         const password = formData.password;
         
-        if (password.length >= 8) strength += 25;
-        else if (password.length >= 6) strength += 15;
+        // الطول
+        if (password.length >= 12) strength += 30;
+        else if (password.length >= 8) strength += 20;
+        else if (password.length >= 6) strength += 10;
         
+        // الأحرف الكبيرة والصغيرة
         if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength += 25;
         else if (/[a-zA-Z]/.test(password)) strength += 15;
         
+        // الأرقام
         if (/\d/.test(password)) strength += 25;
         
-        if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 25;
+        // الرموز الخاصة
+        if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 20;
         
-        setPasswordStrength(strength);
+        setPasswordStrength(Math.min(100, strength));
     }, [formData.password]);
-
-    const toggleDarkMode = () => {
-        const newDarkMode = !document.documentElement.classList.contains('dark-mode');
-        
-        if (newDarkMode) {
-            document.documentElement.classList.add('dark-mode');
-            localStorage.setItem('livocare_darkMode', 'true');
-        } else {
-            document.documentElement.classList.remove('dark-mode');
-            localStorage.setItem('livocare_darkMode', 'false');
-        }
-        
-        window.dispatchEvent(new CustomEvent('themeChange', { 
-            detail: { darkMode: newDarkMode }
-        }));
-    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -154,28 +176,19 @@ function Register({ onRegisterSuccess }) {
         }));
     };
 
-    const validateForm = () => {
-        if (!formData.username || formData.username.length < 3) {
-            return isArabic ? 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل' : 'Username must be at least 3 characters';
-        }
-        if (!formData.username.match(/^[a-zA-Z0-9_]+$/)) {
-            return isArabic ? 'اسم المستخدم يحتوي على أحرف غير مسموحة' : 'Username contains invalid characters';
-        }
-        if (!formData.email || !formData.email.includes('@') || !formData.email.includes('.')) {
-            return isArabic ? 'البريد الإلكتروني غير صالح' : 'Invalid email address';
-        }
-        if (!formData.password || formData.password.length < 8) {
-            return isArabic ? 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' : 'Password must be at least 8 characters';
-        }
-        if (passwordStrength < 50) {
-            return isArabic ? 'كلمة المرور ضعيفة' : 'Password is weak';
-        }
-        if (formData.password !== formData.password2) {
-            return isArabic ? 'كلمة المرور غير متطابقة' : 'Passwords do not match';
-        }
-        return null;
+    // ✅ التحقق من صحة البريد الإلكتروني
+    const isValidEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
     };
 
+    // ✅ التحقق من صحة اسم المستخدم
+    const isValidUsername = (username) => {
+        const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+        return usernameRegex.test(username);
+    };
+
+    // ✅ الحصول على لون قوة كلمة المرور
     const getPasswordStrengthColor = () => {
         if (passwordStrength < 30) return '#ef4444';
         if (passwordStrength < 60) return '#f59e0b';
@@ -183,13 +196,67 @@ function Register({ onRegisterSuccess }) {
         return '#10b981';
     };
 
+    // ✅ الحصول على نص قوة كلمة المرور
     const getPasswordStrengthText = () => {
-        if (passwordStrength < 30) return isArabic ? 'ضعيفة' : 'Weak';
+        if (passwordStrength < 30) return isArabic ? 'ضعيفة جداً' : 'Very Weak';
         if (passwordStrength < 60) return isArabic ? 'متوسطة' : 'Fair';
         if (passwordStrength < 80) return isArabic ? 'جيدة' : 'Good';
         return isArabic ? 'قوية جداً' : 'Very Strong';
     };
 
+    // ✅ التحقق من صحة النموذج بالكامل
+    const validateForm = () => {
+        // التحقق من الاسم الأول (اختياري)
+        if (formData.first_name && (formData.first_name.length < 2 || formData.first_name.length > 50)) {
+            return isArabic ? 'الاسم الأول يجب أن يكون بين 2 و 50 حرفاً' : 'First name must be between 2 and 50 characters';
+        }
+        
+        // التحقق من اسم العائلة (اختياري)
+        if (formData.last_name && (formData.last_name.length < 2 || formData.last_name.length > 50)) {
+            return isArabic ? 'اسم العائلة يجب أن يكون بين 2 و 50 حرفاً' : 'Last name must be between 2 and 50 characters';
+        }
+        
+        // التحقق من اسم المستخدم
+        if (!formData.username) {
+            return isArabic ? 'اسم المستخدم مطلوب' : 'Username is required';
+        }
+        if (!isValidUsername(formData.username)) {
+            return isArabic ? 'اسم المستخدم يجب أن يحتوي على 3-20 حرف (أحرف، أرقام، شرطة سفلية فقط)' : 'Username must be 3-20 characters (letters, numbers, underscore only)';
+        }
+        
+        // التحقق من البريد الإلكتروني
+        if (!formData.email) {
+            return isArabic ? 'البريد الإلكتروني مطلوب' : 'Email is required';
+        }
+        if (!isValidEmail(formData.email)) {
+            return isArabic ? 'البريد الإلكتروني غير صالح' : 'Invalid email address';
+        }
+        
+        // التحقق من كلمة المرور
+        if (!formData.password) {
+            return isArabic ? 'كلمة المرور مطلوبة' : 'Password is required';
+        }
+        if (formData.password.length < 8) {
+            return isArabic ? 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' : 'Password must be at least 8 characters';
+        }
+        if (passwordStrength < 50) {
+            return isArabic ? 'كلمة المرور ضعيفة. استخدم أحرفاً كبيرة وصغيرة وأرقاماً ورموزاً' : 'Password is weak. Use uppercase, lowercase, numbers, and symbols';
+        }
+        
+        // التحقق من تأكيد كلمة المرور
+        if (formData.password !== formData.password2) {
+            return isArabic ? 'كلمة المرور غير متطابقة' : 'Passwords do not match';
+        }
+        
+        // التحقق من الموافقة على الشروط
+        if (!agreedToTerms) {
+            return isArabic ? 'يجب الموافقة على شروط الخدمة وسياسة الخصوصية' : 'You must agree to the Terms of Service and Privacy Policy';
+        }
+        
+        return null;
+    };
+
+    // ✅ إرسال النموذج
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
@@ -217,7 +284,7 @@ function Register({ onRegisterSuccess }) {
             console.log('✅ Registration successful:', response.data);
             
             if (isMountedRef.current) {
-                setMessage(isArabic ? 'تم إنشاء الحساب بنجاح' : 'Account created successfully');
+                setMessage(isArabic ? '🎉 تم إنشاء الحساب بنجاح! جاري تحويلك...' : '🎉 Account created successfully! Redirecting...');
                 setMessageType('success');
             }
             
@@ -251,16 +318,16 @@ function Register({ onRegisterSuccess }) {
             
             if (!isMountedRef.current) return;
             
-            let errorMessage = isArabic ? 'فشل إنشاء الحساب' : 'Registration failed';
+            let errorMessage = isArabic ? '❌ فشل إنشاء الحساب' : '❌ Registration failed';
             
             if (error.response?.data?.username) {
-                errorMessage = isArabic ? 'اسم المستخدم موجود مسبقاً' : 'Username already exists';
+                errorMessage = isArabic ? '❌ اسم المستخدم موجود مسبقاً' : '❌ Username already exists';
             } else if (error.response?.data?.email) {
-                errorMessage = isArabic ? 'البريد الإلكتروني موجود مسبقاً' : 'Email already exists';
+                errorMessage = isArabic ? '❌ البريد الإلكتروني موجود مسبقاً' : '❌ Email already exists';
             } else if (error.response?.status === 400) {
-                errorMessage = isArabic ? 'بيانات غير صالحة' : 'Invalid data';
+                errorMessage = isArabic ? '❌ بيانات غير صالحة، يرجى التحقق من المدخلات' : '❌ Invalid data, please check your inputs';
             } else if (!navigator.onLine) {
-                errorMessage = isArabic ? 'لا يوجد اتصال بالإنترنت' : 'No internet connection';
+                errorMessage = isArabic ? '📡 لا يوجد اتصال بالإنترنت' : '📡 No internet connection';
             }
             
             setMessage(errorMessage);
@@ -271,7 +338,7 @@ function Register({ onRegisterSuccess }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [formData, onRegisterSuccess, navigate, isArabic]);
+    }, [formData, onRegisterSuccess, navigate, isArabic, passwordStrength, agreedToTerms]);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -280,101 +347,163 @@ function Register({ onRegisterSuccess }) {
         };
     }, []);
 
-    // دالة تسجيل Google
+    // ✅ تسجيل Google
     const handleGoogleRegister = () => {
         localStorage.setItem('redirectAfterAuth', '/dashboard');
         window.location.href = `${GOOGLE_AUTH_URL}/auth/google`;
     };
 
+    // ✅ نافذة الشروط والأحكام
+    const TermsModal = () => (
+        <div className="modal-overlay" onClick={() => setShowTermsModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>{isArabic ? '📜 شروط الخدمة' : '📜 Terms of Service'}</h3>
+                    <button className="modal-close" onClick={() => setShowTermsModal(false)}>✕</button>
+                </div>
+                <div className="modal-body">
+                    <p>{isArabic ? 'باستخدام تطبيق LivoCare، فإنك توافق على:' : 'By using LivoCare, you agree to:'}</p>
+                    <ul>
+                        <li>{isArabic ? 'تقديم معلومات دقيقة وكاملة عن صحتك' : 'Provide accurate and complete health information'}</li>
+                        <li>{isArabic ? 'الاحتفاظ بسرية بيانات حسابك' : 'Keep your account credentials confidential'}</li>
+                        <li>{isArabic ? 'استخدام التطبيق للأغراض الصحية فقط' : 'Use the app only for health purposes'}</li>
+                        <li>{isArabic ? 'عدم مشاركة حساباتك مع آخرين' : 'Not share your account with others'}</li>
+                        <li>{isArabic ? 'الالتزام بقوانين الخصوصية المحلية والدولية' : 'Comply with local and international privacy laws'}</li>
+                    </ul>
+                    <p className="modal-note">{isArabic ? 'تحتفظ LivoCare بالحق في تعديل هذه الشروط في أي وقت.' : 'LivoCare reserves the right to modify these terms at any time.'}</p>
+                </div>
+                <div className="modal-footer">
+                    <button onClick={() => setShowTermsModal(false)} className="modal-btn">{isArabic ? 'فهمت' : 'I Understand'}</button>
+                </div>
+            </div>
+        </div>
+    );
+
+    // ✅ نافذة سياسة الخصوصية
+    const PrivacyModal = () => (
+        <div className="modal-overlay" onClick={() => setShowPrivacyModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>{isArabic ? '🔒 سياسة الخصوصية' : '🔒 Privacy Policy'}</h3>
+                    <button className="modal-close" onClick={() => setShowPrivacyModal(false)}>✕</button>
+                </div>
+                <div className="modal-body">
+                    <p>{isArabic ? 'نحن في LivoCare نحمي خصوصية بياناتك:' : 'At LivoCare, we protect your privacy:'}</p>
+                    <ul>
+                        <li>{isArabic ? 'نستخدم تشفيراً متقدماً لحماية بياناتك' : 'We use advanced encryption to protect your data'}</li>
+                        <li>{isArabic ? 'لا نشارك بياناتك الصحية مع أطراف ثالثة' : 'We do not share your health data with third parties'}</li>
+                        <li>{isArabic ? 'يمكنك طلب حذف بياناتك في أي وقت' : 'You can request deletion of your data at any time'}</li>
+                        <li>{isArabic ? 'نستخدم بياناتك فقط لتحسين تجربتك الصحية' : 'We use your data only to improve your health experience'}</li>
+                        <li>{isArabic ? 'نلتزم بجميع معايير الخصوصية العالمية' : 'We comply with all global privacy standards'}</li>
+                    </ul>
+                    <p className="modal-note">{isArabic ? 'لأي استفسار، تواصل معنا على support@livocare.com' : 'For any inquiries, contact us at support@livocare.com'}</p>
+                </div>
+                <div className="modal-footer">
+                    <button onClick={() => setShowPrivacyModal(false)} className="modal-btn">{isArabic ? 'فهمت' : 'I Understand'}</button>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
-        <div className="register-container">
-            {/* خلفية متحركة */}
+        <div className="register-wrapper">
+            {/* ✅ خلفية متحركة */}
             <div className="register-background">
-                <div className="bg-shape bg-shape-1"></div>
-                <div className="bg-shape bg-shape-2"></div>
-                <div className="bg-shape bg-shape-3"></div>
+                <div className="bg-blob bg-blob-1"></div>
+                <div className="bg-blob bg-blob-2"></div>
+                <div className="bg-blob bg-blob-3"></div>
             </div>
 
-            {/* شريط التحكم العلوي */}
-            <div className="register-control-bar">
-                <div className="control-bar-content">
-                    <div className="app-title">
-                        <div className="title-text">
-                            <h1>LivoCare</h1>
-                            <span className="app-subtitle">{isArabic ? 'انضم إلى LivoCare وابدأ رحلتك الصحية' : 'Join LivoCare and start your health journey'}</span>
+            {/* ✅ شريط التحكم العلوي */}
+            <div className="register-navbar">
+                <div className="navbar-content">
+                    <Link to="/" className="logo-area">
+                        <div className="logo-circle">
+                            <span className="logo-emoji">🫀</span>
                         </div>
-                    </div>
+                        <div className="logo-text">
+                            <h1 className="logo-name">LivoCare</h1>
+                            <span className="logo-tagline">{isArabic ? 'صحتك أولاً' : 'Your Health First'}</span>
+                        </div>
+                    </Link>
                     
-                    <div className="register-controls">
-                        {/* ✅ زر اللغة موجود في صفحة التسجيل لأنها صفحة عامة قبل تسجيل الدخول */}
+                    <div className="navbar-actions">
                         <button 
-                            className="lang-btn"
+                            className="action-btn"
                             onClick={toggleLanguage}
                             title={isArabic ? 'English' : 'العربية'}
                         >
-                            {isArabic ? 'EN' : 'AR'}
+                            🌐 <span>{isArabic ? 'English' : 'العربية'}</span>
                         </button>
                         
                         <button 
-                            className="theme-toggle"
+                            className="action-btn"
                             onClick={toggleDarkMode}
-                            title={document.documentElement.classList.contains('dark-mode') ? (isArabic ? 'وضع فاتح' : 'Light Mode') : (isArabic ? 'وضع مظلم' : 'Dark Mode')}
+                            title={isDarkMode ? (isArabic ? '☀️ الوضع الفاتح' : '☀️ Light Mode') : (isArabic ? '🌙 الوضع المظلم' : '🌙 Dark Mode')}
                         >
-                            {document.documentElement.classList.contains('dark-mode') ? '☀️' : '🌙'}
+                            {isDarkMode ? '☀️' : '🌙'}
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div className="register-content">
-                <div className="register-form-card">
-                    <div className="register-header">
-                        <h2>{isArabic ? 'إنشاء حساب جديد' : 'Create New Account'}</h2>
-                        <p className="register-description">{isArabic ? 'أدخل بياناتك لإنشاء حساب' : 'Enter your details to create an account'}</p>
+            {/* ✅ المحتوى الرئيسي */}
+            <div className="register-main">
+                <div className="register-card">
+                    <div className="card-header">
+                        <div className="header-icon">
+                            <span className="icon-user">👤</span>
+                        </div>
+                        <h2 className="header-title">{isArabic ? 'إنشاء حساب جديد' : 'Create Account'}</h2>
+                        <p className="header-subtitle">{isArabic ? 'انضم إلى LivoCare وابدأ رحلتك الصحية' : 'Join LivoCare and start your health journey'}</p>
                     </div>
                     
                     <form onSubmit={handleSubmit} className="register-form">
+                        {/* ✅ الاسم الأول واسم العائلة */}
                         <div className="form-row">
-                            <div className="form-group half">
-                                <label htmlFor="first_name">
+                            <div className="form-field">
+                                <label className="field-label">
+                                    <span className="label-icon">👤</span>
                                     {isArabic ? 'الاسم الأول' : 'First Name'}
+                                    <span className="optional">({isArabic ? 'اختياري' : 'Optional'})</span>
                                 </label>
                                 <input
-                                    id="first_name"
                                     type="text"
                                     name="first_name"
                                     value={formData.first_name}
                                     onChange={handleChange}
                                     onBlur={() => handleBlur('first_name')}
                                     placeholder={isArabic ? 'أدخل اسمك الأول' : 'Enter your first name'}
-                                    className={`search-input ${touched.first_name && !formData.first_name ? 'error' : ''}`}
+                                    className="form-input"
                                 />
                             </div>
                             
-                            <div className="form-group half">
-                                <label htmlFor="last_name">
+                            <div className="form-field">
+                                <label className="field-label">
+                                    <span className="label-icon">👨‍👩‍👧</span>
                                     {isArabic ? 'اسم العائلة' : 'Last Name'}
+                                    <span className="optional">({isArabic ? 'اختياري' : 'Optional'})</span>
                                 </label>
                                 <input
-                                    id="last_name"
                                     type="text"
                                     name="last_name"
                                     value={formData.last_name}
                                     onChange={handleChange}
                                     onBlur={() => handleBlur('last_name')}
                                     placeholder={isArabic ? 'أدخل اسم العائلة' : 'Enter your last name'}
-                                    className={`search-input ${touched.last_name && !formData.last_name ? 'error' : ''}`}
+                                    className="form-input"
                                 />
                             </div>
                         </div>
 
-                        <div className="form-group">
-                            <label htmlFor="username">
-                                {isArabic ? 'اسم المستخدم' : 'Username'} <span className="required">*</span>
+                        {/* ✅ اسم المستخدم */}
+                        <div className="form-field">
+                            <label className="field-label required">
+                                <span className="label-icon">🔖</span>
+                                {isArabic ? 'اسم المستخدم' : 'Username'}
                             </label>
-                            <div className="input-wrapper">
+                            <div className="input-container">
                                 <input
-                                    id="username"
                                     type="text"
                                     name="username"
                                     value={formData.username}
@@ -382,105 +511,97 @@ function Register({ onRegisterSuccess }) {
                                     onBlur={() => handleBlur('username')}
                                     required
                                     placeholder={isArabic ? 'أدخل اسم المستخدم' : 'Enter username'}
-                                    className={`search-input ${touched.username && (!formData.username || formData.username.length < 3) ? 'error' : ''}`}
+                                    className={`form-input ${touched.username && formData.username && !isValidUsername(formData.username) ? 'error' : ''}`}
                                 />
                             </div>
-                            {touched.username && formData.username && formData.username.length < 3 && (
-                                <p className="field-error">
-                                    {isArabic ? 'اسم المستخدم قصير جداً (3 أحرف على الأقل)' : 'Username is too short (minimum 3 characters)'}
-                                </p>
+                            {touched.username && formData.username && !isValidUsername(formData.username) && (
+                                <div className="field-error">
+                                    ⚠️ {isArabic ? '3-20 حرف (أحرف، أرقام، شرطة سفلية فقط)' : '3-20 characters (letters, numbers, underscore only)'}
+                                </div>
                             )}
                         </div>
 
-                        <div className="form-group">
-                            <label htmlFor="email">
-                                {isArabic ? 'البريد الإلكتروني' : 'Email'} <span className="required">*</span>
+                        {/* ✅ البريد الإلكتروني */}
+                        <div className="form-field">
+                            <label className="field-label required">
+                                <span className="label-icon">📧</span>
+                                {isArabic ? 'البريد الإلكتروني' : 'Email'}
                             </label>
-                            <div className="input-wrapper">
+                            <div className="input-container">
                                 <input
-                                    id="email"
                                     type="email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleChange}
                                     onBlur={() => handleBlur('email')}
                                     required
-                                    placeholder={isArabic ? 'أدخل بريدك الإلكتروني' : 'Enter your email'}
-                                    className={`search-input ${touched.email && (!formData.email || !formData.email.includes('@')) ? 'error' : ''}`}
+                                    placeholder={isArabic ? 'example@email.com' : 'example@email.com'}
+                                    className={`form-input ${touched.email && formData.email && !isValidEmail(formData.email) ? 'error' : ''}`}
                                 />
                             </div>
+                            {touched.email && formData.email && !isValidEmail(formData.email) && (
+                                <div className="field-error">
+                                    ⚠️ {isArabic ? 'البريد الإلكتروني غير صالح' : 'Invalid email address'}
+                                </div>
+                            )}
                         </div>
 
-                        <div className="form-group">
-                            <label htmlFor="password">
-                                {isArabic ? 'كلمة المرور' : 'Password'} <span className="required">*</span>
+                        {/* ✅ كلمة المرور */}
+                        <div className="form-field">
+                            <label className="field-label required">
+                                <span className="label-icon">🔒</span>
+                                {isArabic ? 'كلمة المرور' : 'Password'}
                             </label>
-                            <div className="input-wrapper password-wrapper" style={{ position: 'relative' }}>
+                            <div className="input-container password-container">
                                 <input
-                                    id="password"
                                     type={showPassword ? "text" : "password"}
                                     name="password"
                                     value={formData.password}
                                     onChange={handleChange}
                                     onBlur={() => handleBlur('password')}
                                     required
-                                    placeholder={isArabic ? 'أدخل كلمة المرور' : 'Enter password'}
-                                    className={`search-input ${touched.password && (!formData.password || formData.password.length < 8) ? 'error' : ''}`}
+                                    placeholder={isArabic ? 'أدخل كلمة مرور قوية' : 'Enter a strong password'}
+                                    className={`form-input ${touched.password && formData.password && formData.password.length < 8 ? 'error' : ''}`}
                                 />
                                 <button
                                     type="button"
-                                    className="password-toggle"
+                                    className="password-eye"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    aria-label={showPassword ? (isArabic ? 'إخفاء كلمة المرور' : 'Hide password') : (isArabic ? 'إظهار كلمة المرور' : 'Show password')}
-                                    style={{
-                                        position: 'absolute',
-                                        right: 'var(--spacing-md)',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        fontSize: '1.2rem',
-                                        padding: 'var(--spacing-xs)',
-                                        borderRadius: 'var(--radius-full)',
-                                        transition: 'all var(--transition-fast)'
-                                    }}
-                                    tabIndex="-1"
+                                    aria-label={showPassword ? (isArabic ? 'إخفاء' : 'Hide') : (isArabic ? 'إظهار' : 'Show')}
                                 >
                                     {showPassword ? '👁️' : '👁️‍🗨️'}
                                 </button>
                             </div>
                             
                             {formData.password && (
-                                <div className="password-strength" style={{ marginTop: 'var(--spacing-sm)' }}>
-                                    <div className="strength-bar" style={{ height: '4px', background: 'var(--border-light)', borderRadius: '2px', overflow: 'hidden', marginBottom: 'var(--spacing-xs)' }}>
+                                <div className="password-strength">
+                                    <div className="strength-bar">
                                         <div 
                                             className="strength-fill"
                                             style={{ 
                                                 width: `${passwordStrength}%`,
-                                                height: '100%',
-                                                backgroundColor: getPasswordStrengthColor(),
-                                                transition: 'width var(--transition-medium)'
+                                                backgroundColor: getPasswordStrengthColor()
                                             }}
                                         ></div>
                                     </div>
-                                    <span className="strength-text" style={{ fontSize: '0.7rem', color: getPasswordStrengthColor() }}>
+                                    <span className="strength-text" style={{ color: getPasswordStrengthColor() }}>
                                         {getPasswordStrengthText()}
                                     </span>
                                 </div>
                             )}
-                            <p className="password-hint" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: 'var(--spacing-xs)' }}>
-                                {isArabic ? '8 أحرف على الأقل، حرف كبير، رقم، رمز' : 'At least 8 characters, uppercase, number, symbol'}
-                            </p>
+                            <div className="field-hint">
+                                💡 {isArabic ? '8 أحرف على الأقل، حرف كبير، رقم، رمز' : 'At least 8 characters, uppercase, number, symbol'}
+                            </div>
                         </div>
 
-                        <div className="form-group">
-                            <label htmlFor="password2">
-                                {isArabic ? 'تأكيد كلمة المرور' : 'Confirm Password'} <span className="required">*</span>
+                        {/* ✅ تأكيد كلمة المرور */}
+                        <div className="form-field">
+                            <label className="field-label required">
+                                <span className="label-icon">✓</span>
+                                {isArabic ? 'تأكيد كلمة المرور' : 'Confirm Password'}
                             </label>
-                            <div className="input-wrapper password-wrapper" style={{ position: 'relative' }}>
+                            <div className="input-container password-container">
                                 <input
-                                    id="password2"
                                     type={showConfirmPassword ? "text" : "password"}
                                     name="password2"
                                     value={formData.password2}
@@ -488,160 +609,111 @@ function Register({ onRegisterSuccess }) {
                                     onBlur={() => handleBlur('password2')}
                                     required
                                     placeholder={isArabic ? 'أعد إدخال كلمة المرور' : 'Re-enter password'}
-                                    className={`search-input ${touched.password2 && formData.password2 && formData.password !== formData.password2 ? 'error' : ''}`}
+                                    className={`form-input ${touched.password2 && formData.password2 && formData.password !== formData.password2 ? 'error' : ''}`}
                                 />
                                 <button
                                     type="button"
-                                    className="password-toggle"
+                                    className="password-eye"
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    aria-label={showConfirmPassword ? (isArabic ? 'إخفاء تأكيد كلمة المرور' : 'Hide confirm password') : (isArabic ? 'إظهار تأكيد كلمة المرور' : 'Show confirm password')}
-                                    style={{
-                                        position: 'absolute',
-                                        right: 'var(--spacing-md)',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        fontSize: '1.2rem',
-                                        padding: 'var(--spacing-xs)',
-                                        borderRadius: 'var(--radius-full)',
-                                        transition: 'all var(--transition-fast)'
-                                    }}
-                                    tabIndex="-1"
+                                    aria-label={showConfirmPassword ? (isArabic ? 'إخفاء' : 'Hide') : (isArabic ? 'إظهار' : 'Show')}
                                 >
                                     {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
                                 </button>
                             </div>
                             {touched.password2 && formData.password2 && formData.password !== formData.password2 && (
-                                <p className="field-error">
-                                    {isArabic ? 'كلمة المرور غير متطابقة' : 'Passwords do not match'}
-                                </p>
+                                <div className="field-error">
+                                    ⚠️ {isArabic ? 'كلمة المرور غير متطابقة' : 'Passwords do not match'}
+                                </div>
                             )}
                         </div>
 
-                        <div className="register-actions" style={{ marginTop: 'var(--spacing-2xl)' }}>
+                        {/* ✅ الموافقة على الشروط */}
+                        <div className="terms-checkbox">
+                            <label className="checkbox-label">
+                                <input
+                                    type="checkbox"
+                                    checked={agreedToTerms}
+                                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                    className="checkbox-input"
+                                />
+                                <span className="checkbox-custom"></span>
+                                <span className="checkbox-text">
+                                    {isArabic ? 'أوافق على' : 'I agree to the'}{' '}
+                                    <button type="button" onClick={() => setShowTermsModal(true)} className="terms-link">
+                                        {isArabic ? 'شروط الخدمة' : 'Terms of Service'}
+                                    </button>
+                                    {isArabic ? ' و ' : ' and '}
+                                    <button type="button" onClick={() => setShowPrivacyModal(true)} className="terms-link">
+                                        {isArabic ? 'سياسة الخصوصية' : 'Privacy Policy'}
+                                    </button>
+                                </span>
+                            </label>
+                        </div>
+
+                        {/* ✅ أزرار الإجراء */}
+                        <div className="form-buttons">
                             <button 
                                 type="submit" 
-                                className="type-btn active"
+                                className="register-btn"
                                 disabled={loading}
-                                style={{ width: '100%' }}
                             >
                                 {loading ? (
                                     <>
-                                        <span className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
-                                        {isArabic ? 'جاري التسجيل...' : 'Registering...'}
+                                        <span className="btn-spinner"></span>
+                                        {isArabic ? 'جاري إنشاء الحساب...' : 'Creating account...'}
                                     </>
                                 ) : (
-                                    <>{isArabic ? 'إنشاء حساب' : 'Sign Up'}</>
+                                    <>
+                                        ✨ {isArabic ? 'إنشاء حساب' : 'Sign Up'}
+                                    </>
                                 )}
                             </button>
                         </div>
 
-                        {/* الفاصل البصري */}
-                        <div className="divider" style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 'var(--spacing-md)', 
-                            margin: 'var(--spacing-xl) 0 var(--spacing-lg)' 
-                        }}>
-                            <span className="divider-line" style={{ flex: 1, height: '1px', background: 'var(--border-light)' }}></span>
-                            <span className="divider-text" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{isArabic ? 'أو' : 'OR'}</span>
-                            <span className="divider-line" style={{ flex: 1, height: '1px', background: 'var(--border-light)' }}></span>
+                        {/* ✅ الفاصل */}
+                        <div className="divider">
+                            <span className="divider-line"></span>
+                            <span className="divider-text">{isArabic ? 'أو' : 'OR'}</span>
+                            <span className="divider-line"></span>
                         </div>
 
-                        {/* زر Google محسّن */}
+                        {/* ✅ زر Google */}
                         <button 
                             type="button"
                             onClick={handleGoogleRegister}
-                            className="google-register-btn"
+                            className="google-btn"
                             disabled={loading}
-                            style={{
-                                width: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 'var(--spacing-md)',
-                                padding: 'var(--spacing-md) var(--spacing-lg)',
-                                background: 'white',
-                                border: '1px solid var(--border-light)',
-                                borderRadius: 'var(--radius-lg)',
-                                cursor: 'pointer',
-                                fontWeight: 500,
-                                fontSize: '0.95rem',
-                                color: '#3c4043',
-                                transition: 'all var(--transition-fast)'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.target.style.background = '#f8f9fa';
-                                e.target.style.transform = 'translateY(-1px)';
-                                e.target.style.boxShadow = 'var(--shadow-md)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.target.style.background = 'white';
-                                e.target.style.transform = 'translateY(0)';
-                                e.target.style.boxShadow = 'none';
-                            }}
                         >
-                            <img src="https://www.google.com/favicon.ico" alt="" className="google-icon" style={{ width: '20px', height: '20px' }} />
+                            <img src="https://www.google.com/favicon.ico" alt="Google" className="google-icon" />
                             <span>{isArabic ? 'التسجيل باستخدام Google' : 'Sign up with Google'}</span>
                         </button>
 
-                        <div className="login-link" style={{ marginTop: 'var(--spacing-xl)', textAlign: 'center' }}>
-                            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                                {isArabic ? 'لديك حساب بالفعل؟' : 'Already have an account?'}{' '}
-                                <Link 
-                                    to="/login"
-                                    style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}
-                                >
-                                    {isArabic ? 'تسجيل الدخول' : 'Login'}
-                                    <span className="btn-arrow"> →</span>
-                                </Link>
-                            </p>
-                        </div>
-
-                        {/* الشروط والأحكام */}
-                        <div className="terms-info" style={{ marginTop: 'var(--spacing-lg)', textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
+                        {/* ✅ رابط تسجيل الدخول */}
+                        <div className="login-link">
                             <p>
-                                {isArabic ? 'بالتسجيل، أنت توافق على' : 'By signing up, you agree to our'}{' '}
-                                <button type="button" className="terms-link" style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0 }}>
-                                    {isArabic ? 'شروط الخدمة' : 'Terms of Service'}
-                                </button>
-                                {isArabic ? ' و ' : ' and '}
-                                <button type="button" className="terms-link" style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0 }}>
-                                    {isArabic ? 'سياسة الخصوصية' : 'Privacy Policy'}
-                                </button>
+                                {isArabic ? 'لديك حساب بالفعل؟' : 'Already have an account?'}{' '}
+                                <Link to="/login" className="login-link-btn">
+                                    {isArabic ? 'تسجيل الدخول' : 'Login'} →
+                                </Link>
                             </p>
                         </div>
                     </form>
 
+                    {/* ✅ رسالة الإشعار */}
                     {message && (
-                        <div className={`notification-message ${messageType}`} style={{
-                            marginTop: 'var(--spacing-lg)',
-                            padding: 'var(--spacing-md)',
-                            borderRadius: 'var(--radius-lg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            background: messageType === 'success' ? 'var(--success-bg)' : messageType === 'error' ? 'var(--error-bg)' : 'var(--info-bg)',
-                            color: messageType === 'success' ? 'var(--success)' : messageType === 'error' ? 'var(--error)' : 'var(--info)',
-                            border: `1px solid ${messageType === 'success' ? 'var(--success)' : messageType === 'error' ? 'var(--error)' : 'var(--info)'}`
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                                <span>
-                                    {messageType === 'success' && '✅'}
-                                    {messageType === 'error' && '❌'}
-                                    {messageType === 'info' && 'ℹ️'}
-                                </span>
-                                <span>{message}</span>
-                            </div>
+                        <div className={`notification-toast ${messageType}`}>
+                            <span className="toast-icon">
+                                {messageType === 'success' && '✅'}
+                                {messageType === 'error' && '❌'}
+                                {messageType === 'info' && 'ℹ️'}
+                            </span>
+                            <span className="toast-message">{message}</span>
                             <button 
+                                className="toast-close"
                                 onClick={() => {
                                     setMessage('');
                                     setMessageType('');
                                 }}
-                                style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-                                aria-label="إغلاق"
                             >
                                 ✕
                             </button>
@@ -649,52 +721,36 @@ function Register({ onRegisterSuccess }) {
                     )}
                 </div>
 
-                {/* معلومات إضافية */}
+                {/* ✅ معلومات إضافية */}
                 <div className="register-info">
-                    <div className="info-card" style={{
-                        background: 'var(--card-bg)',
-                        borderRadius: 'var(--radius-2xl)',
-                        padding: 'var(--spacing-xl)',
-                        boxShadow: 'var(--shadow-lg)',
-                        border: '1px solid var(--border-light)',
-                        marginBottom: 'var(--spacing-lg)'
-                    }}>
-                        <h3 style={{ margin: '0 0 var(--spacing-lg) 0', color: 'var(--text-primary)' }}>{isArabic ? 'لماذا تنضم إلى LivoCare؟' : 'Why join LivoCare?'}</h3>
-                        <ul className="benefits-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                            <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>📊</span>
-                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'تتبع شامل للعلامات الحيوية' : 'Comprehensive vital signs tracking'}</span>
-                            </li>
-                            <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>🥗</span>
-                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'خطط تغذية ذكية' : 'Smart nutrition plans'}</span>
-                            </li>
-                            <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>🌙</span>
-                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'تحليل النوم' : 'Sleep analysis'}</span>
-                            </li>
-                            <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>😊</span>
-                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'تتبع الحالة المزاجية' : 'Mood tracking'}</span>
-                            </li>
-                            <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <span className="benefit-icon" style={{ fontSize: '1.1rem' }}>💊</span>
-                                <span className="benefit-text" style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'متابعة الأدوية' : 'Medication tracking'}</span>
-                            </li>
+                    <div className="info-card">
+                        <h3>{isArabic ? '✨ لماذا تنضم إلى LivoCare؟' : '✨ Why join LivoCare?'}</h3>
+                        <ul className="benefits-list">
+                            <li><span className="benefit-icon">📊</span><span>{isArabic ? 'تتبع شامل للعلامات الحيوية' : 'Comprehensive vital signs tracking'}</span></li>
+                            <li><span className="benefit-icon">🥗</span><span>{isArabic ? 'خطط تغذية ذكية' : 'Smart nutrition plans'}</span></li>
+                            <li><span className="benefit-icon">😴</span><span>{isArabic ? 'تحليل النوم المتقدم' : 'Advanced sleep analysis'}</span></li>
+                            <li><span className="benefit-icon">😊</span><span>{isArabic ? 'تتبع الحالة المزاجية' : 'Mood tracking'}</span></li>
+                            <li><span className="benefit-icon">💊</span><span>{isArabic ? 'متابعة الأدوية' : 'Medication tracking'}</span></li>
+                            <li><span className="benefit-icon">🏃</span><span>{isArabic ? 'تتبع النشاط البدني' : 'Physical activity tracking'}</span></li>
                         </ul>
                     </div>
                 </div>
             </div>
 
-            <style>{`
-                .register-container {
+            {/* ✅ النوافذ المنبثقة */}
+            {showTermsModal && <TermsModal />}
+            {showPrivacyModal && <PrivacyModal />}
+
+            {/* ✅ أنماط CSS المضمنة */}
+            <style jsx>{`
+                .register-wrapper {
                     min-height: 100vh;
-                    background: var(--primary-bg);
-                    transition: background var(--transition-slow);
                     position: relative;
-                    overflow-x: hidden;
+                    overflow: hidden;
+                    background: var(--primary-bg);
                 }
 
+                /* ===== خلفية متحركة ===== */
                 .register-background {
                     position: fixed;
                     top: 0;
@@ -705,364 +761,722 @@ function Register({ onRegisterSuccess }) {
                     z-index: 0;
                 }
 
-                .bg-shape {
+                .bg-blob {
                     position: absolute;
                     border-radius: 50%;
-                    filter: blur(60px);
-                    animation: float 20s infinite;
+                    filter: blur(80px);
+                    opacity: 0.15;
+                    animation: float 20s infinite ease-in-out;
                 }
 
-                .bg-shape-1 {
-                    top: -100px;
-                    left: -100px;
+                .bg-blob-1 {
                     width: 400px;
                     height: 400px;
-                    background: rgba(139, 92, 246, 0.1);
-                    animation-delay: 0s;
+                    background: var(--primary);
+                    top: -100px;
+                    right: -100px;
                 }
 
-                .bg-shape-2 {
-                    bottom: -100px;
-                    right: -100px;
+                .bg-blob-2 {
                     width: 500px;
                     height: 500px;
-                    background: rgba(16, 185, 129, 0.1);
+                    background: #8b5cf6;
+                    bottom: -150px;
+                    left: -150px;
                     animation-delay: -5s;
                 }
 
-                .bg-shape-3 {
-                    top: 50%;
-                    left: 50%;
-                    width: 600px;
-                    height: 600px;
-                    background: rgba(245, 158, 11, 0.05);
-                    transform: translate(-50%, -50%);
+                .bg-blob-3 {
+                    width: 300px;
+                    height: 300px;
+                    background: #10b981;
+                    bottom: 30%;
+                    right: 20%;
                     animation-delay: -10s;
                 }
 
                 @keyframes float {
-                    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-                    25% { transform: translate(50px, 50px) rotate(5deg); }
-                    50% { transform: translate(0, 100px) rotate(0deg); }
-                    75% { transform: translate(-50px, 50px) rotate(-5deg); }
+                    0%, 100% { transform: translate(0, 0) scale(1); }
+                    33% { transform: translate(30px, -30px) scale(1.1); }
+                    66% { transform: translate(-20px, 20px) scale(0.9); }
                 }
 
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-
-                .register-control-bar {
+                /* ===== شريط التحكم ===== */
+                .register-navbar {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 70px;
                     background: var(--card-bg);
                     border-bottom: 1px solid var(--border-light);
-                    padding: var(--spacing-md) var(--spacing-xl);
-                    position: sticky;
-                    top: 0;
                     z-index: 100;
                     backdrop-filter: blur(10px);
                 }
 
-                .control-bar-content {
+                .navbar-content {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    height: 100%;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    max-width: 1400px;
-                    margin: 0 auto;
-                    gap: var(--spacing-md);
+                    padding: 0 1.5rem;
                 }
 
-                .app-title .title-text h1 {
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1.8rem;
+                .logo-area {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    text-decoration: none;
+                }
+
+                .logo-circle {
+                    width: 40px;
+                    height: 40px;
+                    background: var(--primary-gradient);
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .logo-emoji {
+                    font-size: 1.3rem;
+                }
+
+                .logo-name {
+                    font-size: 1.3rem;
                     font-weight: 700;
+                    margin: 0;
                     background: var(--primary-gradient);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                     background-clip: text;
                 }
 
-                .app-subtitle {
-                    color: var(--text-secondary);
-                    font-size: 0.9rem;
+                .logo-tagline {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    display: block;
                 }
 
-                .register-controls {
+                .navbar-actions {
                     display: flex;
-                    align-items: center;
-                    gap: var(--spacing-md);
+                    gap: 0.5rem;
                 }
 
-                .lang-btn {
-                    background: var(--secondary-bg);
-                    color: var(--text-primary);
-                    border: 1px solid var(--border-light);
+                .action-btn {
                     padding: 0.5rem 1rem;
-                    border-radius: 10px;
-                    font-size: 0.85rem;
-                    cursor: pointer;
-                    transition: all var(--transition-medium);
-                }
-
-                .lang-btn:hover {
-                    background: var(--primary-color);
-                    color: white;
-                    border-color: var(--primary-color);
-                }
-
-                .theme-toggle {
-                    width: 40px;
-                    height: 40px;
-                    border: none;
-                    border-radius: var(--radius-md);
                     background: var(--secondary-bg);
-                    color: var(--text-primary);
-                    font-size: 1.2rem;
+                    border: 1px solid var(--border-light);
+                    border-radius: 10px;
                     cursor: pointer;
                     transition: all var(--transition-fast);
-                    display: flex;
+                    display: inline-flex;
                     align-items: center;
-                    justify-content: center;
+                    gap: 0.5rem;
+                    font-size: 0.85rem;
                 }
 
-                .theme-toggle:hover {
-                    transform: rotate(15deg);
-                    background: var(--primary);
-                    color: white;
+                .action-btn:hover {
+                    background: var(--hover-bg);
+                    transform: scale(1.02);
                 }
 
-                .register-content {
+                /* ===== المحتوى الرئيسي ===== */
+                .register-main {
+                    min-height: 100vh;
                     display: flex;
                     justify-content: center;
-                    align-items: flex-start;
-                    min-height: calc(100vh - 80px);
-                    padding: var(--spacing-2xl);
-                    gap: var(--spacing-2xl);
-                    max-width: 1400px;
-                    margin: 0 auto;
+                    align-items: center;
+                    gap: 2rem;
+                    padding: 6rem 1.5rem 2rem;
                     position: relative;
                     z-index: 1;
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    flex-wrap: wrap;
                 }
 
-                .register-form-card {
+                .register-card {
+                    flex: 1;
+                    max-width: 500px;
                     background: var(--card-bg);
-                    border-radius: var(--radius-2xl);
-                    padding: var(--spacing-2xl);
+                    border-radius: 32px;
+                    padding: 2rem;
                     box-shadow: var(--shadow-xl);
                     border: 1px solid var(--border-light);
-                    width: 100%;
-                    max-width: 500px;
                     transition: all var(--transition-medium);
-                    position: relative;
-                    overflow: hidden;
                 }
 
-                .register-form-card::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: 4px;
-                    background: var(--primary-gradient);
-                }
-
-                .register-form-card:hover {
-                    transform: translateY(-5px);
+                .register-card:hover {
+                    transform: translateY(-4px);
                     box-shadow: var(--shadow-2xl);
                 }
 
-                .register-header {
+                .card-header {
                     text-align: center;
-                    margin-bottom: var(--spacing-2xl);
+                    margin-bottom: 2rem;
                 }
 
-                .register-header h2 {
-                    margin: 0 0 var(--spacing-sm) 0;
-                    color: var(--text-primary);
+                .header-icon {
+                    width: 70px;
+                    height: 70px;
+                    background: var(--primary-gradient);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 1rem;
+                }
+
+                .icon-user {
+                    font-size: 2rem;
+                }
+
+                .header-title {
                     font-size: 1.8rem;
                     font-weight: 700;
+                    margin: 0 0 0.5rem;
+                    color: var(--text-primary);
                 }
 
-                .register-description {
-                    margin: 0;
+                .header-subtitle {
+                    font-size: 0.85rem;
                     color: var(--text-secondary);
-                    font-size: 0.9rem;
+                    margin: 0;
+                }
+
+                /* ===== نموذج التسجيل ===== */
+                .register-form {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.25rem;
                 }
 
                 .form-row {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    gap: var(--spacing-md);
+                    gap: 1rem;
                 }
 
-                .form-group {
-                    margin-bottom: var(--spacing-lg);
+                .form-field {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
                 }
 
-                .form-group.half {
-                    margin-bottom: 0;
-                }
-
-                .form-group label {
-                    display: block;
-                    margin-bottom: var(--spacing-sm);
+                .field-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
                     font-weight: 600;
-                    color: var(--text-secondary);
+                    color: var(--text-primary);
                     font-size: 0.85rem;
                 }
 
-                .required {
+                .field-label.required::after {
+                    content: '*';
                     color: var(--error);
-                    margin-left: var(--spacing-xs);
+                    margin-left: 0.25rem;
                 }
 
-                .search-input {
+                .label-icon {
+                    font-size: 1rem;
+                }
+
+                .optional {
+                    font-weight: normal;
+                    color: var(--text-tertiary);
+                    font-size: 0.7rem;
+                }
+
+                .input-container {
+                    position: relative;
+                }
+
+                .form-input {
                     width: 100%;
-                    padding: var(--spacing-md);
+                    padding: 0.85rem 1rem;
                     border: 1px solid var(--border-light);
-                    border-radius: var(--radius-md);
-                    background: var(--input-bg);
+                    border-radius: 14px;
+                    background: var(--secondary-bg);
                     color: var(--text-primary);
+                    font-size: 0.9rem;
                     transition: all var(--transition-fast);
                 }
 
-                .search-input:focus {
+                .form-input:focus {
                     outline: none;
                     border-color: var(--primary);
-                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+                    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
                 }
 
-                .search-input.error {
+                .form-input.error {
                     border-color: var(--error);
                 }
 
-                .field-error {
-                    margin-top: var(--spacing-xs);
-                    color: var(--error);
-                    font-size: 0.7rem;
+                .password-container {
+                    position: relative;
                 }
 
-                .password-hint {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                    margin-top: var(--spacing-xs);
-                }
-
-                .password-toggle:hover {
-                    background: var(--hover-bg);
-                }
-
-                .type-btn.active {
-                    background: var(--primary-gradient);
-                    color: white;
+                .password-eye {
+                    position: absolute;
+                    right: 1rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: none;
                     border: none;
-                    padding: var(--spacing-md);
-                    border-radius: var(--radius-lg);
-                    font-weight: 600;
                     cursor: pointer;
+                    font-size: 1.1rem;
+                    padding: 0.25rem;
+                    border-radius: 8px;
+                }
+
+                [dir="rtl"] .password-eye {
+                    right: auto;
+                    left: 1rem;
+                }
+
+                .field-error {
+                    font-size: 0.7rem;
+                    color: var(--error);
+                }
+
+                .field-hint {
+                    font-size: 0.65rem;
+                    color: var(--text-tertiary);
+                }
+
+                .password-strength {
+                    margin-top: 0.5rem;
+                }
+
+                .strength-bar {
+                    height: 4px;
+                    background: var(--border-light);
+                    border-radius: 2px;
+                    overflow: hidden;
+                    margin-bottom: 0.25rem;
+                }
+
+                .strength-fill {
+                    height: 100%;
+                    transition: width var(--transition-medium);
+                }
+
+                .strength-text {
+                    font-size: 0.65rem;
+                }
+
+                /* ===== الموافقة على الشروط ===== */
+                .terms-checkbox {
+                    margin: 0.5rem 0;
+                }
+
+                .checkbox-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    cursor: pointer;
+                }
+
+                .checkbox-input {
+                    position: absolute;
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+
+                .checkbox-custom {
+                    width: 18px;
+                    height: 18px;
+                    border: 2px solid var(--border-medium);
+                    border-radius: 4px;
                     transition: all var(--transition-fast);
                 }
 
-                .type-btn.active:hover:not(:disabled) {
+                .checkbox-input:checked + .checkbox-custom {
+                    background: var(--primary);
+                    border-color: var(--primary);
+                    position: relative;
+                }
+
+                .checkbox-input:checked + .checkbox-custom::after {
+                    content: '✓';
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    color: white;
+                    font-size: 11px;
+                }
+
+                .checkbox-text {
+                    font-size: 0.8rem;
+                    color: var(--text-secondary);
+                }
+
+                .terms-link {
+                    background: none;
+                    border: none;
+                    color: var(--primary);
+                    cursor: pointer;
+                    font-size: 0.8rem;
+                    text-decoration: underline;
+                }
+
+                /* ===== أزرار ===== */
+                .form-buttons {
+                    margin-top: 0.5rem;
+                }
+
+                .register-btn {
+                    width: 100%;
+                    padding: 0.85rem;
+                    background: var(--primary-gradient);
+                    color: white;
+                    border: none;
+                    border-radius: 14px;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                }
+
+                .register-btn:hover:not(:disabled) {
                     transform: translateY(-2px);
                     box-shadow: var(--shadow-lg);
                 }
 
-                .type-btn.active:disabled {
+                .register-btn:disabled {
                     opacity: 0.6;
                     cursor: not-allowed;
                 }
 
-                [dir="rtl"] .password-toggle {
-                    right: auto;
-                    left: var(--spacing-md);
+                .btn-spinner {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    animation: spin 0.6s linear infinite;
                 }
 
-                [dir="rtl"] .btn-arrow {
-                    display: inline-block;
-                    transform: rotate(180deg);
+                .divider {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    margin: 1rem 0;
                 }
 
-                .register-info {
+                .divider-line {
+                    flex: 1;
+                    height: 1px;
+                    background: var(--border-light);
+                }
+
+                .divider-text {
+                    color: var(--text-tertiary);
+                    font-size: 0.8rem;
+                }
+
+                .google-btn {
                     width: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.75rem;
+                    padding: 0.75rem;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 14px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    font-size: 0.9rem;
+                    color: var(--text-primary);
+                    transition: all var(--transition-fast);
+                }
+
+                .google-btn:hover:not(:disabled) {
+                    background: var(--hover-bg);
+                    transform: translateY(-2px);
+                }
+
+                .google-icon {
+                    width: 20px;
+                    height: 20px;
+                }
+
+                .login-link {
+                    text-align: center;
+                    margin-top: 1rem;
+                }
+
+                .login-link p {
+                    color: var(--text-secondary);
+                    font-size: 0.85rem;
+                }
+
+                .login-link-btn {
+                    color: var(--primary);
+                    font-weight: 600;
+                    text-decoration: none;
+                }
+
+                /* ===== معلومات إضافية ===== */
+                .register-info {
+                    flex: 1;
                     max-width: 350px;
                 }
 
-                .dark-mode .google-register-btn {
-                    background: #2d2d2d;
-                    color: #e8eaed;
-                    border-color: #404040;
+                .info-card {
+                    background: var(--card-bg);
+                    border-radius: 24px;
+                    padding: 1.5rem;
+                    border: 1px solid var(--border-light);
+                    box-shadow: var(--shadow-lg);
                 }
 
-                .dark-mode .google-register-btn:hover:not(:disabled) {
-                    background: #3c4043;
+                .info-card h3 {
+                    margin: 0 0 1rem;
+                    color: var(--text-primary);
+                    font-size: 1.1rem;
                 }
 
-                @media (max-width: 1023px) {
-                    .register-content {
-                        flex-direction: column;
-                        align-items: center;
+                .benefits-list {
+                    list-style: none;
+                    padding: 0;
+                    margin: 0;
+                }
+
+                .benefits-list li {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    padding: 0.6rem 0;
+                    border-bottom: 1px solid var(--border-light);
+                    font-size: 0.85rem;
+                    color: var(--text-secondary);
+                }
+
+                .benefits-list li:last-child {
+                    border-bottom: none;
+                }
+
+                .benefit-icon {
+                    font-size: 1rem;
+                }
+
+                /* ===== إشعار ===== */
+                .notification-toast {
+                    margin-top: 1rem;
+                    padding: 0.85rem 1rem;
+                    border-radius: 14px;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    animation: slideIn 0.3s ease;
+                }
+
+                .notification-toast.success {
+                    background: rgba(16, 185, 129, 0.1);
+                    border: 1px solid #10b981;
+                    color: #10b981;
+                }
+
+                .notification-toast.error {
+                    background: rgba(239, 68, 68, 0.1);
+                    border: 1px solid #ef4444;
+                    color: #ef4444;
+                }
+
+                .toast-message {
+                    flex: 1;
+                    font-size: 0.85rem;
+                }
+
+                .toast-close {
+                    background: none;
+                    border: none;
+                    color: inherit;
+                    cursor: pointer;
+                    font-size: 1rem;
+                }
+
+                /* ===== النوافذ المنبثقة ===== */
+                .modal-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                    animation: fadeIn 0.2s ease;
+                }
+
+                .modal-content {
+                    background: var(--card-bg);
+                    border-radius: 24px;
+                    width: 90%;
+                    max-width: 500px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    box-shadow: var(--shadow-2xl);
+                }
+
+                .modal-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 1.25rem;
+                    border-bottom: 1px solid var(--border-light);
+                }
+
+                .modal-header h3 {
+                    margin: 0;
+                    color: var(--text-primary);
+                }
+
+                .modal-close {
+                    background: none;
+                    border: none;
+                    font-size: 1.2rem;
+                    cursor: pointer;
+                    color: var(--text-tertiary);
+                }
+
+                .modal-body {
+                    padding: 1.25rem;
+                }
+
+                .modal-body ul {
+                    margin: 1rem 0;
+                    padding-left: 1.5rem;
+                }
+
+                .modal-body li {
+                    margin: 0.5rem 0;
+                    color: var(--text-secondary);
+                }
+
+                .modal-note {
+                    font-size: 0.8rem;
+                    color: var(--text-tertiary);
+                    margin-top: 1rem;
+                    padding-top: 1rem;
+                    border-top: 1px solid var(--border-light);
+                }
+
+                .modal-footer {
+                    padding: 1rem 1.25rem;
+                    border-top: 1px solid var(--border-light);
+                }
+
+                .modal-btn {
+                    width: 100%;
+                    padding: 0.75rem;
+                    background: var(--primary-gradient);
+                    color: white;
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                }
+
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+
+                @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-10px);
                     }
-                    
-                    .register-form-card,
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+
+                /* ===== استجابة الشاشات ===== */
+                @media (max-width: 900px) {
+                    .register-main {
+                        flex-direction: column;
+                        padding: 5rem 1rem 1rem;
+                    }
+
+                    .register-card {
+                        max-width: 100%;
+                    }
+
                     .register-info {
-                        max-width: 550px;
-                    }
-                    
-                    .control-bar-content {
-                        flex-direction: column;
-                        text-align: center;
-                    }
-                    
-                    .app-title {
-                        text-align: center;
+                        max-width: 100%;
                     }
                 }
 
-                @media (max-width: 767px) {
-                    .register-control-bar {
-                        padding: var(--spacing-md);
+                @media (max-width: 768px) {
+                    .register-navbar {
+                        height: 60px;
                     }
-                    
-                    .control-bar-content {
-                        flex-direction: column;
-                        gap: var(--spacing-md);
+
+                    .navbar-content {
+                        padding: 0 1rem;
                     }
-                    
-                    .register-content {
-                        padding: var(--spacing-lg);
-                        flex-direction: column;
+
+                    .action-btn span {
+                        display: none;
                     }
-                    
-                    .register-form-card {
-                        padding: var(--spacing-lg);
+
+                    .register-card {
+                        padding: 1.5rem;
                     }
-                    
-                    .register-header h2 {
+
+                    .header-title {
                         font-size: 1.5rem;
                     }
-                    
+
                     .form-row {
                         grid-template-columns: 1fr;
-                        gap: 0;
-                    }
-                    
-                    .form-group.half {
-                        margin-bottom: var(--spacing-lg);
+                        gap: 1rem;
                     }
                 }
 
                 @media (max-width: 480px) {
-                    .register-form-card {
-                        padding: var(--spacing-md);
+                    .register-card {
+                        padding: 1rem;
                     }
-                    
-                    .register-header h2 {
-                        font-size: 1.3rem;
+
+                    .header-icon {
+                        width: 60px;
+                        height: 60px;
                     }
-                    
-                    .info-card {
-                        padding: var(--spacing-lg);
+
+                    .icon-user {
+                        font-size: 1.6rem;
+                    }
+                }
+
+                @media (prefers-reduced-motion: reduce) {
+                    .bg-blob {
+                        animation: none;
+                    }
+
+                    .btn-spinner {
+                        animation: none;
                     }
                 }
             `}</style>

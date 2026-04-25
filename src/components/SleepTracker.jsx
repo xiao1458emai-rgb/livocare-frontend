@@ -87,20 +87,30 @@ function SleepTracker({ onDataSubmitted }) {
     const [sleepHistory, setSleepHistory] = useState([]);
     const [fetchingHistory, setFetchingHistory] = useState(false);
     const [reducedMotion, setReducedMotion] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
     const intervalRef = useRef(null);
     const isFetchingHistoryRef = useRef(false);
 
-    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+    // ✅ كشف حجم الشاشة للهواتف
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
 
-    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
                 setLang(event.detail.lang);
-                // تطبيق اتجاه الصفحة
                 document.documentElement.dir = event.detail.isArabic ? 'rtl' : 'ltr';
                 document.documentElement.lang = event.detail.isArabic ? 'ar' : 'en';
             }
@@ -123,6 +133,7 @@ function SleepTracker({ onDataSubmitted }) {
         return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
     }, []);
 
+    // جلب سجل النوم
     const fetchSleepHistory = useCallback(async () => {
         if (isFetchingHistoryRef.current || !isMountedRef.current) return;
         
@@ -261,7 +272,7 @@ function SleepTracker({ onDataSubmitted }) {
             await axiosInstance.post('/sleep/', formattedData);
             
             if (isMountedRef.current) {
-                setMessage(isArabic ? 'تم تسجيل النوم بنجاح' : 'Sleep recorded successfully');
+                setMessage(isArabic ? '✅ تم تسجيل النوم بنجاح' : '✅ Sleep recorded successfully');
                 setIsError(false);
                 
                 setSleepData({
@@ -285,14 +296,14 @@ function SleepTracker({ onDataSubmitted }) {
             console.error('Failed to log sleep:', error);
             
             if (isMountedRef.current) {
-                let errorMessage = isArabic ? 'فشل تسجيل النوم' : 'Failed to record sleep';
+                let errorMessage = isArabic ? '❌ فشل تسجيل النوم' : '❌ Failed to record sleep';
                 
                 if (error.response?.data?.detail) {
                     errorMessage = error.response.data.detail;
                 } else if (error.response?.status === 401) {
-                    errorMessage = isArabic ? 'الرجاء تسجيل الدخول مرة أخرى' : 'Please login again';
+                    errorMessage = isArabic ? '❌ الرجاء تسجيل الدخول مرة أخرى' : '❌ Please login again';
                 } else if (error.response?.status === 500) {
-                    errorMessage = isArabic ? 'خطأ في الخادم' : 'Server error';
+                    errorMessage = isArabic ? '⚠️ خطأ في الخادم' : '⚠️ Server error';
                 }
                 
                 setMessage(errorMessage);
@@ -307,7 +318,7 @@ function SleepTracker({ onDataSubmitted }) {
     }, [sleepData, validateSleepData, fetchSleepHistory, onDataSubmitted, isArabic]);
 
     const handleDeleteSleep = useCallback(async (sleepId) => {
-        if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف هذا السجل؟' : 'Are you sure you want to delete this record?')) return;
+        if (!window.confirm(isArabic ? '⚠️ هل أنت متأكد من حذف هذا السجل؟' : '⚠️ Are you sure you want to delete this record?')) return;
         
         setLoading(true);
         
@@ -317,7 +328,7 @@ function SleepTracker({ onDataSubmitted }) {
             if (isMountedRef.current) {
                 await fetchSleepHistory();
                 setRefreshAnalytics(prev => prev + 1);
-                setMessage(isArabic ? 'تم حذف السجل بنجاح' : 'Record deleted successfully');
+                setMessage(isArabic ? '✅ تم حذف السجل بنجاح' : '✅ Record deleted successfully');
                 setIsError(false);
                 setTimeout(() => {
                     if (isMountedRef.current) setMessage('');
@@ -326,7 +337,7 @@ function SleepTracker({ onDataSubmitted }) {
         } catch (error) {
             console.error('Error deleting sleep:', error);
             if (isMountedRef.current) {
-                setMessage(isArabic ? 'خطأ في حذف السجل' : 'Error deleting record');
+                setMessage(isArabic ? '❌ خطأ في حذف السجل' : '❌ Error deleting record');
                 setIsError(true);
             }
         } finally {
@@ -393,202 +404,198 @@ function SleepTracker({ onDataSubmitted }) {
     }, []);
 
     return (
-        <div className={`analytics-container ${reducedMotion ? 'reduce-motion' : ''}`}>
-            {/* شريط التحكم */}
-            <div className="analytics-header">
-                <h2>{isArabic ? 'تتبع النوم' : 'Sleep Tracker'}</h2>
-                <div className="sleep-controls" style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
-                    {/* ✅ تم إزالة زر اللغة من هنا */}
-                    <label className="auto-refresh-toggle" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}>
+        <div className={`sleep-tracker-container ${reducedMotion ? 'reduce-motion' : ''}`}>
+            {/* ✅ رأس الصفحة */}
+            <div className="sleep-header">
+                <h2>
+                    <span className="header-icon">🌙</span>
+                    {isArabic ? 'تتبع النوم' : 'Sleep Tracker'}
+                </h2>
+                <div className="header-controls">
+                    <label className="auto-refresh-label">
                         <input
                             type="checkbox"
                             checked={autoRefresh}
                             onChange={(e) => setAutoRefresh(e.target.checked)}
-                            style={{ display: 'none' }}
                         />
-                        <span className="toggle-slider" style={{
-                            width: '40px',
-                            height: '20px',
-                            background: autoRefresh ? 'var(--primary)' : 'var(--border-light)',
-                            borderRadius: '20px',
-                            position: 'relative',
-                            transition: 'all var(--transition-fast)'
-                        }}>
-                            <span style={{
-                                position: 'absolute',
-                                width: '16px',
-                                height: '16px',
-                                background: 'white',
-                                borderRadius: '50%',
-                                top: '2px',
-                                left: autoRefresh ? '22px' : '2px',
-                                transition: 'all var(--transition-fast)'
-                            }}></span>
-                        </span>
-                        <span className="stat-label">{isArabic ? 'تحديث تلقائي' : 'Auto Refresh'}</span>
+                        <span className="toggle-slider"></span>
+                        <span className="toggle-text">🔄 {isArabic ? 'تلقائي' : 'Auto'}</span>
                     </label>
                     {lastUpdate && (
-                        <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
-                            🕒 {isArabic ? 'آخر تحديث' : 'Last Update'}: {lastUpdate.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
+                        <div className="last-update">
+                            🕐 {lastUpdate.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* نموذج إضافة النوم */}
-            <form onSubmit={handleSubmit} className="recommendations-section">
-                <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 'var(--spacing-md)' }}>
-                    <div className="field-group">
-                        <label className="stat-label">{isArabic ? 'وقت النوم' : 'Sleep Start'}</label>
+            {/* ✅ نموذج إضافة النوم - محسن للهواتف */}
+            <form onSubmit={handleSubmit} className="sleep-form">
+                <div className="form-row">
+                    <div className="form-field">
+                        <label>
+                            <span className="field-icon">😴</span>
+                            {isArabic ? 'وقت النوم' : 'Sleep Start'}
+                        </label>
                         <input
                             type="datetime-local"
                             name="start_time"
                             value={sleepData.start_time}
                             onChange={(e) => setSleepData(prev => ({ ...prev, start_time: e.target.value }))}
                             required
-                            className="search-input"
+                            className="form-input"
                         />
                     </div>
 
-                    <div className="field-group">
-                        <label className="stat-label">{isArabic ? 'وقت الاستيقاظ' : 'Wake Up'}</label>
+                    <div className="form-field">
+                        <label>
+                            <span className="field-icon">🌅</span>
+                            {isArabic ? 'وقت الاستيقاظ' : 'Wake Up'}
+                        </label>
                         <input
                             type="datetime-local"
                             name="end_time"
                             value={sleepData.end_time}
                             onChange={(e) => setSleepData(prev => ({ ...prev, end_time: e.target.value }))}
                             required
-                            className="search-input"
+                            className="form-input"
                         />
                     </div>
                 </div>
 
                 {currentDuration && (
-                    <div className="insight-card" style={{ marginBottom: 'var(--spacing-md)', padding: 'var(--spacing-sm) var(--spacing-md)' }}>
-                        <div className="insight-icon">⏱️</div>
-                        <div className="insight-content">
-                            <div className="rec-category">{isArabic ? 'المدة المحسوبة' : 'Calculated Duration'}: <strong>{currentDuration}</strong> {isArabic ? 'ساعات' : 'hours'}</div>
+                    <div className="duration-card">
+                        <span className="duration-icon">⏱️</span>
+                        <div className="duration-content">
+                            <span className="duration-label">{isArabic ? 'المدة المحسوبة' : 'Calculated Duration'}</span>
+                            <span className="duration-value">{currentDuration} <span className="duration-unit">{isArabic ? 'ساعات' : 'hours'}</span></span>
                         </div>
                     </div>
                 )}
 
-                <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                    <label className="stat-label">{isArabic ? 'جودة النوم' : 'Sleep Quality'}</label>
-                    <div className="rating-selector">
+                <div className="form-field">
+                    <label>
+                        <span className="field-icon">⭐</span>
+                        {isArabic ? 'جودة النوم' : 'Sleep Quality'}
+                    </label>
+                    <div className="quality-selector">
                         <select
                             value={sleepData.quality_rating}
                             onChange={(e) => setSleepData(prev => ({ ...prev, quality_rating: parseInt(e.target.value, 10) }))}
-                            className="search-input"
-                            style={{ borderLeft: `4px solid ${getQualityColor(sleepData.quality_rating)}` }}
+                            className="quality-select"
+                            style={{ borderColor: getQualityColor(sleepData.quality_rating) }}
                         >
-                            <option value={5}>5 - {isArabic ? 'ممتازة' : 'Excellent'}</option>
-                            <option value={4}>4 - {isArabic ? 'جيدة' : 'Good'}</option>
-                            <option value={3}>3 - {isArabic ? 'متوسطة' : 'Average'}</option>
-                            <option value={2}>2 - {isArabic ? 'سيئة' : 'Poor'}</option>
-                            <option value={1}>1 - {isArabic ? 'سيئة جداً' : 'Very Poor'}</option>
+                            <option value="5">⭐️⭐️⭐️⭐️⭐️ - {isArabic ? 'ممتازة' : 'Excellent'}</option>
+                            <option value="4">⭐️⭐️⭐️⭐️ - {isArabic ? 'جيدة' : 'Good'}</option>
+                            <option value="3">⭐️⭐️⭐️ - {isArabic ? 'متوسطة' : 'Average'}</option>
+                            <option value="2">⭐️⭐️ - {isArabic ? 'سيئة' : 'Poor'}</option>
+                            <option value="1">⭐️ - {isArabic ? 'سيئة جداً' : 'Very Poor'}</option>
                         </select>
                     </div>
                 </div>
 
-                <div className="field-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                    <label className="stat-label">{isArabic ? 'ملاحظات' : 'Notes'} ({isArabic ? 'اختياري' : 'Optional'})</label>
+                <div className="form-field">
+                    <label>
+                        <span className="field-icon">📝</span>
+                        {isArabic ? 'ملاحظات' : 'Notes'}
+                        <span className="optional">({isArabic ? 'اختياري' : 'Optional'})</span>
+                    </label>
                     <textarea
-                        rows="2"
+                        rows={isMobile ? 2 : 3}
                         value={sleepData.notes}
                         onChange={(e) => setSleepData(prev => ({ ...prev, notes: e.target.value }))}
                         placeholder={isArabic ? 'أي ملاحظات إضافية...' : 'Any additional notes...'}
-                        className="search-input"
-                        style={{ resize: 'vertical' }}
+                        className="form-textarea"
                     />
                 </div>
 
-                <div className="form-actions" style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-                    <button type="submit" className="type-btn active" disabled={loading} style={{ flex: 1 }}>
+                <div className="form-actions">
+                    <button type="submit" className="submit-btn" disabled={loading}>
                         {loading ? (
-                            <>
-                                <span className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
-                                {isArabic ? 'جاري الحفظ...' : 'Saving...'}
-                            </>
+                            <><span className="btn-spinner"></span> {isArabic ? 'جاري الحفظ...' : 'Saving...'}</>
                         ) : (
-                            <>{isArabic ? 'حفظ' : 'Save'}</>
+                            <>{isArabic ? '💾 حفظ' : '💾 Save'}</>
                         )}
                     </button>
                     
-                    <button type="button" onClick={resetForm} className="type-btn" disabled={loading} style={{ flex: 1 }}>
-                        {isArabic ? 'إعادة تعيين' : 'Reset'}
+                    <button type="button" onClick={resetForm} className="reset-btn" disabled={loading}>
+                        🔄 {isArabic ? 'إعادة تعيين' : 'Reset'}
                     </button>
                 </div>
 
                 {message && (
-                    <div className={`notification-message ${isError ? 'error' : 'success'}`} style={{ marginTop: 'var(--spacing-md)' }}>
-                        <span>{isError ? '❌' : '✅'}</span>
-                        <span>{message}</span>
-                        <button onClick={() => setMessage('')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                    <div className={`message-toast ${isError ? 'error' : 'success'}`}>
+                        <span className="message-icon">{isError ? '❌' : '✅'}</span>
+                        <span className="message-text">{message}</span>
+                        <button className="message-close" onClick={() => setMessage('')}>✕</button>
                     </div>
                 )}
             </form>
 
-            {/* بطاقات الإحصائيات */}
-            <div className="analytics-stats-grid">
-                <div className="analytics-stat-card" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+            {/* ✅ بطاقات الإحصائيات - محسنة للهواتف */}
+            <div className="stats-grid">
+                <div className="stat-card">
                     <div className="stat-icon">🌙</div>
-                    <div className="stat-content">
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'متوسط النوم' : 'Average Sleep'}</div>
-                        <div className="stat-value" style={{ color: 'white' }}>{stats.avgHours}</div>
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>{isArabic ? 'ساعات' : 'hours'}</div>
+                    <div className="stat-info">
+                        <div className="stat-value">{stats.avgHours}</div>
+                        <div className="stat-label">{isArabic ? 'متوسط النوم' : 'Avg Sleep'}</div>
+                        <div className="stat-unit">{isArabic ? 'ساعات' : 'hours'}</div>
                     </div>
                 </div>
 
-                <div className="analytics-stat-card" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white' }}>
+                <div className="stat-card">
                     <div className="stat-icon">⭐</div>
-                    <div className="stat-content">
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'جودة النوم' : 'Sleep Quality'}</div>
-                        <div className="stat-value" style={{ color: 'white' }}>{stats.avgQuality}</div>
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>/ 5</div>
+                    <div className="stat-info">
+                        <div className="stat-value">{stats.avgQuality}</div>
+                        <div className="stat-label">{isArabic ? 'جودة النوم' : 'Sleep Quality'}</div>
+                        <div className="stat-unit">/5</div>
                     </div>
                 </div>
 
-                <div className="analytics-stat-card" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', color: 'white' }}>
+                <div className="stat-card">
                     <div className="stat-icon">📊</div>
-                    <div className="stat-content">
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'إجمالي النوم' : 'Total Sleep'}</div>
-                        <div className="stat-value" style={{ color: 'white' }}>{stats.totalHours}</div>
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>{isArabic ? 'ساعات' : 'hours'}</div>
+                    <div className="stat-info">
+                        <div className="stat-value">{stats.totalHours}</div>
+                        <div className="stat-label">{isArabic ? 'إجمالي النوم' : 'Total Sleep'}</div>
+                        <div className="stat-unit">{isArabic ? 'ساعات' : 'hours'}</div>
                     </div>
                 </div>
 
-                <div className="analytics-stat-card" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', color: 'white' }}>
+                <div className="stat-card">
                     <div className="stat-icon">📅</div>
-                    <div className="stat-content">
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.9)' }}>{isArabic ? 'ليالي مسجلة' : 'Nights Recorded'}</div>
-                        <div className="stat-value" style={{ color: 'white' }}>{stats.totalNights}</div>
-                        <div className="stat-label" style={{ color: 'rgba(255,255,255,0.7)' }}>{isArabic ? 'ليلة' : 'nights'}</div>
+                    <div className="stat-info">
+                        <div className="stat-value">{stats.totalNights}</div>
+                        <div className="stat-label">{isArabic ? 'ليالي مسجلة' : 'Nights'}</div>
+                        <div className="stat-unit">{isArabic ? 'ليلة' : 'nights'}</div>
                     </div>
                 </div>
             </div>
 
-            {/* سجل النوم */}
-            <div className="recommendations-section">
-                <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
-                    <h3>{isArabic ? 'سجل النوم' : 'Sleep History'}</h3>
-                    <button onClick={fetchSleepHistory} className="refresh-btn" disabled={fetchingHistory}>
+            {/* ✅ سجل النوم - محسن للهواتف */}
+            <div className="sleep-history">
+                <div className="history-header">
+                    <h3>
+                        <span className="header-icon">📋</span>
+                        {isArabic ? 'سجل النوم' : 'Sleep History'}
+                    </h3>
+                    <button onClick={fetchSleepHistory} className="refresh-history-btn" disabled={fetchingHistory}>
                         {fetchingHistory ? '⏳' : '🔄'}
                     </button>
                 </div>
 
                 {fetchingHistory ? (
-                    <div className="analytics-loading">
+                    <div className="loading-state">
                         <div className="spinner"></div>
                         <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
                     </div>
                 ) : sleepHistory.length === 0 ? (
-                    <div className="analytics-empty">
+                    <div className="empty-state">
                         <div className="empty-icon">🌙</div>
                         <h4>{isArabic ? 'لا توجد سجلات نوم' : 'No Sleep Records'}</h4>
                         <p>{isArabic ? 'ابدأ بتسجيل نومك' : 'Start recording your sleep'}</p>
                     </div>
                 ) : (
-                    <div className="notifications-list">
+                    <div className="history-list">
                         {sleepHistory.map((sleep) => {
                             const startTime = sleep.sleep_start || sleep.start_time;
                             const endTime = sleep.sleep_end || sleep.end_time;
@@ -596,12 +603,12 @@ function SleepTracker({ onDataSubmitted }) {
                             const quality = sleep.quality_rating || 3;
                             
                             return (
-                                <div key={sleep.id} className="notification-card" style={{ borderTop: `3px solid ${getQualityColor(quality)}` }}>
-                                    <div className="notification-header">
-                                        <div className="notification-title">
-                                            <span className="notification-time">{formatDateTime(startTime, isArabic)}</span>
+                                <div key={sleep.id} className="history-item" style={{ borderTopColor: getQualityColor(quality) }}>
+                                    <div className="item-header">
+                                        <div className="item-date">
+                                            {formatDateTime(startTime, isArabic)}
                                         </div>
-                                        <div className="notification-actions">
+                                        <div className="item-actions">
                                             <button 
                                                 onClick={() => {
                                                     setSleepData({
@@ -612,14 +619,14 @@ function SleepTracker({ onDataSubmitted }) {
                                                     });
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                                 }}
-                                                className="notification-action-btn"
+                                                className="edit-btn"
                                                 title={isArabic ? 'تعديل' : 'Edit'}
                                             >
                                                 ✏️
                                             </button>
                                             <button 
                                                 onClick={() => handleDeleteSleep(sleep.id)}
-                                                className="notification-action-btn"
+                                                className="delete-btn"
                                                 title={isArabic ? 'حذف' : 'Delete'}
                                             >
                                                 🗑️
@@ -627,21 +634,20 @@ function SleepTracker({ onDataSubmitted }) {
                                         </div>
                                     </div>
                                     
-                                    <div className="notification-content">
-                                        <div className="habit-stats" style={{ justifyContent: 'space-around' }}>
-                                            <div className="stat-label">{isArabic ? 'المدة' : 'Duration'}</div>
-                                            <div className="stat-value">{duration || '—'}</div>
-                                            <div className="stat-label">{isArabic ? 'ساعات' : 'hours'}</div>
-                                            <div className="stat-divider" style={{ width: '1px', height: '30px', background: 'var(--border-light)' }}></div>
-                                            <div className="stat-label">{isArabic ? 'الجودة' : 'Quality'}</div>
-                                            <div className="stat-value" style={{ color: getQualityColor(quality) }}>{quality}</div>
-                                            <div className="stat-label">/ 5</div>
+                                    <div className="item-stats">
+                                        <div className="stat-detail">
+                                            <span className="detail-label">{isArabic ? 'المدة' : 'Duration'}</span>
+                                            <span className="detail-value">{duration || '—'} <span className="detail-unit">{isArabic ? 'ساعة' : 'hr'}</span></span>
+                                        </div>
+                                        <div className="stat-detail">
+                                            <span className="detail-label">{isArabic ? 'الجودة' : 'Quality'}</span>
+                                            <span className="detail-value" style={{ color: getQualityColor(quality) }}>{quality}/5</span>
                                         </div>
                                     </div>
                                     
                                     {sleep.notes && (
-                                        <div className="rec-advice" style={{ marginTop: 'var(--spacing-sm)' }}>
-                                            {sleep.notes}
+                                        <div className="item-notes">
+                                            💬 {sleep.notes}
                                         </div>
                                     )}
                                 </div>
@@ -651,73 +657,691 @@ function SleepTracker({ onDataSubmitted }) {
                 )}
             </div>
 
-            {/* التحليلات */}
-            <div className="analytics-wrapper" style={{ marginTop: 'var(--spacing-lg)' }}>
-                <SleepAnalytics refreshTrigger={refreshAnalytics} />
+            {/* ✅ التحليلات */}
+            <div className="analytics-wrapper">
+                <SleepAnalytics refreshTrigger={refreshAnalytics} isArabic={isArabic} />
             </div>
 
-            <style>{`
-                /* ✅ تم إزالة .lang-btn styles */
+            {/* ✅ أنماط CSS المحسنة */}
+            <style jsx>{`
+                .sleep-tracker-container {
+                    background: var(--card-bg);
+                    border-radius: 24px;
+                    padding: 1.5rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                /* ===== رأس الصفحة ===== */
+                .sleep-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid var(--border-light);
+                }
+
+                .sleep-header h2 {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.3rem;
+                }
+
+                .header-icon {
+                    font-size: 1.5rem;
+                }
+
+                .header-controls {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                .auto-refresh-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    cursor: pointer;
+                    padding: 0.25rem 0.5rem;
+                    background: var(--secondary-bg);
+                    border-radius: 20px;
+                    border: 1px solid var(--border-light);
+                }
+
+                .auto-refresh-label input {
+                    position: absolute;
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+
+                .toggle-slider {
+                    width: 36px;
+                    height: 18px;
+                    background: var(--border-light);
+                    border-radius: 18px;
+                    position: relative;
+                    transition: all var(--transition-fast);
+                }
+
+                .toggle-slider::before {
+                    content: '';
+                    position: absolute;
+                    width: 14px;
+                    height: 14px;
+                    background: white;
+                    border-radius: 50%;
+                    top: 2px;
+                    left: 2px;
+                    transition: all var(--transition-fast);
+                }
+
+                input:checked + .toggle-slider {
+                    background: var(--primary);
+                }
+
+                input:checked + .toggle-slider::before {
+                    transform: translateX(18px);
+                }
+
+                [dir="rtl"] input:checked + .toggle-slider::before {
+                    transform: translateX(-18px);
+                }
+
+                .toggle-text {
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                .last-update {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    padding: 0.25rem 0.5rem;
+                    background: var(--tertiary-bg);
+                    border-radius: 12px;
+                }
+
+                /* ===== نموذج النوم ===== */
+                .sleep-form {
+                    background: var(--secondary-bg);
+                    border-radius: 20px;
+                    padding: 1.5rem;
+                    margin-bottom: 1.5rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                .form-row {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 1rem;
+                    margin-bottom: 1rem;
+                }
+
+                .form-field {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+
+                .form-field label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    font-size: 0.85rem;
+                }
+
+                .field-icon {
+                    font-size: 1rem;
+                }
+
+                .optional {
+                    font-weight: normal;
+                    color: var(--text-tertiary);
+                    font-size: 0.7rem;
+                }
+
+                .form-input {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    background: var(--card-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 12px;
+                    color: var(--text-primary);
+                    font-size: 0.9rem;
+                }
+
+                .form-input:focus {
+                    outline: none;
+                    border-color: var(--primary);
+                }
+
+                .form-textarea {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    background: var(--card-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 12px;
+                    color: var(--text-primary);
+                    font-size: 0.9rem;
+                    resize: vertical;
+                    font-family: inherit;
+                }
+
+                .form-textarea:focus {
+                    outline: none;
+                    border-color: var(--primary);
+                }
+
+                .duration-card {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    padding: 0.75rem;
+                    background: rgba(16, 185, 129, 0.1);
+                    border-radius: 12px;
+                    margin-bottom: 1rem;
+                }
+
+                .duration-icon {
+                    font-size: 1.3rem;
+                }
+
+                .duration-content {
+                    flex: 1;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: baseline;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }
+
+                .duration-label {
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                .duration-value {
+                    font-weight: bold;
+                    font-size: 1.1rem;
+                    color: var(--success);
+                }
+
+                .duration-unit {
+                    font-size: 0.7rem;
+                    font-weight: normal;
+                }
+
+                .quality-selector {
+                    position: relative;
+                }
+
+                .quality-select {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    background: var(--card-bg);
+                    border: 2px solid;
+                    border-radius: 12px;
+                    color: var(--text-primary);
+                    font-size: 0.9rem;
+                    cursor: pointer;
+                }
+
+                .form-actions {
+                    display: flex;
+                    gap: 1rem;
+                    margin-top: 1rem;
+                }
+
+                .submit-btn {
+                    flex: 2;
+                    padding: 0.75rem;
+                    background: var(--primary-gradient);
+                    color: white;
+                    border: none;
+                    border-radius: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                }
+
+                .submit-btn:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+
+                .reset-btn {
+                    flex: 1;
+                    padding: 0.75rem;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 12px;
+                    color: var(--text-secondary);
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                }
+
+                .reset-btn:hover:not(:disabled) {
+                    background: var(--hover-bg);
+                }
+
+                .submit-btn:disabled,
+                .reset-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                .btn-spinner {
+                    width: 14px;
+                    height: 14px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    animation: spin 0.6s linear infinite;
+                }
+
+                /* ===== رسائل ===== */
+                .message-toast {
+                    margin-top: 1rem;
+                    padding: 0.75rem 1rem;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                }
+
+                .message-toast.success {
+                    background: rgba(16, 185, 129, 0.1);
+                    border: 1px solid #10b981;
+                    color: #10b981;
+                }
+
+                .message-toast.error {
+                    background: rgba(239, 68, 68, 0.1);
+                    border: 1px solid #ef4444;
+                    color: #ef4444;
+                }
+
+                .message-text {
+                    flex: 1;
+                    font-size: 0.85rem;
+                }
+
+                .message-close {
+                    background: none;
+                    border: none;
+                    color: inherit;
+                    cursor: pointer;
+                    font-size: 1rem;
+                }
+
+                /* ===== بطاقات الإحصائيات ===== */
+                .stats-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                }
+
+                .stat-card {
+                    background: var(--secondary-bg);
+                    border-radius: 16px;
+                    padding: 1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    border: 1px solid var(--border-light);
+                    transition: all var(--transition-fast);
+                }
+
+                .stat-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+
+                .stat-icon {
+                    font-size: 1.8rem;
+                    width: 45px;
+                    height: 45px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: var(--hover-bg);
+                    border-radius: 12px;
+                }
+
+                .stat-info {
+                    flex: 1;
+                }
+
+                .stat-value {
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                    color: var(--text-primary);
+                    line-height: 1.2;
+                }
+
+                .stat-label {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                .stat-unit {
+                    font-size: 0.6rem;
+                    color: var(--text-tertiary);
+                }
+
+                /* ===== سجل النوم ===== */
+                .sleep-history {
+                    background: var(--secondary-bg);
+                    border-radius: 20px;
+                    padding: 1rem;
+                    margin-bottom: 1.5rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                .history-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1rem;
+                    padding-bottom: 0.5rem;
+                    border-bottom: 1px solid var(--border-light);
+                }
+
+                .history-header h3 {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1rem;
+                }
+
+                .refresh-history-btn {
+                    background: none;
+                    border: none;
+                    font-size: 1.1rem;
+                    cursor: pointer;
+                    padding: 0.25rem;
+                    border-radius: 8px;
+                    transition: all var(--transition-fast);
+                }
+
+                .refresh-history-btn:hover:not(:disabled) {
+                    background: var(--hover-bg);
+                    transform: rotate(180deg);
+                }
+
+                .history-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                    max-height: 400px;
+                    overflow-y: auto;
+                }
+
+                .history-item {
+                    background: var(--card-bg);
+                    border-radius: 14px;
+                    padding: 1rem;
+                    border: 1px solid var(--border-light);
+                    border-top: 3px solid;
+                    transition: all var(--transition-fast);
+                }
+
+                .history-item:hover {
+                    transform: translateX(4px);
+                    box-shadow: var(--shadow-sm);
+                }
+
+                [dir="rtl"] .history-item:hover {
+                    transform: translateX(-4px);
+                }
+
+                .item-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                    margin-bottom: 0.75rem;
+                }
+
+                .item-date {
+                    font-size: 0.75rem;
+                    color: var(--text-tertiary);
+                }
+
+                .item-actions {
+                    display: flex;
+                    gap: 0.5rem;
+                }
+
+                .edit-btn,
+                .delete-btn {
+                    background: none;
+                    border: none;
+                    font-size: 0.9rem;
+                    cursor: pointer;
+                    padding: 0.25rem;
+                    border-radius: 6px;
+                    transition: all var(--transition-fast);
+                }
+
+                .edit-btn:hover {
+                    background: rgba(59, 130, 246, 0.1);
+                    transform: scale(1.05);
+                }
+
+                .delete-btn:hover {
+                    background: rgba(239, 68, 68, 0.1);
+                    transform: scale(1.05);
+                }
+
+                .item-stats {
+                    display: flex;
+                    gap: 1rem;
+                    margin-bottom: 0.5rem;
+                    flex-wrap: wrap;
+                }
+
+                .stat-detail {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 0.5rem;
+                    flex-wrap: wrap;
+                }
+
+                .detail-label {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                .detail-value {
+                    font-weight: 600;
+                    font-size: 0.9rem;
+                    color: var(--text-primary);
+                }
+
+                .detail-unit {
+                    font-size: 0.65rem;
+                    font-weight: normal;
+                    color: var(--text-tertiary);
+                }
+
+                .item-notes {
+                    margin-top: 0.5rem;
+                    padding-top: 0.5rem;
+                    border-top: 1px solid var(--border-light);
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                .loading-state,
+                .empty-state {
+                    text-align: center;
+                    padding: 2rem;
+                }
+
+                .spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid var(--border-light);
+                    border-top-color: var(--primary);
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    margin: 0 auto 1rem;
+                }
+
+                .empty-icon {
+                    font-size: 3rem;
+                    margin-bottom: 1rem;
+                    opacity: 0.5;
+                }
+
+                .analytics-wrapper {
+                    margin-top: 1rem;
+                }
 
                 @keyframes spin {
                     to { transform: rotate(360deg); }
                 }
-                
-                .reduce-motion *,
-                .reduce-motion *::before,
-                .reduce-motion *::after {
-                    animation-duration: 0.01ms !important;
-                    transition-duration: 0.01ms !important;
-                }
-                
-                .reduce-motion .spinner {
-                    animation: none !important;
-                }
-                
-                .notification-message.success {
-                    background: var(--success-bg);
-                    color: var(--success);
-                    border: 1px solid var(--success);
-                    padding: var(--spacing-md);
-                    border-radius: var(--radius-lg);
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    justify-content: space-between;
-                }
-                
-                .notification-message.error {
-                    background: var(--error-bg);
-                    color: var(--error);
-                    border: 1px solid var(--error);
-                    padding: var(--spacing-md);
-                    border-radius: var(--radius-lg);
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    justify-content: space-between;
-                }
-                
-                .habit-stats {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    flex-wrap: wrap;
-                }
-                
-                .habit-stats .stat-value {
-                    font-size: 1.2rem;
-                    font-weight: bold;
-                }
-                
+
+                /* ===== استجابة الهواتف ===== */
                 @media (max-width: 768px) {
-                    .habit-stats {
-                        flex-direction: column;
-                        gap: var(--spacing-xs);
+                    .sleep-tracker-container {
+                        padding: 1rem;
                     }
-                    
-                    .stat-divider {
-                        display: none;
+
+                    .sleep-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    .header-controls {
+                        width: 100%;
+                        justify-content: space-between;
+                    }
+
+                    .sleep-form {
+                        padding: 1rem;
+                    }
+
+                    .form-row {
+                        grid-template-columns: 1fr;
+                        gap: 0.75rem;
+                    }
+
+                    .form-actions {
+                        flex-direction: column;
+                    }
+
+                    .submit-btn,
+                    .reset-btn {
+                        width: 100%;
+                    }
+
+                    .stats-grid {
+                        grid-template-columns: repeat(2, 1fr);
+                        gap: 0.75rem;
+                    }
+
+                    .stat-card {
+                        padding: 0.75rem;
+                    }
+
+                    .stat-icon {
+                        width: 35px;
+                        height: 35px;
+                        font-size: 1.3rem;
+                    }
+
+                    .stat-value {
+                        font-size: 1.2rem;
+                    }
+
+                    .history-item {
+                        padding: 0.75rem;
+                    }
+
+                    .item-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    .item-stats {
+                        flex-direction: column;
+                        gap: 0.5rem;
+                    }
+
+                    .duration-content {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    .stats-grid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .stat-card {
+                        flex-direction: row;
+                        justify-content: space-between;
+                    }
+
+                    .stat-info {
+                        text-align: right;
+                    }
+
+                    [dir="rtl"] .stat-info {
+                        text-align: left;
+                    }
+                }
+
+                /* ===== RTL دعم ===== */
+                [dir="rtl"] .auto-refresh-label {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .stat-card {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .item-header {
+                    flex-direction: row-reverse;
+                }
+
+                @media (max-width: 768px) {
+                    [dir="rtl"] .item-header {
+                        flex-direction: column;
+                        align-items: flex-end;
+                    }
+                }
+
+                /* ===== دعم الحركة المخفضة ===== */
+                @media (prefers-reduced-motion: reduce) {
+                    .spinner,
+                    .btn-spinner {
+                        animation: none;
+                    }
+
+                    .stat-card:hover,
+                    .history-item:hover {
+                        transform: none;
                     }
                 }
             `}</style>

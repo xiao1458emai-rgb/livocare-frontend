@@ -16,12 +16,25 @@ import SleepTracker from './SleepTracker';
 import HabitTracker from './HabitTracker';
 import ActivityForm from './ActivityForm';
 import MoodTracker from './MoodTracker'; 
-import ProfileManager from './usermangment';  // ✅ تصحيح المسار
+import ProfileManager from './usermangment';  // ✅ تصحيح المسار - اسم الملف الصحيح
 import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
 import Notifications from './Notifications/Notifications';
 import Reports from './Reports';
 import AdvancedHealthInsights from './Analytics/AdvancedHealthInsights';
+
+// ✅ دالة عامة لتطبيق اللغة (مطابقة مع ProfileManager)
+const applyLanguage = (lang) => {
+    const isArabic = lang === 'ar';
+    localStorage.setItem('app_lang', lang);
+    document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
+    document.documentElement.lang = isArabic ? 'ar' : 'en';
+    
+    const languageChangeEvent = new CustomEvent('languageChange', { 
+        detail: { lang, isArabic } 
+    });
+    window.dispatchEvent(languageChangeEvent);
+};
 
 function Dashboard({ onLogout }) {
     // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
@@ -52,10 +65,18 @@ function Dashboard({ onLogout }) {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('livocare_darkMode');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            return saved === 'true' || prefersDark;
+            return saved === 'true' || (saved === null && prefersDark);
         }
         return false;
     });
+
+    // ✅ تطبيق اللغة عند التحميل
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedLang = localStorage.getItem('app_lang') || 'ar';
+            applyLanguage(savedLang);
+        }
+    }, []);
 
     // ✅ الاستماع لتغييرات اللغة من ProfileManager
     useEffect(() => {
@@ -75,7 +96,20 @@ function Dashboard({ onLogout }) {
         };
     }, [lang]);
 
-    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
+    // ✅ الاستماع لتغييرات الثيم
+    useEffect(() => {
+        const handleThemeChange = (event) => {
+            if (event.detail && event.detail.darkMode !== undefined) {
+                setDarkMode(event.detail.darkMode);
+            }
+        };
+        
+        window.addEventListener('themeChange', handleThemeChange);
+        
+        return () => {
+            window.removeEventListener('themeChange', handleThemeChange);
+        };
+    }, []);
 
     // تطبيق الوضع المظلم
     useEffect(() => {
@@ -83,9 +117,12 @@ function Dashboard({ onLogout }) {
             const html = document.documentElement;
             if (darkMode) {
                 html.classList.add('dark-mode');
+                html.setAttribute('data-theme', 'dark');
             } else {
                 html.classList.remove('dark-mode');
+                html.setAttribute('data-theme', 'light');
             }
+            localStorage.setItem('livocare_darkMode', darkMode.toString());
         }
     }, [darkMode]);
 
@@ -112,6 +149,8 @@ function Dashboard({ onLogout }) {
 
     // جلب البيانات
     const fetchHealthData = useCallback(async () => {
+        console.log('🔄 fetchHealthData called, refreshKey:', refreshKey);
+        
         if (!isAuthReady || !isMountedRef.current || isFetchingRef.current) return;
         
         isFetchingRef.current = true;
@@ -129,6 +168,7 @@ function Dashboard({ onLogout }) {
                 records = response.data;
             }
             
+            console.log('📊 Processed records:', records.length);
             setHealthRecords(records);
             
             if (records.length > 0) {
@@ -150,9 +190,9 @@ function Dashboard({ onLogout }) {
             
             setError(null);
         } catch (err) {
-            console.error('Error fetching health data:', err);
+            console.error('❌ Error fetching health data:', err);
             if (isMountedRef.current) {
-                setError(isArabic ? 'حدث خطأ في جلب البيانات' : 'Error fetching data');
+                setError(err.response?.data?.message || (isArabic ? 'حدث خطأ في جلب البيانات' : 'Error fetching data'));
             }
         } finally {
             if (isMountedRef.current) {
@@ -160,7 +200,7 @@ function Dashboard({ onLogout }) {
             }
             isFetchingRef.current = false;
         }
-    }, [isAuthReady, isArabic]);
+    }, [isAuthReady, isArabic, refreshKey]);
 
     // جلب البيانات عند التغيير
     useEffect(() => {
@@ -175,7 +215,7 @@ function Dashboard({ onLogout }) {
         
         refreshIntervalRef.current = setInterval(() => {
             setRefreshKey(prev => prev + 1);
-        }, 60000);
+        }, 60000); // كل 60 ثانية
         
         return () => {
             if (refreshIntervalRef.current) {
@@ -183,17 +223,6 @@ function Dashboard({ onLogout }) {
             }
         };
     }, [autoRefresh, isAuthReady]);
-
-    // ✅ إعدادات اللغة الأولية - تطبيق اللغة من localStorage
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const savedLang = localStorage.getItem('app_lang');
-            const currentLang = savedLang === 'en' ? 'en' : 'ar';
-            const isCurrentArabic = currentLang === 'ar';
-            document.documentElement.dir = isCurrentArabic ? 'rtl' : 'ltr';
-            document.documentElement.lang = isCurrentArabic ? 'ar' : 'en';
-        }
-    }, []);
     
     // تنظيف
     useEffect(() => {
@@ -207,6 +236,7 @@ function Dashboard({ onLogout }) {
     }, []);
     
     const handleDataSubmitted = useCallback(() => {
+        console.log('🔄 Data submitted, refreshing dashboard...');
         setRefreshKey(prev => prev + 1);
     }, []);
 
@@ -214,7 +244,9 @@ function Dashboard({ onLogout }) {
         if (value === null || value === undefined || value === '') {
             return '—';
         }
-        return `${value} ${unit}`.trim();
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return value;
+        return `${numValue} ${unit}`.trim();
     };
 
     const displayBloodPressure = (systolic, diastolic) => {
@@ -234,6 +266,7 @@ function Dashboard({ onLogout }) {
         const newDarkMode = !darkMode;
         setDarkMode(newDarkMode);
         localStorage.setItem('livocare_darkMode', newDarkMode.toString());
+        // ✅ إرسال حدث تغيير الثيم لجميع المكونات
         window.dispatchEvent(new CustomEvent('themeChange', { detail: { darkMode: newDarkMode } }));
     };
 
@@ -256,18 +289,19 @@ function Dashboard({ onLogout }) {
 
     const getSectionTitle = (sectionKey) => {
         const titles = {
-            'health': isArabic ? 'لوحة التحكم' : 'Dashboard',
-            'nutrition': isArabic ? 'التغذية' : 'Nutrition',
-            'sleep': isArabic ? 'النوم' : 'Sleep',
-            'habits': isArabic ? 'العادات' : 'Habits',
-            'mood': isArabic ? 'المزاج' : 'Mood',
-            'chat': isArabic ? 'المساعد الذكي' : 'AI Assistant',
-            'profile': isArabic ? 'الملف الشخصي' : 'Profile',
-            'smart': isArabic ? 'الميزات الذكية' : 'Smart Features',
-            'notifications': isArabic ? 'الإشعارات' : 'Notifications',
-            'reports': isArabic ? 'التقارير' : 'Reports'
+            'health': isArabic ? '🏠 لوحة التحكم' : '🏠 Dashboard',
+            'nutrition': isArabic ? '🍽️ التغذية' : '🍽️ Nutrition',
+            'sleep': isArabic ? '😴 النوم' : '😴 Sleep',
+            'habits': isArabic ? '✅ العادات' : '✅ Habits',
+            'activity': isArabic ? '🏃 النشاط' : '🏃 Activity',
+            'mood': isArabic ? '😊 المزاج' : '😊 Mood',
+            'chat': isArabic ? '🤖 المساعد الذكي' : '🤖 AI Assistant',
+            'profile': isArabic ? '👤 الملف الشخصي' : '👤 Profile',
+            'smart': isArabic ? '✨ الميزات الذكية' : '✨ Smart Features',
+            'notifications': isArabic ? '🔔 الإشعارات' : '🔔 Notifications',
+            'reports': isArabic ? '📊 التقارير' : '📊 Reports'
         };
-        return titles[sectionKey] || (isArabic ? 'لوحة التحكم' : 'Dashboard');
+        return titles[sectionKey] || (isArabic ? '🏠 لوحة التحكم' : '🏠 Dashboard');
     };
 
     const renderSectionContent = () => {
@@ -275,37 +309,39 @@ function Dashboard({ onLogout }) {
             case 'health':
                 return (
                     <div className="health-section">
-                        <div className="recommendations-section" style={{ marginTop: 0 }}>
-                            <div className="analytics-header" style={{ marginBottom: 'var(--spacing-md)', borderBottom: 'none' }}>
-                                <h3>{isArabic ? 'ملخص اليوم' : 'Daily Summary'}</h3>
-                                <span className="stat-label">{getTodayDate()}</span>
+                        {/* بطاقات الملخص */}
+                        <div className="summary-section">
+                            <div className="summary-header">
+                                <h3 className="summary-title">📊 {isArabic ? 'ملخص اليوم' : 'Daily Summary'}</h3>
+                                <span className="summary-date">{getTodayDate()}</span>
                             </div>
                             
-                            <div className="type-filters" style={{ marginBottom: 'var(--spacing-md)', justifyContent: 'flex-start' }}>
-                                <span className="type-btn" style={{ background: 'var(--secondary-bg)', cursor: 'default' }}>
+                            <div className="metrics-badge">
+                                <span className="metrics-count">
                                     📋 {getMeasuredCount()}/4 {isArabic ? 'قياسات مسجلة' : 'Measurements Recorded'}
                                 </span>
-                                {getMeasuredCount() < 4 && (
-                                    <span className="type-btn" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', cursor: 'default' }}>
-                                        💡 {isArabic ? 'يمكنك ترك الحقول الفارغة للقياسات التي لم تجريها' : 'You can leave empty fields for measurements you haven\'t taken'}
+                                {getMeasuredCount() < 4 && getMeasuredCount() > 0 && (
+                                    <span className="metrics-hint">
+                                        💡 {isArabic ? 'يمكنك إضافة القياسات المتبقية من النموذج أدناه' : 'Add remaining measurements from the form below'}
                                     </span>
                                 )}
                             </div>
                             
-                            <div className="analytics-stats-grid">
-                                <div className="analytics-stat-card">
-                                    <div className="stat-icon">⚖️</div>
-                                    <div className="stat-content">
-                                        <div className="stat-label">{isArabic ? 'آخر وزن' : 'Last Weight'}</div>
-                                        <div className="stat-value">
+                            <div className="summary-grid">
+                                {/* بطاقة الوزن */}
+                                <div className={`summary-card ${!latestHealthData?.weight ? 'empty' : ''}`}>
+                                    <div className="card-icon">⚖️</div>
+                                    <div className="card-content">
+                                        <div className="card-label">{isArabic ? 'آخر وزن' : 'Last Weight'}</div>
+                                        <div className="card-value">
                                             {displayValue(latestHealthData?.weight, isArabic ? 'كجم' : 'kg')}
                                         </div>
-                                        {latestHealthData?.weight === null && (
-                                            <div className="stat-label" style={{ color: 'var(--warning)' }}>⚠️ {isArabic ? 'لم يتم القياس' : 'Not measured'}</div>
+                                        {!latestHealthData?.weight && (
+                                            <div className="card-warning">⚠️ {isArabic ? 'غير مسجل' : 'Not recorded'}</div>
                                         )}
-                                        {latestHealthData?.recorded_at && latestHealthData?.weight !== null && (
-                                            <div className="stat-label">
-                                                {new Date(latestHealthData.recorded_at).toLocaleTimeString(
+                                        {latestHealthData?.recorded_at && latestHealthData?.weight && (
+                                            <div className="card-time">
+                                                🕐 {new Date(latestHealthData.recorded_at).toLocaleTimeString(
                                                     isArabic ? 'ar-EG' : 'en-US',
                                                     { hour: '2-digit', minute: '2-digit' }
                                                 )}
@@ -314,73 +350,88 @@ function Dashboard({ onLogout }) {
                                     </div>
                                 </div>
                                 
-                                <div className="analytics-stat-card">
-                                    <div className="stat-icon">❤️</div>
-                                    <div className="stat-content">
-                                        <div className="stat-label">{isArabic ? 'ضغط الدم' : 'Blood Pressure'}</div>
-                                        <div className="stat-value">
+                                {/* بطاقة ضغط الدم */}
+                                <div className={`summary-card ${(!latestHealthData?.systolic || !latestHealthData?.diastolic) ? 'empty' : ''}`}>
+                                    <div className="card-icon">❤️</div>
+                                    <div className="card-content">
+                                        <div className="card-label">{isArabic ? 'ضغط الدم' : 'Blood Pressure'}</div>
+                                        <div className="card-value">
                                             {displayBloodPressure(latestHealthData?.systolic, latestHealthData?.diastolic)}
                                         </div>
                                         {(!latestHealthData?.systolic || !latestHealthData?.diastolic) && (
-                                            <div className="stat-label" style={{ color: 'var(--warning)' }}>⚠️ {isArabic ? 'لم يتم القياس' : 'Not measured'}</div>
+                                            <div className="card-warning">⚠️ {isArabic ? 'غير مسجل' : 'Not recorded'}</div>
                                         )}
-                                        <div className="stat-label">{isArabic ? 'انقباضي / انبساطي' : 'Systolic / Diastolic'}</div>
+                                        <div className="card-sub">{isArabic ? 'انقباضي / انبساطي' : 'Systolic / Diastolic'}</div>
                                     </div>
                                 </div>
                                 
-                                <div className="analytics-stat-card">
-                                    <div className="stat-icon">🩸</div>
-                                    <div className="stat-content">
-                                        <div className="stat-label">{isArabic ? 'سكر الدم' : 'Blood Glucose'}</div>
-                                        <div className="stat-value">
+                                {/* بطاقة السكر */}
+                                <div className={`summary-card ${!latestHealthData?.glucose ? 'empty' : ''}`}>
+                                    <div className="card-icon">🩸</div>
+                                    <div className="card-content">
+                                        <div className="card-label">{isArabic ? 'سكر الدم' : 'Blood Glucose'}</div>
+                                        <div className="card-value">
                                             {displayValue(latestHealthData?.glucose, 'mg/dL')}
                                         </div>
-                                        {latestHealthData?.glucose === null && (
-                                            <div className="stat-label" style={{ color: 'var(--warning)' }}>⚠️ {isArabic ? 'لم يتم القياس' : 'Not measured'}</div>
+                                        {!latestHealthData?.glucose && (
+                                            <div className="card-warning">⚠️ {isArabic ? 'غير مسجل' : 'Not recorded'}</div>
                                         )}
-                                        <div className="stat-label">{isArabic ? 'مستوى السكر' : 'Glucose Level'}</div>
+                                        <div className="card-sub">{isArabic ? 'مستوى السكر' : 'Glucose Level'}</div>
                                     </div>
                                 </div>
                             </div>
                             
+                            {/* حالة عدم وجود بيانات */}
                             {getMeasuredCount() === 0 && (
-                                <div className="analytics-empty" style={{ marginTop: 'var(--spacing-lg)' }}>
+                                <div className="empty-state">
                                     <div className="empty-icon">📊</div>
                                     <h4>{isArabic ? 'لا توجد بيانات صحية' : 'No Health Data'}</h4>
-                                    <p>{isArabic ? 'أضف قراءاتك الصحية الأولى' : 'Add your first health readings'}</p>
+                                    <p>{isArabic ? 'أضف قراءاتك الصحية الأولى للبدء' : 'Add your first health readings to get started'}</p>
                                     <button 
-                                        onClick={() => document.querySelector('.health-form')?.scrollIntoView({ behavior: 'smooth' })}
-                                        className="type-btn active"
+                                        onClick={() => {
+                                            const healthForm = document.querySelector('.health-form-section');
+                                            if (healthForm) healthForm.scrollIntoView({ behavior: 'smooth' });
+                                        }}
+                                        className="add-btn"
                                     >
                                         ➕ {isArabic ? 'أضف قراءة' : 'Add Reading'}
                                     </button>
                                 </div>
                             )}
-                            
-                            {getMeasuredCount() > 0 && getMeasuredCount() < 4 && (
-                                <div className="recommendation-card priority-medium" style={{ marginTop: 'var(--spacing-lg)' }}>
-                                    <div className="rec-header">
-                                        <span className="rec-icon">💡</span>
-                                        <span className="rec-category">{isArabic ? 'يمكنك تسجيل القياسات المتبقية من النموذج أدناه' : 'You can record the remaining measurements from the form below'}</span>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                         
+                        {/* المكونات */}
                         <div className="health-components">
-                            <div className="health-form">
-                                <HealthForm onDataSubmitted={handleDataSubmitted} allowPartialEntries={true} isArabic={isArabic}/>
+                            <div className="health-form-section">
+                                <HealthForm 
+                                    onDataSubmitted={handleDataSubmitted} 
+                                    allowPartialEntries={true} 
+                                    isArabic={isArabic}
+                                />
                             </div>
                             
-                            <ActivityForm onDataSubmitted={handleDataSubmitted} onActivityChange={handleDataSubmitted} isArabic={isArabic} />
+                            <div className="activity-form-section">
+                                <ActivityForm 
+                                    onDataSubmitted={handleDataSubmitted} 
+                                    onActivityChange={handleDataSubmitted} 
+                                    isArabic={isArabic}
+                                />
+                            </div>
                             
-                            <div className="activity-analytics-wrapper">
+                            <div className="analytics-section">
                                 <ActivityAnalytics refreshTrigger={refreshKey} isArabic={isArabic} />
                                 <AdvancedHealthInsights refreshTrigger={refreshKey} isArabic={isArabic} />
                             </div>
                             
-                            <HealthHistory refreshKey={refreshKey} onDataSubmitted={handleDataSubmitted} allowIncompleteEntries={true} isArabic={isArabic} />
-                            <HealthCharts refreshKey={refreshKey} isArabic={isArabic} />
+                            <div className="history-section">
+                                <HealthHistory 
+                                    refreshKey={refreshKey} 
+                                    onDataSubmitted={handleDataSubmitted} 
+                                    allowIncompleteEntries={true} 
+                                    isArabic={isArabic}
+                                />
+                                <HealthCharts refreshKey={refreshKey} isArabic={isArabic} />
+                            </div>
                         </div>
                     </div>
                 );
@@ -391,12 +442,14 @@ function Dashboard({ onLogout }) {
                 return <SleepTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} isArabic={isArabic}/>;
             case 'habits':
                 return <HabitTracker onDataSubmitted={handleDataSubmitted} isAuthReady={isAuthReady} isArabic={isArabic}/>;
+            case 'activity':
+                return <ActivityForm onDataSubmitted={handleDataSubmitted} isArabic={isArabic}/>;
             case 'mood':
                 return <MoodTracker isAuthReady={isAuthReady} isArabic={isArabic}/>;
             case 'chat':
                 return <ChatInterface isAuthReady={isAuthReady} isArabic={isArabic}/>;
             case 'profile':
-                // ✅ لا نمرر isArabic هنا لأن ProfileManager يدير اللغة بنفسه
+                // ✅ ProfileManager يدير اللغة والثيم بنفسه
                 return <ProfileManager isAuthReady={isAuthReady} />;
             case 'smart':
                 return <SmartDashboard isArabic={isArabic} />;
@@ -412,8 +465,8 @@ function Dashboard({ onLogout }) {
     // حالة التحميل
     if (loading && healthRecords.length === 0) {
         return (
-            <div className="analytics-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div className="analytics-loading">
+            <div className="dashboard-loading">
+                <div className="loading-spinner">
                     <div className="spinner"></div>
                     <h2>{isArabic ? 'جاري التحميل...' : 'Loading...'}</h2>
                     <p>{isArabic ? 'يرجى الانتظار قليلاً' : 'Please wait a moment'}</p>
@@ -425,9 +478,9 @@ function Dashboard({ onLogout }) {
     // حالة الخطأ
     if (error && healthRecords.length === 0) {
         return (
-            <div className="analytics-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div className="analytics-error">
-                    <div className="empty-icon">⚠️</div>
+            <div className="dashboard-error">
+                <div className="error-content">
+                    <div className="error-icon">⚠️</div>
                     <h2>{error}</h2>
                     <button onClick={fetchHealthData} className="retry-btn">
                         🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
@@ -445,24 +498,31 @@ function Dashboard({ onLogout }) {
                     <button className="menu-toggle" onClick={toggleSidebar} aria-label={isArabic ? 'القائمة' : 'Menu'}>
                         {sidebarOpen ? '✕' : '☰'}
                     </button>
-                    <div className="app-name">LivoCare</div>
+                    <div className="app-name">
+                        <span className="logo">🫀</span>
+                        <span>LivoCare</span>
+                    </div>
                 </div>
                 
                 <div className="control-center">
-                    <div className="date-display">{getTodayDate()}</div>
+                    <div className="date-display">📅 {getTodayDate()}</div>
                 </div>
                 
                 <div className="control-right">
-                    {/* ✅ تم إزالة زر اللغة - يوجد الآن فقط في ProfileManager */}
-                    <button className="theme-toggle" onClick={toggleDarkMode} title={darkMode ? (isArabic ? 'وضع فاتح' : 'Light Mode') : (isArabic ? 'وضع مظلم' : 'Dark Mode')}>
+                    {/* ✅ زر تبديل الوضع المظلم */}
+                    <button 
+                        className="theme-toggle" 
+                        onClick={toggleDarkMode} 
+                        title={darkMode ? (isArabic ? '☀️ الوضع الفاتح' : '☀️ Light Mode') : (isArabic ? '🌙 الوضع المظلم' : '🌙 Dark Mode')}
+                    >
                         {darkMode ? '☀️' : '🌙'}
                     </button>
-                    {onLogout && (
-                        <button className="logout-btn" onClick={onLogout} title={isArabic ? 'تسجيل خروج' : 'Logout'}>
-                            <span className="logout-icon">🚪</span>
-                            <span className="logout-text">{isArabic ? 'تسجيل خروج' : 'Logout'}</span>
-                        </button>
-                    )}
+                    
+                    {/* ✅ زر تسجيل الخروج */}
+                    <button className="logout-btn" onClick={onLogout} title={isArabic ? 'تسجيل خروج' : 'Logout'}>
+                        <span className="logout-icon">🚪</span>
+                        <span className="logout-text">{isArabic ? 'تسجيل خروج' : 'Logout'}</span>
+                    </button>
                 </div>
             </div>
 
@@ -472,38 +532,61 @@ function Dashboard({ onLogout }) {
                     activeSection={activeSection} 
                     onSectionChange={(section) => {
                         setActiveSection(section);
-                        setSidebarOpen(false);
+                        if (window.innerWidth <= 768) {
+                            setSidebarOpen(false);
+                        }
                     }}
                     isArabic={isArabic}
                 />
             </div>
             
             {/* Overlay للجوال */}
-            {sidebarOpen && <div className="sidebar-overlay" onClick={toggleSidebar}></div>}
+            {sidebarOpen && (
+                <div 
+                    className="sidebar-overlay" 
+                    onClick={toggleSidebar}
+                    role="button"
+                    aria-label={isArabic ? 'إغلاق القائمة' : 'Close menu'}
+                />
+            )}
 
             {/* المحتوى الرئيسي */}
             <main className="dashboard-content">
                 <div className="section-header">
                     <div className="header-main">
-                        <h1>{getSectionTitle(activeSection)}</h1>
+                        <h1 className="section-title">{getSectionTitle(activeSection)}</h1>
                         <div className="refresh-controls">
-                            <button onClick={handleManualRefresh} disabled={loading} className={`refresh-btn ${loading ? 'loading' : ''}`}>
+                            <button 
+                                onClick={handleManualRefresh} 
+                                disabled={loading} 
+                                className={`refresh-btn ${loading ? 'loading' : ''}`}
+                            >
                                 {loading ? '⏳' : '🔄'} {isArabic ? 'تحديث' : 'Refresh'}
                             </button>
                             
                             <label className="auto-refresh-toggle">
-                                <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
+                                <input 
+                                    type="checkbox" 
+                                    checked={autoRefresh} 
+                                    onChange={(e) => setAutoRefresh(e.target.checked)} 
+                                />
                                 <span className="toggle-slider"></span>
-                                <span className="toggle-label">{isArabic ? 'تحديث تلقائي' : 'Auto Refresh'}</span>
+                                <span className="toggle-label">
+                                    {isArabic ? 'تحديث تلقائي' : 'Auto Refresh'}
+                                </span>
                             </label>
                         </div>
                     </div>
                     
                     <div className="header-info">
-                        {autoRefresh && <span className="auto-refresh-status">🔄 {isArabic ? 'التحديث التلقائي نشط' : 'Auto refresh active'}</span>}
+                        {autoRefresh && (
+                            <span className="auto-refresh-status">
+                                🔄 {isArabic ? 'التحديث التلقائي نشط' : 'Auto refresh active'}
+                            </span>
+                        )}
                         {latestHealthData?.recorded_at && (
                             <div className="last-updated">
-                                {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(latestHealthData.recorded_at).toLocaleDateString(
+                                🕐 {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(latestHealthData.recorded_at).toLocaleDateString(
                                     isArabic ? 'ar-EG' : 'en-US'
                                 )}
                             </div>
@@ -516,7 +599,11 @@ function Dashboard({ onLogout }) {
                 </div>
             </main>
 
-            <style>{`
+            {/* ✅ أنماط CSS المضمنة المحسنة */}
+            <style jsx>{`
+                /* ===========================================
+                   التخطيط الرئيسي
+                =========================================== */
                 .dashboard-layout {
                     min-height: 100vh;
                     background: var(--primary-bg);
@@ -524,6 +611,9 @@ function Dashboard({ onLogout }) {
                     position: relative;
                 }
 
+                /* ===========================================
+                   شريط التحكم العلوي
+                =========================================== */
                 .control-bar {
                     position: fixed;
                     top: 0;
@@ -549,8 +639,8 @@ function Dashboard({ onLogout }) {
 
                 .menu-toggle {
                     display: none;
-                    width: 40px;
-                    height: 40px;
+                    width: 42px;
+                    height: 42px;
                     border: none;
                     border-radius: var(--radius-md);
                     background: var(--secondary-bg);
@@ -558,6 +648,7 @@ function Dashboard({ onLogout }) {
                     font-size: 1.2rem;
                     cursor: pointer;
                     transition: all var(--transition-fast);
+                    border: 1px solid var(--border-light);
                 }
 
                 .menu-toggle:active {
@@ -565,12 +656,20 @@ function Dashboard({ onLogout }) {
                 }
 
                 .app-name {
-                    font-size: 1.5rem;
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-sm);
+                    font-size: 1.4rem;
                     font-weight: 700;
                     background: var(--primary-gradient);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                     background-clip: text;
+                }
+
+                .app-name .logo {
+                    font-size: 1.6rem;
+                    -webkit-text-fill-color: initial;
                 }
 
                 .control-center {
@@ -584,7 +683,7 @@ function Dashboard({ onLogout }) {
                     background: var(--secondary-bg);
                     border-radius: var(--radius-full);
                     color: var(--text-secondary);
-                    font-size: 0.9rem;
+                    font-size: 0.85rem;
                     border: 1px solid var(--border-light);
                 }
 
@@ -595,8 +694,8 @@ function Dashboard({ onLogout }) {
                 }
 
                 .theme-toggle {
-                    width: 40px;
-                    height: 40px;
+                    width: 42px;
+                    height: 42px;
                     border: none;
                     border-radius: var(--radius-md);
                     background: var(--secondary-bg);
@@ -604,10 +703,12 @@ function Dashboard({ onLogout }) {
                     font-size: 1.2rem;
                     cursor: pointer;
                     transition: all var(--transition-fast);
+                    border: 1px solid var(--border-light);
                 }
 
-                .theme-toggle:active {
-                    transform: rotate(15deg) scale(0.95);
+                .theme-toggle:hover {
+                    background: var(--hover-bg);
+                    transform: rotate(15deg);
                 }
 
                 .logout-btn {
@@ -632,6 +733,9 @@ function Dashboard({ onLogout }) {
                     box-shadow: var(--shadow-md);
                 }
 
+                /* ===========================================
+                   السايدبار
+                =========================================== */
                 .sidebar-wrapper {
                     position: fixed;
                     top: 70px;
@@ -664,13 +768,17 @@ function Dashboard({ onLogout }) {
                     background: rgba(0, 0, 0, 0.5);
                     z-index: 998;
                     animation: fadeIn 0.3s ease;
+                    cursor: pointer;
                 }
 
                 @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
+                    from { opacity: 0; visibility: hidden; }
+                    to { opacity: 1; visibility: visible; }
                 }
 
+                /* ===========================================
+                   المحتوى الرئيسي
+                =========================================== */
                 .dashboard-content {
                     margin-top: 70px;
                     padding: var(--spacing-xl);
@@ -687,6 +795,9 @@ function Dashboard({ onLogout }) {
                     margin-right: 0;
                 }
 
+                /* ===========================================
+                   رأس القسم
+                =========================================== */
                 .section-header {
                     display: flex;
                     justify-content: space-between;
@@ -705,10 +816,10 @@ function Dashboard({ onLogout }) {
                     flex: 1;
                 }
 
-                .section-header h1 {
+                .section-title {
                     margin: 0;
                     color: var(--text-primary);
-                    font-size: 1.8rem;
+                    font-size: clamp(1.3rem, 4vw, 1.8rem);
                     font-weight: 700;
                 }
 
@@ -725,10 +836,10 @@ function Dashboard({ onLogout }) {
                     border: none;
                     padding: var(--spacing-sm) var(--spacing-md);
                     border-radius: var(--radius-md);
-                    font-size: 0.9rem;
+                    font-size: 0.85rem;
                     cursor: pointer;
                     transition: all var(--transition-medium);
-                    display: flex;
+                    display: inline-flex;
                     align-items: center;
                     gap: var(--spacing-xs);
                 }
@@ -763,10 +874,10 @@ function Dashboard({ onLogout }) {
                 }
 
                 .toggle-slider {
-                    width: 40px;
-                    height: 20px;
+                    width: 44px;
+                    height: 22px;
                     background: var(--border-light);
-                    border-radius: 20px;
+                    border-radius: 22px;
                     position: relative;
                     transition: all var(--transition-fast);
                 }
@@ -774,8 +885,8 @@ function Dashboard({ onLogout }) {
                 .toggle-slider::before {
                     content: '';
                     position: absolute;
-                    width: 16px;
-                    height: 16px;
+                    width: 18px;
+                    height: 18px;
                     background: white;
                     border-radius: 50%;
                     top: 2px;
@@ -789,16 +900,16 @@ function Dashboard({ onLogout }) {
                 }
 
                 input:checked + .toggle-slider::before {
-                    transform: translateX(20px);
+                    transform: translateX(22px);
                 }
 
                 [dir="rtl"] input:checked + .toggle-slider::before {
-                    transform: translateX(-20px);
+                    transform: translateX(-22px);
                 }
 
                 .toggle-label {
                     color: var(--text-secondary);
-                    font-size: 0.9rem;
+                    font-size: 0.85rem;
                 }
 
                 .header-info {
@@ -809,9 +920,9 @@ function Dashboard({ onLogout }) {
                 }
 
                 .auto-refresh-status {
-                    font-size: 0.8rem;
+                    font-size: 0.75rem;
                     color: var(--success);
-                    background: rgba(34, 197, 94, 0.1);
+                    background: rgba(16, 185, 129, 0.1);
                     padding: var(--spacing-xs) var(--spacing-sm);
                     border-radius: var(--radius-full);
                     animation: pulse 2s infinite;
@@ -819,27 +930,266 @@ function Dashboard({ onLogout }) {
 
                 .last-updated {
                     color: var(--text-secondary);
-                    font-size: 0.9rem;
+                    font-size: 0.8rem;
                     background: var(--secondary-bg);
                     padding: var(--spacing-sm) var(--spacing-md);
                     border-radius: var(--radius-full);
                     border: 1px solid var(--border-light);
                 }
 
-                .activity-analytics-wrapper {
-                    margin: var(--spacing-xl) 0;
-                    background: var(--card-bg);
-                    border-radius: var(--radius-2xl);
-                    padding: var(--spacing-xl);
-                    border: 1px solid var(--border-light);
-                    box-shadow: var(--shadow-lg);
-                }
-
                 @keyframes pulse {
-                    0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.1); }
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.6; }
                 }
 
+                /* ===========================================
+                   بطاقات الملخص
+                =========================================== */
+                .summary-section {
+                    background: var(--card-bg);
+                    border-radius: var(--radius-xl);
+                    padding: var(--spacing-lg);
+                    margin-bottom: var(--spacing-xl);
+                    box-shadow: var(--shadow-md);
+                    border: 1px solid var(--border-light);
+                }
+
+                .summary-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: var(--spacing-md);
+                    margin-bottom: var(--spacing-lg);
+                    padding-bottom: var(--spacing-md);
+                    border-bottom: 2px solid var(--border-light);
+                }
+
+                .summary-title {
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.2rem;
+                }
+
+                .summary-date {
+                    padding: 0.25rem 0.75rem;
+                    background: var(--tertiary-bg);
+                    border-radius: var(--radius-full);
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                .metrics-badge {
+                    display: flex;
+                    gap: var(--spacing-md);
+                    align-items: center;
+                    flex-wrap: wrap;
+                    margin-bottom: var(--spacing-lg);
+                }
+
+                .metrics-count {
+                    padding: 0.25rem 0.75rem;
+                    background: var(--primary-bg);
+                    border-radius: var(--radius-full);
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                .metrics-hint {
+                    padding: 0.25rem 0.75rem;
+                    background: rgba(245, 158, 11, 0.1);
+                    border-radius: var(--radius-full);
+                    font-size: 0.7rem;
+                    color: var(--warning);
+                }
+
+                .summary-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                    gap: var(--spacing-md);
+                }
+
+                .summary-card {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--spacing-md);
+                    padding: var(--spacing-md);
+                    background: var(--secondary-bg);
+                    border-radius: var(--radius-lg);
+                    border: 1px solid var(--border-light);
+                    transition: all var(--transition-medium);
+                }
+
+                .summary-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+
+                .summary-card.empty {
+                    opacity: 0.8;
+                    background: rgba(245, 158, 11, 0.05);
+                }
+
+                .card-icon {
+                    font-size: 1.8rem;
+                    width: 50px;
+                    height: 50px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: var(--hover-bg);
+                    border-radius: var(--radius-md);
+                }
+
+                .card-content {
+                    flex: 1;
+                }
+
+                .card-label {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+
+                .card-value {
+                    font-size: 1.4rem;
+                    font-weight: bold;
+                    color: var(--text-primary);
+                    line-height: 1.2;
+                }
+
+                .card-warning {
+                    font-size: 0.65rem;
+                    color: var(--warning);
+                    margin-top: 4px;
+                }
+
+                .card-time {
+                    font-size: 0.65rem;
+                    color: var(--text-tertiary);
+                    margin-top: 4px;
+                }
+
+                .card-sub {
+                    font-size: 0.65rem;
+                    color: var(--text-tertiary);
+                    margin-top: 4px;
+                }
+
+                /* ===========================================
+                   المكونات
+                =========================================== */
+                .health-components {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-xl);
+                }
+
+                .analytics-section {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: var(--spacing-lg);
+                }
+
+                .history-section {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: var(--spacing-lg);
+                }
+
+                /* ===========================================
+                   حالات خاصة
+                =========================================== */
+                .empty-state {
+                    text-align: center;
+                    padding: var(--spacing-2xl);
+                    margin-top: var(--spacing-lg);
+                }
+
+                .empty-state .empty-icon {
+                    font-size: 3rem;
+                    margin-bottom: var(--spacing-md);
+                    opacity: 0.5;
+                }
+
+                .empty-state h4 {
+                    margin: 0 0 var(--spacing-sm);
+                    color: var(--text-primary);
+                }
+
+                .empty-state p {
+                    color: var(--text-secondary);
+                    margin-bottom: var(--spacing-lg);
+                }
+
+                .add-btn {
+                    padding: 0.75rem 1.5rem;
+                    background: var(--primary-gradient);
+                    color: white;
+                    border: none;
+                    border-radius: var(--radius-full);
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                }
+
+                .add-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+
+                .dashboard-loading,
+                .dashboard-error {
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: var(--primary-bg);
+                }
+
+                .loading-spinner,
+                .error-content {
+                    text-align: center;
+                    padding: var(--spacing-2xl);
+                    background: var(--card-bg);
+                    border-radius: var(--radius-xl);
+                    box-shadow: var(--shadow-lg);
+                    max-width: 400px;
+                    margin: var(--spacing-lg);
+                }
+
+                .spinner {
+                    width: 48px;
+                    height: 48px;
+                    border: 3px solid var(--border-light);
+                    border-top-color: var(--primary);
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    margin: 0 auto var(--spacing-lg);
+                }
+
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+
+                .error-icon {
+                    font-size: 3rem;
+                    margin-bottom: var(--spacing-md);
+                }
+
+                .retry-btn {
+                    margin-top: var(--spacing-lg);
+                    padding: 0.75rem 1.5rem;
+                    background: var(--primary-gradient);
+                    color: white;
+                    border: none;
+                    border-radius: var(--radius-md);
+                    cursor: pointer;
+                }
+
+                /* ===========================================
+                   استجابة الشاشات الكبيرة
+                =========================================== */
                 @media (min-width: 1025px) {
                     .sidebar-wrapper {
                         transform: translateX(0) !important;
@@ -875,11 +1225,14 @@ function Dashboard({ onLogout }) {
                         padding: var(--spacing-xl) var(--spacing-2xl);
                     }
 
-                    .section-header h1 {
-                        font-size: 2.2rem;
+                    .section-title {
+                        font-size: 2rem;
                     }
                 }
 
+                /* ===========================================
+                   استجابة التابلت
+                =========================================== */
                 @media (min-width: 768px) and (max-width: 1024px) {
                     .sidebar-wrapper {
                         width: 260px;
@@ -896,8 +1249,16 @@ function Dashboard({ onLogout }) {
                     .dashboard-content {
                         padding: var(--spacing-lg);
                     }
+
+                    .analytics-section,
+                    .history-section {
+                        grid-template-columns: 1fr;
+                    }
                 }
 
+                /* ===========================================
+                   استجابة الجوال
+                =========================================== */
                 @media (max-width: 767px) {
                     .control-bar {
                         height: 60px;
@@ -910,8 +1271,8 @@ function Dashboard({ onLogout }) {
                         justify-content: center;
                     }
 
-                    .app-name {
-                        font-size: 1.2rem;
+                    .app-name span:not(.logo) {
+                        display: none;
                     }
 
                     .date-display {
@@ -928,13 +1289,8 @@ function Dashboard({ onLogout }) {
                         align-items: flex-start;
                     }
 
-                    .section-header h1 {
+                    .section-title {
                         font-size: 1.3rem;
-                    }
-
-                    .activity-analytics-wrapper {
-                        padding: var(--spacing-md);
-                        border-radius: var(--radius-xl);
                     }
 
                     .logout-text {
@@ -960,6 +1316,15 @@ function Dashboard({ onLogout }) {
                         width: 100%;
                         justify-content: space-between;
                     }
+
+                    .summary-grid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .analytics-section,
+                    .history-section {
+                        grid-template-columns: 1fr;
+                    }
                 }
 
                 @media (max-width: 480px) {
@@ -967,21 +1332,18 @@ function Dashboard({ onLogout }) {
                         padding: var(--spacing-sm);
                     }
 
-                    .section-header h1 {
+                    .section-title {
                         font-size: 1.2rem;
                     }
-                }
 
-                @media (prefers-reduced-motion: reduce) {
-                    .sidebar-overlay {
-                        animation: none !important;
-                    }
-                    
-                    .auto-refresh-status {
-                        animation: none !important;
+                    .summary-section {
+                        padding: var(--spacing-md);
                     }
                 }
 
+                /* ===========================================
+                   دعم RTL
+                =========================================== */
                 [dir="rtl"] .control-left {
                     flex-direction: row-reverse;
                 }
@@ -997,6 +1359,43 @@ function Dashboard({ onLogout }) {
                 @media (max-width: 767px) {
                     [dir="rtl"] .refresh-controls {
                         flex-direction: column;
+                    }
+                }
+
+                /* ===========================================
+                   دعم الحركة المخفضة
+                =========================================== */
+                @media (prefers-reduced-motion: reduce) {
+                    *,
+                    *::before,
+                    *::after {
+                        animation-duration: 0.01ms !important;
+                        transition-duration: 0.01ms !important;
+                    }
+                    
+                    .sidebar-overlay {
+                        animation: none !important;
+                    }
+                    
+                    .auto-refresh-status {
+                        animation: none !important;
+                    }
+                    
+                    .summary-card:hover {
+                        transform: none !important;
+                    }
+                }
+
+                /* ===========================================
+                   دعم التباين العالي
+                =========================================== */
+                @media (prefers-contrast: high) {
+                    .summary-card {
+                        border-width: 2px;
+                    }
+                    
+                    .logout-btn {
+                        border-width: 2px;
                     }
                 }
             `}</style>

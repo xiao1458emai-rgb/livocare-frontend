@@ -23,19 +23,17 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
+    const [filterType, setFilterType] = useState('all'); // all, weight, bp, glucose, heartRate, spo2
     
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
     const isDeletingRef = useRef(false);
 
-    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
-
-    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
                 setLang(event.detail.lang);
-                // تطبيق اتجاه الصفحة
                 document.documentElement.dir = event.detail.isArabic ? 'rtl' : 'ltr';
                 document.documentElement.lang = event.detail.isArabic ? 'ar' : 'en';
             }
@@ -48,11 +46,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         };
     }, [lang]);
 
-    const getSafeHistory = useCallback(() => {
-        return Array.isArray(history) ? history : [];
-    }, [history]);
-
-    // جلب البيانات
+    // ✅ جلب البيانات
     const fetchHistory = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
@@ -79,7 +73,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         } catch (err) {
             console.error('Error fetching health history:', err);
             if (isMountedRef.current) {
-                setError(isArabic ? 'خطأ في تحميل السجل الصحي' : 'Error loading health history');
+                setError(isArabic ? '❌ خطأ في تحميل السجل الصحي' : '❌ Error loading health history');
                 setHistory([]);
             }
         } finally {
@@ -94,25 +88,52 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         fetchHistory();
     }, [refreshKey, fetchHistory]);
 
-    // تصفية البيانات حسب البحث
+    // ✅ تصفية البيانات حسب البحث ونوع الفلتر
     const filteredHistory = useMemo(() => {
-        const safeHistory = getSafeHistory();
-        if (!searchTerm.trim()) return safeHistory;
+        const safeHistory = Array.isArray(history) ? history : [];
         
-        return safeHistory.filter(record => {
+        let filtered = safeHistory;
+        
+        // فلتر حسب النوع
+        if (filterType !== 'all') {
+            filtered = filtered.filter(record => {
+                switch (filterType) {
+                    case 'weight':
+                        return record.weight_kg && record.weight_kg !== null;
+                    case 'bp':
+                        return record.systolic_pressure && record.diastolic_pressure && 
+                               record.systolic_pressure !== null && record.diastolic_pressure !== null;
+                    case 'glucose':
+                        return record.blood_glucose && record.blood_glucose !== null;
+                    case 'heartRate':
+                        return record.heart_rate && record.heart_rate !== null;
+                    case 'spo2':
+                        return record.spo2 && record.spo2 !== null;
+                    default:
+                        return true;
+                }
+            });
+        }
+        
+        // بحث
+        if (searchTerm.trim()) {
             const searchLower = searchTerm.toLowerCase();
-            const date = new Date(record.recorded_at).toLocaleDateString(isArabic ? 'ar-EG' : 'en-US');
-            return date.includes(searchLower) || 
-                   record.weight_kg?.toString().includes(searchLower) ||
-                   record.systolic_pressure?.toString().includes(searchLower) ||
-                   record.diastolic_pressure?.toString().includes(searchLower) ||
-                   record.blood_glucose?.toString().includes(searchLower) ||
-                   record.heart_rate?.toString().includes(searchLower) ||
-                   record.spo2?.toString().includes(searchLower);
-        });
-    }, [history, searchTerm, isArabic, getSafeHistory]);
+            filtered = filtered.filter(record => {
+                const date = new Date(record.recorded_at).toLocaleDateString(isArabic ? 'ar-EG' : 'en-US');
+                return date.includes(searchLower) || 
+                       record.weight_kg?.toString().includes(searchLower) ||
+                       record.systolic_pressure?.toString().includes(searchLower) ||
+                       record.diastolic_pressure?.toString().includes(searchLower) ||
+                       record.blood_glucose?.toString().includes(searchLower) ||
+                       record.heart_rate?.toString().includes(searchLower) ||
+                       record.spo2?.toString().includes(searchLower);
+            });
+        }
+        
+        return filtered;
+    }, [history, searchTerm, filterType, isArabic]);
 
-    // فرز البيانات
+    // ✅ فرز البيانات
     const sortedHistory = useMemo(() => {
         if (!filteredHistory.length) return [];
         
@@ -132,7 +153,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         return sorted;
     }, [filteredHistory, sortConfig]);
 
-    // Pagination
+    // ✅ Pagination
     const paginatedHistory = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
         return sortedHistory.slice(startIndex, startIndex + itemsPerPage);
@@ -140,13 +161,15 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
 
     const totalPages = Math.ceil(sortedHistory.length / itemsPerPage);
 
-    const handleSort = (key) => {
+    // ✅ معالجة الفرز
+    const handleSort = useCallback((key) => {
         setSortConfig(prev => ({
             key,
             direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
         }));
-    };
+    }, []);
 
+    // ✅ حذف سجل
     const handleDelete = useCallback(async (id) => {
         if (isDeletingRef.current || !isMountedRef.current) return;
         
@@ -164,7 +187,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         } catch (err) {
             console.error('Error deleting record:', err);
             if (isMountedRef.current) {
-                setError(isArabic ? 'خطأ في حذف السجل' : 'Error deleting record');
+                setError(isArabic ? '❌ خطأ في حذف السجل' : '❌ Error deleting record');
                 setTimeout(() => {
                     if (isMountedRef.current) setError(null);
                 }, 3000);
@@ -174,6 +197,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         }
     }, [onDataSubmitted, fetchHistory, isArabic]);
 
+    // ✅ حذف جماعي
     const handleBulkDelete = useCallback(async () => {
         if (selectedRecords.length === 0 || isDeletingRef.current || !isMountedRef.current) return;
         
@@ -192,7 +216,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         } catch (err) {
             console.error('Error bulk deleting:', err);
             if (isMountedRef.current) {
-                setError(isArabic ? 'خطأ في الحذف الجماعي' : 'Error in bulk delete');
+                setError(isArabic ? '❌ خطأ في الحذف الجماعي' : '❌ Error in bulk delete');
                 setTimeout(() => {
                     if (isMountedRef.current) setError(null);
                 }, 3000);
@@ -202,21 +226,21 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         }
     }, [selectedRecords, onDataSubmitted, fetchHistory, isArabic]);
 
-    const toggleSelectAll = () => {
+    // ✅ تحديد/إلغاء تحديد الكل
+    const toggleSelectAll = useCallback(() => {
         if (selectedRecords.length === paginatedHistory.length) {
             setSelectedRecords([]);
         } else {
             setSelectedRecords(paginatedHistory.map(r => r.id));
         }
-    };
+    }, [selectedRecords, paginatedHistory]);
 
-    const toggleSelect = (id) => {
-        if (selectedRecords.includes(id)) {
-            setSelectedRecords(selectedRecords.filter(recId => recId !== id));
-        } else {
-            setSelectedRecords([...selectedRecords, id]);
-        }
-    };
+    // ✅ تحديد/إلغاء تحديد سجل
+    const toggleSelect = useCallback((id) => {
+        setSelectedRecords(prev => 
+            prev.includes(id) ? prev.filter(recId => recId !== id) : [...prev, id]
+        );
+    }, []);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -225,113 +249,106 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         };
     }, []);
 
-    const getSortIcon = (key) => {
+    // ✅ أيقونة الفرز
+    const getSortIcon = useCallback((key) => {
         if (sortConfig.key !== key) return '↕️';
         return sortConfig.direction === 'desc' ? '⬇️' : '⬆️';
-    };
+    }, [sortConfig]);
 
-    const getHealthStatus = (record) => {
+    // ✅ الحصول على الحالة الصحية
+    const getHealthStatus = useCallback((record) => {
         const issues = [];
         
+        // نبضات القلب
         if (record.heart_rate) {
             if (record.heart_rate > 100) {
-                issues.push('⚠️ ' + (isArabic ? 'نبض مرتفع' : 'High heart rate'));
+                issues.push({ status: 'warning', icon: '⚠️', text: isArabic ? 'نبض مرتفع' : 'High HR', value: `${record.heart_rate} BPM` });
             } else if (record.heart_rate < 60) {
-                issues.push('⚠️ ' + (isArabic ? 'نبض منخفض' : 'Low heart rate'));
+                issues.push({ status: 'warning', icon: '⚠️', text: isArabic ? 'نبض منخفض' : 'Low HR', value: `${record.heart_rate} BPM` });
             } else {
-                issues.push('✅ ' + (isArabic ? 'نبض طبيعي' : 'Normal heart rate'));
+                issues.push({ status: 'success', icon: '✅', text: isArabic ? 'نبض طبيعي' : 'Normal HR', value: `${record.heart_rate} BPM` });
             }
-        } else {
-            issues.push('❓ ' + (isArabic ? 'لم يتم قياس النبض' : 'Heart rate not measured'));
         }
         
+        // نسبة الأكسجين
         if (record.spo2) {
             if (record.spo2 < 95) {
-                issues.push('⚠️ ' + (isArabic ? 'أكسجين منخفض' : 'Low oxygen'));
+                issues.push({ status: 'warning', icon: '⚠️', text: isArabic ? 'أكسجين منخفض' : 'Low SpO₂', value: `${record.spo2}%` });
             } else {
-                issues.push('✅ ' + (isArabic ? 'أكسجين طبيعي' : 'Normal oxygen'));
+                issues.push({ status: 'success', icon: '✅', text: isArabic ? 'أكسجين طبيعي' : 'Normal SpO₂', value: `${record.spo2}%` });
             }
-        } else {
-            issues.push('❓ ' + (isArabic ? 'لم يتم قياس الأكسجين' : 'Oxygen not measured'));
         }
         
+        // ضغط الدم
         if (record.systolic_pressure && record.diastolic_pressure) {
             if (record.systolic_pressure > 140 || record.diastolic_pressure > 90) {
-                issues.push('⚠️ ' + (isArabic ? 'ضغط مرتفع' : 'High blood pressure'));
+                issues.push({ status: 'warning', icon: '⚠️', text: isArabic ? 'ضغط مرتفع' : 'High BP', value: `${record.systolic_pressure}/${record.diastolic_pressure}` });
             } else if (record.systolic_pressure < 90 || record.diastolic_pressure < 60) {
-                issues.push('⚠️ ' + (isArabic ? 'ضغط منخفض' : 'Low blood pressure'));
+                issues.push({ status: 'warning', icon: '⚠️', text: isArabic ? 'ضغط منخفض' : 'Low BP', value: `${record.systolic_pressure}/${record.diastolic_pressure}` });
             } else {
-                issues.push('✅ ' + (isArabic ? 'ضغط طبيعي' : 'Normal blood pressure'));
+                issues.push({ status: 'success', icon: '✅', text: isArabic ? 'ضغط طبيعي' : 'Normal BP', value: `${record.systolic_pressure}/${record.diastolic_pressure}` });
             }
-        } else {
-            issues.push('❓ ' + (isArabic ? 'لم يتم قياس الضغط' : 'Blood pressure not measured'));
         }
         
+        // سكر الدم
         if (record.blood_glucose) {
             if (record.blood_glucose > 140) {
-                issues.push('⚠️ ' + (isArabic ? 'سكر مرتفع' : 'High blood sugar'));
+                issues.push({ status: 'warning', icon: '⚠️', text: isArabic ? 'سكر مرتفع' : 'High Glucose', value: `${record.blood_glucose} mg/dL` });
             } else if (record.blood_glucose < 70) {
-                issues.push('⚠️ ' + (isArabic ? 'سكر منخفض' : 'Low blood sugar'));
+                issues.push({ status: 'warning', icon: '⚠️', text: isArabic ? 'سكر منخفض' : 'Low Glucose', value: `${record.blood_glucose} mg/dL` });
             } else {
-                issues.push('✅ ' + (isArabic ? 'سكر طبيعي' : 'Normal blood sugar'));
+                issues.push({ status: 'success', icon: '✅', text: isArabic ? 'سكر طبيعي' : 'Normal Glucose', value: `${record.blood_glucose} mg/dL` });
             }
-        } else {
-            issues.push('❓ ' + (isArabic ? 'لم يتم قياس السكر' : 'Blood sugar not measured'));
         }
         
+        // الوزن
         if (record.weight_kg) {
             if (record.weight_kg > 100) {
-                issues.push('⚠️ ' + (isArabic ? 'وزن مرتفع' : 'High weight'));
+                issues.push({ status: 'warning', icon: '⚠️', text: isArabic ? 'وزن مرتفع' : 'High Weight', value: `${record.weight_kg} kg` });
             } else if (record.weight_kg < 50) {
-                issues.push('⚠️ ' + (isArabic ? 'وزن منخفض' : 'Low weight'));
+                issues.push({ status: 'warning', icon: '⚠️', text: isArabic ? 'وزن منخفض' : 'Low Weight', value: `${record.weight_kg} kg` });
             } else {
-                issues.push('✅ ' + (isArabic ? 'وزن طبيعي' : 'Normal weight'));
+                issues.push({ status: 'success', icon: '✅', text: isArabic ? 'وزن طبيعي' : 'Normal Weight', value: `${record.weight_kg} kg` });
             }
-        } else {
-            issues.push('❓ ' + (isArabic ? 'لم يتم قياس الوزن' : 'Weight not measured'));
         }
         
         return issues;
-    };
+    }, [isArabic]);
 
-    const getStatusColor = (status) => {
-        if (status.includes('✅')) return '#10b981';
-        if (status.includes('⚠️')) return '#ef4444';
-        if (status.includes('❓')) return '#94a3b8';
-        return '#64748b';
-    };
-
-    const displayValue = (value, unit, precision = 1) => {
+    // ✅ عرض القيمة
+    const displayValue = useCallback((value, unit, precision = 1) => {
         if (value === null || value === undefined || value === '') {
-            return <span className="stat-label" style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>—</span>;
+            return <span className="missing-value">—</span>;
         }
         const numValue = typeof value === 'number' ? value : parseFloat(value);
         if (isNaN(numValue)) {
-            return <span className="stat-label" style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>—</span>;
+            return <span className="missing-value">—</span>;
         }
         const formattedValue = precision === 0 ? Math.round(numValue) : numValue.toFixed(precision);
         return (
-            <span className="stat-value">
+            <span className="value-display">
                 {formattedValue}
-                <span className="stat-label" style={{ fontSize: '0.7rem', marginLeft: '2px' }}>{unit}</span>
+                <span className="value-unit">{unit}</span>
             </span>
         );
-    };
+    }, []);
 
-    const displayBloodPressure = (systolic, diastolic) => {
+    // ✅ عرض ضغط الدم
+    const displayBloodPressure = useCallback((systolic, diastolic) => {
         if ((!systolic && systolic !== 0) || (!diastolic && diastolic !== 0)) {
-            return <span className="stat-label" style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>—</span>;
+            return <span className="missing-value">—</span>;
         }
         return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                <span style={{ color: 'var(--error)' }}>{systolic}</span>
-                <span style={{ color: 'var(--text-tertiary)' }}>/</span>
-                <span style={{ color: 'var(--warning)' }}>{diastolic}</span>
+            <div className="bp-display">
+                <span className="systolic">{systolic}</span>
+                <span className="separator">/</span>
+                <span className="diastolic">{diastolic}</span>
             </div>
         );
-    };
+    }, []);
 
-    const formatDate = (dateString) => {
+    // ✅ تنسيق التاريخ
+    const formatDate = useCallback((dateString) => {
         if (!dateString) return { date: isArabic ? 'تاريخ غير معروف' : 'Unknown date', time: '', full: '' };
         const date = new Date(dateString);
         const locale = isArabic ? 'ar-EG' : 'en-US';
@@ -340,193 +357,225 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
             time: date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
             full: date.toLocaleString(locale)
         };
+    }, [isArabic]);
+
+    // ✅ حساب الإحصائيات
+    const safeHistory = Array.isArray(history) ? history : [];
+    const stats = {
+        total: safeHistory.length,
+        weight: safeHistory.filter(r => r.weight_kg && r.weight_kg !== null).length,
+        bp: safeHistory.filter(r => r.systolic_pressure && r.diastolic_pressure && 
+            r.systolic_pressure !== null && r.diastolic_pressure !== null).length,
+        glucose: safeHistory.filter(r => r.blood_glucose && r.blood_glucose !== null).length,
+        heartRate: safeHistory.filter(r => r.heart_rate && r.heart_rate !== null).length,
+        spo2: safeHistory.filter(r => r.spo2 && r.spo2 !== null).length,
     };
 
-    if (loading) {
+    // ✅ حالة التحميل
+    if (loading && safeHistory.length === 0) {
         return (
-            <div className="analytics-container">
-                <div className="analytics-loading">
+            <div className="history-loading">
+                <div className="loading-spinner">
                     <div className="spinner"></div>
-                    <p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
+                    <p>{isArabic ? 'جاري تحميل السجل الصحي...' : 'Loading health history...'}</p>
                 </div>
             </div>
         );
     }
 
-    if (error) {
+    // ✅ حالة الخطأ
+    if (error && safeHistory.length === 0) {
         return (
-            <div className="analytics-container">
-                <div className="analytics-error">
-                    <div className="empty-icon">⚠️</div>
+            <div className="history-error">
+                <div className="error-content">
+                    <div className="error-icon">⚠️</div>
                     <p>{error}</p>
-                    <button onClick={fetchHistory} className="type-btn active">
+                    <button onClick={fetchHistory} className="retry-btn">
                         🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                     </button>
-                    {/* ✅ تم إزالة زر اللغة من هنا */}
                 </div>
             </div>
         );
     }
 
-    const safeHistory = getSafeHistory();
-    const weightCount = safeHistory.filter(r => r.weight_kg && r.weight_kg !== null && r.weight_kg !== '').length;
-    const pressureCount = safeHistory.filter(r => r.systolic_pressure && r.diastolic_pressure && 
-        r.systolic_pressure !== null && r.diastolic_pressure !== null).length;
-    const glucoseCount = safeHistory.filter(r => r.blood_glucose && r.blood_glucose !== null && r.blood_glucose !== '').length;
-    const heartRateCount = safeHistory.filter(r => r.heart_rate && r.heart_rate !== null && r.heart_rate !== '').length;
-    const spo2Count = safeHistory.filter(r => r.spo2 && r.spo2 !== null && r.spo2 !== '').length;
-
     return (
-        <div className="analytics-container">
-            {/* رأس القسم */}
-            <div className="analytics-header" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-md)' }}>
-                    <h2>{isArabic ? 'السجل الصحي' : 'Health History'}</h2>
-                    <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
-                        {/* ✅ تم إزالة زر اللغة من هنا */}
-                        <div className="search-box" style={{ position: 'relative' }}>
-                            <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>🔍</span>
-                            <input
-                                type="text"
-                                placeholder={isArabic ? 'بحث...' : 'Search...'}
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="search-input"
-                                style={{ paddingLeft: '2rem' }}
-                            />
-                        </div>
-                        {selectedRecords.length > 0 && (
-                            <button onClick={handleBulkDelete} className="delete-read-btn">
-                                🗑️ {isArabic ? `حذف ${selectedRecords.length} سجل` : `Delete ${selectedRecords.length} records`}
-                            </button>
-                        )}
+        <div className="health-history-container">
+            {/* ✅ رأس القسم */}
+            <div className="history-header">
+                <div className="header-title">
+                    <h2>
+                        <span className="title-icon">📋</span>
+                        {isArabic ? 'السجل الصحي' : 'Health History'}
+                    </h2>
+                    <div className="stats-badge">
+                        📊 {stats.total} {isArabic ? 'تسجيل' : 'records'}
                     </div>
                 </div>
                 
-                <div className="type-filters" style={{ justifyContent: 'flex-start', marginTop: 'var(--spacing-md)' }}>
-                    <span className="type-btn">📝 {isArabic ? 'سجل' : 'Record'} {safeHistory.length}</span>
-                    <span className="type-btn">⚖️ {isArabic ? 'وزن' : 'Weight'} {weightCount}</span>
-                    <span className="type-btn">❤️ {isArabic ? 'ضغط' : 'Pressure'} {pressureCount}</span>
-                    <span className="type-btn">🩸 {isArabic ? 'سكر' : 'Glucose'} {glucoseCount}</span>
-                    <span className="type-btn">❤️ {isArabic ? 'النبض' : 'Heart Rate'} {heartRateCount}</span>
-                    <span className="type-btn">💨 {isArabic ? 'الأكسجين' : 'SpO₂'} {spo2Count}</span>
+                <div className="header-controls">
+                    <div className="search-wrapper">
+                        <span className="search-icon">🔍</span>
+                        <input
+                            type="text"
+                            placeholder={isArabic ? 'بحث في السجل...' : 'Search records...'}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="search-input"
+                        />
+                    </div>
+                    
+                    {selectedRecords.length > 0 && (
+                        <button onClick={handleBulkDelete} className="bulk-delete-btn">
+                            🗑️ {isArabic ? `حذف ${selectedRecords.length} سجل` : `Delete ${selectedRecords.length}`}
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* حالة عدم وجود بيانات */}
+            {/* ✅ فلاتر سريعة */}
+            <div className="filter-tabs">
+                <button 
+                    className={`filter-tab ${filterType === 'all' ? 'active' : ''}`}
+                    onClick={() => setFilterType('all')}
+                >
+                    📋 {isArabic ? 'الكل' : 'All'} ({stats.total})
+                </button>
+                <button 
+                    className={`filter-tab ${filterType === 'weight' ? 'active' : ''}`}
+                    onClick={() => setFilterType('weight')}
+                >
+                    ⚖️ {isArabic ? 'الوزن' : 'Weight'} ({stats.weight})
+                </button>
+                <button 
+                    className={`filter-tab ${filterType === 'bp' ? 'active' : ''}`}
+                    onClick={() => setFilterType('bp')}
+                >
+                    ❤️ {isArabic ? 'الضغط' : 'BP'} ({stats.bp})
+                </button>
+                <button 
+                    className={`filter-tab ${filterType === 'glucose' ? 'active' : ''}`}
+                    onClick={() => setFilterType('glucose')}
+                >
+                    🩸 {isArabic ? 'السكر' : 'Glucose'} ({stats.glucose})
+                </button>
+                <button 
+                    className={`filter-tab ${filterType === 'heartRate' ? 'active' : ''}`}
+                    onClick={() => setFilterType('heartRate')}
+                >
+                    💓 {isArabic ? 'النبض' : 'HR'} ({stats.heartRate})
+                </button>
+                <button 
+                    className={`filter-tab ${filterType === 'spo2' ? 'active' : ''}`}
+                    onClick={() => setFilterType('spo2')}
+                >
+                    💨 SpO₂ ({stats.spo2})
+                </button>
+            </div>
+
+            {/* ✅ حالة عدم وجود بيانات */}
             {safeHistory.length === 0 && !editingRecord && (
-                <div className="analytics-empty">
-                    <div className="empty-icon">📝</div>
+                <div className="empty-state">
+                    <div className="empty-icon">📭</div>
                     <h3>{isArabic ? 'لا توجد سجلات صحية' : 'No Health Records'}</h3>
                     <p>{isArabic ? 'ابدأ بإضافة قراءاتك الصحية الأولى' : 'Start adding your health readings'}</p>
-                    <div className="type-filters" style={{ justifyContent: 'center', marginTop: 'var(--spacing-md)' }}>
-                        <span className="type-btn">💡 {isArabic ? 'أضف قراءة جديدة من النموذج أعلاه' : 'Add new reading from the form above'}</span>
-                        <span className="type-btn">💡 {isArabic ? 'يمكنك تسجيل القياسات التي تريدها فقط' : 'You can record only the measurements you want'}</span>
+                    <div className="empty-tips">
+                        <span className="tip">💡 {isArabic ? 'أضف قراءة جديدة من النموذج أعلاه' : 'Add new reading from the form above'}</span>
+                        <span className="tip">💡 {isArabic ? 'يمكنك تسجيل القياسات التي تريدها فقط' : 'You can record only the measurements you want'}</span>
                     </div>
                 </div>
             )}
 
-            {/* جدول البيانات */}
+            {/* ✅ جدول البيانات */}
             {safeHistory.length > 0 && (
                 <>
-                    <div className="table-container" style={{ overflowX: 'auto', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-light)', marginBottom: 'var(--spacing-lg)' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <div className="table-wrapper">
+                        <table className="history-table">
                             <thead>
-                                <tr style={{ background: 'var(--tertiary-bg)' }}>
-                                    <th style={{ padding: '0.75rem', width: '40px', textAlign: 'center' }}>
+                                <tr>
+                                    <th className="checkbox-col">
                                         <input
                                             type="checkbox"
                                             checked={selectedRecords.length === paginatedHistory.length && paginatedHistory.length > 0}
                                             onChange={toggleSelectAll}
-                                            style={{ accentColor: 'var(--primary)' }}
+                                            className="checkbox"
                                         />
                                     </th>
-                                    <th onClick={() => handleSort('recorded_at')} style={{ cursor: 'pointer', padding: '0.75rem', whiteSpace: 'nowrap' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>📅</span> {isArabic ? 'التاريخ' : 'Date'} <span>{getSortIcon('recorded_at')}</span>
-                                        </div>
+                                    <th className="sortable" onClick={() => handleSort('recorded_at')}>
+                                        📅 {isArabic ? 'التاريخ' : 'Date'}
+                                        <span className="sort-icon">{getSortIcon('recorded_at')}</span>
                                     </th>
-                                    <th onClick={() => handleSort('weight_kg')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>⚖️</span> {isArabic ? 'الوزن' : 'Weight'} <span>{getSortIcon('weight_kg')}</span>
-                                        </div>
+                                    <th className="sortable" onClick={() => handleSort('weight_kg')}>
+                                        ⚖️ {isArabic ? 'الوزن' : 'Weight'}
+                                        <span className="sort-icon">{getSortIcon('weight_kg')}</span>
                                     </th>
-                                    <th onClick={() => handleSort('systolic_pressure')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>❤️</span> {isArabic ? 'ضغط الدم' : 'Blood Pressure'} <span>{getSortIcon('systolic_pressure')}</span>
-                                        </div>
+                                    <th>
+                                        ❤️ {isArabic ? 'ضغط الدم' : 'Blood Pressure'}
                                     </th>
-                                    <th onClick={() => handleSort('blood_glucose')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>🩸</span> {isArabic ? 'السكر' : 'Glucose'} <span>{getSortIcon('blood_glucose')}</span>
-                                        </div>
+                                    <th className="sortable" onClick={() => handleSort('blood_glucose')}>
+                                        🩸 {isArabic ? 'السكر' : 'Glucose'}
+                                        <span className="sort-icon">{getSortIcon('blood_glucose')}</span>
                                     </th>
-                                    <th onClick={() => handleSort('heart_rate')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>❤️</span> {isArabic ? 'النبض' : 'Heart Rate'} <span>{getSortIcon('heart_rate')}</span>
-                                        </div>
+                                    <th className="sortable" onClick={() => handleSort('heart_rate')}>
+                                        💓 {isArabic ? 'النبض' : 'HR'}
+                                        <span className="sort-icon">{getSortIcon('heart_rate')}</span>
                                     </th>
-                                    <th onClick={() => handleSort('spo2')} style={{ cursor: 'pointer', padding: '0.75rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span>💨</span> {isArabic ? 'الأكسجين' : 'SpO₂'} <span>{getSortIcon('spo2')}</span>
-                                        </div>
+                                    <th className="sortable" onClick={() => handleSort('spo2')}>
+                                        💨 SpO₂
+                                        <span className="sort-icon">{getSortIcon('spo2')}</span>
                                     </th>
-                                    <th style={{ padding: '0.75rem' }}>📈 {isArabic ? 'الحالة' : 'Status'}</th>
-                                    <th style={{ padding: '0.75rem' }}>⚙️ {isArabic ? 'إجراءات' : 'Actions'}</th>
+                                    <th>{isArabic ? 'الحالة' : 'Status'}</th>
+                                    <th>{isArabic ? 'الإجراءات' : 'Actions'}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {paginatedHistory.map((record) => {
                                     const { date, time } = formatDate(record.recorded_at);
                                     const statuses = getHealthStatus(record);
+                                    const isSelected = selectedRecords.includes(record.id);
                                     
                                     return (
-                                        <tr key={record.id} className={`table-row ${selectedRecords.includes(record.id) ? 'selected' : ''}`} style={{
-                                            transition: 'background var(--transition-fast)',
-                                            background: selectedRecords.includes(record.id) ? 'var(--info-bg)' : 'transparent'
-                                        }}>
-                                            <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                                        <tr key={record.id} className={`table-row ${isSelected ? 'selected' : ''}`}>
+                                            <td className="checkbox-col">
                                                 <input
                                                     type="checkbox"
-                                                    checked={selectedRecords.includes(record.id)}
+                                                    checked={isSelected}
                                                     onChange={() => toggleSelect(record.id)}
-                                                    style={{ accentColor: 'var(--primary)' }}
+                                                    className="checkbox"
                                                 />
                                             </td>
-                                            <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
-                                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{date}</div>
-                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{time}</div>
+                                            <td className="date-cell">
+                                                <div className="date-main">{date}</div>
+                                                <div className="date-time">{time}</div>
                                             </td>
-                                            <td style={{ padding: '0.75rem' }}>{displayValue(record.weight_kg, 'kg', 1)}</td>
-                                            <td style={{ padding: '0.75rem' }}>{displayBloodPressure(record.systolic_pressure, record.diastolic_pressure)}</td>
-                                            <td style={{ padding: '0.75rem' }}>{displayValue(record.blood_glucose, 'mg/dL', 0)}</td>
-                                            <td style={{ padding: '0.75rem', textAlign: 'center' }}>{displayValue(record.heart_rate, 'BPM', 0)}</td>
-                                            <td style={{ padding: '0.75rem', textAlign: 'center' }}>{displayValue(record.spo2, '%', 0)}</td>
-                                            <td style={{ padding: '0.75rem', minWidth: '180px' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                            <td>{displayValue(record.weight_kg, 'kg', 1)}</td>
+                                            <td>{displayBloodPressure(record.systolic_pressure, record.diastolic_pressure)}</td>
+                                            <td>{displayValue(record.blood_glucose, 'mg/dL', 0)}</td>
+                                            <td className="center">{displayValue(record.heart_rate, 'BPM', 0)}</td>
+                                            <td className="center">{displayValue(record.spo2, '%', 0)}</td>
+                                            <td className="status-cell">
+                                                <div className="status-list">
                                                     {statuses.map((status, index) => (
-                                                        <span key={index} className="priority-badge" style={{
-                                                            background: getStatusColor(status),
-                                                            color: 'white',
-                                                            display: 'inline-flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.25rem',
-                                                            width: 'fit-content'
-                                                        }}>
-                                                            {status.substring(0, 2)} {status.substring(3)}
+                                                        <span key={index} className={`status-badge ${status.status}`}>
+                                                            {status.icon} {status.text}
                                                         </span>
                                                     ))}
                                                 </div>
                                             </td>
-                                            <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <button onClick={() => setEditingRecord(record)} className="notification-action-btn" title={isArabic ? 'تعديل' : 'Edit'}>
-                                                        ✏️
-                                                    </button>
-                                                    <button onClick={() => setDeleteConfirm(record.id)} className="notification-action-btn" title={isArabic ? 'حذف' : 'Delete'}>
-                                                        🗑️
-                                                    </button>
-                                                </div>
+                                            <td className="actions-cell">
+                                                <button 
+                                                    onClick={() => setEditingRecord(record)} 
+                                                    className="action-btn edit"
+                                                    title={isArabic ? 'تعديل' : 'Edit'}
+                                                >
+                                                    ✏️
+                                                </button>
+                                                <button 
+                                                    onClick={() => setDeleteConfirm(record.id)} 
+                                                    className="action-btn delete"
+                                                    title={isArabic ? 'حذف' : 'Delete'}
+                                                >
+                                                    🗑️
+                                                </button>
                                             </td>
                                         </tr>
                                     );
@@ -535,67 +584,48 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                         </table>
                     </div>
 
-                    {/* Pagination */}
+                    {/* ✅ Pagination */}
                     {totalPages > 1 && (
-                        <div className="type-filters" style={{ justifyContent: 'center' }}>
+                        <div className="pagination">
                             <button
                                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                 disabled={currentPage === 1}
-                                className="type-btn"
+                                className="page-btn"
                             >
-                                {isArabic ? '←' : '←'}
+                                ←
                             </button>
-                            <span className="stat-label">
+                            <div className="page-info">
                                 {isArabic ? `صفحة ${currentPage} من ${totalPages}` : `Page ${currentPage} of ${totalPages}`}
-                            </span>
+                            </div>
                             <button
                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                 disabled={currentPage === totalPages}
-                                className="type-btn"
+                                className="page-btn"
                             >
-                                {isArabic ? '→' : '→'}
+                                →
                             </button>
                         </div>
                     )}
                 </>
             )}
 
-            {/* نافذة تأكيد الحذف */}
+            {/* ✅ نافذة تأكيد الحذف */}
             {deleteConfirm && (
-                <div className="modal-backdrop" style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(0,0,0,0.6)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 1000
-                }}>
-                    <div className="confirm-modal" style={{
-                        background: 'var(--card-bg)',
-                        borderRadius: 'var(--radius-xl)',
-                        padding: 'var(--spacing-lg)',
-                        maxWidth: '380px',
-                        width: '90%',
-                        border: '1px solid var(--border-light)',
-                        boxShadow: 'var(--shadow-xl)'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: 'var(--spacing-md)' }}>
-                            <span style={{ fontSize: '1.6rem' }}>⚠️</span>
-                            <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>{isArabic ? 'تأكيد الحذف' : 'Confirm Delete'}</h3>
+                <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
+                    <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <span className="modal-icon">⚠️</span>
+                            <h3>{isArabic ? 'تأكيد الحذف' : 'Confirm Delete'}</h3>
                         </div>
-                        <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                            <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{isArabic ? 'هل أنت متأكد من حذف هذا السجل؟' : 'Are you sure you want to delete this record?'}</p>
-                            <p style={{ color: 'var(--error)', fontSize: '0.8rem' }}>{isArabic ? 'هذا الإجراء لا يمكن التراجع عنه' : 'This action cannot be undone'}</p>
+                        <div className="modal-body">
+                            <p>{isArabic ? 'هل أنت متأكد من حذف هذا السجل؟' : 'Are you sure you want to delete this record?'}</p>
+                            <p className="warning-text">{isArabic ? 'هذا الإجراء لا يمكن التراجع عنه' : 'This action cannot be undone'}</p>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.75rem' }}>
-                            <button onClick={() => setDeleteConfirm(null)} className="type-btn" style={{ flex: 1 }}>
+                        <div className="modal-footer">
+                            <button onClick={() => setDeleteConfirm(null)} className="cancel-btn">
                                 {isArabic ? 'إلغاء' : 'Cancel'}
                             </button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="type-btn active" style={{ flex: 1, background: 'var(--error)', color: 'white' }}>
+                            <button onClick={() => handleDelete(deleteConfirm)} className="confirm-btn">
                                 🗑️ {isArabic ? 'حذف' : 'Delete'}
                             </button>
                         </div>
@@ -603,51 +633,580 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                 </div>
             )}
 
-            {/* نموذج التعديل */}
+            {/* ✅ نموذج التعديل */}
             {editingRecord && (
                 <EditHealthForm
                     currentRecord={editingRecord}
                     onClose={() => setEditingRecord(null)}
                     onUpdate={() => {
                         setEditingRecord(null);
-                        onDataSubmitted();
+                        if (onDataSubmitted) onDataSubmitted();
+                        fetchHistory();
                     }}
+                    isArabic={isArabic}
                 />
             )}
 
-            <style>{`
-                /* ✅ تم إزالة .lang-btn styles */
-
-                .table-row:hover {
-                    background: var(--hover-bg) !important;
+            {/* ✅ أنماط CSS المضمنة */}
+            <style jsx>{`
+                .health-history-container {
+                    background: var(--card-bg);
+                    border-radius: 24px;
+                    padding: 1.5rem;
+                    border: 1px solid var(--border-light);
+                    transition: all var(--transition-medium);
                 }
-                
-                .search-box input {
+
+                /* ===== رأس القسم ===== */
+                .history-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid var(--border-light);
+                }
+
+                .header-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                .header-title h2 {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.3rem;
+                }
+
+                .title-icon {
+                    font-size: 1.5rem;
+                }
+
+                .stats-badge {
+                    padding: 0.35rem 0.85rem;
+                    background: var(--tertiary-bg);
+                    border-radius: 50px;
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                .header-controls {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                .search-wrapper {
+                    position: relative;
+                }
+
+                .search-icon {
+                    position: absolute;
+                    left: 0.75rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: var(--text-tertiary);
+                    font-size: 0.9rem;
+                }
+
+                [dir="rtl"] .search-icon {
+                    left: auto;
+                    right: 0.75rem;
+                }
+
+                .search-wrapper .search-input {
+                    padding-left: 2.25rem;
                     min-width: 220px;
                 }
-                
-                @media (max-width: 768px) {
-                    .search-box input {
-                        min-width: auto;
-                        width: 100%;
-                    }
-                    
-                    .search-box {
-                        width: 100%;
-                    }
+
+                [dir="rtl"] .search-wrapper .search-input {
+                    padding-left: 1rem;
+                    padding-right: 2.25rem;
                 }
-                
+
+                .bulk-delete-btn {
+                    padding: 0.5rem 1rem;
+                    background: rgba(239, 68, 68, 0.1);
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                    border-radius: 10px;
+                    color: #ef4444;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    font-size: 0.8rem;
+                }
+
+                .bulk-delete-btn:hover {
+                    background: #ef4444;
+                    color: white;
+                }
+
+                /* ===== فلاتر ===== */
+                .filter-tabs {
+                    display: flex;
+                    gap: 0.5rem;
+                    flex-wrap: wrap;
+                    margin-bottom: 1.5rem;
+                }
+
+                .filter-tab {
+                    padding: 0.4rem 1rem;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 50px;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    color: var(--text-secondary);
+                }
+
+                .filter-tab:hover {
+                    background: var(--hover-bg);
+                    transform: translateY(-1px);
+                }
+
+                .filter-tab.active {
+                    background: var(--primary);
+                    color: white;
+                    border-color: var(--primary);
+                }
+
+                /* ===== جدول ===== */
+                .table-wrapper {
+                    overflow-x: auto;
+                    border-radius: 16px;
+                    border: 1px solid var(--border-light);
+                    margin-bottom: 1rem;
+                }
+
+                .history-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 0.85rem;
+                }
+
+                .history-table th {
+                    background: var(--tertiary-bg);
+                    padding: 0.85rem 0.75rem;
+                    text-align: left;
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    border-bottom: 1px solid var(--border-light);
+                }
+
+                .history-table td {
+                    padding: 0.85rem 0.75rem;
+                    border-bottom: 1px solid var(--border-light);
+                    color: var(--text-secondary);
+                }
+
+                [dir="rtl"] .history-table th,
+                [dir="rtl"] .history-table td {
+                    text-align: right;
+                }
+
+                .checkbox-col {
+                    width: 40px;
+                    text-align: center;
+                }
+
+                .checkbox {
+                    width: 18px;
+                    height: 18px;
+                    cursor: pointer;
+                    accent-color: var(--primary);
+                }
+
+                .sortable {
+                    cursor: pointer;
+                    user-select: none;
+                    transition: background var(--transition-fast);
+                }
+
+                .sortable:hover {
+                    background: var(--hover-bg);
+                }
+
+                .sort-icon {
+                    margin-left: 0.35rem;
+                    font-size: 0.7rem;
+                }
+
+                [dir="rtl"] .sort-icon {
+                    margin-left: 0;
+                    margin-right: 0.35rem;
+                }
+
+                .date-cell {
+                    white-space: nowrap;
+                }
+
+                .date-main {
+                    font-weight: 500;
+                    color: var(--text-primary);
+                }
+
+                .date-time {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                .center {
+                    text-align: center;
+                }
+
+                .missing-value {
+                    color: var(--text-tertiary);
+                    font-style: italic;
+                }
+
+                .value-display {
+                    font-weight: 500;
+                    color: var(--text-primary);
+                }
+
+                .value-unit {
+                    font-size: 0.7rem;
+                    font-weight: normal;
+                    margin-left: 2px;
+                    color: var(--text-tertiary);
+                }
+
+                .bp-display {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 2px;
+                }
+
+                .bp-display .systolic {
+                    color: #ef4444;
+                    font-weight: 500;
+                }
+
+                .bp-display .diastolic {
+                    color: #8b5cf6;
+                    font-weight: 500;
+                }
+
+                .status-cell {
+                    min-width: 180px;
+                }
+
+                .status-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.25rem;
+                }
+
+                .status-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                    padding: 0.2rem 0.5rem;
+                    border-radius: 20px;
+                    font-size: 0.7rem;
+                    width: fit-content;
+                }
+
+                .status-badge.success {
+                    background: rgba(16, 185, 129, 0.15);
+                    color: #10b981;
+                }
+
+                .status-badge.warning {
+                    background: rgba(245, 158, 11, 0.15);
+                    color: #f59e0b;
+                }
+
+                .actions-cell {
+                    white-space: nowrap;
+                }
+
+                .action-btn {
+                    background: none;
+                    border: none;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    padding: 0.35rem 0.5rem;
+                    border-radius: 8px;
+                    transition: all var(--transition-fast);
+                }
+
+                .action-btn.edit:hover {
+                    background: rgba(59, 130, 246, 0.1);
+                    transform: scale(1.05);
+                }
+
+                .action-btn.delete:hover {
+                    background: rgba(239, 68, 68, 0.1);
+                    transform: scale(1.05);
+                }
+
+                .table-row.selected {
+                    background: rgba(59, 130, 246, 0.05);
+                }
+
+                .table-row:hover {
+                    background: var(--hover-bg);
+                }
+
+                /* ===== Pagination ===== */
+                .pagination {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    gap: 1rem;
+                    margin-top: 1rem;
+                }
+
+                .page-btn {
+                    padding: 0.4rem 1rem;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 8px;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                }
+
+                .page-btn:hover:not(:disabled) {
+                    background: var(--primary);
+                    color: white;
+                    border-color: var(--primary);
+                }
+
+                .page-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                .page-info {
+                    font-size: 0.85rem;
+                    color: var(--text-secondary);
+                }
+
+                /* ===== حالات خاصة ===== */
+                .history-loading,
+                .history-error {
+                    background: var(--card-bg);
+                    border-radius: 24px;
+                    padding: 3rem;
+                    text-align: center;
+                }
+
+                .loading-spinner .spinner {
+                    width: 48px;
+                    height: 48px;
+                    border: 3px solid var(--border-light);
+                    border-top-color: var(--primary);
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    margin: 0 auto 1rem;
+                }
+
+                .empty-state {
+                    text-align: center;
+                    padding: 3rem;
+                }
+
+                .empty-icon {
+                    font-size: 3.5rem;
+                    margin-bottom: 1rem;
+                    opacity: 0.5;
+                }
+
+                .empty-state h3 {
+                    margin: 0 0 0.5rem;
+                    color: var(--text-primary);
+                }
+
+                .empty-state p {
+                    color: var(--text-secondary);
+                    margin-bottom: 1rem;
+                }
+
+                .empty-tips {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                    align-items: center;
+                }
+
+                .tip {
+                    font-size: 0.8rem;
+                    color: var(--text-tertiary);
+                }
+
+                /* ===== نافذة تأكيد ===== */
+                .modal-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.6);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                    animation: fadeIn 0.2s ease;
+                }
+
+                .confirm-modal {
+                    background: var(--card-bg);
+                    border-radius: 20px;
+                    width: 90%;
+                    max-width: 380px;
+                    overflow: hidden;
+                    box-shadow: var(--shadow-xl);
+                }
+
+                .modal-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    padding: 1.25rem;
+                    background: rgba(239, 68, 68, 0.1);
+                    border-bottom: 1px solid var(--border-light);
+                }
+
+                .modal-icon {
+                    font-size: 1.5rem;
+                }
+
+                .modal-header h3 {
+                    margin: 0;
+                    color: #ef4444;
+                }
+
+                .modal-body {
+                    padding: 1.25rem;
+                }
+
+                .modal-body p {
+                    margin: 0 0 0.5rem;
+                    color: var(--text-primary);
+                }
+
+                .warning-text {
+                    color: #ef4444;
+                    font-size: 0.8rem;
+                }
+
+                .modal-footer {
+                    display: flex;
+                    gap: 0.75rem;
+                    padding: 1rem 1.25rem;
+                    border-top: 1px solid var(--border-light);
+                }
+
+                .cancel-btn {
+                    flex: 1;
+                    padding: 0.6rem;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 10px;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                }
+
+                .cancel-btn:hover {
+                    background: var(--hover-bg);
+                }
+
+                .confirm-btn {
+                    flex: 1;
+                    padding: 0.6rem;
+                    background: #ef4444;
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                }
+
+                .confirm-btn:hover {
+                    background: #dc2626;
+                    transform: translateY(-2px);
+                }
+
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+
                 @keyframes fadeIn {
                     from { opacity: 0; }
                     to { opacity: 1; }
                 }
-                
-                .modal-backdrop {
-                    animation: fadeIn 0.2s ease;
+
+                /* ===== استجابة الشاشات ===== */
+                @media (max-width: 1024px) {
+                    .health-history-container {
+                        padding: 1rem;
+                    }
+
+                    .status-cell {
+                        min-width: 200px;
+                    }
                 }
-                
+
+                @media (max-width: 768px) {
+                    .history-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    .header-controls {
+                        width: 100%;
+                        flex-direction: column;
+                    }
+
+                    .search-wrapper {
+                        width: 100%;
+                    }
+
+                    .search-wrapper .search-input {
+                        width: 100%;
+                        min-width: auto;
+                    }
+
+                    .bulk-delete-btn {
+                        width: 100%;
+                        text-align: center;
+                    }
+
+                    .filter-tabs {
+                        justify-content: center;
+                    }
+
+                    .status-list {
+                        min-width: 150px;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    .filter-tab {
+                        font-size: 0.7rem;
+                        padding: 0.3rem 0.75rem;
+                    }
+
+                    .status-badge {
+                        font-size: 0.65rem;
+                    }
+                }
+
                 @media (prefers-reduced-motion: reduce) {
-                    .modal-backdrop {
+                    .spinner {
+                        animation: none;
+                    }
+                    
+                    .modal-overlay {
                         animation: none;
                     }
                 }

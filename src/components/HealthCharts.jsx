@@ -26,6 +26,21 @@ ChartJS.register(
     Filler
 );
 
+// ✅ دالة مساعدة للحصول على ألوان الثيم
+const getThemeColors = (darkMode) => ({
+    textPrimary: darkMode ? '#f1f5f9' : '#0f172a',
+    textSecondary: darkMode ? '#cbd5e1' : '#475569',
+    textTertiary: darkMode ? '#94a3b8' : '#64748b',
+    gridColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+    tooltipBg: darkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(0, 0, 0, 0.8)',
+    weightColor: '#3b82f6',
+    systolicColor: '#ef4444',
+    diastolicColor: '#8b5cf6',
+    glucoseColor: '#10b981',
+    heartRateColor: '#ec489a',
+    spo2Color: '#06b6d4',
+});
+
 function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
     // ✅ استخدام isArabic من props مع إمكانية التحديث عبر الحدث
     const [lang, setLang] = useState(() => {
@@ -42,9 +57,7 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
     const isMountedRef = useRef(true);
     const abortControllerRef = useRef(null);
 
-    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
-
-    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
@@ -59,13 +72,14 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
         };
     }, [lang]);
 
-    // تحميل إعدادات الوضع المظلم - مرة واحدة فقط
+    // ✅ تحميل إعدادات الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
         setDarkMode(savedDarkMode);
     }, []);
 
+    // ✅ الاستماع لتغييرات الثيم
     useEffect(() => {
         const handleThemeChange = (e) => {
             setDarkMode(e.detail?.darkMode ?? false);
@@ -75,14 +89,12 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // ✅ دالة جلب البيانات - مع useCallback لمنع إعادة الإنشاء
+    // ✅ دالة جلب البيانات
     const fetchData = useCallback(async () => {
-        // إلغاء الطلب السابق إذا كان قيد التنفيذ
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
         
-        // إنشاء AbortController جديد
         abortControllerRef.current = new AbortController();
         
         setLoading(true);
@@ -95,9 +107,7 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
             
             if (!isMountedRef.current) return;
             
-            // ✅ التحقق الصحيح من البيانات
             let data = [];
-            
             if (Array.isArray(response.data)) {
                 data = response.data;
             } else if (response.data && Array.isArray(response.data.results)) {
@@ -106,7 +116,6 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                 data = Object.values(response.data).filter(item => item && typeof item === 'object');
             }
             
-            // ✅ تصفية البيانات الصالحة فقط - تشمل جميع القياسات بما فيها القلب والأكسجين
             const validData = data.filter(record => 
                 record && 
                 record.recorded_at && 
@@ -133,7 +142,7 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
             }
             console.error('Error fetching chart data:', err);
             if (isMountedRef.current) {
-                setError(isArabic ? 'خطأ في تحميل البيانات' : 'Error loading data');
+                setError(isArabic ? '❌ خطأ في تحميل البيانات' : '❌ Error loading data');
                 setHistory([]);
             }
         } finally {
@@ -143,7 +152,6 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
         }
     }, [isArabic]);
 
-    // ✅ جلب البيانات عند التغيير
     useEffect(() => {
         fetchData();
         return () => {
@@ -153,7 +161,6 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
         };
     }, [refreshKey, fetchData]);
 
-    // ✅ تنظيف عند إلغاء تحميل المكون
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
@@ -164,7 +171,8 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
         };
     }, []);
 
-    const processChartData = () => {
+    // ✅ معالجة البيانات للرسوم البيانية
+    const processChartData = useCallback(() => {
         if (!history || history.length === 0) {
             return { dates: [], weights: [], systolic: [], diastolic: [], glucose: [], heartRate: [], spo2: [] };
         }
@@ -215,9 +223,10 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
         });
 
         return { dates, weights, systolic, diastolic, glucose, heartRate, spo2 };
-    };
+    }, [history, isArabic]);
 
-    const getChartOptions = (min, max, yLabel = '') => ({
+    // ✅ خيارات الرسم البياني
+    const getChartOptions = useCallback((min, max, yLabel = '', themeColors) => ({
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -227,20 +236,23 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                 labels: {
                     usePointStyle: true,
                     padding: 15,
-                    color: darkMode ? '#f8fafc' : '#2c3e50',
-                    font: { size: 11 }
+                    color: themeColors.textSecondary,
+                    font: { size: 11, family: "'Inter', sans-serif" },
+                    boxWidth: 10,
                 }
             },
             tooltip: {
                 rtl: isArabic,
-                backgroundColor: darkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(0, 0, 0, 0.8)',
-                titleColor: darkMode ? '#f8fafc' : '#ffffff',
-                bodyColor: darkMode ? '#cbd5e1' : '#ffffff',
+                backgroundColor: themeColors.tooltipBg,
+                titleColor: themeColors.textPrimary,
+                bodyColor: themeColors.textSecondary,
+                padding: 10,
+                cornerRadius: 8,
                 callbacks: {
                     label: function(context) {
                         let label = context.dataset.label || '';
                         let value = context.raw;
-                        if (value !== null) {
+                        if (value !== null && value !== undefined) {
                             label += ': ' + value;
                             if (yLabel) label += ' ' + yLabel;
                         }
@@ -252,37 +264,56 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
         scales: {
             x: {
                 grid: {
-                    color: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                    color: themeColors.gridColor,
+                    drawBorder: true,
                 },
                 ticks: {
                     maxRotation: 45,
                     minRotation: 45,
-                    color: darkMode ? '#cbd5e1' : '#64748b',
-                    font: { size: 10 }
+                    color: themeColors.textTertiary,
+                    font: { size: 10 },
                 }
             },
             y: {
                 beginAtZero: false,
                 grid: {
-                    color: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                    color: themeColors.gridColor,
                 },
                 ticks: {
-                    color: darkMode ? '#cbd5e1' : '#64748b',
-                    stepSize: yLabel === 'BPM' ? 20 : (yLabel === 'SpO₂%' ? 5 : undefined)
+                    color: themeColors.textTertiary,
+                    stepSize: yLabel === 'BPM' ? 20 : (yLabel === 'SpO₂%' ? 5 : undefined),
+                    callback: function(value) {
+                        return value;
+                    }
                 },
                 min: min,
                 max: max,
                 title: {
                     display: !!yLabel,
                     text: yLabel,
-                    color: darkMode ? '#cbd5e1' : '#64748b',
-                    font: { size: 11 }
+                    color: themeColors.textTertiary,
+                    font: { size: 11, weight: '500' },
                 }
             }
         },
-    });
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
+        elements: {
+            line: {
+                tension: 0.4,
+            },
+            point: {
+                radius: 4,
+                hoverRadius: 6,
+                hitRadius: 8,
+            }
+        },
+    }), [isArabic]);
 
-    const getDynamicRange = (data, padding = 0.1, defaultMin = 0, defaultMax = 100) => {
+    // ✅ حساب النطاق الديناميكي
+    const getDynamicRange = useCallback((data, padding = 0.1, defaultMin = 0, defaultMax = 100) => {
         const validData = data.filter(val => val !== null && !isNaN(val));
         if (validData.length === 0) return { min: defaultMin, max: defaultMax };
         
@@ -294,59 +325,52 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
             min: Math.max(0, min - range * padding),
             max: max + range * padding
         };
-    };
+    }, []);
 
-    const getHeartRateRange = (data) => {
+    // ✅ حساب إحصائيات البيانات
+    const calculateStats = useCallback((data) => {
         const validData = data.filter(val => val !== null && !isNaN(val));
-        if (validData.length === 0) return { min: 40, max: 120 };
+        if (validData.length === 0) return null;
+        
+        const sum = validData.reduce((a, b) => a + b, 0);
+        const avg = Math.round(sum / validData.length);
         const min = Math.min(...validData);
         const max = Math.max(...validData);
-        return { min: Math.max(30, min - 10), max: max + 10 };
-    };
+        const last = validData[validData.length - 1];
+        const trend = validData.length > 1 ? last - validData[0] : 0;
+        
+        return { avg, min, max, last, trend };
+    }, []);
 
-    const getSpO2Range = (data) => {
-        const validData = data.filter(val => val !== null && !isNaN(val));
-        if (validData.length === 0) return { min: 85, max: 100 };
-        const min = Math.min(...validData);
-        const max = Math.max(...validData);
-        return { min: Math.max(70, min - 5), max: Math.min(100, max + 5) };
-    };
-
+    // ✅ حالة التحميل
     if (loading) {
         return (
-            <div className={`loading-container ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="spinner"></div>
-                <p>{isArabic ? 'جاري تحميل الرسوم البيانية...' : 'Loading charts...'}</p>
+            <div className={`charts-loading ${darkMode ? 'dark-mode' : ''}`}>
+                <div className="loading-spinner">
+                    <div className="spinner"></div>
+                    <p>{isArabic ? 'جاري تحميل الرسوم البيانية...' : 'Loading charts...'}</p>
+                </div>
             </div>
         );
     }
 
+    // ✅ حالة الخطأ
     if (error) {
         return (
-            <div className={`error-container ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="error-icon">⚠️</div>
-                <p>{error}</p>
-                <button onClick={fetchData} className="retry-btn">
-                    🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
-                </button>
-                {/* ✅ تم إزالة زر اللغة من هنا */}
-            </div>
-        );
-    }
-
-    if (!history || history.length < 2) {
-        return (
-            <div className={`insufficient-data ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="data-icon">📊</div>
-                <h3>{isArabic ? 'بيانات غير كافية' : 'Insufficient Data'}</h3>
-                <p>{isArabic ? 'يلزم على الأقل قراءتان لعرض الرسوم البيانية' : 'At least 2 readings are required to display charts'}</p>
-                <p className="hint">{isArabic ? 'أضف المزيد من القراءات الصحية' : 'Add more health readings'}</p>
-                {/* ✅ تم إزالة زر اللغة من هنا */}
+            <div className={`charts-error ${darkMode ? 'dark-mode' : ''}`}>
+                <div className="error-content">
+                    <div className="error-icon">⚠️</div>
+                    <p>{error}</p>
+                    <button onClick={fetchData} className="retry-btn">
+                        🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
+                    </button>
+                </div>
             </div>
         );
     }
 
     const { dates, weights, systolic, diastolic, glucose, heartRate, spo2 } = processChartData();
+    const themeColors = getThemeColors(darkMode);
     
     const hasWeightData = weights.some(w => w !== null);
     const hasBPData = systolic.some(s => s !== null) || diastolic.some(d => d !== null);
@@ -354,125 +378,146 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
     const hasHeartRateData = heartRate.some(h => h !== null);
     const hasSpO2Data = spo2.some(s => s !== null);
 
+    // ✅ حالة عدم وجود بيانات كافية
     if (!hasWeightData && !hasBPData && !hasGlucoseData && !hasHeartRateData && !hasSpO2Data) {
         return (
-            <div className={`insufficient-data ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="data-icon">📊</div>
-                <h3>{isArabic ? 'لا توجد بيانات صالحة' : 'No Valid Data'}</h3>
-                <p>{isArabic ? 'لا توجد بيانات صحية صالحة لعرضها' : 'No valid health data to display'}</p>
-                {/* ✅ تم إزالة زر اللغة من هنا */}
+            <div className={`charts-empty ${darkMode ? 'dark-mode' : ''}`}>
+                <div className="empty-content">
+                    <div className="empty-icon">📊</div>
+                    <h3>{isArabic ? 'لا توجد بيانات كافية' : 'Insufficient Data'}</h3>
+                    <p>{isArabic ? 'يلزم على الأقل قراءتان لعرض الرسوم البيانية' : 'At least 2 readings are required to display charts'}</p>
+                    <p className="empty-hint">{isArabic ? 'أضف المزيد من القراءات الصحية' : 'Add more health readings'}</p>
+                </div>
             </div>
         );
     }
 
-    const weightRange = getDynamicRange(weights);
-    const pressureRange = getDynamicRange([...systolic, ...diastolic]);
-    const glucoseRange = getDynamicRange(glucose);
-    const heartRateRange = getHeartRateRange(heartRate);
-    const spo2Range = getSpO2Range(spo2);
-
-    const validHeartRates = heartRate.filter(h => h !== null);
-    const validSpO2 = spo2.filter(s => s !== null);
+    // ✅ حساب الإحصائيات
+    const weightStats = calculateStats(weights);
+    const glucoseStats = calculateStats(glucose);
+    const heartRateStats = calculateStats(heartRate);
+    const spo2Stats = calculateStats(spo2);
     
-    const avgHeartRate = validHeartRates.length > 0 
-        ? Math.round(validHeartRates.reduce((a, b) => a + b, 0) / validHeartRates.length) 
-        : null;
-    const avgSpO2 = validSpO2.length > 0 
-        ? Math.round(validSpO2.reduce((a, b) => a + b, 0) / validSpO2.length) 
-        : null;
+    const weightRange = getDynamicRange(weights);
+    const glucoseRange = getDynamicRange(glucose);
+    const heartRateRange = getDynamicRange(heartRate, 0.15, 40, 120);
+    const spo2Range = getDynamicRange(spo2, 0.1, 85, 100);
+    
+    const pressureMin = Math.min(
+        ...systolic.filter(s => s !== null),
+        ...diastolic.filter(d => d !== null),
+        90
+    );
+    const pressureMax = Math.max(
+        ...systolic.filter(s => s !== null),
+        ...diastolic.filter(d => d !== null),
+        140
+    );
+    const pressureRange = { min: Math.max(0, pressureMin - 10), max: pressureMax + 10 };
 
     return (
         <div className={`health-charts-container ${darkMode ? 'dark-mode' : ''}`}>
+            {/* رأس القسم */}
             <div className="charts-header">
-                <div className="header-main">
-                    <h2>
-                        <span className="header-icon">📊</span>
-                        {isArabic ? 'الرسوم البيانية' : 'Health Charts'}
-                    </h2>
-                    <div className="charts-controls">
-                        <button 
-                            onClick={fetchData} 
-                            disabled={loading}
-                            className={`refresh-btn ${loading ? 'loading' : ''}`}
-                        >
-                            {loading ? '⏳' : '🔄'} {isArabic ? 'تحديث' : 'Refresh'}
-                        </button>
-                        {/* ✅ تم إزالة زر اللغة من هنا */}
-                    </div>
+                <div className="header-title">
+                    <span className="header-icon">📊</span>
+                    <h2>{isArabic ? 'الرسوم البيانية' : 'Health Charts'}</h2>
                 </div>
-                <div className="charts-stats">
-                    <div className="stat">
+                <div className="header-stats">
+                    <div className="stat-badge">
                         <span className="stat-icon">📝</span>
-                        <span className="stat-label">{isArabic ? 'قراءة' : 'Reading'}</span>
                         <span className="stat-value">{history.length}</span>
+                        <span className="stat-label">{isArabic ? 'قراءة' : 'readings'}</span>
                     </div>
-                    <div className="stat">
+                    <div className="stat-badge">
                         <span className="stat-icon">📅</span>
-                        <span className="stat-label">{isArabic ? 'يوم' : 'Day'}</span>
                         <span className="stat-value">{new Set(dates).size}</span>
+                        <span className="stat-label">{isArabic ? 'يوم' : 'days'}</span>
                     </div>
-                    {avgHeartRate && (
-                        <div className="stat">
-                            <span className="stat-icon">❤️</span>
-                            <span className="stat-label">{isArabic ? 'متوسط النبض' : 'Avg Heart Rate'}</span>
-                            <span className="stat-value">{avgHeartRate}</span>
-                        </div>
-                    )}
-                    {avgSpO2 && (
-                        <div className="stat">
-                            <span className="stat-icon">💨</span>
-                            <span className="stat-label">{isArabic ? 'متوسط الأكسجين' : 'Avg SpO₂'}</span>
-                            <span className="stat-value">{avgSpO2}%</span>
-                        </div>
-                    )}
+                    <button 
+                        onClick={fetchData} 
+                        disabled={loading}
+                        className="refresh-charts-btn"
+                        title={isArabic ? 'تحديث البيانات' : 'Refresh data'}
+                    >
+                        {loading ? '⏳' : '🔄'}
+                    </button>
                 </div>
             </div>
 
+            {/* شبكة الرسوم البيانية */}
             <div className="charts-grid">
-                {/* الرسم البياني للوزن */}
+                {/* رسم الوزن */}
                 {hasWeightData && (
-                    <div className="chart-card">
-                        <div className="chart-header">
-                            <h3>
+                    <div className="chart-card weight-card">
+                        <div className="chart-card-header">
+                            <div className="chart-title">
                                 <span className="chart-icon">⚖️</span>
-                                {isArabic ? 'تطور الوزن' : 'Weight Trend'}
-                            </h3>
+                                <h3>{isArabic ? 'تطور الوزن' : 'Weight Trend'}</h3>
+                            </div>
+                            {weightStats && (
+                                <div className="chart-stats">
+                                    <div className="chart-stat">
+                                        <span className="stat-label">{isArabic ? 'المتوسط' : 'Avg'}</span>
+                                        <span className="stat-value">{weightStats.avg}</span>
+                                        <span className="stat-unit">kg</span>
+                                    </div>
+                                    <div className="chart-stat">
+                                        <span className="stat-label">{isArabic ? 'الآخر' : 'Last'}</span>
+                                        <span className="stat-value">{weightStats.last}</span>
+                                        <span className="stat-unit">kg</span>
+                                    </div>
+                                    {weightStats.trend !== 0 && (
+                                        <div className={`chart-stat trend ${weightStats.trend > 0 ? 'up' : 'down'}`}>
+                                            <span>{weightStats.trend > 0 ? '↑' : '↓'}</span>
+                                            <span>{Math.abs(weightStats.trend)}</span>
+                                            <span className="stat-unit">kg</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                        <div className="chart-container">
+                        <div className="chart-wrapper">
                             <Line 
                                 data={{
                                     labels: dates,
                                     datasets: [{
                                         label: isArabic ? 'الوزن (كجم)' : 'Weight (kg)',
                                         data: weights,
-                                        borderColor: '#3b82f6',
-                                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                        borderColor: themeColors.weightColor,
+                                        backgroundColor: `${themeColors.weightColor}20`,
                                         borderWidth: 3,
                                         tension: 0.4,
                                         pointRadius: 5,
                                         pointHoverRadius: 7,
-                                        pointBackgroundColor: '#3b82f6',
+                                        pointBackgroundColor: themeColors.weightColor,
                                         pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
                                         pointBorderWidth: 2,
                                         fill: true,
                                     }]
                                 }} 
-                                options={getChartOptions(weightRange.min, weightRange.max, 'kg')}
+                                options={getChartOptions(weightRange.min, weightRange.max, 'kg', themeColors)}
                             />
                         </div>
                     </div>
                 )}
 
-                {/* الرسم البياني لضغط الدم */}
+                {/* رسم ضغط الدم */}
                 {hasBPData && (
-                    <div className="chart-card">
-                        <div className="chart-header">
-                            <h3>
+                    <div className="chart-card bp-card">
+                        <div className="chart-card-header">
+                            <div className="chart-title">
                                 <span className="chart-icon">❤️</span>
-                                {isArabic ? 'ضغط الدم' : 'Blood Pressure'}
-                            </h3>
+                                <h3>{isArabic ? 'ضغط الدم' : 'Blood Pressure'}</h3>
+                            </div>
+                            <div className="chart-legend">
+                                <div className="legend-dot" style={{ background: themeColors.systolicColor }}></div>
+                                <span>{isArabic ? 'انقباضي' : 'Systolic'}</span>
+                                <div className="legend-dot" style={{ background: themeColors.diastolicColor }}></div>
+                                <span>{isArabic ? 'انبساطي' : 'Diastolic'}</span>
+                            </div>
                         </div>
-                        <div className="chart-container">
+                        <div className="chart-wrapper">
                             <Line 
                                 data={{
                                     labels: dates,
@@ -480,13 +525,13 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                                         {
                                             label: isArabic ? 'الانقباضي (mmHg)' : 'Systolic (mmHg)',
                                             data: systolic,
-                                            borderColor: '#ef4444',
-                                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                            borderColor: themeColors.systolicColor,
+                                            backgroundColor: `${themeColors.systolicColor}20`,
                                             borderWidth: 3,
                                             tension: 0.4,
                                             pointRadius: 5,
                                             pointHoverRadius: 7,
-                                            pointBackgroundColor: '#ef4444',
+                                            pointBackgroundColor: themeColors.systolicColor,
                                             pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
                                             pointBorderWidth: 2,
                                             fill: false,
@@ -494,79 +539,110 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                                         {
                                             label: isArabic ? 'الانبساطي (mmHg)' : 'Diastolic (mmHg)',
                                             data: diastolic,
-                                            borderColor: '#8b5cf6',
-                                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                            borderColor: themeColors.diastolicColor,
+                                            backgroundColor: `${themeColors.diastolicColor}20`,
                                             borderWidth: 3,
                                             tension: 0.4,
                                             pointRadius: 5,
                                             pointHoverRadius: 7,
-                                            pointBackgroundColor: '#8b5cf6',
+                                            pointBackgroundColor: themeColors.diastolicColor,
                                             pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
                                             pointBorderWidth: 2,
                                             fill: false,
                                         }
                                     ]
                                 }} 
-                                options={getChartOptions(pressureRange.min, pressureRange.max, 'mmHg')}
+                                options={getChartOptions(pressureRange.min, pressureRange.max, 'mmHg', themeColors)}
                             />
+                        </div>
+                        <div className="chart-card-footer">
+                            <div className="normal-range-info">
+                                <span className="info-icon">ℹ️</span>
+                                <span>{isArabic ? 'الضغط الطبيعي: 120/80' : 'Normal: 120/80 mmHg'}</span>
+                            </div>
                         </div>
                     </div>
                 )}
 
-                {/* الرسم البياني للجلوكوز */}
+                {/* رسم سكر الدم */}
                 {hasGlucoseData && (
-                    <div className="chart-card">
-                        <div className="chart-header">
-                            <h3>
+                    <div className="chart-card glucose-card">
+                        <div className="chart-card-header">
+                            <div className="chart-title">
                                 <span className="chart-icon">🩸</span>
-                                {isArabic ? 'سكر الدم' : 'Blood Glucose'}
-                            </h3>
+                                <h3>{isArabic ? 'سكر الدم' : 'Blood Glucose'}</h3>
+                            </div>
+                            {glucoseStats && (
+                                <div className="chart-stats">
+                                    <div className="chart-stat">
+                                        <span className="stat-label">{isArabic ? 'المتوسط' : 'Avg'}</span>
+                                        <span className="stat-value">{glucoseStats.avg}</span>
+                                        <span className="stat-unit">mg/dL</span>
+                                    </div>
+                                    <div className="chart-stat">
+                                        <span className="stat-label">{isArabic ? 'الآخر' : 'Last'}</span>
+                                        <span className="stat-value">{glucoseStats.last}</span>
+                                        <span className="stat-unit">mg/dL</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        <div className="chart-container">
+                        <div className="chart-wrapper">
                             <Line 
                                 data={{
                                     labels: dates,
                                     datasets: [{
                                         label: isArabic ? 'الجلوكوز (mg/dL)' : 'Glucose (mg/dL)',
                                         data: glucose,
-                                        borderColor: '#10b981',
-                                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                        borderColor: themeColors.glucoseColor,
+                                        backgroundColor: `${themeColors.glucoseColor}20`,
                                         borderWidth: 3,
                                         tension: 0.4,
                                         pointRadius: 5,
                                         pointHoverRadius: 7,
-                                        pointBackgroundColor: '#10b981',
+                                        pointBackgroundColor: themeColors.glucoseColor,
                                         pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
                                         pointBorderWidth: 2,
                                         fill: true,
                                     }]
                                 }} 
-                                options={getChartOptions(glucoseRange.min, glucoseRange.max, 'mg/dL')}
+                                options={getChartOptions(glucoseRange.min, glucoseRange.max, 'mg/dL', themeColors)}
                             />
+                        </div>
+                        <div className="chart-card-footer">
+                            <div className="normal-range-info">
+                                <span className="info-icon">ℹ️</span>
+                                <span>{isArabic ? 'السكر الطبيعي: 70-140 mg/dL' : 'Normal glucose: 70-140 mg/dL'}</span>
+                            </div>
                         </div>
                     </div>
                 )}
 
-                {/* ✅ الرسم البياني لمعدل ضربات القلب */}
+                {/* رسم نبضات القلب */}
                 {hasHeartRateData && (
-                    <div className="chart-card heart-rate-card">
-                        <div className="chart-header">
-                            <h3>
-                                <span className="chart-icon">❤️</span>
-                                {isArabic ? 'معدل ضربات القلب' : 'Heart Rate'}
-                            </h3>
-                            <div className="chart-legend">
-                                <div className="legend-item">
-                                    <div className="legend-color" style={{ backgroundColor: '#ec489a' }}></div>
-                                    <span>{isArabic ? 'النبض (BPM)' : 'Heart Rate (BPM)'}</span>
-                                </div>
-                                <div className="legend-item normal-range">
-                                    <div className="legend-color" style={{ backgroundColor: 'rgba(16, 185, 129, 0.3)' }}></div>
-                                    <span>{isArabic ? 'المعدل الطبيعي (60-100)' : 'Normal Range (60-100)'}</span>
-                                </div>
+                    <div className="chart-card heartrate-card">
+                        <div className="chart-card-header">
+                            <div className="chart-title">
+                                <span className="chart-icon">💓</span>
+                                <h3>{isArabic ? 'معدل ضربات القلب' : 'Heart Rate'}</h3>
                             </div>
+                            {heartRateStats && (
+                                <div className="chart-stats">
+                                    <div className="chart-stat">
+                                        <span className="stat-label">{isArabic ? 'المتوسط' : 'Avg'}</span>
+                                        <span className="stat-value">{heartRateStats.avg}</span>
+                                        <span className="stat-unit">BPM</span>
+                                    </div>
+                                    <div className={`chart-stat ${heartRateStats.avg > 100 ? 'warning' : heartRateStats.avg < 60 ? 'warning' : ''}`}>
+                                        <span className="stat-label">{isArabic ? 'الحالة' : 'Status'}</span>
+                                        <span className="stat-value">
+                                            {heartRateStats.avg > 100 ? '↑' : heartRateStats.avg < 60 ? '↓' : '✓'}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        <div className="chart-container">
+                        <div className="chart-wrapper">
                             <Line 
                                 data={{
                                     labels: dates,
@@ -574,30 +650,30 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                                         {
                                             label: isArabic ? 'معدل ضربات القلب (BPM)' : 'Heart Rate (BPM)',
                                             data: heartRate,
-                                            borderColor: '#ec489a',
-                                            backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                                            borderColor: themeColors.heartRateColor,
+                                            backgroundColor: `${themeColors.heartRateColor}20`,
                                             borderWidth: 3,
                                             tension: 0.4,
                                             pointRadius: 5,
                                             pointHoverRadius: 7,
-                                            pointBackgroundColor: '#ec489a',
+                                            pointBackgroundColor: themeColors.heartRateColor,
                                             pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
                                             pointBorderWidth: 2,
                                             fill: true,
                                         },
                                         {
-                                            label: isArabic ? 'الحد الأدنى الطبيعي' : 'Lower Normal Limit',
+                                            label: isArabic ? 'الحد الأدنى الطبيعي' : 'Lower Normal',
                                             data: Array(dates.length).fill(60),
-                                            borderColor: 'rgba(16, 185, 129, 0.5)',
+                                            borderColor: '#10b981',
                                             borderWidth: 2,
                                             borderDash: [5, 5],
                                             pointRadius: 0,
                                             fill: false,
                                         },
                                         {
-                                            label: isArabic ? 'الحد الأعلى الطبيعي' : 'Upper Normal Limit',
+                                            label: isArabic ? 'الحد الأعلى الطبيعي' : 'Upper Normal',
                                             data: Array(dates.length).fill(100),
-                                            borderColor: 'rgba(16, 185, 129, 0.5)',
+                                            borderColor: '#10b981',
                                             borderWidth: 2,
                                             borderDash: [5, 5],
                                             pointRadius: 0,
@@ -605,44 +681,41 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                                         }
                                     ]
                                 }} 
-                                options={getChartOptions(heartRateRange.min, heartRateRange.max, 'BPM')}
+                                options={getChartOptions(heartRateRange.min, heartRateRange.max, 'BPM', themeColors)}
                             />
                         </div>
-                        <div className="chart-footer">
-                            {avgHeartRate && (
-                                <div className="chart-stat">
-                                    {isArabic ? 'المتوسط' : 'Average'}: {avgHeartRate} BPM
-                                    {avgHeartRate > 100 && <span className="warning"> ⚠️ {isArabic ? 'مرتفع' : 'High'}</span>}
-                                    {avgHeartRate < 60 && <span className="warning"> ⚠️ {isArabic ? 'منخفض' : 'Low'}</span>}
-                                </div>
-                            )}
-                            <div className="chart-stat">
-                                {isArabic ? 'المعدل الطبيعي: 60-100 نبضة في الدقيقة' : 'Normal range: 60-100 beats per minute'}
+                        <div className="chart-card-footer">
+                            <div className="normal-range-info">
+                                <span className="info-icon">ℹ️</span>
+                                <span>{isArabic ? 'المعدل الطبيعي: 60-100 نبضة في الدقيقة' : 'Normal range: 60-100 BPM'}</span>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* ✅ الرسم البياني لنسبة الأكسجين في الدم */}
+                {/* رسم الأكسجين */}
                 {hasSpO2Data && (
                     <div className="chart-card spo2-card">
-                        <div className="chart-header">
-                            <h3>
+                        <div className="chart-card-header">
+                            <div className="chart-title">
                                 <span className="chart-icon">💨</span>
-                                {isArabic ? 'نسبة الأكسجين في الدم' : 'Blood Oxygen Level'}
-                            </h3>
-                            <div className="chart-legend">
-                                <div className="legend-item">
-                                    <div className="legend-color" style={{ backgroundColor: '#06b6d4' }}></div>
-                                    <span>{isArabic ? 'تشبع الأكسجين (SpO₂%)' : 'Oxygen Saturation (SpO₂%)'}</span>
-                                </div>
-                                <div className="legend-item normal-range">
-                                    <div className="legend-color" style={{ backgroundColor: 'rgba(16, 185, 129, 0.3)' }}></div>
-                                    <span>{isArabic ? 'المعدل الطبيعي (≥95%)' : 'Normal Range (≥95%)'}</span>
-                                </div>
+                                <h3>{isArabic ? 'نسبة الأكسجين' : 'Blood Oxygen'}</h3>
                             </div>
+                            {spo2Stats && (
+                                <div className="chart-stats">
+                                    <div className="chart-stat">
+                                        <span className="stat-label">{isArabic ? 'المتوسط' : 'Avg'}</span>
+                                        <span className="stat-value">{spo2Stats.avg}</span>
+                                        <span className="stat-unit">%</span>
+                                    </div>
+                                    <div className={`chart-stat ${spo2Stats.avg < 95 ? 'warning' : ''}`}>
+                                        <span className="stat-label">{isArabic ? 'الحالة' : 'Status'}</span>
+                                        <span className="stat-value">{spo2Stats.avg < 95 ? '⚠️' : '✓'}</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        <div className="chart-container">
+                        <div className="chart-wrapper">
                             <Line 
                                 data={{
                                     labels: dates,
@@ -650,13 +723,13 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                                         {
                                             label: isArabic ? 'نسبة الأكسجين (SpO₂%)' : 'Oxygen Level (SpO₂%)',
                                             data: spo2,
-                                            borderColor: '#06b6d4',
-                                            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                                            borderColor: themeColors.spo2Color,
+                                            backgroundColor: `${themeColors.spo2Color}20`,
                                             borderWidth: 3,
                                             tension: 0.4,
                                             pointRadius: 5,
                                             pointHoverRadius: 7,
-                                            pointBackgroundColor: '#06b6d4',
+                                            pointBackgroundColor: themeColors.spo2Color,
                                             pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
                                             pointBorderWidth: 2,
                                             fill: true,
@@ -664,7 +737,7 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                                         {
                                             label: isArabic ? 'الحد الطبيعي' : 'Normal Threshold',
                                             data: Array(dates.length).fill(95),
-                                            borderColor: 'rgba(16, 185, 129, 0.5)',
+                                            borderColor: '#10b981',
                                             borderWidth: 2,
                                             borderDash: [5, 5],
                                             pointRadius: 0,
@@ -672,314 +745,282 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                                         }
                                     ]
                                 }} 
-                                options={getChartOptions(spo2Range.min, 100, 'SpO₂%')}
+                                options={getChartOptions(spo2Range.min, 100, 'SpO₂%', themeColors)}
                             />
                         </div>
-                        <div className="chart-footer">
-                            {avgSpO2 && (
-                                <div className="chart-stat">
-                                    {isArabic ? 'المتوسط' : 'Average'}: {avgSpO2}%
-                                    {avgSpO2 < 95 && <span className="warning"> ⚠️ {isArabic ? 'منخفض' : 'Low'}</span>}
-                                </div>
-                            )}
-                            <div className="chart-stat">
-                                {isArabic ? 'المعدل الطبيعي: 95% - 100%' : 'Normal range: 95% - 100%'}
+                        <div className="chart-card-footer">
+                            <div className="normal-range-info">
+                                <span className="info-icon">ℹ️</span>
+                                <span>{isArabic ? 'المعدل الطبيعي: 95% - 100%' : 'Normal range: 95% - 100%'}</span>
                             </div>
                         </div>
                     </div>
                 )}
             </div>
 
-            <style>{`
+            {/* ✅ أنماط CSS المضمنة */}
+            <style jsx>{`
                 .health-charts-container {
                     background: var(--card-bg);
-                    border-radius: 28px;
-                    padding: 2rem;
-                    border: 1px solid var(--border-light);
-                    box-shadow: var(--shadow-xl);
-                    margin-top: 2rem;
-                    transition: all var(--transition-medium);
-                }
-
-                .charts-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    margin-bottom: 2rem;
-                    padding-bottom: 1.5rem;
-                    border-bottom: 2px solid var(--border-light);
-                    flex-wrap: wrap;
-                    gap: 1rem;
-                }
-
-                .header-main {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 1rem;
-                    flex: 1;
-                }
-
-                .charts-header h2 {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1.6rem;
-                    font-weight: 700;
-                }
-
-                .header-icon {
-                    font-size: 2rem;
-                }
-
-                .charts-controls {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
-
-                /* ✅ تم إزالة .lang-btn styles */
-
-                .refresh-btn {
-                    background: var(--primary-color);
-                    color: white;
-                    border: none;
-                    padding: 0.5rem 1rem;
-                    border-radius: 10px;
-                    font-size: 0.85rem;
-                    cursor: pointer;
-                    transition: all var(--transition-medium);
-                    display: flex;
-                    align-items: center;
-                    gap: 0.25rem;
-                    font-weight: 500;
-                }
-
-                .refresh-btn:hover:not(:disabled) {
-                    background: var(--primary-dark);
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-lg);
-                }
-
-                .refresh-btn:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-
-                .charts-stats {
-                    display: flex;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
-
-                .stat {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    background: var(--secondary-bg);
-                    padding: 0.5rem 1rem;
-                    border-radius: 50px;
-                    border: 1px solid var(--border-light);
-                }
-
-                .stat-icon {
-                    font-size: 1.1rem;
-                }
-
-                .stat-label {
-                    color: var(--text-secondary);
-                    font-size: 0.85rem;
-                }
-
-                .stat-value {
-                    color: var(--primary-color);
-                    font-weight: 700;
-                    font-size: 1rem;
-                }
-
-                .charts-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-                    gap: 2rem;
-                }
-
-                .chart-card {
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
+                    border-radius: 24px;
                     padding: 1.5rem;
                     border: 1px solid var(--border-light);
                     transition: all var(--transition-medium);
-                    position: relative;
-                    overflow: hidden;
+                    margin: 1.5rem 0;
                 }
 
-                .chart-card::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: 3px;
-                    background: linear-gradient(90deg, var(--primary-color), var(--success-color));
-                    transform: translateX(-100%);
-                    transition: transform var(--transition-medium);
+                .health-charts-container.dark-mode {
+                    background: var(--card-bg);
+                    border-color: var(--border-light);
                 }
 
-                .chart-card:hover::before {
-                    transform: translateX(0);
-                }
-
-                .chart-card:hover {
-                    transform: translateY(-4px);
-                    box-shadow: var(--shadow-xl);
-                    border-color: var(--primary-color);
-                }
-
-                .heart-rate-card {
-                    border-top: 3px solid var(--heart-color);
-                }
-
-                .spo2-card {
-                    border-top: 3px solid var(--spo2-color);
-                }
-
-                .chart-header {
+                /* ===== رأس القسم ===== */
+                .charts-header {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    margin-bottom: 1.5rem;
                     flex-wrap: wrap;
-                    gap: 0.75rem;
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid var(--border-light);
                 }
 
-                .chart-header h3 {
+                .header-title {
                     display: flex;
                     align-items: center;
                     gap: 0.5rem;
+                }
+
+                .header-icon {
+                    font-size: 1.8rem;
+                }
+
+                .header-title h2 {
                     margin: 0;
                     color: var(--text-primary);
-                    font-size: 1.2rem;
-                    font-weight: 600;
+                    font-size: 1.3rem;
+                    font-weight: 700;
+                }
+
+                .header-stats {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    flex-wrap: wrap;
+                }
+
+                .stat-badge {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.35rem;
+                    padding: 0.35rem 0.75rem;
+                    background: var(--tertiary-bg);
+                    border-radius: 20px;
+                    font-size: 0.8rem;
+                }
+
+                .stat-badge .stat-icon {
+                    font-size: 0.9rem;
+                }
+
+                .stat-badge .stat-value {
+                    font-weight: 700;
+                    color: var(--primary);
+                }
+
+                .stat-badge .stat-label {
+                    color: var(--text-secondary);
+                }
+
+                .refresh-charts-btn {
+                    width: 34px;
+                    height: 34px;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 10px;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    font-size: 1rem;
+                }
+
+                .refresh-charts-btn:hover:not(:disabled) {
+                    background: var(--hover-bg);
+                    transform: rotate(180deg);
+                }
+
+                /* ===== شبكة الرسوم ===== */
+                .charts-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+                    gap: 1.5rem;
+                }
+
+                /* ===== بطاقات الرسوم ===== */
+                .chart-card {
+                    background: var(--secondary-bg);
+                    border-radius: 20px;
+                    padding: 1rem;
+                    border: 1px solid var(--border-light);
+                    transition: all var(--transition-medium);
+                }
+
+                .chart-card:hover {
+                    transform: translateY(-3px);
+                    box-shadow: var(--shadow-lg);
+                    border-color: var(--primary);
+                }
+
+                .chart-card-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 0.75rem;
+                    margin-bottom: 1rem;
+                    padding-bottom: 0.75rem;
+                    border-bottom: 1px solid var(--border-light);
+                }
+
+                .chart-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
                 }
 
                 .chart-icon {
-                    font-size: 1.4rem;
+                    font-size: 1.3rem;
+                }
+
+                .chart-title h3 {
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1rem;
+                    font-weight: 600;
                 }
 
                 .chart-legend {
                     display: flex;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
-
-                .legend-item {
-                    display: flex;
                     align-items: center;
-                    gap: 0.35rem;
-                    font-size: 0.75rem;
-                    color: var(--text-secondary);
-                    padding: 0.25rem 0.5rem;
-                    background: var(--card-bg);
-                    border-radius: 20px;
+                    gap: 0.5rem;
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
                 }
 
-                .legend-color {
-                    width: 12px;
-                    height: 12px;
+                .legend-dot {
+                    width: 10px;
+                    height: 10px;
                     border-radius: 3px;
                 }
 
-                .chart-container {
-                    height: 280px;
-                    margin: 1rem 0;
-                    position: relative;
-                }
-
-                .chart-footer {
+                .chart-stats {
                     display: flex;
-                    justify-content: space-between;
-                    margin-top: 1rem;
-                    padding-top: 1rem;
-                    border-top: 1px solid var(--border-light);
-                    flex-wrap: wrap;
-                    gap: 0.5rem;
+                    gap: 0.75rem;
                 }
 
                 .chart-stat {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 0.25rem;
+                    font-size: 0.7rem;
+                }
+
+                .chart-stat .stat-label {
                     color: var(--text-tertiary);
-                    font-size: 0.75rem;
-                    background: var(--card-bg);
-                    padding: 0.25rem 0.75rem;
-                    border-radius: 20px;
                 }
 
-                .chart-stat .warning {
-                    color: var(--warning-color);
-                    font-weight: 500;
+                .chart-stat .stat-value {
+                    font-weight: 700;
+                    color: var(--text-primary);
                 }
 
-                .loading-container {
+                .chart-stat .stat-unit {
+                    color: var(--text-tertiary);
+                    font-size: 0.65rem;
+                }
+
+                .chart-stat.trend.up .stat-value {
+                    color: #ef4444;
+                }
+
+                .chart-stat.trend.down .stat-value {
+                    color: #10b981;
+                }
+
+                .chart-stat.warning .stat-value {
+                    color: #f59e0b;
+                }
+
+                .chart-wrapper {
+                    height: 260px;
+                    position: relative;
+                }
+
+                .chart-card-footer {
+                    margin-top: 0.75rem;
+                    padding-top: 0.75rem;
+                    border-top: 1px solid var(--border-light);
+                }
+
+                .normal-range-info {
                     display: flex;
-                    flex-direction: column;
                     align-items: center;
-                    justify-content: center;
-                    min-height: 400px;
+                    gap: 0.35rem;
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                .info-icon {
+                    font-size: 0.8rem;
+                }
+
+                /* ===== حالات خاصة ===== */
+                .weight-card:hover { border-top: 3px solid #3b82f6; }
+                .bp-card:hover { border-top: 3px solid #ef4444; }
+                .glucose-card:hover { border-top: 3px solid #10b981; }
+                .heartrate-card:hover { border-top: 3px solid #ec489a; }
+                .spo2-card:hover { border-top: 3px solid #06b6d4; }
+
+                /* ===== حالات التحميل والخطأ ===== */
+                .charts-loading,
+                .charts-error,
+                .charts-empty {
                     background: var(--card-bg);
-                    border-radius: 28px;
-                    border: 1px solid var(--border-light);
-                }
-
-                .spinner {
-                    width: 50px;
-                    height: 50px;
-                    border: 4px solid var(--border-light);
-                    border-top-color: var(--primary-color);
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                    margin-bottom: 1rem;
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-
-                .error-container {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    min-height: 400px;
-                    background: var(--card-bg);
-                    border-radius: 28px;
-                    border: 1px solid var(--border-light);
+                    border-radius: 24px;
+                    padding: 3rem;
                     text-align: center;
-                    padding: 2rem;
+                    border: 1px solid var(--border-light);
+                    margin: 1.5rem 0;
                 }
 
-                .error-icon {
-                    font-size: 3.5rem;
+                .loading-spinner .spinner {
+                    width: 48px;
+                    height: 48px;
+                    border: 3px solid var(--border-light);
+                    border-top-color: var(--primary);
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    margin: 0 auto 1rem;
+                }
+
+                .error-content .error-icon {
+                    font-size: 3rem;
                     margin-bottom: 1rem;
                 }
 
-                .error-container p {
-                    color: var(--error-color);
-                    margin-bottom: 1.5rem;
+                .error-content p {
+                    color: var(--error);
+                    margin-bottom: 1rem;
                 }
 
                 .retry-btn {
-                    padding: 0.6rem 1.5rem;
-                    background: var(--error-color);
+                    padding: 0.5rem 1.25rem;
+                    background: var(--primary-gradient);
                     color: white;
                     border: none;
                     border-radius: 10px;
                     cursor: pointer;
                     transition: all var(--transition-medium);
-                    font-weight: 500;
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 0.5rem;
                 }
 
                 .retry-btn:hover {
@@ -987,129 +1028,106 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                     box-shadow: var(--shadow-lg);
                 }
 
-                .insufficient-data {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    min-height: 400px;
-                    background: var(--card-bg);
-                    border-radius: 28px;
-                    border: 1px solid var(--border-light);
-                    text-align: center;
-                    padding: 2rem;
-                }
-
-                .data-icon {
-                    font-size: 4rem;
+                .empty-content .empty-icon {
+                    font-size: 3.5rem;
                     margin-bottom: 1rem;
                     opacity: 0.5;
                 }
 
-                .insufficient-data h3 {
+                .empty-content h3 {
+                    margin: 0 0 0.5rem;
                     color: var(--text-primary);
-                    margin-bottom: 0.75rem;
                 }
 
-                .insufficient-data p {
+                .empty-content p {
                     color: var(--text-secondary);
-                    margin-bottom: 0.5rem;
+                    margin: 0;
                 }
 
-                .insufficient-data .hint {
+                .empty-content .empty-hint {
                     color: var(--text-tertiary);
                     font-size: 0.85rem;
                     margin-top: 0.5rem;
                 }
 
-                [dir="rtl"] .charts-header {
-                    flex-direction: row-reverse;
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
                 }
 
-                [dir="rtl"] .stat {
-                    flex-direction: row-reverse;
-                }
-
-                [dir="rtl"] .chart-header {
-                    flex-direction: row-reverse;
-                }
-
-                [dir="rtl"] .legend-item {
-                    flex-direction: row-reverse;
-                }
-
-                [dir="rtl"] .chart-footer {
-                    flex-direction: row-reverse;
-                }
-
-                @media (max-width: 1024px) {
+                /* ===== استجابة الشاشات ===== */
+                @media (max-width: 900px) {
                     .charts-grid {
                         grid-template-columns: 1fr;
-                        gap: 1.5rem;
-                    }
-                    
-                    .chart-container {
-                        height: 260px;
                     }
                 }
 
                 @media (max-width: 768px) {
                     .health-charts-container {
-                        padding: 1.25rem;
-                        border-radius: 20px;
+                        padding: 1rem;
                     }
 
-                    .charts-header h2 {
-                        font-size: 1.3rem;
-                    }
-
-                    .charts-controls {
+                    .charts-header {
                         flex-direction: column;
                         align-items: flex-start;
                     }
 
-                    .refresh-btn {
-                        width: 100%;
-                        justify-content: center;
-                    }
-
-                    .chart-card {
-                        padding: 1.25rem;
-                    }
-
-                    .chart-container {
+                    .chart-wrapper {
                         height: 220px;
+                    }
+
+                    .chart-card-header {
+                        flex-direction: column;
+                        align-items: flex-start;
                     }
                 }
 
                 @media (max-width: 480px) {
-                    .health-charts-container {
-                        padding: 1rem;
-                    }
-
-                    .charts-header h2 {
-                        font-size: 1.2rem;
-                    }
-
-                    .chart-card {
-                        padding: 1rem;
-                    }
-
-                    .chart-container {
+                    .chart-wrapper {
                         height: 180px;
+                    }
+
+                    .header-stats {
+                        width: 100%;
+                        justify-content: space-between;
+                    }
+
+                    .refresh-charts-btn {
+                        width: 100%;
                     }
                 }
 
+                /* ===== RTL دعم ===== */
+                [dir="rtl"] .header-title {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .chart-title {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .chart-legend {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .chart-stats {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .normal-range-info {
+                    flex-direction: row-reverse;
+                }
+
+                /* ===== دعم الحركة المخفضة ===== */
                 @media (prefers-reduced-motion: reduce) {
                     .spinner {
                         animation: none;
                     }
-                    
-                    .chart-card::before {
-                        transition: none;
-                    }
-                    
+
                     .chart-card:hover {
+                        transform: none;
+                    }
+
+                    .refresh-charts-btn:hover {
                         transform: none;
                     }
                 }
