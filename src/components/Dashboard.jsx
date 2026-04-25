@@ -1126,7 +1126,7 @@ function Dashboard({ onLogout }) {
                         transform: none !important;
                     }
                 }
-                    /* ===========================================
+/* ===========================================
    تخطيط الصفحة مع السايدبار - الحل النهائي
    =========================================== */
 
@@ -1165,32 +1165,39 @@ function Dashboard({ onLogout }) {
     width: 280px;
     background: var(--secondary-bg, #ffffff);
     border-right: 1px solid var(--border-light, #e2e8f0);
-    transform: translateX(0);
+    transform: translateX(-100%);
     transition: transform 0.3s ease;
     z-index: 90;
     overflow-y: auto;
 }
 
-/* وضع مغلق للسايدبار على الجوال */
-.sidebar-wrapper:not(.open) {
-    transform: translateX(-100%);
+/* وضع مفتوح للسايدبار */
+.sidebar-wrapper.open {
+    transform: translateX(0);
 }
 
-/* المحتوى الرئيسي - يبدأ من بعد السايدبار */
+/* المحتوى الرئيسي - يبدأ بدون مسافة */
 .dashboard-content {
     flex: 1;
-    margin-top: 70px; /* ارتفاع شريط التحكم */
-    margin-left: 280px; /* عرض السايدبار */
+    margin-top: 70px;
+    margin-left: 0;
     padding: var(--spacing-xl, 32px);
     min-height: calc(100vh - 70px);
-    transition: all 0.3s ease;
-    width: calc(100% - 280px);
+    transition: margin-left 0.3s ease;
+    width: 100%;
 }
 
-/* عند إغلاق السايدبار */
-.sidebar-wrapper:not(.open) ~ .dashboard-content {
-    margin-left: 0;
-    width: 100%;
+/* عندما يكون السايدبار مفتوحاً على الشاشات الكبيرة */
+@media (min-width: 769px) {
+    .sidebar-wrapper.open {
+        transform: translateX(0);
+    }
+    
+    /* اختياري: إذا أردت أن المحتوى يتحرك مع السايدبار */
+    .sidebar-wrapper.open ~ .dashboard-content {
+        margin-left: 280px;
+        width: calc(100% - 280px);
+    }
 }
 
 /* Overlay للجوال */
@@ -1219,15 +1226,9 @@ function Dashboard({ onLogout }) {
     }
     
     .dashboard-content {
-        margin-left: 0;
+        margin-left: 0 !important;
         padding: var(--spacing-md, 16px);
-        width: 100%;
-    }
-    
-    /* عند فتح السايدبار على الجوال، المحتوى يبقى في مكانه */
-    .sidebar-wrapper.open ~ .dashboard-content {
-        margin-left: 0;
-        opacity: 0.9;
+        width: 100% !important;
     }
     
     .control-bar {
@@ -1244,20 +1245,29 @@ function Dashboard({ onLogout }) {
     right: 0;
     border-right: none;
     border-left: 1px solid var(--border-light, #e2e8f0);
+    transform: translateX(100%);
+}
+
+[dir="rtl"] .sidebar-wrapper.open {
+    transform: translateX(0);
 }
 
 [dir="rtl"] .dashboard-content {
     margin-left: 0;
-    margin-right: 280px;
+    margin-right: 0;
 }
 
-[dir="rtl"] .sidebar-wrapper:not(.open) {
-    transform: translateX(100%);
+@media (min-width: 769px) {
+    [dir="rtl"] .sidebar-wrapper.open ~ .dashboard-content {
+        margin-left: 0;
+        margin-right: 280px;
+        width: calc(100% - 280px);
+    }
 }
 
 @media (max-width: 768px) {
     [dir="rtl"] .dashboard-content {
-        margin-right: 0;
+        margin-right: 0 !important;
     }
 }
             `}</style>
