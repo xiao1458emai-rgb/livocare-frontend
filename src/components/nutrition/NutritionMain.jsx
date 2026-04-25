@@ -269,6 +269,373 @@ function NutritionMain({ isAuthReady }) {
                 )}
             </div>
 
+            {/* ✅ أنماط CSS المضمنة */}
+            <style jsx>{`
+                .nutrition-main-container {
+                    background: var(--primary-bg);
+                    border-radius: 0;
+                    min-height: 100vh;
+                }
+
+                /* ===== شريط التحميل ===== */
+                .loading-bar {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 3px;
+                    background: rgba(16, 185, 129, 0.2);
+                    z-index: 9999;
+                    overflow: hidden;
+                }
+
+                .loading-progress {
+                    width: 0%;
+                    height: 100%;
+                    background: var(--primary-gradient);
+                    animation: loading 1.5s ease-in-out infinite;
+                }
+
+                @keyframes loading {
+                    0% { width: 0%; }
+                    50% { width: 70%; }
+                    100% { width: 100%; }
+                }
+
+                /* ===== رأس الصفحة ===== */
+                .nutrition-header {
+                    background: var(--card-bg);
+                    border-bottom: 1px solid var(--border-light);
+                    padding: 1rem 1.5rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                }
+
+                .header-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                .header-title h1 {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                }
+
+                .title-icon {
+                    font-size: 1.8rem;
+                }
+
+                .header-badge {
+                    padding: 0.35rem 0.85rem;
+                    background: var(--tertiary-bg);
+                    border-radius: 50px;
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                .header-controls {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                .last-update {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    padding: 0.25rem 0.75rem;
+                    background: var(--tertiary-bg);
+                    border-radius: 20px;
+                }
+
+                .auto-refresh-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    cursor: pointer;
+                    padding: 0.25rem 0.75rem;
+                    background: var(--secondary-bg);
+                    border-radius: 20px;
+                    border: 1px solid var(--border-light);
+                    font-size: 0.75rem;
+                }
+
+                .auto-refresh-label input {
+                    position: absolute;
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+
+                .toggle-slider {
+                    width: 36px;
+                    height: 18px;
+                    background: var(--border-light);
+                    border-radius: 18px;
+                    position: relative;
+                    transition: all var(--transition-fast);
+                }
+
+                .toggle-slider::before {
+                    content: '';
+                    position: absolute;
+                    width: 14px;
+                    height: 14px;
+                    background: white;
+                    border-radius: 50%;
+                    top: 2px;
+                    left: 2px;
+                    transition: all var(--transition-fast);
+                }
+
+                input:checked + .toggle-slider {
+                    background: var(--primary);
+                }
+
+                input:checked + .toggle-slider::before {
+                    transform: translateX(18px);
+                }
+
+                [dir="rtl"] input:checked + .toggle-slider::before {
+                    transform: translateX(-18px);
+                }
+
+                .toggle-text {
+                    color: var(--text-secondary);
+                }
+
+                .refresh-btn {
+                    width: 32px;
+                    height: 32px;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 10px;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1rem;
+                }
+
+                .refresh-btn:hover:not(:disabled) {
+                    background: var(--hover-bg);
+                    transform: rotate(180deg);
+                }
+
+                .refresh-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                /* ===== رسالة الخطأ ===== */
+                .error-message {
+                    background: rgba(239, 68, 68, 0.1);
+                    border: 1px solid #ef4444;
+                    border-radius: 12px;
+                    padding: 0.75rem 1rem;
+                    margin: 0 1rem 1.5rem 1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                }
+
+                .error-icon {
+                    font-size: 1rem;
+                }
+
+                .error-text {
+                    flex: 1;
+                    font-size: 0.85rem;
+                    color: #ef4444;
+                }
+
+                .error-close {
+                    background: none;
+                    border: none;
+                    color: #ef4444;
+                    cursor: pointer;
+                    font-size: 1rem;
+                }
+
+                /* ===== التبويبات ===== */
+                .nutrition-tabs {
+                    display: flex;
+                    gap: 0.5rem;
+                    margin: 0 1rem 1.5rem 1rem;
+                    padding: 0.25rem;
+                    background: var(--secondary-bg);
+                    border-radius: 50px;
+                    border: 1px solid var(--border-light);
+                }
+
+                .tab-btn {
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                    padding: 0.6rem 1rem;
+                    background: transparent;
+                    border: none;
+                    border-radius: 40px;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    color: var(--text-secondary);
+                }
+
+                .tab-icon {
+                    font-size: 1rem;
+                }
+
+                .tab-btn:hover {
+                    background: var(--hover-bg);
+                }
+
+                .tab-btn.active {
+                    background: var(--primary-gradient);
+                    color: white;
+                    box-shadow: var(--shadow-sm);
+                }
+
+                /* ===== محتوى التبويب ===== */
+                .tab-content {
+                    animation: fadeInUp 0.3s ease;
+                }
+
+                @keyframes fadeInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                /* ===== استجابة الشاشات ===== */
+                @media (max-width: 1024px) {
+                    .nutrition-header {
+                        padding: 1rem;
+                    }
+                    
+                    .header-title h1 {
+                        font-size: 1.3rem;
+                    }
+                    
+                    .title-icon {
+                        font-size: 1.5rem;
+                    }
+                }
+
+                @media (max-width: 768px) {
+                    .nutrition-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+                    
+                    .header-controls {
+                        width: 100%;
+                        justify-content: space-between;
+                    }
+                    
+                    .auto-refresh-label {
+                        flex: 1;
+                        justify-content: center;
+                    }
+                    
+                    .refresh-btn {
+                        width: 36px;
+                        height: 36px;
+                    }
+                    
+                    .nutrition-tabs {
+                        margin: 0 1rem 1rem 1rem;
+                    }
+                    
+                    .tab-btn {
+                        padding: 0.5rem 0.75rem;
+                        font-size: 0.8rem;
+                    }
+                    
+                    .error-message {
+                        margin: 0 1rem 1rem 1rem;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    .header-title {
+                        width: 100%;
+                        justify-content: space-between;
+                    }
+                    
+                    .header-badge {
+                        font-size: 0.65rem;
+                    }
+                    
+                    .last-update {
+                        font-size: 0.65rem;
+                    }
+                    
+                    .toggle-text {
+                        font-size: 0.7rem;
+                    }
+                    
+                    .tab-btn {
+                        font-size: 0.75rem;
+                    }
+                }
+
+                /* ===== RTL دعم ===== */
+                [dir="rtl"] .header-title {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .header-controls {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .auto-refresh-label {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .error-message {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .tab-btn {
+                    flex-direction: row-reverse;
+                }
+
+                /* ===== دعم الحركة المخفضة ===== */
+                @media (prefers-reduced-motion: reduce) {
+                    .loading-progress {
+                        animation: none;
+                    }
+                    
+                    .tab-content {
+                        animation: none;
+                    }
+                    
+                    .refresh-btn:hover:not(:disabled) {
+                        transform: none;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

@@ -823,6 +823,735 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
                 </small>
             </div>
 
+            {/* ✅ أنماط CSS المضمنة */}
+            <style jsx>{`
+                .nutrition-dashboard {
+                    background: var(--card-bg);
+                    border-radius: 24px;
+                    padding: 1.5rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                /* ===== رأس الصفحة ===== */
+                .dashboard-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid var(--border-light);
+                }
+
+                .header-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                .header-title h2 {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.3rem;
+                }
+
+                .title-icon {
+                    font-size: 1.5rem;
+                }
+
+                .header-stats {
+                    display: flex;
+                    gap: 0.5rem;
+                }
+
+                .stat-badge {
+                    padding: 0.35rem 0.85rem;
+                    background: var(--tertiary-bg);
+                    border-radius: 50px;
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                .header-controls {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                .last-update {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    padding: 0.25rem 0.5rem;
+                    background: var(--tertiary-bg);
+                    border-radius: 12px;
+                }
+
+                .refresh-btn {
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 10px;
+                    padding: 0.5rem;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                }
+
+                .refresh-btn:hover {
+                    background: var(--hover-bg);
+                    transform: rotate(180deg);
+                }
+
+                .auto-refresh-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    cursor: pointer;
+                    padding: 0.25rem 0.5rem;
+                    background: var(--secondary-bg);
+                    border-radius: 20px;
+                    border: 1px solid var(--border-light);
+                }
+
+                .auto-refresh-label input {
+                    position: absolute;
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+
+                .toggle-slider {
+                    width: 36px;
+                    height: 18px;
+                    background: var(--border-light);
+                    border-radius: 18px;
+                    position: relative;
+                    transition: all var(--transition-fast);
+                }
+
+                .toggle-slider::before {
+                    content: '';
+                    position: absolute;
+                    width: 14px;
+                    height: 14px;
+                    background: white;
+                    border-radius: 50%;
+                    top: 2px;
+                    left: 2px;
+                    transition: all var(--transition-fast);
+                }
+
+                input:checked + .toggle-slider {
+                    background: var(--primary);
+                }
+
+                input:checked + .toggle-slider::before {
+                    transform: translateX(18px);
+                }
+
+                [dir="rtl"] input:checked + .toggle-slider::before {
+                    transform: translateX(-18px);
+                }
+
+                .toggle-text {
+                    font-size: 0.7rem;
+                    color: var(--text-secondary);
+                }
+
+                /* ===== التوصيات ===== */
+                .recommendations-section {
+                    background: var(--secondary-bg);
+                    border-radius: 20px;
+                    padding: 1rem;
+                    margin-bottom: 1.5rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                .section-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin-bottom: 1rem;
+                }
+
+                .section-icon {
+                    font-size: 1.2rem;
+                }
+
+                .section-header h3 {
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 0.9rem;
+                }
+
+                .recommendations-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                }
+
+                .recommendation-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    padding: 0.75rem;
+                    border-radius: 12px;
+                }
+
+                .recommendation-item.priority-high {
+                    background: rgba(239, 68, 68, 0.1);
+                    border-left: 3px solid #ef4444;
+                }
+
+                .recommendation-item.priority-medium {
+                    background: rgba(245, 158, 11, 0.1);
+                    border-left: 3px solid #f59e0b;
+                }
+
+                .recommendation-item.priority-low {
+                    background: rgba(16, 185, 129, 0.1);
+                    border-left: 3px solid #10b981;
+                }
+
+                [dir="rtl"] .recommendation-item.priority-high { border-left: none; border-right: 3px solid #ef4444; }
+                [dir="rtl"] .recommendation-item.priority-medium { border-left: none; border-right: 3px solid #f59e0b; }
+                [dir="rtl"] .recommendation-item.priority-low { border-left: none; border-right: 3px solid #10b981; }
+
+                .rec-icon {
+                    font-size: 1.5rem;
+                }
+
+                .rec-content {
+                    flex: 1;
+                }
+
+                .rec-title {
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    font-size: 0.85rem;
+                    margin-bottom: 0.25rem;
+                }
+
+                .rec-text {
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                /* ===== توقع الوزن ===== */
+                .prediction-card {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    padding: 1rem;
+                    background: var(--secondary-bg);
+                    border-radius: 16px;
+                    margin-bottom: 1.5rem;
+                    border-left: 4px solid;
+                }
+
+                [dir="rtl"] .prediction-card {
+                    border-left: none;
+                    border-right: 4px solid;
+                }
+
+                .prediction-icon {
+                    font-size: 2rem;
+                }
+
+                .prediction-content {
+                    flex: 1;
+                }
+
+                .prediction-title {
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    font-size: 0.85rem;
+                    margin-bottom: 0.25rem;
+                }
+
+                .prediction-text {
+                    font-size: 0.8rem;
+                    color: var(--text-secondary);
+                }
+
+                /* ===== بطاقات الإحصائيات ===== */
+                .stats-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                }
+
+                .stat-card {
+                    background: var(--secondary-bg);
+                    border-radius: 16px;
+                    padding: 1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                .stat-icon {
+                    font-size: 1.8rem;
+                    width: 45px;
+                    height: 45px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: var(--hover-bg);
+                    border-radius: 12px;
+                }
+
+                .stat-info {
+                    flex: 1;
+                }
+
+                .stat-value {
+                    font-size: 1.3rem;
+                    font-weight: bold;
+                    color: var(--text-primary);
+                    line-height: 1.2;
+                }
+
+                .stat-label {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                /* ===== تبويبات ===== */
+                .dashboard-tabs {
+                    display: flex;
+                    gap: 0.5rem;
+                    flex-wrap: wrap;
+                    margin-bottom: 1.5rem;
+                    border-bottom: 1px solid var(--border-light);
+                    padding-bottom: 0.5rem;
+                }
+
+                .tab-btn {
+                    padding: 0.5rem 1rem;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 10px;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    font-size: 0.85rem;
+                }
+
+                .tab-btn:hover {
+                    background: var(--hover-bg);
+                    transform: translateY(-2px);
+                }
+
+                .tab-btn.active {
+                    background: var(--primary);
+                    color: white;
+                    border-color: var(--primary);
+                }
+
+                /* ===== محتوى التبويبات ===== */
+                .summary-tab,
+                .progress-tab,
+                .meals-tab,
+                .analytics-tab {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.5rem;
+                }
+
+                .distribution-section h4,
+                .recent-meals-section h4,
+                .goals-section h4,
+                .all-meals-section h4 {
+                    margin: 0 0 1rem;
+                    color: var(--text-primary);
+                    font-size: 0.9rem;
+                }
+
+                .distribution-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                }
+
+                .distribution-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                .distribution-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    min-width: 100px;
+                }
+
+                .meal-icon {
+                    font-size: 1rem;
+                }
+
+                .meal-name {
+                    font-weight: 500;
+                    color: var(--text-primary);
+                    font-size: 0.85rem;
+                }
+
+                .meal-count {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                .progress-bar-wrapper {
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                }
+
+                .progress-bar {
+                    flex: 1;
+                    height: 8px;
+                    background: var(--border-light);
+                    border-radius: 4px;
+                    overflow: hidden;
+                }
+
+                .progress-fill {
+                    height: 100%;
+                    border-radius: 4px;
+                    transition: width var(--transition-medium);
+                }
+
+                .progress-fill.good { background: #10b981; }
+                .progress-fill.medium { background: #f59e0b; }
+                .progress-fill.low { background: #ef4444; }
+                .progress-fill.over { background: #ef4444; }
+
+                .distribution-percent {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    min-width: 45px;
+                }
+
+                /* ===== الوجبات ===== */
+                .meals-list,
+                .all-meals-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                }
+
+                .meal-item,
+                .meal-card {
+                    background: var(--card-bg);
+                    border-radius: 14px;
+                    padding: 1rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                .meal-header,
+                .meal-card-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 0.5rem;
+                }
+
+                .meal-type,
+                .meal-type-badge {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-weight: 600;
+                    color: var(--text-primary);
+                }
+
+                .meal-type-badge {
+                    background: rgba(0,0,0,0.1);
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 20px;
+                    font-size: 0.8rem;
+                }
+
+                .meal-calories,
+                .meal-card-calories {
+                    font-weight: 600;
+                    color: #f59e0b;
+                }
+
+                .meal-date,
+                .meal-card-date {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    margin-bottom: 0.5rem;
+                }
+
+                .meal-ingredients,
+                .meal-card-ingredients {
+                    margin-top: 0.5rem;
+                }
+
+                .ingredients-title {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    margin-bottom: 0.25rem;
+                }
+
+                .ingredients-list {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }
+
+                .ingredient-tag,
+                .ingredient-badge {
+                    background: var(--tertiary-bg);
+                    padding: 0.2rem 0.6rem;
+                    border-radius: 20px;
+                    font-size: 0.7rem;
+                    color: var(--text-secondary);
+                }
+
+                .ingredient-more {
+                    background: var(--tertiary-bg);
+                    padding: 0.2rem 0.6rem;
+                    border-radius: 20px;
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                /* ===== الأهداف ===== */
+                .goal-item {
+                    margin-bottom: 1rem;
+                }
+
+                .goal-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 0.5rem;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }
+
+                .goal-info {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+
+                .goal-icon {
+                    font-size: 1rem;
+                }
+
+                .goal-name {
+                    font-weight: 500;
+                    color: var(--text-primary);
+                }
+
+                .goal-values {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 0.25rem;
+                }
+
+                .goal-current {
+                    font-weight: bold;
+                    color: var(--text-primary);
+                }
+
+                .goal-separator {
+                    color: var(--text-tertiary);
+                }
+
+                .goal-target {
+                    color: var(--text-secondary);
+                }
+
+                .goal-unit {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                .goal-percent {
+                    font-weight: bold;
+                    color: var(--primary);
+                    font-size: 0.85rem;
+                }
+
+                .goals-note {
+                    margin-top: 1rem;
+                    padding: 0.75rem;
+                    background: rgba(59, 130, 246, 0.1);
+                    border-radius: 12px;
+                    font-size: 0.75rem;
+                    color: #3b82f6;
+                }
+
+                /* ===== حالات خاصة ===== */
+                .empty-state {
+                    text-align: center;
+                    padding: 2rem;
+                }
+
+                .empty-icon {
+                    font-size: 3rem;
+                    margin-bottom: 0.5rem;
+                    opacity: 0.5;
+                }
+
+                .empty-hint {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    margin-top: 0.5rem;
+                }
+
+                .dashboard-footer {
+                    margin-top: 1rem;
+                    padding-top: 1rem;
+                    border-top: 1px solid var(--border-light);
+                    text-align: center;
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                .nutrition-loading {
+                    background: var(--card-bg);
+                    border-radius: 24px;
+                    padding: 3rem;
+                    text-align: center;
+                }
+
+                .spinner {
+                    width: 48px;
+                    height: 48px;
+                    border: 3px solid var(--border-light);
+                    border-top-color: var(--primary);
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    margin: 0 auto 1rem;
+                }
+
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+
+                /* ===== استجابة الشاشات ===== */
+                @media (max-width: 1024px) {
+                    .stats-grid {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                }
+
+                @media (max-width: 768px) {
+                    .nutrition-dashboard {
+                        padding: 1rem;
+                    }
+
+                    .dashboard-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    .header-controls {
+                        width: 100%;
+                        justify-content: space-between;
+                    }
+
+                    .stats-grid {
+                        grid-template-columns: repeat(2, 1fr);
+                        gap: 0.75rem;
+                    }
+
+                    .stat-card {
+                        padding: 0.75rem;
+                    }
+
+                    .stat-icon {
+                        width: 35px;
+                        height: 35px;
+                        font-size: 1.3rem;
+                    }
+
+                    .stat-value {
+                        font-size: 1.1rem;
+                    }
+
+                    .dashboard-tabs {
+                        justify-content: center;
+                    }
+
+                    .tab-btn {
+                        font-size: 0.75rem;
+                        padding: 0.4rem 0.8rem;
+                    }
+
+                    .distribution-item {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    .progress-bar-wrapper {
+                        width: 100%;
+                    }
+
+                    .goal-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    .meal-header,
+                    .meal-card-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 0.5rem;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    .stats-grid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .header-stats {
+                        width: 100%;
+                        justify-content: space-between;
+                    }
+                }
+
+                /* ===== RTL دعم ===== */
+                [dir="rtl"] .stat-card {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .distribution-label {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .goal-info {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .meal-header,
+                [dir="rtl"] .meal-card-header {
+                    flex-direction: row-reverse;
+                }
+
+                @media (max-width: 768px) {
+                    [dir="rtl"] .meal-header,
+                    [dir="rtl"] .meal-card-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+                }
+            `}</style>
         </div>
     );
 }
