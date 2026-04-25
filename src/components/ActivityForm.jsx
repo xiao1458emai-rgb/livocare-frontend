@@ -1421,69 +1421,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
     text-align: right;
 }
 
-/* ===========================================
-   تصميم متجاوب مع السايدبار
-   =========================================== */
 
-/* للشاشات المتوسطة والكبيرة - السايدبار موجود */
-@media (min-width: 769px) {
-    .main-content-area {
-        padding: 1.5rem;
-        margin-left: 280px; /* عرض السايدبار + مسافة */
-        width: calc(100% - 280px);
-    }
-    
-    /* في وضع RTL */
-    [dir="rtl"] .main-content-area {
-        margin-left: 0;
-        margin-right: 280px;
-        width: calc(100% - 280px);
-    }
-    
-    /* تصغير الحاوية قليلاً لتعطي مسافة من السايدبار */
-    .analytics-container {
-        max-width: 100%;
-        padding-right: 0;
-    }
-}
-
-/* للشاشات الصغيرة - لا مساحة جانبية */
-@media (max-width: 768px) {
-    .main-content-area {
-        padding: 1rem;
-        margin-left: 0;
-        width: 100%;
-    }
-    
-    [dir="rtl"] .main-content-area {
-        margin-right: 0;
-    }
-}
-
-/* ✅ تحسين عرض البطاقات لتكون منسقة بشكل أفضل */
-.sensor-section,
-.activity-form-card,
-.activities-list-card {
-    width: 100%;
-    box-sizing: border-box;
-}
-
-/* جعل الحقول تأخذ العرض الكامل */
-.form-field {
-    width: 100%;
-}
-
-.form-select,
-.form-input,
-.form-textarea {
-    width: 100%;
-    box-sizing: border-box;
-}
-
-/* تحسين شبكة الأيقونات لتملأ المساحة بشكل أفضل */
-.activities-list {
-    width: 100%;
-}
             `}</style>
         </div>
     );
