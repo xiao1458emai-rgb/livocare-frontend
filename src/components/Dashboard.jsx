@@ -1126,6 +1126,140 @@ function Dashboard({ onLogout }) {
                         transform: none !important;
                     }
                 }
+                    /* ===========================================
+   تخطيط الصفحة مع السايدبار - الحل النهائي
+   =========================================== */
+
+/* الحاوية الرئيسية للتخطيط */
+.dashboard-layout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--primary-bg, #f8fafc);
+    position: relative;
+}
+
+/* شريط التحكم العلوي ثابت */
+.control-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background: var(--card-bg, #ffffff);
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 var(--spacing-xl, 32px);
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
+}
+
+/* حاوية السايدبار - ثابتة على اليسار */
+.sidebar-wrapper {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    background: var(--secondary-bg, #ffffff);
+    border-right: 1px solid var(--border-light, #e2e8f0);
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+    z-index: 90;
+    overflow-y: auto;
+}
+
+/* وضع مغلق للسايدبار على الجوال */
+.sidebar-wrapper:not(.open) {
+    transform: translateX(-100%);
+}
+
+/* المحتوى الرئيسي - يبدأ من بعد السايدبار */
+.dashboard-content {
+    flex: 1;
+    margin-top: 70px; /* ارتفاع شريط التحكم */
+    margin-left: 280px; /* عرض السايدبار */
+    padding: var(--spacing-xl, 32px);
+    min-height: calc(100vh - 70px);
+    transition: all 0.3s ease;
+    width: calc(100% - 280px);
+}
+
+/* عند إغلاق السايدبار */
+.sidebar-wrapper:not(.open) ~ .dashboard-content {
+    margin-left: 0;
+    width: 100%;
+}
+
+/* Overlay للجوال */
+.sidebar-overlay {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 85;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ===========================================
+   استجابة الهواتف
+   =========================================== */
+@media (max-width: 768px) {
+    .sidebar-wrapper {
+        width: 260px;
+    }
+    
+    .dashboard-content {
+        margin-left: 0;
+        padding: var(--spacing-md, 16px);
+        width: 100%;
+    }
+    
+    /* عند فتح السايدبار على الجوال، المحتوى يبقى في مكانه */
+    .sidebar-wrapper.open ~ .dashboard-content {
+        margin-left: 0;
+        opacity: 0.9;
+    }
+    
+    .control-bar {
+        padding: 0 var(--spacing-md, 16px);
+        height: 60px;
+    }
+}
+
+/* ===========================================
+   دعم RTL (العربية)
+   =========================================== */
+[dir="rtl"] .sidebar-wrapper {
+    left: auto;
+    right: 0;
+    border-right: none;
+    border-left: 1px solid var(--border-light, #e2e8f0);
+}
+
+[dir="rtl"] .dashboard-content {
+    margin-left: 0;
+    margin-right: 280px;
+}
+
+[dir="rtl"] .sidebar-wrapper:not(.open) {
+    transform: translateX(100%);
+}
+
+@media (max-width: 768px) {
+    [dir="rtl"] .dashboard-content {
+        margin-right: 0;
+    }
+}
             `}</style>
         </div>
     );
