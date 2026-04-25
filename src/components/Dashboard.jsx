@@ -90,7 +90,19 @@ function Dashboard({ onLogout }) {
             window.removeEventListener('languageChange', handleLanguageChange);
         };
     }, [lang]);
-
+    useEffect(() => {
+    const handleCloseSidebarFromComponent = () => {
+        if (window.innerWidth <= 768) {
+            setSidebarOpen(false);
+        }
+    };
+    
+    window.addEventListener('closeSidebar', handleCloseSidebarFromComponent);
+    
+    return () => {
+        window.removeEventListener('closeSidebar', handleCloseSidebarFromComponent);
+    };
+}, []);ر
     // ✅ تطبيق الوضع المظلم
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -540,17 +552,17 @@ function Dashboard({ onLogout }) {
                 </div>
             </div>
 
-            {/* ✅ السايدبار - يختفي تلقائياً عند اختيار أي عنصر */}
-            <div className={`sidebar-wrapper ${sidebarOpen ? 'open' : ''}`}>
-                <Sidebar 
-                    activeSection={activeSection} 
-                    onSectionChange={(section) => {
-                        setActiveSection(section);
-                        closeSidebar();  // ✅ يغلق السايدبار تلقائياً
-                    }}
-                    isArabic={isArabic}
-                />
-            </div>
+                <div className={`sidebar-wrapper ${sidebarOpen ? 'open' : ''}`}>
+                    <Sidebar 
+                        activeSection={activeSection} 
+                        onSectionChange={(section) => {
+                            setActiveSection(section);
+                            closeSidebar();
+                        }}
+                        isArabic={isArabic}
+                        isOpen={sidebarOpen}      // ✅ أضف هذا السطر
+                    />
+                </div>
             
             {/* ✅ Overlay للجوال */}
             {sidebarOpen && (
