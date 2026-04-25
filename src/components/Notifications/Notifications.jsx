@@ -320,23 +320,24 @@ function Notifications({ isAuthReady }) {
         
         return filtered;
     }, [notifications, filter]);
-
         const formatTime = (notification) => {
             if (notification.time_ago) {
                 return notification.time_ago;
             }
             
-            // التحقق من وجود التاريخ
+            // ✅ تأكد من استخدام sent_at أولاً
             const dateStr = notification.sent_at || notification.created_at;
+            console.log('Raw date string:', dateStr);  // ✅ للتشخيص
+            
             if (!dateStr) {
-                return isArabic ? 'الآن' : 'Just now';
+                return isArabic ? 'تاريخ غير معروف' : 'Unknown date';
             }
             
             const date = new Date(dateStr);
+            console.log('Parsed date:', date);  // ✅ للتشخيص
             
-            // التحقق من صحة التاريخ
             if (isNaN(date.getTime())) {
-                return isArabic ? 'الآن' : 'Just now';
+                return isArabic ? 'تاريخ غير صالح' : 'Invalid date';
             }
             
             const now = new Date();
@@ -345,12 +346,26 @@ function Notifications({ isAuthReady }) {
             const diffHours = Math.floor(diffMs / 3600000);
             const diffDays = Math.floor(diffMs / 86400000);
 
-            if (diffMins < 1) return isArabic ? 'الآن' : 'Just now';
-            if (diffMins < 60) return isArabic ? `منذ ${diffMins} دقيقة` : `${diffMins} minutes ago`;
-            if (diffHours < 12) return isArabic ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`;
-            if (diffDays < 7) return isArabic ? `منذ ${diffDays} يوم` : `${diffDays} days ago`;
+            // عرض التاريخ الكامل للإشعارات القديمة
+            if (diffDays > 7) {
+                return date.toLocaleDateString(isArabic ? 'ar-EG' : 'en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
             
-            return date.toLocaleDateString(isArabic ? 'ar-EG' : 'en-US');
+            if (diffDays >= 1) {
+                return isArabic ? `منذ ${diffDays} يوم` : `${diffDays} days ago`;
+            }
+            if (diffHours >= 1) {
+                return isArabic ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`;
+            }
+            if (diffMins >= 1) {
+                return isArabic ? `منذ ${diffMins} دقيقة` : `${diffMins} minutes ago`;
+            }
+            
+            return isArabic ? 'الآن' : 'Just now';
         };
 
     if (loading && notifications.length === 0) {
