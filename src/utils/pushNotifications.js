@@ -3,7 +3,6 @@ import axiosInstance from '../services/api';
 
 const NOTIFICATION_SERVICE_URL = 'https://notification-service-6nzm.onrender.com';
 
-// تحويل المفتاح العام من Base64 إلى Uint8Array
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -15,7 +14,6 @@ function urlBase64ToUint8Array(base64String) {
     return outputArray;
 }
 
-// تسجيل Service Worker
 async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) {
         console.log('❌ Service Worker not supported');
@@ -45,40 +43,24 @@ async function registerServiceWorker() {
     }
 }
 
-// الحصول على معرف المستخدم الحالي
-// الحصول على معرف المستخدم الحالي
+// ✅ الحصول على معرف المستخدم الحالي - بدون طلب HTTP
 async function getCurrentUserId() {
     try {
-        // ✅ استخراج userId من التوكن مباشرة
         const token = localStorage.getItem('access_token');
         if (token) {
             const payload = JSON.parse(atob(token.split('.')[1]));
-            if (payload.user_id) {
-                console.log('✅ User ID from token:', payload.user_id);
-                return payload.user_id;
-            }
+            const userId = payload.user_id;
+            console.log('✅ User ID from token:', userId);
+            return userId;
         }
-        
-        // ✅ كملاذ أخير: استخدم /profile/
-        try {
-            const response = await axiosInstance.get('/profile/');
-            if (response.data?.data?.username) {
-                // إذا لم نتمكن من الحصول على ID، نستخدم 1 كقيمة افتراضية
-                console.log('⚠️ Using default user ID 1');
-                return 1;
-            }
-        } catch (e) {
-            console.log('Profile endpoint failed');
-        }
-        
-        return 1; // قيمة افتراضية
+        console.log('⚠️ No token found, using default user ID 1');
+        return 1;
     } catch (error) {
         console.error('❌ Failed to get user ID:', error);
-        return 1; // قيمة افتراضية
+        return 1;
     }
 }
 
-// طلب إذن الإشعارات والاشتراك
 export async function requestNotificationPermission() {
     if (!('Notification' in window)) {
         console.log('هذا المتصفح لا يدعم الإشعارات');
@@ -101,7 +83,6 @@ export async function requestNotificationPermission() {
     return false;
 }
 
-// الاشتراك في Push Notifications
 async function subscribeToPush() {
     const registration = await registerServiceWorker();
     if (!registration) {
@@ -117,30 +98,30 @@ async function subscribeToPush() {
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
         
-        // الحصول على معرف المستخدم
         const userId = await getCurrentUserId();
         if (!userId) {
             console.error('❌ Cannot subscribe: No user ID');
             return false;
         }
         
-        // ✅ إرسال الاشتراك مباشرة إلى خدمة الإشعارات
-        const response = await fetch(`${NOTIFICATION_SERVICE_URL}/subscribe`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                userId: userId,
-                subscription: subscription
-            })
-        });
-        
-        if (response.ok) {
-            console.log('✅ Push subscription saved to notification service');
-        } else {
-            console.error('❌ Failed to save subscription to notification service');
+        // ✅ محاولة حفظ الاشتراك في خدمة الإشعارات
+        try {
+            const response = await fetch(`${NOTIFICATION_SERVICE_URL}/subscribe`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, subscription })
+            });
+            
+            if (response.ok) {
+                console.log('✅ Push subscription saved to notification service');
+            } else {
+                console.warn('⚠️ Notification service unavailable, push disabled');
+            }
+        } catch (serviceError) {
+            console.warn('⚠️ Cannot reach notification service, push notifications disabled');
         }
         
-        // أيضاً حفظ في Django للتوافق
+        // حفظ في Django
         await axiosInstance.post('/push-subscribe/', subscription);
         console.log('✅ Push subscription saved to Django');
         
@@ -151,7 +132,6 @@ async function subscribeToPush() {
     }
 }
 
-// إرسال إشعار تجريبي (للاختبار)
 export async function sendTestNotification() {
     try {
         const userId = await getCurrentUserId();
