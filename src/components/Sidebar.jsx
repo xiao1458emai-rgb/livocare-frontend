@@ -186,20 +186,30 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
             className={`sidebar ${isRTL ? 'rtl' : 'ltr'}`}
             dir={isRTL ? 'rtl' : 'ltr'}
         >
-            {/* رأس السايدبار - بدون أي أزرار إغلاق أو تصغير */}
-            <div className="sidebar-header">
-                <div className="app-logo">
-                    <div className="logo-wrapper">
-                        <div className="logo-glow"></div>
-                        <div className="logo-icon" aria-hidden="true">🏥</div>
-                    </div>
-                    <div className="logo-text">
-                        <span className="app-name">LivoCare</span>
-                        <span className="app-tagline">{isArabic ? 'العناية بصحتك' : 'Your Health Care'}</span>
-                    </div>
-                </div>
-                {/* ✅ تمت إزالة زر التصغير وزر الإغلاق تماماً */}
-            </div>
+{/* رأس السايدبار */}
+<div className="sidebar-header">
+    <div className="app-logo">
+        <div className="logo-wrapper">
+            <div className="logo-glow"></div>
+            <div className="logo-icon" aria-hidden="true">🏥</div>
+        </div>
+        <div className="logo-text">
+            <span className="app-name">LivoCare</span>
+            <span className="app-tagline">{isArabic ? 'العناية بصحتك' : 'Your Health Care'}</span>
+        </div>
+    </div>
+    
+    {/* ✅ زر إغلاق يظهر فقط على الجوال */}
+    {isMobile && (
+        <button 
+            className="mobile-close-btn"
+            onClick={() => window.dispatchEvent(new CustomEvent('closeSidebar'))}
+            aria-label={isArabic ? 'إغلاق القائمة' : 'Close menu'}
+        >
+            ✕
+        </button>
+    )}
+</div>
 
             {/* قائمة التنقل */}
             <nav className="sidebar-nav">
@@ -696,6 +706,37 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                 .sidebar-nav::-webkit-scrollbar-thumb:hover {
                     background: rgba(255,255,255,0.3);
                 }
+                    /* ✅ زر إغلاق الجوال - يظهر فقط على الشاشات الصغيرة */
+.mobile-close-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.mobile-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.mobile-close-btn:active {
+    transform: scale(0.95);
+}
+
+/* إخفاء الزر على الشاشات الكبيرة */
+@media (min-width: 768px) {
+    .mobile-close-btn {
+        display: none;
+    }
+}
             `}</style>
         </aside>
     );
