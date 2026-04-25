@@ -326,10 +326,16 @@ function Notifications({ isAuthReady }) {
                 return notification.time_ago;
             }
             
-            const date = new Date(notification.sent_at || notification.created_at);
+            // ✅ التحقق من وجود التاريخ
+            const dateStr = notification.sent_at || notification.created_at;
+            if (!dateStr) {
+                return isArabic ? 'الآن' : 'Just now';
+            }
+            
+            const date = new Date(dateStr);
             
             // ✅ التحقق من صحة التاريخ
-            if (!date || isNaN(date.getTime())) {
+            if (isNaN(date.getTime())) {
                 return isArabic ? 'الآن' : 'Just now';
             }
             
