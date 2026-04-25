@@ -217,14 +217,6 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic }) {
                         </div>
                     </div>
                     
-                    {/* زر إغلاق داخل السايدبار */}
-                    <button 
-                        className="sidebar-close-btn"
-                        onClick={() => setIsSidebarVisible(false)}
-                        aria-label={isArabic ? 'إغلاق القائمة' : 'Close menu'}
-                    >
-                       ✕ 
-                    </button>
                 </div>
 
                 {/* قائمة التنقل */}
