@@ -321,25 +321,31 @@ function Notifications({ isAuthReady }) {
         return filtered;
     }, [notifications, filter]);
 
-    const formatTime = (notification) => {
-        if (notification.time_ago) {
-            return notification.time_ago;
-        }
-        
-        const date = new Date(notification.sent_at || notification.created_at);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
+        const formatTime = (notification) => {
+            if (notification.time_ago) {
+                return notification.time_ago;
+            }
+            
+            const date = new Date(notification.sent_at || notification.created_at);
+            
+            // ✅ التحقق من صحة التاريخ
+            if (!date || isNaN(date.getTime())) {
+                return isArabic ? 'الآن' : 'Just now';
+            }
+            
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
 
-        if (diffMins < 1) return isArabic ? 'الآن' : 'Just now';
-        if (diffMins < 60) return isArabic ? `منذ ${diffMins} دقيقة` : `${diffMins} minutes ago`;
-        if (diffHours < 24) return isArabic ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`;
-        if (diffDays < 7) return isArabic ? `منذ ${diffDays} يوم` : `${diffDays} days ago`;
-        
-        return date.toLocaleDateString(isArabic ? 'ar-EG' : 'en-US');
-    };
+            if (diffMins < 1) return isArabic ? 'الآن' : 'Just now';
+            if (diffMins < 60) return isArabic ? `منذ ${diffMins} دقيقة` : `${diffMins} minutes ago`;
+            if (diffHours < 24) return isArabic ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`;
+            if (diffDays < 7) return isArabic ? `منذ ${diffDays} يوم` : `${diffDays} days ago`;
+            
+            return date.toLocaleDateString(isArabic ? 'ar-EG' : 'en-US');
+        };
 
     if (loading && notifications.length === 0) {
         return (
