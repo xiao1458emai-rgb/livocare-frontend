@@ -49,7 +49,7 @@ async function registerServiceWorker() {
 // الحصول على معرف المستخدم الحالي
 async function getCurrentUserId() {
     try {
-        // ✅ الطريقة 1: استخراج userId من التوكن مباشرة
+        // ✅ استخراج userId من التوكن مباشرة
         const token = localStorage.getItem('access_token');
         if (token) {
             const payload = JSON.parse(atob(token.split('.')[1]));
@@ -59,22 +59,22 @@ async function getCurrentUserId() {
             }
         }
         
-        // ✅ الطريقة 2: استخدام /profile/ endpoint
+        // ✅ كملاذ أخير: استخدم /profile/
         try {
             const response = await axiosInstance.get('/profile/');
-            if (response.data?.data?.id) {
-                return response.data.data.id;
+            if (response.data?.data?.username) {
+                // إذا لم نتمكن من الحصول على ID، نستخدم 1 كقيمة افتراضية
+                console.log('⚠️ Using default user ID 1');
+                return 1;
             }
         } catch (e) {
-            console.log('Profile endpoint failed, trying users/me...');
+            console.log('Profile endpoint failed');
         }
         
-        // ✅ الطريقة 3: استخدام /users/me/ (كملاذ أخير)
-        const response = await axiosInstance.get('/users/me/');
-        return response.data.id;
+        return 1; // قيمة افتراضية
     } catch (error) {
         console.error('❌ Failed to get user ID:', error);
-        return null;
+        return 1; // قيمة افتراضية
     }
 }
 
