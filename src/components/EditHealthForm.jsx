@@ -495,8 +495,7 @@ function Dashboard({ onLogout }) {
             {/* شريط التحكم العلوي */}
             <div className="control-bar">
                 <div className="control-left">
-                    <button className="menu-toggle" onClick={toggleSidebar} aria-label={isArabic ? 'القائمة' : 'Menu'}>
-                        {sidebarOpen ? '✕' : '☰'}
+                    <button className="menu-toggle" onClick={toggleSidebar}>
                     </button>
                     <div className="app-name">
                         <span className="logo">🫀</span>

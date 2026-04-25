@@ -5,13 +5,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/api'; 
 import '../index.css';
-import { ProSidebar, SidebarHeader, SidebarContent, SidebarFooter, Menu, MenuItem } from 'react-pro-sidebar';
-import 'react-pro-sidebar/dist/css/styles.css';
+
 // المكونات الأساسية
 import HealthForm from './HealthForm';
 import HealthHistory from './HealthHistory';
 import HealthCharts from './HealthCharts';
-import ActivityAnalytics from './Analytics/ActivityAnalytics'; 
+import ActivityAnalytics from './Analytics/ActivityAnalytics';
+import Sidebar from './Sidebar';   
 import NutritionMain from './nutrition/NutritionMain';
 import SleepTracker from './SleepTracker';
 import HabitTracker from './HabitTracker';
@@ -62,6 +62,9 @@ function Dashboard({ onLogout }) {
     const [activeSection, setActiveSection] = useState('health');
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const closeSidebar = useCallback(() => {
+        setSidebarOpen(false);
+    }, []);
     
     // ✅ الوضع المظلم
     const [darkMode, setDarkMode] = useState(() => {
@@ -493,13 +496,14 @@ function Dashboard({ onLogout }) {
             {/* شريط التحكم العلوي */}
             <div className="control-bar">
                 <div className="control-left">
-                    <button 
-                        className="menu-toggle" 
-                        onClick={toggleSidebar} 
-                        aria-label={isArabic ? 'القائمة' : 'Menu'}
-                    >
-                        {sidebarOpen ? '✕' : '☰'}
-                    </button>
+            {/* ✅ زر القائمة - بدون تغيير شكله ولا يظهر ✕ */}
+            <button 
+                className="menu-toggle" 
+                onClick={toggleSidebar} 
+                aria-label={isArabic ? 'القائمة' : 'Menu'}
+            >
+                ☰   {/* ✅ دائماً ☰ فقط، وليس ✕ */}
+            </button>
                     <div className="app-name">
                         <span className="logo">🫀</span>
                         <span>LivoCare</span>
@@ -536,15 +540,13 @@ function Dashboard({ onLogout }) {
                 </div>
             </div>
 
-            {/* ✅ السايدبار */}
+            {/* ✅ السايدبار - يختفي تلقائياً عند اختيار أي عنصر */}
             <div className={`sidebar-wrapper ${sidebarOpen ? 'open' : ''}`}>
                 <Sidebar 
                     activeSection={activeSection} 
                     onSectionChange={(section) => {
                         setActiveSection(section);
-                        if (window.innerWidth <= 768) {
-                            setSidebarOpen(false);
-                        }
+                        closeSidebar();  // ✅ يغلق السايدبار تلقائياً
                     }}
                     isArabic={isArabic}
                 />
@@ -1126,352 +1128,88 @@ function Dashboard({ onLogout }) {
                         transform: none !important;
                     }
                 }
-            {/* ✅ السايدبار باستخدام react-pro-sidebar */}
-            <ProSidebar 
-                collapsed={!sidebarOpen}
-                rtl={isArabic}
-                width="280px"
-                collapsedWidth="80px"
-                breakPoint="md"
-                className="custom-sidebar"
-                style={{ position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 1000 }}
-            >
-                <SidebarHeader>
-                    <div className="sidebar-header-custom">
-                        <div className="app-logo-custom">
-                            <div className="logo-icon-custom">🏥</div>
-                            {sidebarOpen && (
-                                <div className="logo-text-custom">
-                                    <span className="app-name-custom">LivoCare</span>
-                                    <span className="app-tagline-custom">{isArabic ? 'العناية بصحتك' : 'Your Health Care'}</span>
-                                </div>
-                            )}
-                        </div>
-                        <button 
-                            className="collapse-btn-custom"
-                            onClick={() => setSidebarOpen(!sidebarOpen)}
-                        >
-                            {sidebarOpen ? (isArabic ? '→' : '←') : (isArabic ? '←' : '→')}
-                        </button>
-                    </div>
-                </SidebarHeader>
-                
-                <SidebarContent>
-                    <Menu iconShape="circle">
-                        {[
-                            { id: 'health', icon: '❤️', name: isArabic ? 'العلامات الحيوية' : 'Vital Signs', desc: isArabic ? 'تتبع القياسات الحيوية' : 'Track biometrics' },
-                            { id: 'nutrition', icon: '🥗', name: isArabic ? 'التغذية' : 'Nutrition', desc: isArabic ? 'إدارة الوجبات' : 'Manage meals' },
-                            { id: 'sleep', icon: '🌙', name: isArabic ? 'النوم' : 'Sleep', desc: isArabic ? 'جودة النوم' : 'Sleep quality' },
-                            { id: 'mood', icon: '😊', name: isArabic ? 'المزاج' : 'Mood', desc: isArabic ? 'تتبع المشاعر' : 'Track emotions' },
-                            { id: 'habits', icon: '💊', name: isArabic ? 'العادات' : 'Habits', desc: isArabic ? 'المكملات والروتين' : 'Supplements & routine' },
-                            { id: 'activity', icon: '🏃', name: isArabic ? 'النشاط' : 'Activity', desc: isArabic ? 'النشاط البدني' : 'Physical activity' },
-                            { id: 'smart', icon: '🧠', name: isArabic ? 'الميزات الذكية' : 'Smart Features', desc: isArabic ? 'توصيات متقدمة' : 'Advanced recommendations' },
-                            { id: 'chat', icon: '💬', name: isArabic ? 'المساعد الذكي' : 'Smart Chat', desc: isArabic ? 'مساعد صحي' : 'Health assistant' },
-                            { id: 'reports', icon: '📊', name: isArabic ? 'التقارير' : 'Reports', desc: isArabic ? 'تحليلات صحية' : 'Health reports' },
-                            { id: 'profile', icon: '👤', name: isArabic ? 'الملف الشخصي' : 'Profile', desc: isArabic ? 'الإعدادات' : 'Settings' }
-                        ].map(section => (
-                            <MenuItem 
-                                key={section.id}
-                                active={activeSection === section.id}
-                                icon={<span style={{ fontSize: '1.3rem' }}>{section.icon}</span>}
-                                onClick={() => {
-                                    setActiveSection(section.id);
-                                    if (window.innerWidth <= 768) {
-                                        setSidebarOpen(false);
-                                    }
-                                }}
-                            >
-                                <div className="menu-item-content">
-                                    <div className="menu-item-name">{section.name}</div>
-                                    {sidebarOpen && <div className="menu-item-desc">{section.desc}</div>}
-                                </div>
-                            </MenuItem>
-                        ))}
-                    </Menu>
-                </SidebarContent>
-                
-                <SidebarFooter>
-                    {sidebarOpen && (
-                        <div className="sidebar-footer-custom">
-                            <div className="user-stats-custom">
-                                <div className="stat-item-custom">
-                                    <span className="stat-value-custom">10</span>
-                                    <span className="stat-label-custom">{isArabic ? 'أقسام' : 'Sections'}</span>
-                                </div>
-                                <div className="stat-divider-custom"></div>
-                                <div className="stat-item-custom">
-                                    <span className="stat-value-custom">✓</span>
-                                    <span className="stat-label-custom">{isArabic ? 'متابعة' : 'Tracking'}</span>
-                                </div>
-                            </div>
-                            <div className="user-profile-custom">
-                                <div className="user-avatar-custom">
-                                    👤
-                                </div>
-                                <div className="user-info-custom">
-                                    <span className="user-name-custom">{isArabic ? 'مستخدم LivoCare' : 'LivoCare User'}</span>
-                                    <span className="user-role-custom">{isArabic ? 'مستخدم نشط' : 'Active User'}</span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </SidebarFooter>
-            </ProSidebar>
-            
-            {/* ✅ Overlay للجوال (مغلق السايدبار) */}
-            {sidebarOpen && window.innerWidth <= 768 && (
-                <div 
-                    className="sidebar-overlay-custom" 
-                    onClick={() => setSidebarOpen(false)}
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'rgba(0,0,0,0.5)',
-                        zIndex: 999,
-                        cursor: 'pointer'
-                    }}
-                />
-            )}
-                /* ===========================================
-   تنسيق ProSidebar
-   =========================================== */
+                 /* ===========================================
+                تحسينات السايدبار - بدون زر إغلاق
+                =========================================== */
 
-.custom-sidebar {
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
-    color: white !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
+                /* السايدبار نفسه */
+                .sidebar-wrapper {
+                    position: fixed;
+                    top: var(--control-bar-height, 70px);
+                    right: -300px;
+                    width: 280px;
+                    height: calc(100% - var(--control-bar-height, 70px));
+                    z-index: 1000;
+                    transition: right 0.3s ease-in-out;
+                    overflow-y: auto;
+                }
 
-.custom-sidebar .pro-sidebar-header {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-    padding: 0 !important;
-}
+                .sidebar-wrapper.open {
+                    right: 0;
+                }
 
-.custom-sidebar .pro-menu-item {
-    color: white !important;
-    border-radius: 12px !important;
-    margin: 4px 12px !important;
-}
+                /* Overlay للجوال */
+                .sidebar-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    z-index: 999;
+                    animation: fadeIn 0.3s ease;
+                }
 
-.custom-sidebar .pro-menu-item.active {
-    background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%) !important;
-    color: white !important;
-}
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
 
-.custom-sidebar .pro-menu-item:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.1) !important;
-}
+                /* تحسين للشاشات الصغيرة */
+                @media (max-width: 768px) {
+                    .sidebar-wrapper {
+                        top: 60px;
+                        width: 85%;
+                        right: -85%;
+                        height: calc(100% - 60px);
+                    }
+                    
+                    .sidebar-wrapper.open {
+                        right: 0;
+                    }
+                }
 
-.custom-sidebar .pro-menu-item .pro-icon-wrapper {
-    background: transparent !important;
-}
+                /* دعم RTL */
+                [dir="rtl"] .sidebar-wrapper {
+                    right: auto;
+                    left: -300px;
+                }
 
-/* رأس السايدبار */
-.sidebar-header-custom {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
+                [dir="rtl"] .sidebar-wrapper.open {
+                    left: 0;
+                    right: auto;
+                }
 
-.app-logo-custom {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
+                @media (max-width: 768px) {
+                    [dir="rtl"] .sidebar-wrapper {
+                        left: -85%;
+                        right: auto;
+                    }
+                    
+                    [dir="rtl"] .sidebar-wrapper.open {
+                        left: 0;
+                        right: auto;
+                    }
+                }
 
-.logo-icon-custom {
-    width: 45px;
-    height: 45px;
-    background: linear-gradient(135deg, #60a5fa, #a78bfa);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.8rem;
-}
-
-.logo-text-custom {
-    display: flex;
-    flex-direction: column;
-}
-
-.app-name-custom {
-    font-size: 1.3rem;
-    font-weight: bold;
-    background: linear-gradient(135deg, #fff, #a78bfa);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.app-tagline-custom {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.collapse-btn-custom {
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: white;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: all 0.2s;
-}
-
-.collapse-btn-custom:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.05);
-}
-
-/* محتوى القائمة */
-.menu-item-content {
-    display: flex;
-    flex-direction: column;
-}
-
-.menu-item-name {
-    font-size: 0.95rem;
-    font-weight: 500;
-}
-
-.menu-item-desc {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-/* تذييل السايدبار */
-.sidebar-footer-custom {
-    padding: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.user-stats-custom {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    padding: 0.75rem;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 12px;
-    margin-bottom: 1rem;
-}
-
-.stat-item-custom {
-    text-align: center;
-}
-
-.stat-value-custom {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: #a78bfa;
-}
-
-.stat-label-custom {
-    font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.stat-divider-custom {
-    width: 1px;
-    height: 30px;
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.user-profile-custom {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.5rem;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 12px;
-}
-
-.user-avatar-custom {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, #60a5fa, #a78bfa);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.3rem;
-}
-
-.user-info-custom {
-    flex: 1;
-}
-
-.user-name-custom {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.user-role-custom {
-    display: block;
-    font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-/* تعديل المحتوى الرئيسي */
-.dashboard-content {
-    margin-left: 280px;
-    transition: margin-left 0.3s ease;
-    width: auto;
-}
-
-/* RTL */
-[dir="rtl"] .dashboard-content {
-    margin-left: 0;
-    margin-right: 280px;
-}
-
-@media (max-width: 768px) {
-    .dashboard-content {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-    }
-}
-
-/* ===========================================
-   دعم RTL (العربية)
-   =========================================== */
-[dir="rtl"] .sidebar-wrapper {
-    left: auto;
-    right: 0;
-    border-right: none;
-    border-left: 1px solid var(--border-light, #e2e8f0);
-    transform: translateX(100%);
-}
-
-[dir="rtl"] .sidebar-wrapper.open {
-    transform: translateX(0);
-}
-
-[dir="rtl"] .dashboard-content {
-    margin-left: 0;
-    margin-right: 0;
-}
-
-@media (min-width: 769px) {
-    [dir="rtl"] .sidebar-wrapper.open ~ .dashboard-content {
-        margin-left: 0;
-        margin-right: 280px;
-        width: calc(100% - 280px);
-    }
-}
-
-@media (max-width: 768px) {
-    [dir="rtl"] .dashboard-content {
-        margin-right: 0 !important;
-    }
-}
+                /* تقليل الحركة للمستخدمين الذين يفضلون ذلك */
+                @media (prefers-reduced-motion: reduce) {
+                    .sidebar-wrapper,
+                    .sidebar-overlay {
+                        transition: none;
+                        animation: none;
+                    }
+                }
             `}</style>
         </div>
     );
