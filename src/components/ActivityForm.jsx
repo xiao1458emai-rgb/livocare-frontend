@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axiosInstance from '../services/api';
 import esp32Service from '../services/esp32Service';
+import '../index.css';
 
 const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabic }) => {
     // ✅ استخدام isArabic من props مع إمكانية التحديث عبر الحدث
