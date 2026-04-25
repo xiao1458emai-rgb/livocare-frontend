@@ -2,7 +2,7 @@
 'use client'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axiosInstance from '../services/api';
-import EditHealthForm from './EditHealthForm';
+import EditHealthForm from './Dashboard';
 import '../index.css';
 
 function HealthHistory({ refreshKey, onDataSubmitted }) {
