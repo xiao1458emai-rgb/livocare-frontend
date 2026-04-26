@@ -357,12 +357,6 @@ function Login({ onLoginSuccess }) {
                                 <span className="checkbox-text">{isArabic ? 'تذكرني' : 'Remember me'}</span>
                             </label>
                             
-                            <Link 
-                                to="/forgot-password" 
-                                className="forgot-link"
-                            >
-                                {isArabic ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
-                            </Link>
                         </div>
                         
                         {/* ✅ أزرار الإجراء */}

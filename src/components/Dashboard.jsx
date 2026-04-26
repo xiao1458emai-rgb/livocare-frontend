@@ -412,7 +412,7 @@ function Dashboard({ onLogout }) {
                     
                     <div className="analytics-section">
                         <ActivityAnalytics refreshTrigger={refreshKey} isArabic={isArabic} />
-                        <AdvancedHealthInsights refreshTrigger={refreshKey} isArabic={isArabic} />
+                        <AdvancedHealthInsights refreshTrigger={refreshKey} />
                     </div>
                     
                     <div className="history-section">
