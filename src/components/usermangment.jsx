@@ -30,13 +30,11 @@ const calculateBMI = (weight, height) => {
 const calculateIdealWeight = (height, age, gender) => {
     if (!height) return null;
     const heightInCm = parseFloat(height);
-    // الصيغة الأساسية: 50 كجم + 0.9 كجم لكل سم فوق 152.4 سم للرجال، و45.5 كجم للنساء
     let idealWeight = gender === 'M' ? 50 : 45.5;
     if (heightInCm > 152.4) {
         idealWeight += (heightInCm - 152.4) * 0.9;
     }
     
-    // تعديل حسب العمر (كل 10 سنوات فوق 30، نقص 5-10%)
     if (age && age > 30) {
         const ageReduction = Math.floor((age - 30) / 10) * 0.05;
         idealWeight = idealWeight * (1 - Math.min(ageReduction, 0.2));
@@ -93,13 +91,16 @@ function ProfileManager({ isAuthReady }) {
     const [isEditingUsername, setIsEditingUsername] = useState(false);
     const [newUsername, setNewUsername] = useState('');
     
-    // ✅ حالة تغيير كلمة المرور (محسنة)
+    // ✅ حالة تغيير كلمة المرور مع إظهار/إخفاء
     const [passwordData, setPasswordData] = useState({
         current_password: '',
         new_password: '',
         confirm_password: ''
     });
     const [changingPassword, setChangingPassword] = useState(false);
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     
     // --- حالات أخرى ---
     const [healthGoals, setHealthGoals] = useState([]);
@@ -144,6 +145,7 @@ function ProfileManager({ isAuthReady }) {
     const [exporting, setExporting] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [reducedMotion, setReducedMotion] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
     
     // --- حساب العمر ---
     const calculateAge = useCallback((birthDate) => {
@@ -176,7 +178,7 @@ function ProfileManager({ isAuthReady }) {
         return { bmi, category, weight, height };
     }, [userData.initial_weight, userData.height, healthData.weight, isArabic]);
     
-    // --- Smart Profile المحسن مع الوزن المثالي ---
+    // --- Smart Profile المحسن ---
     const smartProfile = useMemo(() => {
         if (!bmiData) return null;
         
@@ -239,7 +241,7 @@ function ProfileManager({ isAuthReady }) {
         };
     }, [bmiData, healthData, userAge, idealWeight, isArabic]);
     
-    // --- التوصيات الذكية المحسنة مع العمر والوزن المثالي ---
+    // --- التوصيات الذكية ---
     const getPersonalizedRecommendations = useMemo(() => {
         const recommendations = [];
         const occupation = userData.occupation_status;
@@ -250,80 +252,41 @@ function ProfileManager({ isAuthReady }) {
         const activityLevel = userData.activity_level;
         const healthGoal = userData.health_goal;
         
-        // توصيات حسب المهنة
         if (occupation === 'Student') {
-            recommendations.push({ icon: '📚', text: isArabic ? 'حاول النوم 7-8 ساعات لتحسين التركيز والتحصيل الدراسي' : 'Try to sleep 7-8 hours to improve focus and academic performance', priority: 'high' });
-            recommendations.push({ icon: '🍎', text: isArabic ? 'تناول وجبات متوازنة تحتوي على بروتين وخضروات أثناء فترة الامتحانات' : 'Eat balanced meals with protein and vegetables during exams', priority: 'medium' });
+            recommendations.push({ icon: '📚', text: isArabic ? 'حاول النوم 7-8 ساعات لتحسين التركيز' : 'Try to sleep 7-8 hours to improve focus', priority: 'high' });
         } else if (occupation === 'Full-Time') {
-            recommendations.push({ icon: '💼', text: isArabic ? 'مارس المشي لمدة 10 دقائق خلال فترة الغداء لتحسين النشاط' : 'Walk for 10 minutes during lunch break to improve activity', priority: 'high' });
-            recommendations.push({ icon: '🧘', text: isArabic ? 'جرب تمارين التنفس العميق لتخفيف ضغط العمل وتحسين المزاج' : 'Try deep breathing exercises to relieve work stress and improve mood', priority: 'medium' });
+            recommendations.push({ icon: '💼', text: isArabic ? 'مارس المشي 10 دقائق خلال استراحة الغداء' : 'Walk 10 minutes during lunch break', priority: 'high' });
         } else if (occupation === 'Freelancer') {
-            recommendations.push({ icon: '⏰', text: isArabic ? 'حدد روتيناً يومياً ثابتاً للنوم والاستيقاظ لتنظيم ساعتك البيولوجية' : 'Set a consistent daily routine for sleep and wake-up to regulate your biological clock', priority: 'high' });
+            recommendations.push({ icon: '⏰', text: isArabic ? 'حدد روتيناً ثابتاً للنوم والاستيقاظ' : 'Set a consistent sleep/wake routine', priority: 'high' });
         }
         
-        // ✅ توصيات حسب الوزن المثالي
         if (idealWt && currentWeight) {
             const weightDiff = currentWeight - idealWt;
             if (Math.abs(weightDiff) > 5) {
-                if (weightDiff > 0) {
-                    recommendations.push({ 
-                        icon: '⚖️', 
-                        text: isArabic 
-                            ? `وزنك الحالي ${currentWeight} كجم، الوزن المثالي لعمرك وطولك هو ${idealWt} كجم. يمكنك خسارة ${Math.abs(weightDiff)} كجم للوصول للوزن المثالي`
-                            : `Your current weight is ${currentWeight}kg, ideal weight for your age and height is ${idealWt}kg. You can lose ${Math.abs(weightDiff)}kg to reach ideal weight`, 
-                        priority: 'high' 
-                    });
-                } else {
-                    recommendations.push({ 
-                        icon: '⚖️', 
-                        text: isArabic 
-                            ? `وزنك الحالي ${currentWeight} كجم، الوزن المثالي لعمرك وطولك هو ${idealWt} كجم. يمكنك زيادة ${Math.abs(weightDiff)} كجم للوصول للوزن المثالي`
-                            : `Your current weight is ${currentWeight}kg, ideal weight for your age and height is ${idealWt}kg. You can gain ${Math.abs(weightDiff)}kg to reach ideal weight`, 
-                        priority: 'high' 
-                    });
-                }
-            } else if (Math.abs(weightDiff) <= 3) {
                 recommendations.push({ 
-                    icon: '🏆', 
+                    icon: '⚖️', 
                     text: isArabic 
-                        ? `وزنك قريب جداً من الوزن المثالي (${idealWt} كجم)! حافظ على نمط حياتك الصحي`
-                        : `Your weight is very close to ideal weight (${idealWt}kg)! Keep up your healthy lifestyle`, 
-                    priority: 'low' 
+                        ? `وزنك الحالي ${currentWeight} كجم، الوزن المثالي ${idealWt} كجم. يمكنك ${weightDiff > 0 ? 'خسارة' : 'زيادة'} ${Math.abs(weightDiff)} كجم`
+                        : `Current weight: ${currentWeight}kg, ideal: ${idealWt}kg. ${weightDiff > 0 ? 'Lose' : 'Gain'} ${Math.abs(weightDiff)}kg`, 
+                    priority: 'high' 
                 });
             }
         }
         
-        // توصيات حسب العمر
-        if (age) {
-            if (age > 50) {
-                recommendations.push({ icon: '🦴', text: isArabic ? 'اهتم بصحة عظامك: أضف الكالسيوم وفيتامين D لنظامك الغذائي' : 'Take care of your bone health: Add calcium and vitamin D to your diet', priority: 'medium' });
-            } else if (age < 25) {
-                recommendations.push({ icon: '💪', text: isArabic ? 'هذا العصر مناسب لبناء كتلة عضلية جيدة، ركز على تمارين المقاومة' : 'This age is great for building muscle mass, focus on resistance training', priority: 'medium' });
-            }
-        }
-        
-        // توصيات حسب BMI
         if (bmi) {
             if (bmi < 18.5) {
-                recommendations.push({ icon: '🥑', text: isArabic ? 'أضف مصادر صحية للدهون مثل الأفوكادو والمكسرات لزيادة الوزن بشكل صحي' : 'Add healthy fat sources like avocado and nuts for healthy weight gain', priority: 'high' });
+                recommendations.push({ icon: '🥑', text: isArabic ? 'أضف مصادر صحية للدهون لزيادة الوزن' : 'Add healthy fats for weight gain', priority: 'high' });
             } else if (bmi > 25) {
-                recommendations.push({ icon: '🏃', text: isArabic ? 'زد نشاطك البدني تدريجياً إلى 30 دقيقة يومياً 5 أيام في الأسبوع' : 'Gradually increase physical activity to 30 minutes daily, 5 days a week', priority: 'high' });
+                recommendations.push({ icon: '🏃', text: isArabic ? 'زد نشاطك إلى 30 دقيقة يومياً' : 'Increase activity to 30 minutes daily', priority: 'high' });
             }
         }
         
-        // توصيات حسب مستوى النشاط
         if (activityLevel === 'low') {
-            recommendations.push({ icon: '🚶', text: isArabic ? 'ابدأ بالمشي 10 دقائق يومياً، ثم زد التدريجياً' : 'Start with 10 minutes of walking daily, then gradually increase', priority: 'high' });
+            recommendations.push({ icon: '🚶', text: isArabic ? 'ابدأ بالمشي 10 دقائق يومياً' : 'Start with 10 minutes of walking daily', priority: 'high' });
         }
         
-        // توصيات حسب الهدف الصحي
-        if (healthGoal === 'loss' && bmi && bmi < 25) {
-            recommendations.push({ icon: '⚖️', text: isArabic ? 'وزنك ضمن المعدل الطبيعي، ركز على التثبيت بدلاً من الخسارة' : 'Your weight is normal, focus on maintenance rather than loss', priority: 'info' });
-        }
-        
-        // توصيات حسب بيانات النوم
         if (healthData.sleep && healthData.sleep < 7) {
-            recommendations.push({ icon: '😴', text: isArabic ? `متوسط نومك ${healthData.sleep} ساعات. حاول النوم قبل منتصف الليل ب 30 دقيقة يومياً` : `Your average sleep is ${healthData.sleep} hours. Try to sleep 30 minutes earlier each day`, priority: 'high' });
+            recommendations.push({ icon: '😴', text: isArabic ? `متوسط نومك ${healthData.sleep} ساعات، حاول النوم مبكراً` : `Average sleep ${healthData.sleep} hours, try sleeping earlier`, priority: 'high' });
         }
         
         return recommendations.slice(0, 5);
@@ -346,7 +309,7 @@ function ProfileManager({ isAuthReady }) {
             loadAchievements();
             loadSavedSettings();
         }
-    }, [isAuthReady]);
+    }, [isAuthReady, refreshKey]);
     
     // --- دوال API ---
     const loadSavedSettings = () => {
@@ -427,9 +390,21 @@ function ProfileManager({ isAuthReady }) {
                     return dateB - dateA;
                 });
                 latestWeight = sortedHealth[0]?.weight_kg || sortedHealth[0]?.weight || null;
+                
+                // ✅ تحديث userData.initial_weight بأحدث وزن تلقائياً
+                if (latestWeight && latestWeight !== parseFloat(userData.initial_weight)) {
+                    setUserData(prev => ({ ...prev, initial_weight: latestWeight.toString() }));
+                }
             }
             
-            setHealthData({ weight: latestWeight, sleep: avgSleep, activity: weeklyActivity, calories: avgCalories, mood: avgMood, habit_completion: habitCompletion });
+            setHealthData({ 
+                weight: latestWeight, 
+                sleep: avgSleep, 
+                activity: weeklyActivity, 
+                calories: avgCalories, 
+                mood: avgMood, 
+                habit_completion: habitCompletion 
+            });
         } catch (error) {
             console.error('Error fetching health data:', error);
         }
@@ -492,7 +467,7 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    // ✅ تغيير كلمة المرور المحسن
+    // ✅ تغيير كلمة المرور مع إظهار/إخفاء
     const handleChangePassword = async (e) => {
         e.preventDefault();
         setChangingPassword(true);
@@ -556,7 +531,7 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    // --- تحديث الملف الشخصي ---
+    // ✅ تحديث الملف الشخصي
     const handleUserUpdate = async (e) => {
         e.preventDefault();
         setSaving(true);
@@ -588,6 +563,7 @@ function ProfileManager({ isAuthReady }) {
             setMessageType('success');
             await fetchUserData();
             await fetchCurrentHealthData();
+            setRefreshKey(prev => prev + 1); // تحديث الأهداف
         } catch (error) {
             console.error('Error updating profile:', error);
             setMessage(isArabic ? '❌ خطأ في تحديث الملف الشخصي' : '❌ Error updating profile');
@@ -684,7 +660,103 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    // ✅ النسخ الاحتياطي فقط (تم إزالة تصدير البيانات)
+    // ✅ حساب تقدم الأهداف بناءً على أحدث البيانات
+    const calculateGoalProgress = useCallback((goal, currentData) => {
+        let currentValue = 0;
+        let targetValue = parseFloat(goal.target_value) || 0;
+        
+        // استخدام أحدث البيانات المتاحة
+        switch (goal.type) {
+            case 'weight_loss':
+            case 'weight_gain':
+                currentValue = currentData.weight || parseFloat(userData.initial_weight) || 0;
+                break;
+            case 'sleep':
+                currentValue = currentData.sleep || 0;
+                break;
+            case 'activity':
+                currentValue = currentData.activity || 0;
+                break;
+            case 'calories':
+                currentValue = currentData.calories || 0;
+                break;
+            case 'habit':
+                currentValue = currentData.habit_completion || 0;
+                break;
+            default:
+                currentValue = goal.current_value || 0;
+        }
+        
+        if (targetValue === 0) {
+            return { progress: 0, isAchieved: false, currentValue: 0, targetValue };
+        }
+        
+        let progress = 0;
+        let isAchieved = false;
+        
+        if (goal.type === 'weight_loss') {
+            if (currentValue <= targetValue) {
+                progress = 100;
+                isAchieved = true;
+            } else {
+                const startValue = goal.start_value || currentValue + 5;
+                const totalToLose = startValue - targetValue;
+                if (totalToLose > 0 && currentValue < startValue) {
+                    const lostSoFar = startValue - currentValue;
+                    progress = Math.min(99, Math.max(0, Math.round((lostSoFar / totalToLose) * 100)));
+                } else if (currentValue >= startValue) {
+                    progress = 0;
+                } else {
+                    progress = Math.min(99, Math.max(0, Math.round(((startValue - currentValue) / Math.abs(targetValue - startValue)) * 100)));
+                }
+            }
+        } else if (goal.type === 'weight_gain') {
+            if (currentValue >= targetValue) {
+                progress = 100;
+                isAchieved = true;
+            } else {
+                const startValue = goal.start_value || currentValue - 5;
+                const totalToGain = targetValue - startValue;
+                if (totalToGain > 0 && currentValue > startValue) {
+                    const gainedSoFar = currentValue - startValue;
+                    progress = Math.min(99, Math.max(0, Math.round((gainedSoFar / totalToGain) * 100)));
+                } else {
+                    progress = 0;
+                }
+            }
+        } else {
+            if (currentValue >= targetValue) {
+                progress = 100;
+                isAchieved = true;
+            } else {
+                progress = Math.min(99, Math.max(0, Math.round((currentValue / targetValue) * 100)));
+            }
+        }
+        
+        return { 
+            progress, 
+            isAchieved, 
+            currentValue: roundNumber(currentValue, 1), 
+            targetValue: roundNumber(targetValue, 1) 
+        };
+    }, [userData.initial_weight]);
+    
+    const goalsStats = useMemo(() => {
+        const total = healthGoals.length;
+        const completed = healthGoals.filter(g => {
+            const progress = calculateGoalProgress(g, healthData);
+            return progress.isAchieved || g.is_achieved;
+        }).length;
+        const inProgress = total - completed;
+        const avgProgress = total > 0 ? Math.round(healthGoals.reduce((sum, g) => {
+            const progress = calculateGoalProgress(g, healthData);
+            return sum + progress.progress;
+        }, 0) / total) : 0;
+        
+        return { total, completed, inProgress, avgProgress };
+    }, [healthGoals, healthData, calculateGoalProgress]);
+    
+    // ✅ النسخ الاحتياطي
     const handleFullBackup = async () => {
         if (!confirm(isArabic ? 'هل تريد إنشاء نسخة احتياطية كاملة؟' : 'Do you want to create a full backup?')) return;
         setExporting(true);
@@ -733,6 +805,7 @@ function ProfileManager({ isAuthReady }) {
             fetchUserData();
             fetchHealthGoals();
             fetchCurrentHealthData();
+            setRefreshKey(prev => prev + 1);
         } catch (error) {
             console.error('Error restoring backup:', error);
             setMessage(isArabic ? '❌ خطأ في استعادة النسخة الاحتياطية' : '❌ Error restoring backup');
@@ -820,78 +893,6 @@ function ProfileManager({ isAuthReady }) {
         return () => window.removeEventListener('languageChange', handleExternalLanguageChange);
     }, [lang]);
     
-    // --- حساب إحصائيات الأهداف ---
-    const calculateGoalProgress = (goal, currentData) => {
-        let currentValue = 0;
-        let targetValue = parseFloat(goal.target_value) || 0;
-        
-        switch (goal.type) {
-            case 'weight_loss':
-            case 'weight_gain':
-                currentValue = currentData.weight || 0;
-                break;
-            case 'sleep':
-                currentValue = currentData.sleep || 0;
-                break;
-            case 'activity':
-                currentValue = currentData.activity || 0;
-                break;
-            case 'calories':
-                currentValue = currentData.calories || 0;
-                break;
-            case 'habit':
-                currentValue = currentData.habit_completion || 0;
-                break;
-            default:
-                currentValue = goal.current_value || 0;
-        }
-        
-        if (targetValue === 0 || currentValue === 0) {
-            return { progress: 0, isAchieved: false, currentValue, targetValue };
-        }
-        
-        let progress = 0;
-        let isAchieved = false;
-        
-        if (goal.type === 'weight_loss') {
-            if (currentValue <= targetValue) {
-                progress = 100;
-                isAchieved = true;
-            } else {
-                const startValue = goal.start_value || currentValue + 5;
-                const totalToLose = startValue - targetValue;
-                if (totalToLose > 0) {
-                    const lostSoFar = startValue - currentValue;
-                    progress = Math.min(99, Math.max(0, Math.round((lostSoFar / totalToLose) * 100)));
-                }
-            }
-        } else {
-            if (currentValue >= targetValue) {
-                progress = 100;
-                isAchieved = true;
-            } else {
-                progress = Math.min(99, Math.max(0, Math.round((currentValue / targetValue) * 100)));
-            }
-        }
-        
-        return { progress, isAchieved, currentValue: roundNumber(currentValue, 1), targetValue };
-    };
-    
-    const goalsStats = useMemo(() => {
-        const total = healthGoals.length;
-        const completed = healthGoals.filter(g => {
-            const progress = calculateGoalProgress(g, healthData);
-            return progress.isAchieved || g.is_achieved;
-        }).length;
-        const inProgress = total - completed;
-        const avgProgress = total > 0 ? Math.round(healthGoals.reduce((sum, g) => {
-            const progress = calculateGoalProgress(g, healthData);
-            return sum + progress.progress;
-        }, 0) / total) : 0;
-        
-        return { total, completed, inProgress, avgProgress };
-    }, [healthGoals, healthData]);
-    
     // --- عرض ---
     if (loading && !userData.username) {
         return (
@@ -903,6 +904,28 @@ function ProfileManager({ isAuthReady }) {
             </div>
         );
     }
+    
+    // ✅ دالة عرض حقل كلمة المرور مع زر إظهار/إخفاء
+    const PasswordField = ({ label, value, onChange, show, setShow, placeholder }) => (
+        <div className="field-group">
+            <label>{label}</label>
+            <div className="password-input-wrapper">
+                <input 
+                    type={show ? "text" : "password"} 
+                    value={value} 
+                    onChange={onChange}
+                    placeholder={placeholder}
+                />
+                <button 
+                    type="button" 
+                    className="password-toggle"
+                    onClick={() => setShow(!show)}
+                >
+                    {show ? '🙈' : '👁️'}
+                </button>
+            </div>
+        </div>
+    );
     
     return (
         <div className={`analytics-container ${reducedMotion ? 'reduce-motion' : ''} ${darkMode ? 'dark-theme' : ''}`}>
@@ -937,7 +960,7 @@ function ProfileManager({ isAuthReady }) {
                     </div>
                 </div>
                 <div className="header-actions">
-                    <button onClick={() => setDarkMode(!darkMode)} className="lang-btn" title={isArabic ? (darkMode ? 'الوضع النهاري' : 'الوضع الليلي') : (darkMode ? 'Light mode' : 'Dark mode')}>
+                    <button onClick={() => setDarkMode(!darkMode)} className="lang-btn">
                         {darkMode ? '☀️' : '🌙'}
                     </button>
                     <button onClick={toggleLanguage} className="lang-btn">
@@ -957,7 +980,6 @@ function ProfileManager({ isAuthReady }) {
                                 <div className="stat-label">{isArabic ? 'مؤشر كتلة الجسم' : 'BMI'}</div>
                                 <div className="stat-value" style={{ color: smartProfile.bmiCategory?.color }}>{smartProfile.bmi}</div>
                                 <div className="stat-sub">{smartProfile.bmiCategory?.category}</div>
-                                <div className="stat-advice">{smartProfile.bmiCategory?.advice}</div>
                             </div>
                             <div className="health-stat">
                                 <div className="stat-label">{isArabic ? 'العمر' : 'Age'}</div>
@@ -968,36 +990,19 @@ function ProfileManager({ isAuthReady }) {
                                 <div className="stat-label">{isArabic ? 'الوزن المثالي' : 'Ideal Weight'}</div>
                                 <div className="stat-value">{smartProfile.idealWeight || '—'}</div>
                                 <div className="stat-sub">{isArabic ? 'كجم' : 'kg'}</div>
-                                {smartProfile.weight && smartProfile.idealWeight && (
-                                    <div className="stat-advice">
-                                        {smartProfile.weight > smartProfile.idealWeight 
-                                            ? `⬇️ ${isArabic ? 'تحتاج لخسارة' : 'Need to lose'} ${(smartProfile.weight - smartProfile.idealWeight).toFixed(1)} kg`
-                                            : smartProfile.weight < smartProfile.idealWeight
-                                            ? `⬆️ ${isArabic ? 'تحتاج لزيادة' : 'Need to gain'} ${(smartProfile.idealWeight - smartProfile.weight).toFixed(1)} kg`
-                                            : '✅ ' + (isArabic ? 'وزن مثالي' : 'Ideal weight')}
-                                    </div>
-                                )}
                             </div>
                             <div className="health-stat">
                                 <div className="stat-label">{isArabic ? 'درجة الصحة' : 'Health Score'}</div>
                                 <div className="stat-value">{smartProfile.healthScore}</div>
                                 <div className="progress-bar">
-                                    <div className="progress-fill" style={{ width: `${smartProfile.healthScore}%`, background: smartProfile.healthScore >= 70 ? '#10b981' : smartProfile.healthScore >= 50 ? '#f59e0b' : '#ef4444' }}></div>
-                                </div>
-                                <div className="stat-details">
-                                    {smartProfile.healthScoreDetails?.slice(0, 2).map((detail, i) => (
-                                        <span key={i} className="detail-badge">{detail}</span>
-                                    ))}
+                                    <div className="progress-fill" style={{ width: `${smartProfile.healthScore}%` }}></div>
                                 </div>
                             </div>
                         </div>
                         
-                        {/* Recommendations */}
                         {getPersonalizedRecommendations.length > 0 && (
                             <div className="recommendations-box">
-                                <div className="rec-header">
-                                    <span>💡 {isArabic ? 'توصيات مخصصة لك' : 'Personalized Recommendations'}</span>
-                                </div>
+                                <div className="rec-header">💡 {isArabic ? 'توصيات مخصصة' : 'Personalized Recommendations'}</div>
                                 <div className="recommendations-list">
                                     {getPersonalizedRecommendations.map((rec, i) => (
                                         <div key={i} className={`rec-item priority-${rec.priority}`}>
@@ -1043,15 +1048,15 @@ function ProfileManager({ isAuthReady }) {
                             <div className="form-grid">
                                 <div className="field-group">
                                     <label>{isArabic ? 'البريد الإلكتروني' : 'Email'}</label>
-                                    <input type="email" value={userData.email} onChange={(e) => setUserData({...userData, email: e.target.value})} placeholder={isArabic ? 'example@email.com' : 'example@email.com'} />
+                                    <input type="email" value={userData.email} onChange={(e) => setUserData({...userData, email: e.target.value})} />
                                 </div>
                                 <div className="field-group">
                                     <label>{isArabic ? 'الاسم الأول' : 'First Name'}</label>
-                                    <input type="text" value={userData.first_name} onChange={(e) => setUserData({...userData, first_name: e.target.value})} placeholder={isArabic ? 'أدخل اسمك الأول' : 'Enter your first name'} />
+                                    <input type="text" value={userData.first_name} onChange={(e) => setUserData({...userData, first_name: e.target.value})} />
                                 </div>
                                 <div className="field-group">
                                     <label>{isArabic ? 'اسم العائلة' : 'Last Name'}</label>
-                                    <input type="text" value={userData.last_name} onChange={(e) => setUserData({...userData, last_name: e.target.value})} placeholder={isArabic ? 'أدخل اسم العائلة' : 'Enter your last name'} />
+                                    <input type="text" value={userData.last_name} onChange={(e) => setUserData({...userData, last_name: e.target.value})} />
                                 </div>
                                 <div className="field-group">
                                     <label>{isArabic ? 'تاريخ الميلاد' : 'Date of Birth'}</label>
@@ -1067,14 +1072,14 @@ function ProfileManager({ isAuthReady }) {
                                 </div>
                                 <div className="field-group">
                                     <label>{isArabic ? 'رقم الهاتف' : 'Phone Number'}</label>
-                                    <input type="tel" value={userData.phone_number} onChange={(e) => setUserData({...userData, phone_number: e.target.value})} placeholder="+967XXXXXXXX" />
+                                    <input type="tel" value={userData.phone_number} onChange={(e) => setUserData({...userData, phone_number: e.target.value})} />
                                 </div>
                                 <div className="field-group">
                                     <label>{isArabic ? 'الوظيفة' : 'Occupation'}</label>
                                     <select value={userData.occupation_status} onChange={(e) => setUserData({...userData, occupation_status: e.target.value})}>
                                         <option value="">{isArabic ? 'اختر الوظيفة' : 'Select occupation'}</option>
                                         <option value="Student">{isArabic ? 'طالب' : 'Student'}</option>
-                                        <option value="Full-Time">{isArabic ? 'موظف بدوام كامل' : 'Full-Time Employee'}</option>
+                                        <option value="Full-Time">{isArabic ? 'موظف' : 'Full-Time'}</option>
                                         <option value="Freelancer">{isArabic ? 'عمل حر' : 'Freelancer'}</option>
                                         <option value="Other">{isArabic ? 'أخرى' : 'Other'}</option>
                                     </select>
@@ -1089,76 +1094,95 @@ function ProfileManager({ isAuthReady }) {
                                 <div className="field-group">
                                     <label>{isArabic ? 'الوزن الحالي' : 'Current Weight'}</label>
                                     <div className="input-with-unit">
-                                        <input type="number" step="0.1" value={userData.initial_weight} onChange={(e) => setUserData({...userData, initial_weight: e.target.value})} placeholder={isArabic ? 'مثال: 75' : 'e.g., 75'} />
+                                        <input type="number" step="0.1" value={userData.initial_weight} onChange={(e) => setUserData({...userData, initial_weight: e.target.value})} />
                                         <span className="unit">kg</span>
                                     </div>
                                 </div>
                                 <div className="field-group">
                                     <label>{isArabic ? 'الطول' : 'Height'}</label>
                                     <div className="input-with-unit">
-                                        <input type="number" step="0.1" value={userData.height} onChange={(e) => setUserData({...userData, height: e.target.value})} placeholder={isArabic ? 'مثال: 175' : 'e.g., 175'} />
+                                        <input type="number" step="0.1" value={userData.height} onChange={(e) => setUserData({...userData, height: e.target.value})} />
                                         <span className="unit">cm</span>
                                     </div>
                                 </div>
                                 <div className="field-group">
                                     <label>🎯 {isArabic ? 'الهدف الصحي' : 'Health Goal'}</label>
                                     <select value={userData.health_goal} onChange={(e) => setUserData({...userData, health_goal: e.target.value})}>
-                                        <option value="">{isArabic ? 'اختر هدفك الصحي' : 'Select your health goal'}</option>
-                                        <option value="loss">{isArabic ? '🔻 خسارة وزن' : '🔻 Weight Loss'}</option>
-                                        <option value="gain">{isArabic ? '🔺 زيادة وزن' : '🔺 Weight Gain'}</option>
-                                        <option value="maintain">{isArabic ? '⚖️ تثبيت الوزن' : '⚖️ Weight Maintenance'}</option>
+                                        <option value="">{isArabic ? 'اختر هدفك' : 'Select goal'}</option>
+                                        <option value="loss">{isArabic ? 'خسارة وزن' : 'Weight Loss'}</option>
+                                        <option value="gain">{isArabic ? 'زيادة وزن' : 'Weight Gain'}</option>
+                                        <option value="maintain">{isArabic ? 'تثبيت الوزن' : 'Maintain'}</option>
                                     </select>
                                 </div>
                                 <div className="field-group">
                                     <label>🏃 {isArabic ? 'مستوى النشاط' : 'Activity Level'}</label>
                                     <select value={userData.activity_level} onChange={(e) => setUserData({...userData, activity_level: e.target.value})}>
-                                        <option value="">{isArabic ? 'اختر مستوى نشاطك' : 'Select your activity level'}</option>
-                                        <option value="low">{isArabic ? '🪑 منخفض (قليل الحركة)' : '🪑 Low (Sedentary)'}</option>
-                                        <option value="medium">{isArabic ? '🚶 متوسط (حركة معتدلة)' : '🚶 Medium (Moderate)'}</option>
-                                        <option value="high">{isArabic ? '🏃 عالي (نشيط جداً)' : '🏃 High (Very active)'}</option>
+                                        <option value="">{isArabic ? 'اختر المستوى' : 'Select level'}</option>
+                                        <option value="low">{isArabic ? 'منخفض' : 'Low'}</option>
+                                        <option value="medium">{isArabic ? 'متوسط' : 'Medium'}</option>
+                                        <option value="high">{isArabic ? 'عالي' : 'High'}</option>
                                     </select>
                                 </div>
                                 <div className="field-group full-width">
-                                    <label>🩺 {isArabic ? 'أمراض مزمنة (اختياري)' : 'Chronic Conditions (Optional)'}</label>
-                                    <textarea 
-                                        value={userData.chronic_conditions} 
-                                        onChange={(e) => setUserData({...userData, chronic_conditions: e.target.value})}
-                                        placeholder={isArabic ? 'مثال: ضغط الدم، السكري، الربو...' : 'e.g., Diabetes, High blood pressure, Asthma...'}
-                                        rows="2"
-                                    />
+                                    <label>🩺 {isArabic ? 'أمراض مزمنة' : 'Chronic Conditions'}</label>
+                                    <textarea value={userData.chronic_conditions} onChange={(e) => setUserData({...userData, chronic_conditions: e.target.value})} rows="2" />
                                 </div>
                                 <div className="field-group full-width">
-                                    <label>💊 {isArabic ? 'أدوية حالية (اختياري)' : 'Current Medications (Optional)'}</label>
-                                    <textarea 
-                                        value={userData.current_medications} 
-                                        onChange={(e) => setUserData({...userData, current_medications: e.target.value})}
-                                        placeholder={isArabic ? 'مثال: لانتوس، ميتفورمين...' : 'e.g., Metformin, Insulin...'}
-                                        rows="2"
-                                    />
+                                    <label>💊 {isArabic ? 'أدوية حالية' : 'Current Medications'}</label>
+                                    <textarea value={userData.current_medications} onChange={(e) => setUserData({...userData, current_medications: e.target.value})} rows="2" />
                                 </div>
                             </div>
                         </div>
                         
-                        {/* Password Change */}
+                        {/* Password Change with Show/Hide */}
                         <div className="form-section">
                             <h3>🔐 {isArabic ? 'تغيير كلمة المرور' : 'Change Password'}</h3>
                             <div className="form-grid">
                                 <div className="field-group">
                                     <label>{isArabic ? 'كلمة المرور الحالية' : 'Current Password'}</label>
-                                    <input type="password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} />
+                                    <div className="password-input-wrapper">
+                                        <input 
+                                            type={showCurrentPassword ? "text" : "password"} 
+                                            value={passwordData.current_password} 
+                                            onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})}
+                                            placeholder={isArabic ? 'أدخل كلمة المرور الحالية' : 'Enter current password'}
+                                        />
+                                        <button type="button" className="password-toggle" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
+                                            {showCurrentPassword ? '🙈' : '👁️'}
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="field-group">
                                     <label>{isArabic ? 'كلمة المرور الجديدة' : 'New Password'}</label>
-                                    <input type="password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} />
-                                    <small>{isArabic ? '8 أحرف على الأقل' : 'Minimum 8 characters'}</small>
+                                    <div className="password-input-wrapper">
+                                        <input 
+                                            type={showNewPassword ? "text" : "password"} 
+                                            value={passwordData.new_password} 
+                                            onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})}
+                                            placeholder={isArabic ? '8 أحرف على الأقل' : 'Minimum 8 characters'}
+                                        />
+                                        <button type="button" className="password-toggle" onClick={() => setShowNewPassword(!showNewPassword)}>
+                                            {showNewPassword ? '🙈' : '👁️'}
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="field-group">
-                                    <label>{isArabic ? 'تأكيد كلمة المرور الجديدة' : 'Confirm New Password'}</label>
-                                    <input type="password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} />
+                                    <label>{isArabic ? 'تأكيد كلمة المرور' : 'Confirm Password'}</label>
+                                    <div className="password-input-wrapper">
+                                        <input 
+                                            type={showConfirmPassword ? "text" : "password"} 
+                                            value={passwordData.confirm_password} 
+                                            onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})}
+                                            placeholder={isArabic ? 'أعد كتابة كلمة المرور الجديدة' : 'Retype new password'}
+                                        />
+                                        <button type="button" className="password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                                            {showConfirmPassword ? '🙈' : '👁️'}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             <button type="button" onClick={handleChangePassword} disabled={changingPassword} className="submit-btn secondary" style={{ marginTop: '1rem' }}>
-                                {changingPassword ? (isArabic ? '🔄 جاري التغيير...' : '🔄 Changing...') : (isArabic ? '🔑 تغيير كلمة المرور' : '🔑 Change Password')}
+                                {changingPassword ? (isArabic ? '🔄 جاري...' : '🔄 Changing...') : (isArabic ? '🔑 تغيير' : '🔑 Change')}
                             </button>
                         </div>
                         
@@ -1171,36 +1195,33 @@ function ProfileManager({ isAuthReady }) {
                 {/* ==================== Goals Tab ==================== */}
                 {activeTab === 'goals' && (
                     <div className="goals-container">
-                        {/* Add New Goal */}
                         <div className="add-goal-card">
                             <h3>🎯 {isArabic ? 'أضف هدفاً جديداً' : 'Add New Goal'}</h3>
                             <form onSubmit={handleAddGoal} className="add-goal-form">
                                 <div className="form-grid">
                                     <div className="field-group">
                                         <label>{isArabic ? 'عنوان الهدف' : 'Goal Title'}</label>
-                                        <input type="text" value={newGoal.title} onChange={(e) => setNewGoal({...newGoal, title: e.target.value})} placeholder={isArabic ? 'مثال: خسارة 5 كجم' : 'e.g., Lose 5 kg'} />
+                                        <input type="text" value={newGoal.title} onChange={(e) => setNewGoal({...newGoal, title: e.target.value})} />
                                     </div>
                                     <div className="field-group">
                                         <label>{isArabic ? 'نوع الهدف' : 'Goal Type'}</label>
                                         <select value={newGoal.type} onChange={(e) => setNewGoal({...newGoal, type: e.target.value})}>
-                                            <option value="general">{isArabic ? '📋 عام' : '📋 General'}</option>
-                                            <option value="weight_loss">{isArabic ? '⚖️ خسارة وزن' : '⚖️ Weight Loss'}</option>
-                                            <option value="weight_gain">{isArabic ? '⚖️ زيادة وزن' : '⚖️ Weight Gain'}</option>
-                                            <option value="sleep">{isArabic ? '😴 نوم' : '😴 Sleep'}</option>
-                                            <option value="activity">{isArabic ? '🏃 نشاط' : '🏃 Activity'}</option>
-                                            <option value="calories">{isArabic ? '🍎 سعرات' : '🍎 Calories'}</option>
-                                            <option value="habit">{isArabic ? '✅ عادة' : '✅ Habit'}</option>
+                                            <option value="general">{isArabic ? 'عام' : 'General'}</option>
+                                            <option value="weight_loss">{isArabic ? 'خسارة وزن' : 'Weight Loss'}</option>
+                                            <option value="weight_gain">{isArabic ? 'زيادة وزن' : 'Weight Gain'}</option>
+                                            <option value="sleep">{isArabic ? 'نوم' : 'Sleep'}</option>
+                                            <option value="activity">{isArabic ? 'نشاط' : 'Activity'}</option>
+                                            <option value="habit">{isArabic ? 'عادة' : 'Habit'}</option>
                                         </select>
                                     </div>
                                     <div className="field-group">
                                         <label>{isArabic ? 'القيمة المستهدفة' : 'Target Value'}</label>
                                         <div className="input-with-unit">
-                                            <input type="number" step="0.1" value={newGoal.target_value} onChange={(e) => setNewGoal({...newGoal, target_value: e.target.value})} placeholder={isArabic ? 'مثال: 70' : 'e.g., 70'} />
+                                            <input type="number" step="0.1" value={newGoal.target_value} onChange={(e) => setNewGoal({...newGoal, target_value: e.target.value})} />
                                             <select value={newGoal.unit} onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})} className="unit-select">
                                                 <option value="kg">kg</option>
                                                 <option value="hours">{isArabic ? 'ساعات' : 'hours'}</option>
-                                                <option value="minutes">{isArabic ? 'دقائق' : 'minutes'}</option>
-                                                <option value="calories">{isArabic ? 'سعرة' : 'cal'}</option>
+                                                <option value="minutes">{isArabic ? 'دقائق' : 'min'}</option>
                                                 <option value="percent">%</option>
                                             </select>
                                         </div>
@@ -1211,20 +1232,18 @@ function ProfileManager({ isAuthReady }) {
                                     </div>
                                 </div>
                                 <button type="submit" disabled={saving} className="submit-btn">
-                                    {saving ? (isArabic ? '➕ جاري الإضافة...' : '➕ Adding...') : (isArabic ? '➕ أضف الهدف' : '➕ Add Goal')}
+                                    {saving ? (isArabic ? '➕ جاري...' : '➕ Adding...') : (isArabic ? '➕ أضف' : '➕ Add')}
                                 </button>
                             </form>
                         </div>
                         
-                        {/* Goals Stats */}
                         <div className="stats-grid">
-                            <div className="stat-card"><div className="stat-value">{goalsStats.total}</div><div className="stat-label">{isArabic ? 'إجمالي الأهداف' : 'Total Goals'}</div></div>
+                            <div className="stat-card"><div className="stat-value">{goalsStats.total}</div><div className="stat-label">{isArabic ? 'إجمالي الأهداف' : 'Total'}</div></div>
                             <div className="stat-card success"><div className="stat-value">{goalsStats.completed}</div><div className="stat-label">{isArabic ? 'مكتملة' : 'Completed'}</div></div>
                             <div className="stat-card warning"><div className="stat-value">{goalsStats.inProgress}</div><div className="stat-label">{isArabic ? 'قيد التقدم' : 'In Progress'}</div></div>
-                            <div className="stat-card info"><div className="stat-value">{goalsStats.avgProgress}%</div><div className="stat-label">{isArabic ? 'متوسط التقدم' : 'Avg Progress'}</div></div>
+                            <div className="stat-card info"><div className="stat-value">{goalsStats.avgProgress}%</div><div className="stat-label">{isArabic ? 'متوسط التقدم' : 'Progress'}</div></div>
                         </div>
                         
-                        {/* Goals List */}
                         <div className="goals-list">
                             <h3>📋 {isArabic ? 'أهدافي' : 'My Goals'}</h3>
                             {healthGoals.length > 0 ? (
@@ -1238,21 +1257,24 @@ function ProfileManager({ isAuthReady }) {
                                                 <div className="goal-header">
                                                     <div className="goal-title">
                                                         <h4>{goal.title}</h4>
-                                                        <span className="goal-type">{progressData.currentValue} / {goal.target_value} {goal.unit}</span>
+                                                        <span className="goal-type">{progressData.currentValue} / {progressData.targetValue} {goal.unit}</span>
                                                     </div>
-                                                    <button onClick={() => deleteGoal(goal.id)} className="delete-goal-btn" title={isArabic ? 'حذف' : 'Delete'}>🗑️</button>
+                                                    <button onClick={() => deleteGoal(goal.id)} className="delete-goal-btn">🗑️</button>
                                                 </div>
                                                 <div className="goal-progress">
-                                                    <div className="progress-bar"><div className="progress-fill" style={{ width: `${progressData.progress}%`, background: isCompleted ? '#10b981' : '#667eea' }}></div></div>
+                                                    <div className="progress-bar"><div className="progress-fill" style={{ width: `${progressData.progress}%` }}></div></div>
                                                     <div className="progress-percent">{progressData.progress}%</div>
                                                 </div>
-                                                {isCompleted && <div className="goal-status achieved">🏆 {isArabic ? 'تم تحقيق الهدف' : 'Achieved'}</div>}
+                                                {isCompleted && <div className="goal-status achieved">🏆 {isArabic ? 'تم' : 'Achieved'}</div>}
+                                                {!isCompleted && progressData.progress > 0 && progressData.progress < 100 && (
+                                                    <div className="goal-status on-track">📈 {isArabic ? 'قيد التقدم' : 'In Progress'}</div>
+                                                )}
                                             </div>
                                         );
                                     })}
                                 </div>
                             ) : (
-                                <div className="empty-state"><div className="empty-icon">🎯</div><h4>{isArabic ? 'لا توجد أهداف' : 'No Goals'}</h4><p>{isArabic ? 'أضف هدفك الأول أعلاه لتبدأ رحلتك الصحية' : 'Add your first goal above to start your health journey'}</p></div>
+                                <div className="empty-state"><div className="empty-icon">🎯</div><h4>{isArabic ? 'لا توجد أهداف' : 'No Goals'}</h4></div>
                             )}
                         </div>
                     </div>
@@ -1261,55 +1283,43 @@ function ProfileManager({ isAuthReady }) {
                 {/* ==================== Settings Tab ==================== */}
                 {activeTab === 'settings' && (
                     <div className="settings-container">
-                        {/* General Settings */}
                         <div className="settings-section">
                             <h3>⚙️ {isArabic ? 'الإعدادات العامة' : 'General Settings'}</h3>
                             <div className="setting-item">
-                                <div><label>{isArabic ? '🔔 الإشعارات' : '🔔 Notifications'}</label><p>{isArabic ? 'تلقي إشعارات وتذكيرات صحية' : 'Receive health notifications and reminders'}</p></div>
+                                <div><label>{isArabic ? '🔔 الإشعارات' : 'Notifications'}</label></div>
                                 <label className="toggle-switch"><input type="checkbox" checked={settings.notifications} onChange={(e) => setSettings({...settings, notifications: e.target.checked})} /><span className="toggle-slider"></span></label>
                             </div>
                             <div className="setting-item">
-                                <div><label>{isArabic ? '🌙 الوضع الليلي' : '🌙 Dark Mode'}</label><p>{isArabic ? 'تغيير مظهر التطبيق إلى الوضع المظلم' : 'Change app appearance to dark mode'}</p></div>
+                                <div><label>{isArabic ? '🌙 الوضع الليلي' : 'Dark Mode'}</label></div>
                                 <label className="toggle-switch"><input type="checkbox" checked={darkMode} onChange={() => setDarkMode(!darkMode)} /><span className="toggle-slider"></span></label>
                             </div>
-                            <div className="setting-item">
-                                <div><label>{isArabic ? '🔐 الخصوصية' : '🔐 Privacy'}</label><p>{isArabic ? 'مشاركة البيانات مع التطبيق لتحسين التوصيات' : 'Share data with the app to improve recommendations'}</p></div>
-                                <label className="toggle-switch"><input type="checkbox" checked={settings.privacy?.shareData} onChange={(e) => setSettings({...settings, privacy: {...settings.privacy, shareData: e.target.checked}})} /><span className="toggle-slider"></span></label>
-                            </div>
-                            <button onClick={handleSaveSettings} disabled={saving} className="submit-btn secondary">{saving ? (isArabic ? '💾 جاري الحفظ...' : '💾 Saving...') : (isArabic ? '💾 حفظ الإعدادات' : '💾 Save Settings')}</button>
+                            <button onClick={handleSaveSettings} disabled={saving} className="submit-btn secondary">{saving ? (isArabic ? '💾 جاري...' : '💾 Saving...') : (isArabic ? '💾 حفظ' : '💾 Save')}</button>
                         </div>
                         
-                        {/* Backup Section (only backup, removed export data) */}
                         <div className="settings-section">
                             <h3>💾 {isArabic ? 'النسخ الاحتياطي' : 'Backup'}</h3>
                             <div className="backup-grid">
                                 <div className="backup-card primary">
                                     <div className="backup-icon">📦</div>
                                     <div className="backup-content">
-                                        <h4>{isArabic ? 'نسخة احتياطية كاملة' : 'Full Backup'}</h4>
-                                        <p>{isArabic ? 'إنشاء نسخة احتياطية لجميع بياناتك' : 'Create backup of all your data'}</p>
-                                        <button onClick={handleFullBackup} disabled={exporting} className="backup-btn">{exporting ? (isArabic ? '⏳ جاري...' : '⏳ Loading...') : (isArabic ? '📥 تحميل النسخة' : '📥 Download Backup')}</button>
+                                        <h4>{isArabic ? 'نسخة احتياطية' : 'Full Backup'}</h4>
+                                        <button onClick={handleFullBackup} disabled={exporting} className="backup-btn">{exporting ? (isArabic ? '⏳...' : '⏳...') : (isArabic ? '📥 تحميل' : '📥 Download')}</button>
                                     </div>
                                 </div>
                                 <div className="backup-card secondary">
                                     <div className="backup-icon">🔄</div>
                                     <div className="backup-content">
-                                        <h4>{isArabic ? 'استعادة نسخة احتياطية' : 'Restore Backup'}</h4>
-                                        <p>{isArabic ? 'استعادة بيانات من نسخة احتياطية سابقة' : 'Restore data from previous backup'}</p>
+                                        <h4>{isArabic ? 'استعادة' : 'Restore'}</h4>
                                         <input type="file" accept=".json" onChange={handleRestoreBackup} id="restore-file" style={{ display: 'none' }} />
-                                        <label htmlFor="restore-file" className="backup-btn restore">📂 {isArabic ? 'اختيار ملف' : 'Select File'}</label>
+                                        <label htmlFor="restore-file" className="backup-btn restore">📂 {isArabic ? 'اختيار' : 'Select'}</label>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
-                        {/* Danger Zone */}
                         <div className="settings-section danger-zone">
                             <h4>⚠️ {isArabic ? 'منطقة الخطر' : 'Danger Zone'}</h4>
-                            <p>{isArabic ? 'هذه الإجراءات لا يمكن التراجع عنها' : 'These actions cannot be undone'}</p>
-                            <div className="danger-actions">
-                                <button onClick={handleDeleteAccount} disabled={deleting} className="danger-btn error">🗑️ {isArabic ? 'حذف الحساب' : 'Delete Account'}</button>
-                            </div>
+                            <button onClick={handleDeleteAccount} disabled={deleting} className="danger-btn error">🗑️ {isArabic ? 'حذف الحساب' : 'Delete Account'}</button>
                         </div>
                     </div>
                 )}
@@ -1335,11 +1345,8 @@ function ProfileManager({ isAuthReady }) {
                 .health-stat { background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 12px; text-align: center; }
                 .stat-value { font-size: 1.8rem; font-weight: bold; margin: 0.5rem 0; }
                 .stat-sub { font-size: 0.8rem; opacity: 0.9; }
-                .stat-advice { font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.8; }
                 .progress-bar { height: 6px; background: rgba(255,255,255,0.3); border-radius: 10px; overflow: hidden; margin: 0.5rem 0; }
-                .progress-fill { height: 100%; border-radius: 10px; transition: width 0.3s; }
-                .stat-details { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.5rem; justify-content: center; }
-                .detail-badge { background: rgba(255,255,255,0.2); padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.7rem; }
+                .progress-fill { height: 100%; border-radius: 10px; transition: width 0.3s; background: #10b981; }
                 .recommendations-box { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem; margin-top: 1rem; }
                 .rec-header { font-weight: bold; margin-bottom: 0.75rem; }
                 .recommendations-list { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1359,6 +1366,9 @@ function ProfileManager({ isAuthReady }) {
                 .field-group label { font-weight: 500; color: #555; font-size: 0.85rem; }
                 .field-group input, .field-group select, .field-group textarea { padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; transition: all 0.2s; }
                 .field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
+                .password-input-wrapper { position: relative; display: flex; align-items: center; }
+                .password-input-wrapper input { flex: 1; padding-right: 45px; }
+                .password-toggle { position: absolute; right: 8px; background: transparent; border: none; cursor: pointer; font-size: 1.1rem; padding: 0.25rem; }
                 .input-with-unit { position: relative; display: flex; align-items: center; }
                 .input-with-unit input { flex: 1; padding-right: 70px; }
                 .input-with-unit .unit { position: absolute; right: 12px; color: #999; }
@@ -1371,32 +1381,33 @@ function ProfileManager({ isAuthReady }) {
                 .add-goal-card h3 { color: white; margin-bottom: 1rem; }
                 .add-goal-form .field-group label { color: rgba(255,255,255,0.9); }
                 .add-goal-form input, .add-goal-form select { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: white; }
-                .add-goal-form input::placeholder { color: rgba(255,255,255,0.6); }
                 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
                 .stat-card { background: white; padding: 1rem; border-radius: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
                 .stat-card.success .stat-value { color: #10b981; }
                 .stat-card.warning .stat-value { color: #f59e0b; }
                 .stat-card.info .stat-value { color: #667eea; }
+                .stat-value { font-size: 1.5rem; font-weight: bold; }
+                .stat-label { font-size: 0.7rem; color: #666; }
                 .goals-list h3 { margin-bottom: 1rem; color: #333; }
-                .goals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem; }
+                .goals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
                 .goal-card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s; }
                 .goal-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-                .goal-card.completed { opacity: 0.8; background: #f0fdf4; }
-                .goal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
-                .goal-title h4 { margin: 0; font-size: 1rem; }
-                .goal-type { font-size: 0.8rem; color: #666; }
-                .delete-goal-btn { background: transparent; border: none; font-size: 1.2rem; cursor: pointer; opacity: 0.6; transition: opacity 0.2s; }
+                .goal-card.completed { background: #f0fdf4; }
+                .goal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+                .goal-title h4 { margin: 0; font-size: 0.95rem; }
+                .goal-type { font-size: 0.7rem; color: #666; }
+                .delete-goal-btn { background: transparent; border: none; font-size: 1rem; cursor: pointer; opacity: 0.6; }
                 .delete-goal-btn:hover { opacity: 1; }
-                .goal-progress { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
-                .goal-progress .progress-bar { flex: 1; background: #e0e0e0; }
-                .goal-status { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem; font-weight: 500; }
+                .goal-progress { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+                .goal-progress .progress-bar { flex: 1; background: #e0e0e0; height: 6px; border-radius: 10px; overflow: hidden; }
+                .goal-progress .progress-fill { height: 100%; border-radius: 10px; transition: width 0.3s; }
+                .goal-status { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.65rem; font-weight: 500; }
                 .goal-status.achieved { background: #d1fae5; color: #065f46; }
+                .goal-status.on-track { background: #dbeafe; color: #1e40af; }
                 .settings-section { background: white; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
                 .settings-section h3 { margin-bottom: 1rem; color: #333; }
                 .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid #eee; }
                 .setting-item:last-child { border-bottom: none; }
-                .setting-item label { font-weight: 500; }
-                .setting-item p { font-size: 0.75rem; color: #666; margin-top: 0.25rem; }
                 .toggle-switch { position: relative; display: inline-block; width: 50px; height: 24px; }
                 .toggle-switch input { opacity: 0; width: 0; height: 0; }
                 .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.3s; border-radius: 24px; }
@@ -1407,27 +1418,25 @@ function ProfileManager({ isAuthReady }) {
                 .backup-card { display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 12px; }
                 .backup-card.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
                 .backup-card.secondary { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
-                .backup-icon { font-size: 2rem; }
-                .backup-content h4 { margin: 0 0 0.25rem 0; }
-                .backup-content p { font-size: 0.75rem; margin-bottom: 0.5rem; opacity: 0.9; }
-                .backup-btn { background: white; border: none; padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.75rem; cursor: pointer; font-weight: 500; display: inline-block; }
+                .backup-icon { font-size: 1.8rem; }
+                .backup-content h4 { margin: 0; font-size: 0.9rem; }
+                .backup-btn { background: white; border: none; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem; cursor: pointer; }
                 .backup-card.primary .backup-btn { color: #667eea; }
                 .backup-card.secondary .backup-btn { color: #f5576c; }
-                .danger-zone { border: 2px solid #ef4444; background: rgba(239,68,68,0.05); }
+                .danger-zone { border: 2px solid #ef4444; background: rgba(239,68,68,0.05); margin-top: 1rem; }
                 .danger-zone h4 { color: #ef4444; margin-bottom: 0.5rem; }
-                .danger-actions { display: flex; gap: 1rem; margin-top: 1rem; }
                 .danger-btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
                 .danger-btn.error { background: #ef4444; color: white; }
-                .notification-message { position: fixed; top: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: 12px; display: flex; align-items: center; gap: 1rem; z-index: 1000; animation: slideIn 0.3s ease; }
+                .notification-message { position: fixed; top: 20px; right: 20px; padding: 0.75rem 1.25rem; border-radius: 10px; display: flex; align-items: center; gap: 1rem; z-index: 1000; animation: slideIn 0.3s ease; }
                 .notification-message.success { background: #10b981; color: white; }
                 .notification-message.error { background: #ef4444; color: white; }
                 .notification-message.info { background: #667eea; color: white; }
-                .notification-message button { background: transparent; border: none; color: white; cursor: pointer; font-size: 1.2rem; }
+                .notification-message button { background: transparent; border: none; color: white; cursor: pointer; }
                 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-                .empty-state { text-align: center; padding: 3rem; background: white; border-radius: 16px; }
-                .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
-                .analytics-loading { text-align: center; padding: 3rem; }
-                .spinner { width: 40px; height: 40px; border: 3px solid #f0f0f0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+                .empty-state { text-align: center; padding: 2rem; background: white; border-radius: 12px; }
+                .empty-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+                .analytics-loading { text-align: center; padding: 2rem; }
+                .spinner { width: 40px; height: 40px; border: 3px solid #f0f0f0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto; }
                 @keyframes spin { to { transform: rotate(360deg); } }
                 .dark-theme { background: #1a1a2e; }
                 .dark-theme .form-section, .dark-theme .stat-card, .dark-theme .goal-card, .dark-theme .settings-section, .dark-theme .empty-state { background: #16213e; color: #eee; }
@@ -1440,12 +1449,12 @@ function ProfileManager({ isAuthReady }) {
                     .field-group.full-width { grid-column: span 1; }
                     .goals-grid { grid-template-columns: 1fr; }
                     .analytics-tabs { flex-wrap: wrap; }
-                    .type-btn { flex: 1; text-align: center; }
-                    .danger-actions { flex-direction: column; }
+                    .type-btn { flex: 1; text-align: center; padding: 0.5rem; }
                 }
                 [dir="rtl"] .input-with-unit input { padding-right: 12px; padding-left: 70px; }
                 [dir="rtl"] .input-with-unit .unit, [dir="rtl"] .unit-select { right: auto; left: 12px; }
                 [dir="rtl"] .priority-high, [dir="rtl"] .priority-medium, [dir="rtl"] .priority-low { border-right: none; border-left: 3px solid; }
+                [dir="rtl"] .password-toggle { right: auto; left: 8px; }
             `}</style>
         </div>
     );
