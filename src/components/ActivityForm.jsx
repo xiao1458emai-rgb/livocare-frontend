@@ -352,32 +352,34 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
     }, [formData, isArabic]);
     
     // ✅ إرسال النموذج
-    const handleSubmit = useCallback(async (e) => {
-        e.preventDefault();
-        
-        if (isSubmittingRef.current || !isMountedRef.current) return;
-        
-        setLoading(true);
-        setError(null);
-        setMessage('');
-        
-        const validationError = validateFormData();
-        if (validationError) {
-            if (isMountedRef.current) setError(validationError);
-            setLoading(false);
-            return;
-        }
-        
-        isSubmittingRef.current = true;
-        
-        const calculatedCalories = calculateCalories(formData.activity_type, formData.duration_minutes);
-        const dataToSend = {
-            activity_type: formData.activity_type,
-            duration_minutes: parseInt(formData.duration_minutes),
-            start_time: formData.start_time || new Date().toISOString().slice(0, 16),
-            calories_burned: calculatedCalories,
-            notes: formData.notes
-        };
+const handleSubmit = useCallback(async (e) => {
+    e.preventDefault();
+    
+    if (isSubmittingRef.current || !isMountedRef.current) return;
+    
+    setLoading(true);
+    setError(null);
+    setMessage('');
+    
+    const validationError = validateFormData();
+    if (validationError) {
+        if (isMountedRef.current) setError(validationError);
+        setLoading(false);
+        return;
+    }
+    
+    isSubmittingRef.current = true;
+    
+    // Use manually entered calories if provided, otherwise auto-calculate
+    const calculatedCalories = formData.calories_burned || calculateCalories(formData.activity_type, formData.duration_minutes);
+    const dataToSend = {
+        activity_type: formData.activity_type,
+        duration_minutes: parseInt(formData.duration_minutes),
+        start_time: formData.start_time || new Date().toISOString().slice(0, 16),
+        calories_burned: calculatedCalories,
+        notes: formData.notes
+    };
+
         
         try {
             let response;
@@ -425,14 +427,15 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
     }, [isArabic]);
     
     // ✅ إعادة تعيين النموذج
-    const resetForm = useCallback(() => {
-        setFormData({
-            activity_type: '',
-            duration_minutes: '',
-            start_time: '',
-            notes: ''
-        });
-    }, []);
+const resetForm = useCallback(() => {
+    setFormData({
+        activity_type: '',
+        duration_minutes: '',
+        start_time: '',
+        notes: '',
+        calories_burned: null  // Add this field
+    });
+}, []);
     
     // ✅ الاتصال بالمستشعر
     const connectSensor = useCallback(async () => {
@@ -690,14 +693,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                         )}
                         
                         <div className="sensor-actions">
-                            <button onClick={requestMeasurement} disabled={loading} className="sensor-action-btn measure">
-                                📊 {isArabic ? 'طلب قياس' : 'Request Measurement'}
-                            </button>
                             <button onClick={addSensorDataAsHealthRecord} disabled={loading || (!sensorHeartRate && !sensorSpO2)} className="sensor-action-btn health">
                                 💾 {isArabic ? 'حفظ كقراءة صحية' : 'Save as Health Record'}
-                            </button>
-                            <button onClick={addSensorDataAsActivity} disabled={loading || (!sensorHeartRate && !sensorSpO2)} className="sensor-action-btn activity">
-                                ➕ {isArabic ? 'إضافة كنشاط' : 'Add as Activity'}
                             </button>
                         </div>
                     </div>
@@ -785,18 +782,33 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                         </div>
                     </div>
                     
-                    {formData.activity_type && formData.duration_minutes && (
-                        <div className="calories-card">
-                            <div className="calories-icon">🔥</div>
-                            <div className="calories-details">
-                                <div className="calories-label">{isArabic ? 'السعرات الحرارية المقدرة' : 'Estimated Calories Burned'}</div>
-                                <div className="calories-value">
-                                    {calculateCalories(formData.activity_type, formData.duration_minutes)}
-                                    <span className="calories-unit">{isArabic ? 'سعرة' : 'kcal'}</span>
+                        {formData.activity_type && formData.duration_minutes && (
+                            <div className="calories-card">
+                                <div className="calories-icon">🔥</div>
+                                <div className="calories-details">
+                                    <div className="calories-label">{isArabic ? 'السعرات الحرارية' : 'Calories Burned'}</div>
+                                    <div className="calories-input-wrapper">
+                                        <input 
+                                            type="number" 
+                                            name="calories_burned"
+                                            value={formData.calories_burned || calculateCalories(formData.activity_type, formData.duration_minutes)}
+                                            onChange={(e) => {
+                                                const value = parseInt(e.target.value) || 0;
+                                                setFormData(prev => ({ ...prev, calories_burned: value }));
+                                            }}
+                                            min="0"
+                                            max="5000"
+                                            step="5"
+                                            className="calories-input"
+                                        />
+                                        <span className="calories-unit">{isArabic ? 'سعرة' : 'kcal'}</span>
+                                    </div>
+                                    <div className="calories-auto-hint">
+                                        <small>{isArabic ? '↻ محسوب تلقائياً، يمكنك تعديله' : '↻ Auto-calculated, editable'}</small>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
                     
                     <div className="form-group">
                         <label className="form-label">{isArabic ? 'ملاحظات (اختياري)' : 'Notes (Optional)'}</label>
@@ -1576,6 +1588,39 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                 [dir="rtl"] .form-actions {
                     flex-direction: row-reverse;
                 }
+                    .calories-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.calories-input {
+    width: 120px;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 8px;
+    background: var(--input-bg, #ffffff);
+    color: var(--text-primary, #0f172a);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.calories-input:focus {
+    outline: none;
+    border-color: #6366f1;
+    ring: 2px solid rgba(99, 102, 241, 0.2);
+}
+
+.calories-auto-hint {
+    margin-top: 0.25rem;
+}
+
+.calories-auto-hint small {
+    font-size: 0.65rem;
+    opacity: 0.7;
+}
             `}</style>
         </div>
     );
