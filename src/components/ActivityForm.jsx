@@ -145,7 +145,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
         };
     }, []);
     
-    // ✅ استماع لبيانات ESP32
+        // ✅ استماع لبيانات ESP32
+    // ✅ استماع لبيانات ESP32 - معدل لتعبئة النموذج
     useEffect(() => {
         const handleESP32Data = (type, data) => {
             if (!isMountedRef.current) return;
@@ -159,6 +160,13 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     setSensorActive(true);
                     setSensorStatus('connected');
                     setSensorError(null);
+                    
+                    // ✅ تعبئة حقل الملاحظات تلقائياً مع قراءة النبض
+                    const heartRateNote = isArabic ? `النبض: ${data} BPM` : `Heart rate: ${data} BPM`;
+                    setFormData(prev => ({
+                        ...prev,
+                        notes: prev.notes ? `${prev.notes} - ${heartRateNote}` : heartRateNote
+                    }));
                     
                     if (data > 100) {
                         addSensorAlert(isArabic ? `⚠️ نبض مرتفع: ${data} BPM` : `⚠️ High heart rate: ${data} BPM`, 'error');
@@ -175,6 +183,13 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     setSensorStatus('connected');
                     setSensorError(null);
                     
+                    // ✅ تعبئة حقل الملاحظات تلقائياً مع قراءة الأكسجين
+                    const spo2Note = isArabic ? `الأكسجين: ${data}%` : `Oxygen: ${data}%`;
+                    setFormData(prev => ({
+                        ...prev,
+                        notes: prev.notes ? `${prev.notes} - ${spo2Note}` : spo2Note
+                    }));
+                    
                     if (data < 90 && data > 0) {
                         addSensorAlert(isArabic ? `⚠️ أكسجين منخفض: ${data}%` : `⚠️ Low oxygen: ${data}%`, 'error');
                     }
@@ -188,6 +203,24 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
                     setSensorActive(true);
                     setSensorStatus('connected');
                     setSensorError(null);
+                    
+                    // ✅ تعبئة حقل الملاحظات تلقائياً ببيانات المستشعر
+                    let sensorNotes = [];
+                    if (data.heartRate) sensorNotes.push(isArabic ? `النبض: ${data.heartRate} BPM` : `Heart rate: ${data.heartRate} BPM`);
+                    if (data.spo2) sensorNotes.push(isArabic ? `الأكسجين: ${data.spo2}%` : `Oxygen: ${data.spo2}%`);
+                    
+                    if (sensorNotes.length > 0) {
+                        setFormData(prev => ({
+                            ...prev,
+                            notes: prev.notes ? `${prev.notes} - ${sensorNotes.join(' - ')}` : sensorNotes.join(' - ')
+                        }));
+                    }
+                    
+                    // ✅ عرض رسالة للمستخدم بأن البيانات جاهزة
+                    showTemporaryMessage(
+                        isArabic ? '✅ تم استلام بيانات المستشعر، يمكنك إضافتها كنشاط' : '✅ Sensor data received, you can add it as an activity',
+                        'success'
+                    );
                     break;
                     
                 case 'connected':
@@ -693,7 +726,36 @@ const resetForm = useCallback(() => {
                         )}
                         
                         <div className="sensor-actions">
-                            <button onClick={addSensorDataAsHealthRecord} disabled={loading || (!sensorHeartRate && !sensorSpO2)} className="sensor-action-btn health">
+                            <button 
+                                onClick={() => {
+                                    // تعبئة نوع النشاط مبدئياً
+                                    if (sensorHeartRate || sensorSpO2) {
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            activity_type: 'walking',
+                                            duration_minutes: '30',
+                                            start_time: new Date().toISOString().slice(0, 16),
+                                            notes: prev.notes || (sensorHeartRate ? (isArabic ? `النبض: ${sensorHeartRate} BPM` : `Heart rate: ${sensorHeartRate} BPM`) : '') + 
+                                                (sensorSpO2 ? (sensorHeartRate ? ' - ' : '') + (isArabic ? `الأكسجين: ${sensorSpO2}%` : `Oxygen: ${sensorSpO2}%`) : '')
+                                        }));
+                                        showTemporaryMessage(isArabic ? '📝 تم تعبئة النموذج بالبيانات' : '📝 Form filled with sensor data', 'success');
+                                        // التمرير إلى النموذج
+                                        document.querySelector('.activity-form-card')?.scrollIntoView({ behavior: 'smooth' });
+                                    } else {
+                                        showTemporaryMessage(isArabic ? '⚠️ لا توجد بيانات من المستشعر' : '⚠️ No sensor data available', 'warning');
+                                    }
+                                }}
+                                disabled={loading || (!sensorHeartRate && !sensorSpO2)}
+                                className="sensor-action-btn fill-form"
+                            >
+                                📝 {isArabic ? 'تعبئة النموذج' : 'Fill Form'}
+                            </button>
+                            
+                            <button 
+                                onClick={addSensorDataAsHealthRecord} 
+                                disabled={loading || (!sensorHeartRate && !sensorSpO2)} 
+                                className="sensor-action-btn health"
+                            >
                                 💾 {isArabic ? 'حفظ كقراءة صحية' : 'Save as Health Record'}
                             </button>
                         </div>
@@ -1620,6 +1682,10 @@ const resetForm = useCallback(() => {
 .calories-auto-hint small {
     font-size: 0.65rem;
     opacity: 0.7;
+}
+    .sensor-action-btn.fill-form:hover {
+    background: #f59e0b;
+    border-color: #f59e0b;
 }
             `}</style>
         </div>
