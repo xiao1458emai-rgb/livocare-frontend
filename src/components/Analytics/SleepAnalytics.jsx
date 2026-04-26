@@ -1,4 +1,3 @@
-// src/components/Analytics/SleepAnalytics.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as stats from 'simple-statistics';
 import * as math from 'mathjs';
@@ -6,7 +5,7 @@ import axiosInstance from '../../services/api';
 import './Analytics.css';
 
 const SleepAnalytics = ({ refreshTrigger }) => {
-    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    // ✅ إعدادات اللغة
     const [lang, setLang] = useState(() => {
         const saved = localStorage.getItem('app_lang');
         return saved === 'en' ? 'en' : 'ar';
@@ -22,44 +21,33 @@ const SleepAnalytics = ({ refreshTrigger }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const isMountedRef = useRef(true);
+    const isFetchingRef = useRef(false);
 
-    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
-
-    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
                 setLang(event.detail.lang);
-                // إعادة جلب البيانات عند تغيير اللغة
                 fetchAllData();
             }
         };
         
         window.addEventListener('languageChange', handleLanguageChange);
-        
-        return () => {
-            window.removeEventListener('languageChange', handleLanguageChange);
-        };
+        return () => window.removeEventListener('languageChange', handleLanguageChange);
     }, [lang]);
 
+    // ✅ الاستماع لتغيير الثيم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
         setDarkMode(savedDarkMode);
-    }, []);
-
-    useEffect(() => {
+        
         const handleThemeChange = (e) => {
             setDarkMode(e.detail?.darkMode ?? false);
         };
         window.addEventListener('themeChange', handleThemeChange);
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
-
-    useEffect(() => {
-        fetchAllData();
-        return () => { isMountedRef.current = false; };
-    }, [refreshTrigger]);
 
     // ===========================================
     // حساب Sleep Score
@@ -303,19 +291,24 @@ const SleepAnalytics = ({ refreshTrigger }) => {
     };
 
     // ===========================================
-    // الدالة الرئيسية للتحليل
+    // الدالة الرئيسية للتحليل - معدلة مع useCallback
     // ===========================================
-    const fetchAllData = async () => {
-        if (!isMountedRef.current) return;
+    const fetchAllData = useCallback(async () => {
+        if (isFetchingRef.current || !isMountedRef.current) return;
         
+        isFetchingRef.current = true;
         setLoading(true);
         setError(null);
         
         try {
+            console.log('🌙 Fetching sleep data for analytics...');
+            
             const sleepRes = await axiosInstance.get('/sleep/').catch(() => ({ data: [] }));
             let sleepData = [];
             if (sleepRes.data?.results) sleepData = sleepRes.data.results;
             else if (Array.isArray(sleepRes.data)) sleepData = sleepRes.data;
+            
+            console.log('🌙 Sleep records found:', sleepData.length);
             
             const moodRes = await axiosInstance.get('/mood-logs/').catch(() => ({ data: [] }));
             let moodData = [];
@@ -390,29 +383,32 @@ const SleepAnalytics = ({ refreshTrigger }) => {
                 }];
             }
             
-            setSmartInsights({
-                summary: {
-                    avgHours: avgHours > 0 ? avgHours.toFixed(1) : '—',
-                    avgQuality: avgQuality > 0 ? avgQuality.toFixed(1) : '—',
-                    totalHours: totalHours.toFixed(1),
-                    avgBedTime: pattern?.avgBedTime ? `${pattern.avgBedTime}:00` : '—',
-                    recordsCount: sleepRecords.length,
-                    consistency,
-                    sleepScore,
-                    hasData
-                },
-                analysis: {
-                    durationStatus,
-                    qualityStatus,
-                    consistencyStatus,
-                    pattern,
-                    sleepDebt,
-                    scoreStatus
-                },
-                impacts,
-                recommendations: hasData ? recommendations : noDataRecommendations,
-                lastUpdated: new Date().toISOString()
-            });
+            if (isMountedRef.current) {
+                setSmartInsights({
+                    summary: {
+                        avgHours: avgHours > 0 ? avgHours.toFixed(1) : '—',
+                        avgQuality: avgQuality > 0 ? avgQuality.toFixed(1) : '—',
+                        totalHours: totalHours.toFixed(1),
+                        avgBedTime: pattern?.avgBedTime ? `${pattern.avgBedTime}:00` : '—',
+                        recordsCount: sleepRecords.length,
+                        consistency,
+                        sleepScore,
+                        hasData
+                    },
+                    analysis: {
+                        durationStatus,
+                        qualityStatus,
+                        consistencyStatus,
+                        pattern,
+                        sleepDebt,
+                        scoreStatus
+                    },
+                    impacts,
+                    recommendations: hasData ? recommendations : noDataRecommendations,
+                    lastUpdated: new Date().toISOString()
+                });
+                setError(null);
+            }
             
         } catch (err) {
             console.error('❌ Error fetching sleep data:', err);
@@ -421,9 +417,29 @@ const SleepAnalytics = ({ refreshTrigger }) => {
             }
         } finally {
             if (isMountedRef.current) setLoading(false);
+            isFetchingRef.current = false;
         }
-    };
+    }, [isArabic]);
 
+    // ✅ useEffects مصححة
+    useEffect(() => {
+        isMountedRef.current = true;
+        fetchAllData();
+        
+        return () => {
+            isMountedRef.current = false;
+            isFetchingRef.current = false;
+        };
+    }, [fetchAllData]);
+
+    // ✅ تأثير التحديث الخارجي
+    useEffect(() => {
+        if (refreshTrigger !== undefined && isMountedRef.current) {
+            fetchAllData();
+        }
+    }, [refreshTrigger, fetchAllData]);
+
+    // حالة التحميل
     if (loading) {
         return (
             <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
@@ -435,6 +451,7 @@ const SleepAnalytics = ({ refreshTrigger }) => {
         );
     }
 
+    // حالة الخطأ
     if (error) {
         return (
             <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
@@ -443,166 +460,97 @@ const SleepAnalytics = ({ refreshTrigger }) => {
                     <button onClick={fetchAllData} className="retry-btn">
                         🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                     </button>
-                    {/* ✅ تم إزالة زر اللغة من هنا */}
                 </div>
             </div>
         );
     }
 
+    // بدون بيانات
     if (!smartInsights) {
         return (
             <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="analytics-empty">
                     <div className="empty-icon">🌙</div>
-                    <p>{isArabic ? 'لا توجد بيانات كافية' : 'Insufficient data'}</p>
+                    <p>{isArabic ? 'جاري تحضير التحليلات...' : 'Preparing insights...'}</p>
                 </div>
             </div>
         );
     }
 
+    // العرض الرئيسي
     return (
         <div className={`analytics-container sleep-analytics ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
-                <h2>{isArabic ? 'تحليل النوم' : 'Sleep Analytics'}</h2>
+                <h2>📊 {isArabic ? 'تحليل النوم' : 'Sleep Analytics'}</h2>
                 <button onClick={fetchAllData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
-                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
             <div className="insights-container">
-                {/* تحليل نومك */}
+                {/* بطاقة التحليل الرئيسية */}
                 <div className="global-health-card">
                     <h3>{isArabic ? 'تحليل نومك' : 'Your Sleep Analysis'}</h3>
                     
                     <div className="health-score-container">
                         <div className="health-score-circle">
                             <svg width="120" height="120" viewBox="0 0 120 120">
-                                <circle cx="60" cy="60" r="54" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
+                                <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8"/>
                                 <circle 
                                     cx="60" cy="60" r="54" 
                                     fill="none" 
-                                    stroke={smartInsights.analysis.scoreStatus.color} 
+                                    stroke="#ffffff" 
                                     strokeWidth="8"
                                     strokeDasharray={`${2 * Math.PI * 54}`}
-                                    strokeDashoffset={`${2 * Math.PI * 54 * (1 - smartInsights.summary.sleepScore / 100)}`}
+                                    strokeDashoffset={`${2 * Math.PI * 54 * (1 - (smartInsights.summary.sleepScore || 0) / 100)}`}
                                     transform="rotate(-90 60 60)"
                                 />
-                                <text x="60" y="65" textAnchor="middle" fontSize="24" fontWeight="bold" fill="currentColor">
-                                    {smartInsights.summary.sleepScore}%
+                                <text x="60" y="65" textAnchor="middle" fontSize="24" fontWeight="bold" fill="white">
+                                    {smartInsights.summary.sleepScore || 0}%
                                 </text>
                             </svg>
                         </div>
                         <div className="health-status">
-                            <span className="status-badge" style={{ background: smartInsights.analysis.scoreStatus.color }}>
-                                {smartInsights.analysis.scoreStatus.text}
+                            <span className="status-badge" style={{ background: smartInsights.analysis.scoreStatus?.color || '#6366f1' }}>
+                                {smartInsights.analysis.scoreStatus?.text || (isArabic ? 'متوسط' : 'Average')}
                             </span>
                         </div>
                     </div>
                     
                     <div className="health-analysis">
-                        <div className="positives-list">
-                            <strong>{isArabic ? 'تحليل المدة' : 'Duration Analysis'}</strong>
-                            {smartInsights.summary.hasData ? (
-                                <div className="positive-item" style={{ color: smartInsights.analysis.durationStatus?.color }}>
-                                    {smartInsights.analysis.durationStatus?.icon} {isArabic ? 'متوسط النوم' : 'Average sleep'}: {smartInsights.summary.avgHours} {isArabic ? 'ساعات' : 'hours'} — {smartInsights.analysis.durationStatus?.text}
-                                </div>
-                            ) : (
-                                <div className="positive-item">{isArabic ? 'لا توجد بيانات كافية' : 'Insufficient data'}</div>
-                            )}
+                        <div className="analysis-summary">
+                            <strong>{isArabic ? 'التحليل:' : 'Analysis:'}</strong>
+                            <p>
+                                {smartInsights.summary.hasData 
+                                    ? (isArabic 
+                                        ? `متوسط نومك ${smartInsights.summary.avgHours} ساعات بجودة ${smartInsights.summary.avgQuality}/5`
+                                        : `Average sleep: ${smartInsights.summary.avgHours} hours with quality ${smartInsights.summary.avgQuality}/5`)
+                                    : (isArabic ? 'لا توجد بيانات كافية للتحليل' : 'Insufficient data for analysis')}
+                            </p>
                         </div>
-                        
-                        <div className="positives-list" style={{ marginTop: 'var(--spacing-md)' }}>
-                            <strong>{isArabic ? 'تحليل الجودة' : 'Quality Analysis'}</strong>
-                            {smartInsights.summary.hasData ? (
-                                <div className="positive-item" style={{ color: smartInsights.analysis.qualityStatus?.color }}>
-                                    {smartInsights.analysis.qualityStatus?.icon} {isArabic ? 'جودة النوم' : 'Sleep quality'}: {smartInsights.summary.avgQuality}/5 — {smartInsights.analysis.qualityStatus?.text}
-                                </div>
-                            ) : (
-                                <div className="positive-item">{isArabic ? 'لا توجد بيانات كافية' : 'Insufficient data'}</div>
-                            )}
-                        </div>
-                        
-                        <div className="warnings-list" style={{ marginTop: 'var(--spacing-md)' }}>
-                            <strong>{isArabic ? 'تحليل الانتظام' : 'Consistency Analysis'}</strong>
-                            {smartInsights.summary.hasData && smartInsights.summary.consistency > 0 ? (
-                                <div className="warning-item" style={{ color: smartInsights.analysis.consistencyStatus?.color }}>
-                                    {smartInsights.analysis.consistencyStatus?.icon} {isArabic ? 'انتظام موعد النوم' : 'Sleep consistency'}: {smartInsights.summary.consistency}% — {smartInsights.analysis.consistencyStatus?.text}
-                                </div>
-                            ) : (
-                                <div className="warning-item">{isArabic ? 'يحتاج 3 أيام على الأقل للتحليل' : 'Need at least 3 days for analysis'}</div>
-                            )}
-                        </div>
-                        
-                        {smartInsights.analysis.sleepDebt.total > 0 && smartInsights.summary.hasData && (
-                            <div className="warnings-list" style={{ marginTop: 'var(--spacing-md)' }}>
-                                <strong>{isArabic ? 'دين النوم' : 'Sleep Debt'}</strong>
-                                <div className={`warning-item severity-${smartInsights.analysis.sleepDebt.severity}`}>
-                                    {isArabic 
-                                        ? `لديك نقص ${smartInsights.analysis.sleepDebt.total} ساعة نوم هذا الأسبوع`
-                                        : `You have a ${smartInsights.analysis.sleepDebt.total} hour sleep debt this week`}
-                                </div>
-                            </div>
-                        )}
-                        
-                        {smartInsights.analysis.pattern && smartInsights.summary.hasData && (
-                            <div className="positives-list" style={{ marginTop: 'var(--spacing-md)' }}>
-                                <strong>{isArabic ? 'نمط النوم' : 'Sleep Pattern'}</strong>
-                                <div className="positive-item">
-                                    {isArabic 
-                                        ? `نمطك: ${smartInsights.analysis.pattern.text}`
-                                        : `Your pattern: ${smartInsights.analysis.pattern.text}`}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
 
-                {/* تأثير النوم على الصحة */}
-                {smartInsights.impacts && smartInsights.impacts.length > 0 && (
-                    <div className="correlations-card">
-                        <h3>{isArabic ? 'تأثير النوم على صحتك' : 'Sleep Impact on Your Health'}</h3>
-                        <div className="correlations-list">
-                            {smartInsights.impacts.map((impact, idx) => (
-                                <div key={idx} className={`correlation-item severity-${impact.severity}`}>
-                                    <p className="correlation-message">{impact.message}</p>
-                                    <p className="correlation-advice">💡 {impact.recommendation}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* التوصيات الذكية */}
+                {/* توصيات */}
                 {smartInsights.recommendations && smartInsights.recommendations.length > 0 && (
                     <div className="recommendations-card">
                         <h3>💡 {isArabic ? 'توصيات ذكية' : 'Smart Recommendations'}</h3>
                         <div className="recommendations-list">
-                            {smartInsights.recommendations.map((rec, idx) => (
+                            {smartInsights.recommendations.slice(0, 3).map((rec, idx) => (
                                 <div key={idx} className={`recommendation timing-${rec.timing} priority-${rec.priority}`}>
                                     <div className="rec-header">
                                         <span className="rec-icon">{rec.icon}</span>
                                         <span className="rec-title">{rec.title}</span>
-                                        <span className={`rec-timing timing-${rec.timing}`}>
-                                            {rec.timing === 'tonight' ? (isArabic ? 'الليلة' : 'Tonight') :
-                                             rec.timing === 'today' ? (isArabic ? 'اليوم' : 'Today') :
-                                             (isArabic ? 'عام' : 'General')}
-                                        </span>
                                     </div>
                                     <p className="rec-advice">{rec.advice}</p>
                                     <p className="rec-action">🎯 {rec.action}</p>
-                                    {rec.details && rec.details.length > 0 && (
-                                        <ul className="rec-details">
-                                            {rec.details.map((detail, i) => <li key={i}>✓ {detail}</li>)}
-                                        </ul>
-                                    )}
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
 
-                {/* بطاقات الملخص الأساسي */}
+                {/* إحصائيات سريعة */}
                 <div className="analytics-stats-grid">
                     <div className="analytics-stat-card">
                         <div className="stat-icon">⏱️</div>
@@ -616,13 +564,6 @@ const SleepAnalytics = ({ refreshTrigger }) => {
                         <div className="stat-content">
                             <div className="stat-value">{smartInsights.summary.avgQuality}/5</div>
                             <div className="stat-label">{isArabic ? 'الجودة' : 'Quality'}</div>
-                        </div>
-                    </div>
-                    <div className="analytics-stat-card">
-                        <div className="stat-icon">🌙</div>
-                        <div className="stat-content">
-                            <div className="stat-value">{smartInsights.summary.avgBedTime}</div>
-                            <div className="stat-label">{isArabic ? 'موعد النوم' : 'Bedtime'}</div>
                         </div>
                     </div>
                     <div className="analytics-stat-card">
