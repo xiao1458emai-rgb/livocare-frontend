@@ -1,7 +1,7 @@
 // src/services/api.js
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://livocare.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://livocare-production.up.railway.app';
 
 console.log('🔧 API_BASE_URL =', API_BASE_URL);
 console.log('🔧 Final baseURL =', API_BASE_URL ? `${API_BASE_URL}/api` : '/api');
