@@ -393,31 +393,6 @@ function Login({ onLoginSuccess }) {
                                 🔄 {isArabic ? 'إعادة تعيين' : 'Reset'}
                             </button>
                         </div>
-                        
-                        {/* ✅ بيانات تجريبية */}
-                        <div className="demo-section">
-                            <div className="demo-header">
-                                <span className="demo-icon">💡</span>
-                                <span className="demo-title">{isArabic ? 'بيانات تجريبية' : 'Demo Credentials'}</span>
-                            </div>
-                            <div className="demo-content">
-                                <div className="demo-item">
-                                    <span className="demo-label">{isArabic ? 'اسم المستخدم' : 'Username'}:</span>
-                                    <code className="demo-value">test</code>
-                                </div>
-                                <div className="demo-item">
-                                    <span className="demo-label">{isArabic ? 'كلمة المرور' : 'Password'}:</span>
-                                    <code className="demo-value">test</code>
-                                </div>
-                                <button 
-                                    type="button"
-                                    onClick={fillDemoCredentials}
-                                    className="demo-fill-btn"
-                                >
-                                    ✨ {isArabic ? 'تعبئة تلقائية' : 'Auto fill'}
-                                </button>
-                            </div>
-                        </div>
                     </form>
                     
                     {/* ✅ رسائل التغذية الراجعة */}
