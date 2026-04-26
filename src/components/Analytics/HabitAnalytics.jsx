@@ -1,10 +1,56 @@
-// src/components/Analytics/HabitAnalytics.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axiosInstance from '../../services/api';
 import './Analytics.css';
 
+// ✅ نفس دوال التصنيف المستخدمة في HabitTracker
+const getStoredHabitType = (habitId) => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(`habit_type_${habitId}`);
+};
+
+const detectHabitType = (habitName, habitDescription = '', habitId = null) => {
+    // ✅ أولاً: التحقق من التخزين المحلي
+    const storedType = habitId ? getStoredHabitType(habitId) : null;
+    if (storedType === 'medication') return 'medication';
+    if (storedType === 'habit') return 'habit';
+    
+    const text = (habitName + ' ' + habitDescription).toLowerCase();
+    
+    // كلمات تدل على دواء
+    const medicationKeywords = [
+        'دواء', 'medication', 'حبة', 'pill', 'علاج', 'treatment',
+        'مضاد حيوي', 'antibiotic', 'مسكن', 'painkiller', 'ibuprofen',
+        'paracetamol', 'advil', 'tylenol', 'aspirin', 'metformin',
+        'lisinopril', 'amlodipine', 'mg', 'ملجم', 'جرعة', 'dose'
+    ];
+    
+    // كلمات تدل على عادة
+    const habitKeywords = [
+        'ماء', 'water', 'رياضة', 'exercise', 'مشي', 'walk', 'جري', 'run',
+        'نوم', 'sleep', 'يوجا', 'yoga', 'تأمل', 'meditation', 'قراءة', 'reading'
+    ];
+    
+    for (const keyword of medicationKeywords) {
+        if (text.includes(keyword)) return 'medication';
+    }
+    
+    for (const keyword of habitKeywords) {
+        if (text.includes(keyword)) return 'habit';
+    }
+    
+    // ✅ إذا كان الوصف يحتوي على معلومات دوائية
+    if (habitDescription && (
+        habitDescription.includes('mg') || 
+        habitDescription.includes('ملجم') ||
+        habitDescription.includes('💊')
+    )) {
+        return 'medication';
+    }
+    
+    return 'habit';
+};
+
 const HabitAnalytics = ({ refreshTrigger }) => {
-    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
     const [lang, setLang] = useState(() => {
         const saved = localStorage.getItem('app_lang');
         return saved === 'en' ? 'en' : 'ar';
@@ -21,25 +67,30 @@ const HabitAnalytics = ({ refreshTrigger }) => {
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('medications');
     const isMountedRef = useRef(true);
+    const isFetchingRef = useRef(false);
 
-    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
-
-    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
                 setLang(event.detail.lang);
-                // إعادة جلب البيانات عند تغيير اللغة
                 fetchData();
             }
         };
         
         window.addEventListener('languageChange', handleLanguageChange);
-        
-        return () => {
-            window.removeEventListener('languageChange', handleLanguageChange);
-        };
+        return () => window.removeEventListener('languageChange', handleLanguageChange);
     }, [lang]);
+
+    // ✅ الاستماع لتغيير نوع العادة
+    useEffect(() => {
+        const handleTypeChange = () => {
+            fetchData();
+        };
+        
+        window.addEventListener('habitTypeChanged', handleTypeChange);
+        return () => window.removeEventListener('habitTypeChanged', handleTypeChange);
+    }, []);
 
     const extractData = (response) => {
         if (response?.results) return response.results;
@@ -48,8 +99,9 @@ const HabitAnalytics = ({ refreshTrigger }) => {
     };
 
     const fetchData = useCallback(async () => {
-        if (!isMountedRef.current) return;
+        if (isFetchingRef.current || !isMountedRef.current) return;
         
+        isFetchingRef.current = true;
         setLoading(true);
         setError(null);
         
@@ -64,6 +116,9 @@ const HabitAnalytics = ({ refreshTrigger }) => {
 
             if (!isMountedRef.current) return;
 
+            console.log('📊 Habits for analytics:', habits.length);
+            console.log('📊 Logs for analytics:', logs.length);
+
             if (habits.length === 0) {
                 setData(null);
                 setError(isArabic ? 'لا توجد عادات مسجلة' : 'No habits recorded');
@@ -72,6 +127,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             }
 
             const analysis = analyzeHabits(habits, logs);
+            console.log('📊 Analysis result - Medications count:', analysis.medications.count);
             setData(analysis);
         } catch (err) {
             console.error('Error fetching data:', err);
@@ -79,9 +135,8 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                 setError(isArabic ? 'حدث خطأ في تحميل البيانات' : 'Error loading data');
             }
         } finally {
-            if (isMountedRef.current) {
-                setLoading(false);
-            }
+            if (isMountedRef.current) setLoading(false);
+            isFetchingRef.current = false;
         }
     }, [isArabic]);
 
@@ -90,34 +145,21 @@ const HabitAnalytics = ({ refreshTrigger }) => {
         return () => { isMountedRef.current = false; };
     }, [fetchData, refreshTrigger]);
 
-    // ✅ تحديد نوع العادة
-    const detectHabitType = (habitName, habitDescription = '') => {
-        const text = (habitName + ' ' + habitDescription).toLowerCase();
-        
-        const medicationKeywords = ['دواء', 'medication', 'حبة', 'pill', 'علاج', 'treatment'];
-        const waterKeywords = ['ماء', 'water', 'ترطيب', 'hydration'];
-        const exerciseKeywords = ['رياضة', 'exercise', 'مشي', 'walk', 'جري', 'run'];
-        const sleepKeywords = ['نوم', 'sleep', 'استرخاء', 'relax'];
-        
-        if (medicationKeywords.some(k => text.includes(k))) return 'medication';
-        if (waterKeywords.some(k => text.includes(k))) return 'water';
-        if (exerciseKeywords.some(k => text.includes(k))) return 'exercise';
-        if (sleepKeywords.some(k => text.includes(k))) return 'sleep';
-        return 'habit';
-    };
-
     const analyzeHabits = (habits, logs) => {
-        // ✅ فصل الأدوية عن العادات
+        // ✅ فصل الأدوية عن العادات باستخدام نفس نظام التصنيف
         const medications = [];
         const regularHabits = [];
         
         habits.forEach(habit => {
-            const type = detectHabitType(habit.name, habit.description);
+            const type = detectHabitType(habit.name, habit.description, habit.id);
+            console.log(`📊 Habit: ${habit.name} -> Type: ${type}`);
+            
             const habitLogs = logs.filter(log => log.habit === habit.id);
             const completed = habitLogs.filter(log => log.is_completed).length;
             const total = habitLogs.length;
             const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
             
+            // حساب streak
             let streak = 0;
             const checkDate = new Date();
             for (let i = 0; i < 30; i++) {
@@ -147,6 +189,8 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             }
         });
         
+        console.log(`📊 Medications found: ${medications.length}, Habits found: ${regularHabits.length}`);
+        
         // ✅ إحصائيات الأدوية
         const medicationStats = {
             total: medications.length,
@@ -159,80 +203,61 @@ const HabitAnalytics = ({ refreshTrigger }) => {
         medicationStats.adherenceRate = medicationStats.totalLogs > 0 
             ? Math.round((medicationStats.completed / medicationStats.totalLogs) * 100) 
             : 0;
-        medicationStats.overallStreak = Math.max(...medications.map(m => m.streak), 0);
+        medicationStats.overallStreak = medications.length > 0 
+            ? Math.max(...medications.map(m => m.streak), 0) 
+            : 0;
         
         // ✅ تحليل الالتزام
-        let complianceLevel = 'good';
         let complianceMessage = '';
         if (medicationStats.adherenceRate >= 90) {
-            complianceLevel = 'excellent';
             complianceMessage = isArabic ? 'التزام ممتاز! استمر' : 'Excellent adherence! Keep it up';
         } else if (medicationStats.adherenceRate >= 70) {
-            complianceLevel = 'good';
             complianceMessage = isArabic ? 'التزام جيد' : 'Good adherence';
         } else if (medicationStats.adherenceRate >= 50) {
-            complianceLevel = 'fair';
             complianceMessage = isArabic ? 'التزام متوسط' : 'Fair adherence';
         } else if (medicationStats.adherenceRate > 0) {
-            complianceLevel = 'poor';
             complianceMessage = isArabic ? 'التزام منخفض' : 'Low adherence';
+        } else if (medications.length > 0) {
+            complianceMessage = isArabic ? 'لم تسجل أي جرعة بعد' : 'No doses recorded yet';
         } else {
-            complianceMessage = isArabic ? 'لا توجد بيانات كافية' : 'Insufficient data';
+            complianceMessage = isArabic ? 'لا توجد أدوية' : 'No medications';
         }
         
-        // ✅ أنماط صحية محتملة (ليست تشخيصاً)
+        // ✅ أنماط صحية
         const healthPatterns = [];
-        if (medications.some(m => m.name.toLowerCase().includes('ibuprofen') || m.name.toLowerCase().includes('advil'))) {
+        if (medications.some(m => m.name.toLowerCase().includes('ibuprofen') || m.name.toLowerCase().includes('advil') || m.name.toLowerCase().includes('pain'))) {
             healthPatterns.push({
                 icon: '⚠️',
                 name: isArabic ? 'استخدام مسكنات الألم' : 'Pain reliever use',
                 note: isArabic ? 'قد يشير إلى آلام متكررة' : 'May indicate recurring pain'
             });
         }
-        if (medications.some(m => m.name.toLowerCase().includes('metformin'))) {
-            healthPatterns.push({
-                icon: '🩸',
-                name: isArabic ? 'تنظيم سكر الدم' : 'Blood sugar management',
-                note: isArabic ? 'يُنصح بمتابعة مستوى السكر بانتظام' : 'Regular blood sugar monitoring recommended'
-            });
-        }
-        if (medications.some(m => m.name.toLowerCase().includes('lisinopril') || m.name.toLowerCase().includes('amlodipine'))) {
-            healthPatterns.push({
-                icon: '❤️',
-                name: isArabic ? 'علاج ضغط الدم' : 'Blood pressure treatment',
-                note: isArabic ? 'مراقبة الضغط بانتظام مهمة' : 'Regular blood pressure monitoring is important'
-            });
-        }
         
         // ✅ توصيات ذكية
         const recommendations = [];
         
-        if (medicationStats.adherenceRate < 80 && medicationStats.adherenceRate > 0) {
+        if (medications.length > 0 && medicationStats.adherenceRate === 0) {
             recommendations.push({
                 icon: '💊',
-                title: isArabic ? 'تحسين الالتزام بالأدوية' : 'Improve medication adherence',
-                advice: isArabic 
-                    ? `التزامك الحالي ${medicationStats.adherenceRate}%`
-                    : `Your current adherence is ${medicationStats.adherenceRate}%`,
+                title: isArabic ? 'سجل أدويتك' : 'Track your medications',
+                advice: isArabic ? 'لديك أدوية مسجلة ولكن لم تسجل أي جرعة' : 'You have medications but no doses recorded',
+                action: isArabic ? 'اضغط على زر "تم" بجانب كل دواء لتسجيل الجرعة' : 'Click "Taken" next to each medication to record doses'
+            });
+        } else if (medicationStats.adherenceRate < 70 && medicationStats.adherenceRate > 0) {
+            recommendations.push({
+                icon: '⏰',
+                title: isArabic ? 'التزم بمواعيد أدويتك' : 'Stick to your medication schedule',
+                advice: isArabic ? `التزامك الحالي ${medicationStats.adherenceRate}%` : `Your current adherence is ${medicationStats.adherenceRate}%`,
                 action: isArabic ? 'اضبط تذكيراً يومياً للأدوية' : 'Set a daily medication reminder'
             });
         }
         
-        if (medications.length > 0 && medicationStats.adherenceRate === 0) {
+        if (medications.length === 0 && regularHabits.length === 0) {
             recommendations.push({
-                icon: '📝',
-                title: isArabic ? 'ابدأ بتسجيل أدويتك' : 'Start tracking your medications',
-                advice: isArabic ? 'لم تسجل أي جرعة دواء بعد' : 'No medication doses recorded yet',
-                action: isArabic ? 'سجل جرعاتك اليومية من صفحة العادات' : 'Log your daily doses from the habits page'
-            });
-        }
-        
-        if (healthPatterns.length > 0) {
-            recommendations.push({
-                icon: '🩺',
-                title: isArabic ? 'متابعة صحية منتظمة' : 'Regular health checkup',
-                advice: isArabic ? 'بناءً على نمط أدويتك' : 'Based on your medication pattern',
-                action: isArabic ? 'استشر طبيبك بانتظام لمتابعة حالتك' : 'Regular doctor visits are recommended'
+                icon: '➕',
+                title: isArabic ? 'أضف عاداتك وأدويتك' : 'Add your habits and medications',
+                advice: isArabic ? 'لم تقم بإضافة أي عادات أو أدوية بعد' : 'You haven\'t added any habits or medications yet',
+                action: isArabic ? 'استخدم نموذج الإضافة أعلاه' : 'Use the form above to add them'
             });
         }
         
@@ -248,14 +273,15 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             : 0;
         
         // ✅ أقوى عادة
-        const strongestHabit = [...medications, ...regularHabits].reduce((best, current) => 
+        const allItems = [...medications, ...regularHabits];
+        const strongestHabit = allItems.reduce((best, current) => 
             current.rate > best.rate ? current : best, { rate: 0, name: '' });
         
         // ✅ نصائح سريعة
         const quickTips = [
-            { icon: '💊', text: isArabic ? 'استخدم تذكيرات الأدوية' : 'Use medication reminders' },
-            { icon: '📅', text: isArabic ? 'حافظ على روتين يومي ثابت' : 'Maintain a consistent daily routine' },
-            { icon: '🩺', text: isArabic ? 'تابع حالتك الصحية بانتظام' : 'Regular health monitoring' }
+            { icon: '💊', text: isArabic ? 'سجل أدويتك يومياً' : 'Log your medications daily' },
+            { icon: '📅', text: isArabic ? 'حافظ على روتين ثابت' : 'Maintain a consistent routine' },
+            { icon: '✅', text: isArabic ? 'أنجز عاداتك اليومية' : 'Complete your daily habits' }
         ];
         
         return {
@@ -265,7 +291,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                 stats: medicationStats,
                 adherenceRate: medicationStats.adherenceRate,
                 streak: medicationStats.overallStreak,
-                complianceLevel,
                 complianceMessage
             },
             habits: {
@@ -316,7 +341,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                     <button onClick={fetchData} className="retry-btn">
                         🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                     </button>
-                    {/* ✅ تم إزالة زر اللغة من هنا */}
                 </div>
             </div>
         );
@@ -325,11 +349,10 @@ const HabitAnalytics = ({ refreshTrigger }) => {
     return (
         <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
-                <h2>{isArabic ? 'تحليل العادات' : 'Habits Analytics'}</h2>
+                <h2>📊 {isArabic ? 'تحليل العادات' : 'Habits Analytics'}</h2>
                 <button onClick={fetchData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
-                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
             {/* ملخص سريع */}
@@ -385,6 +408,9 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                             <div className="analytics-empty">
                                 <div className="empty-icon">💊</div>
                                 <p>{isArabic ? 'لا توجد أدوية مسجلة' : 'No medications recorded'}</p>
+                                <p className="empty-hint">
+                                    {isArabic ? 'الأدوية التي أضفتها ستظهر هنا تلقائياً' : 'Medications you add will appear here automatically'}
+                                </p>
                             </div>
                         ) : (
                             <>
@@ -395,7 +421,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                                         <div className="stat-value" style={{ fontSize: '2rem', color: 'var(--primary)' }}>
                                             {data.medications.adherenceRate}%
                                         </div>
-                                        <p className="stat-trend">{data.medications.complianceMessage}</p>
+                                        <p>{data.medications.complianceMessage}</p>
                                     </div>
                                 </div>
 
@@ -412,7 +438,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                                                 </div>
                                                 <div className="habit-stats">
                                                     <span>✅ {med.completed}/{med.total}</span>
-                                                    <span>🔄 {med.frequency}</span>
                                                     <span>📅 {med.streak} {isArabic ? 'يوم' : 'days'}</span>
                                                 </div>
                                                 <div className="progress-bar">
@@ -444,8 +469,8 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                                         <div className="stat-value" style={{ fontSize: '2rem', color: 'var(--primary)' }}>
                                             {data.habits.completionRate}%
                                         </div>
-                                        {data.strongestHabit && (
-                                            <p className="stat-trend">💪 {data.strongestHabit}: {data.strongestHabitRate}%</p>
+                                        {data.strongestHabit && data.strongestHabitRate > 0 && (
+                                            <p>💪 {data.strongestHabit}: {data.strongestHabitRate}%</p>
                                         )}
                                     </div>
                                 </div>
@@ -459,7 +484,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                                                     <span className="habit-name">
                                                         {habit.type === 'water' ? '💧 ' : 
                                                          habit.type === 'exercise' ? '🏃 ' :
-                                                         habit.type === 'sleep' ? '😴 ' : '📋 '}
+                                                         habit.type === 'sleep' ? '😴 ' : '✅ '}
                                                         {habit.name}
                                                     </span>
                                                     <span className={`habit-rate ${habit.rate >= 70 ? 'high' : habit.rate >= 40 ? 'medium' : 'low'}`}>
@@ -468,7 +493,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                                                 </div>
                                                 <div className="habit-stats">
                                                     <span>✅ {habit.completed}/{habit.total}</span>
-                                                    <span>🔄 {habit.frequency}</span>
                                                     <span>📅 {habit.streak} {isArabic ? 'يوم' : 'days'}</span>
                                                 </div>
                                                 <div className="progress-bar">
@@ -486,27 +510,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                 {/* تبويب التحليلات */}
                 {activeTab === 'insights' && (
                     <div className="insights-section">
-                        {data.healthPatterns.length > 0 && (
-                            <div className="insight-card" style={{ background: 'var(--info-bg)' }}>
-                                <div className="insight-icon">📊</div>
-                                <div className="insight-content">
-                                    <h3>{isArabic ? 'أنماط صحية محتملة' : 'Health Patterns'}</h3>
-                                    <p style={{ fontSize: '0.75rem', marginBottom: '0.5rem', color: 'var(--text-tertiary)' }}>
-                                        ⚠️ {isArabic ? 'هذه أنماط عامة وليست تشخيصاً طبياً' : 'These are general patterns, not a medical diagnosis'}
-                                    </p>
-                                    <div className="strengths-weaknesses" style={{ gridTemplateColumns: '1fr', gap: '0.5rem' }}>
-                                        {data.healthPatterns.map((pattern, i) => (
-                                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'var(--card-bg)', borderRadius: '8px' }}>
-                                                <span>{pattern.icon}</span>
-                                                <span style={{ flex: 1 }}>{pattern.name}</span>
-                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{pattern.note}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         {data.recommendations.length > 0 && (
                             <div className="recommendations-section">
                                 <h3>💡 {isArabic ? 'توصيات ذكية' : 'Smart Recommendations'}</h3>
