@@ -1,4 +1,4 @@
-// src/components/ActivityForm.jsx - نسخة كاملة مع ESP32 + تحليلات + سجلات زمنية
+// src/components/ActivityForm.jsx - نسخة كاملة مع ESP32 + تحليلات + سجلات زمنية + مخططات
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axiosInstance from '../services/api';
 import esp32Service from '../services/esp32Service';
@@ -7,6 +7,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     const [activities, setActivities] = useState([]);
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
+    const [showCharts, setShowCharts] = useState(true);
     const [formData, setFormData] = useState({
         activity_type: '',
         duration_minutes: '',
@@ -65,6 +66,60 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         return icons[type] || '🏃‍♂️';
     };
 
+    // ✅ الحصول على اسم النشاط بالعربية
+    const getActivityName = (type) => {
+        const names = {
+            walking: 'مشي',
+            running: 'جري',
+            cycling: 'دراجة',
+            swimming: 'سباحة',
+            yoga: 'يوجا',
+            weightlifting: 'رفع أثقال',
+            cardio: 'تمارين قلب',
+            other: 'أخرى'
+        };
+        return names[type] || type;
+    };
+
+    // ✅ حساب إحصائيات المخططات
+    const getChartData = () => {
+        // ✅ إحصائيات حسب نوع النشاط
+        const typeStats = {};
+        activities.forEach(act => {
+            const type = act.activity_type;
+            if (!typeStats[type]) {
+                typeStats[type] = { count: 0, duration: 0, calories: 0 };
+            }
+            typeStats[type].count++;
+            typeStats[type].duration += act.duration_minutes || 0;
+            typeStats[type].calories += act.calories_burned || 0;
+        });
+
+        // ✅ أنشطة الأيام السبعة الأخيرة
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dayName = date.toLocaleDateString(isArabic ? 'ar-EG' : 'en-US', { weekday: 'short' });
+            const dayStr = date.toISOString().split('T')[0];
+            
+            const dayActivities = activities.filter(act => {
+                const actDate = new Date(act.start_time || act.created_at).toISOString().split('T')[0];
+                return actDate === dayStr;
+            });
+            
+            last7Days.push({
+                name: dayName,
+                duration: dayActivities.reduce((sum, a) => sum + (a.duration_minutes || 0), 0),
+                count: dayActivities.length
+            });
+        }
+
+        return { typeStats, last7Days };
+    };
+
+    const chartData = getChartData();
+
     // ✅ جلب التحليلات
     const fetchAnalytics = async () => {
         if (analyticsFetchedRef.current) return;
@@ -107,7 +162,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         try {
             const response = await axiosInstance.get('/activities/');
             let data = response.data?.results || response.data || [];
-            // ✅ ترتيب الأنشطة من الأحدث إلى الأقدم
             const sortedData = [...data].sort((a, b) => 
                 new Date(b.start_time || b.created_at) - new Date(a.start_time || a.created_at)
             );
@@ -195,8 +249,11 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         };
     }, []);
 
+    // ✅ حساب أقصى قيمة للمخطط
+    const maxDuration = Math.max(...Object.values(chartData.typeStats).map(s => s.duration), 0);
+
     return (
-        <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
+        <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
             
             {/* ✅ قسم التحليلات */}
             <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
@@ -282,6 +339,113 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 </form>
             </div>
             
+            {/* ✅ المخططات البيانية */}
+            {activities.length > 0 && (
+                <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e0e0e0', marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                        <h3 style={{ margin: 0 }}>📈 المخططات البيانية</h3>
+                        <button 
+                            onClick={() => setShowCharts(!showCharts)}
+                            style={{ padding: '5px 12px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
+                        >
+                            {showCharts ? '📋 إخفاء المخططات' : '📊 إظهار المخططات'}
+                        </button>
+                    </div>
+                    
+                    {showCharts && (
+                        <>
+                            {/* ✅ مخطط 1: توزيع الأنشطة حسب النوع */}
+                            <div style={{ marginBottom: '30px' }}>
+                                <h4 style={{ margin: '0 0 15px 0', color: '#333' }}>📊 توزيع الأنشطة حسب النوع</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {Object.entries(chartData.typeStats).map(([type, stats]) => (
+                                        <div key={type}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '14px' }}>
+                                                <span>{getActivityIcon(type)} {getActivityName(type)}</span>
+                                                <span>{stats.duration} دقيقة ({stats.count} نشاط)</span>
+                                            </div>
+                                            <div style={{ background: '#e0e0e0', borderRadius: '10px', overflow: 'hidden' }}>
+                                                <div style={{
+                                                    width: `${(stats.duration / maxDuration) * 100}%`,
+                                                    background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+                                                    padding: '8px 10px',
+                                                    borderRadius: '10px',
+                                                    color: 'white',
+                                                    fontSize: '12px',
+                                                    textAlign: 'right',
+                                                    transition: 'width 0.5s ease'
+                                                }}>
+                                                    {stats.duration} دقيقة
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            {/* ✅ مخطط 2: نشاط آخر 7 أيام */}
+                            <div>
+                                <h4 style={{ margin: '0 0 15px 0', color: '#333' }}>📅 آخر 7 أيام</h4>
+                                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', justifyContent: 'center', minHeight: '200px' }}>
+                                    {chartData.last7Days.map((day, idx) => {
+                                        const maxDayDuration = Math.max(...chartData.last7Days.map(d => d.duration), 1);
+                                        const height = (day.duration / maxDayDuration) * 150;
+                                        return (
+                                            <div key={idx} style={{ textAlign: 'center', flex: 1 }}>
+                                                <div style={{ 
+                                                    height: `${height}px`, 
+                                                    background: 'linear-gradient(180deg, #6366f1, #8b5cf6)',
+                                                    borderRadius: '8px 8px 0 0',
+                                                    transition: 'height 0.5s ease',
+                                                    cursor: 'pointer',
+                                                    position: 'relative'
+                                                }}>
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        bottom: '-25px',
+                                                        left: '50%',
+                                                        transform: 'translateX(-50%)',
+                                                        fontSize: '11px',
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        {day.name}
+                                                        <br />
+                                                        <strong>{day.duration}د</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            
+                            {/* ✅ مخطط 3: إحصائيات دائرية بسيطة */}
+                            <div style={{ marginTop: '30px', padding: '15px', background: '#f8f9fa', borderRadius: '10px' }}>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#666' }}>🎯 ملخص سريع</h4>
+                                <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#6366f1' }}>{activities.length}</div>
+                                        <div style={{ fontSize: '12px', color: '#666' }}>نشاط</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>
+                                            {Math.round(activities.reduce((sum, a) => sum + (a.duration_minutes || 0), 0) / 60)}
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#666' }}>ساعة</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b' }}>
+                                            {Object.keys(chartData.typeStats).length}
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#666' }}>نوع نشاط</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
+            
             {/* ✅ السجلات الزمنية (Timeline) */}
             <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e0e0e0' }}>
                 <h3 style={{ margin: '0 0 15px 0' }}>📋 السجل الزمني للأنشطة</h3>
@@ -296,32 +460,36 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                     </div>
                 ) : (
                     <div style={{ position: 'relative', paddingLeft: '30px' }}>
-                        {/* ✅ الخط الزمني العمودي */}
                         <div style={{ position: 'absolute', left: '10px', top: '10px', bottom: '10px', width: '2px', background: 'linear-gradient(180deg, #6366f1, #8b5cf6, #a855f7)' }}></div>
                         
                         {activities.map((act, index) => (
                             <div key={act.id} style={{ position: 'relative', marginBottom: '20px', paddingLeft: '20px' }}>
-                                {/* ✅ نقطة زمنية */}
-                                <div style={{ position: 'absolute', left: '-26px', top: '5px', width: '12px', height: '12px', borderRadius: '50%', background: index === 0 ? '#f59e0b' : '#6366f1', border: '2px solid white', boxShadow: '0 0 0 2px #6366f1' }}></div>
+                                <div style={{ 
+                                    position: 'absolute', 
+                                    left: '-26px', 
+                                    top: '5px', 
+                                    width: '12px', 
+                                    height: '12px', 
+                                    borderRadius: '50%', 
+                                    background: index === 0 ? '#f59e0b' : '#6366f1', 
+                                    border: '2px solid white', 
+                                    boxShadow: '0 0 0 2px #6366f1' 
+                                }}></div>
                                 
-                                {/* ✅ بطاقة النشاط */}
-                                <div style={{ background: index === 0 ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : '#f8f9fa', padding: '15px', borderRadius: '10px', transition: 'all 0.2s', cursor: 'pointer', border: index === 0 ? '1px solid #f59e0b' : '1px solid #e0e0e0' }}>
+                                <div style={{ 
+                                    background: index === 0 ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : '#f8f9fa', 
+                                    padding: '15px', 
+                                    borderRadius: '10px', 
+                                    cursor: 'pointer',
+                                    border: index === 0 ? '1px solid #f59e0b' : '1px solid #e0e0e0',
+                                    transition: 'transform 0.2s'
+                                }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <span style={{ fontSize: '28px' }}>{getActivityIcon(act.activity_type)}</span>
                                             <div>
-                                                <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
-                                                    {act.activity_type === 'walking' ? '🚶 مشي' :
-                                                     act.activity_type === 'running' ? '🏃 جري' :
-                                                     act.activity_type === 'cycling' ? '🚴 دراجة' :
-                                                     act.activity_type === 'swimming' ? '🏊 سباحة' :
-                                                     act.activity_type === 'yoga' ? '🧘 يوجا' :
-                                                     act.activity_type === 'weightlifting' ? '🏋️ رفع أثقال' :
-                                                     act.activity_type === 'cardio' ? '❤️ تمارين قلب' : act.activity_type}
-                                                </div>
-                                                <div style={{ fontSize: '12px', color: '#666' }}>
-                                                    {act.duration_minutes} دقيقة
-                                                </div>
+                                                <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{getActivityName(act.activity_type)}</div>
+                                                <div style={{ fontSize: '12px', color: '#666' }}>{act.duration_minutes} دقيقة</div>
                                             </div>
                                         </div>
                                         <div style={{ fontSize: '12px', color: '#666', direction: isArabic ? 'ltr' : 'ltr' }}>
@@ -339,10 +507,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                     </div>
                 )}
                 
-                {/* ✅ إحصائيات سريعة */}
                 {activities.length > 0 && (
                     <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee', display: 'flex', gap: '20px', justifyContent: 'center', fontSize: '12px', color: '#666' }}>
-                        <span>📊 آخر نشاط: {activities[0]?.activity_type}</span>
+                        <span>📊 آخر نشاط: {getActivityName(activities[0]?.activity_type)}</span>
                         <span>⏱️ إجمالي: {activities.reduce((sum, a) => sum + (a.duration_minutes || 0), 0)} دقيقة</span>
                     </div>
                 )}
