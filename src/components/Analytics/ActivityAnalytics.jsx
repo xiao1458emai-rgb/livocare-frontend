@@ -1,4 +1,3 @@
-// src/components/Analytics/ActivityAnalytics.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as stats from 'simple-statistics';
 import * as math from 'mathjs';
@@ -6,7 +5,7 @@ import axiosInstance from '../../services/api';
 import './Analytics.css';
 
 const ActivityAnalytics = ({ refreshTrigger }) => {
-    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    // ✅ إعدادات اللغة
     const [lang, setLang] = useState(() => {
         const saved = localStorage.getItem('app_lang');
         return saved === 'en' ? 'en' : 'ar';
@@ -33,9 +32,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
 
-    // ✅ إزالة دالة toggleLanguage - زر اللغة موجود فقط في ProfileManager
-
-    // ✅ الاستماع لتغييرات اللغة من ProfileManager
+    // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
@@ -44,29 +41,21 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         };
         
         window.addEventListener('languageChange', handleLanguageChange);
-        
-        return () => {
-            window.removeEventListener('languageChange', handleLanguageChange);
-        };
+        return () => window.removeEventListener('languageChange', handleLanguageChange);
     }, [lang]);
 
+    // ✅ الاستماع لتغيير الثيم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true' || 
                              window.matchMedia('(prefers-color-scheme: dark)').matches;
         setDarkMode(savedDarkMode);
-    }, []);
-
-    useEffect(() => {
+        
         const handleThemeChange = (e) => {
             setDarkMode(e.detail?.darkMode ?? false);
         };
         window.addEventListener('themeChange', handleThemeChange);
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
-
-    useEffect(() => {
-        fetchAllData();
-    }, [refreshTrigger]);
 
     // حساب المتوسط بأمان
     const safeMean = (arr) => {
@@ -282,11 +271,10 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return { score, status, warnings, positives };
     };
 
-    // 📉 تحليل الاتجاه (Trend Analysis)
+    // 📉 تحليل الاتجاه
     const calculateTrends = (activities, healthHistory) => {
         const trends = [];
         
-        // تحليل اتجاه النشاط
         if (activities.length >= 3) {
             const lastWeek = activities.filter(a => 
                 new Date(a.start_time) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
@@ -318,11 +306,10 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return trends;
     };
 
-    // 🧠 تحليل العلاقات (Correlation)
+    // 🧠 تحليل العلاقات
     const analyzeCorrelations = (healthData) => {
         const correlations = [];
         
-        // ربط السكر مع النبض
         if (healthData.bloodGlucose && healthData.heartRate) {
             if (healthData.bloodGlucose < 70 && healthData.heartRate > 100) {
                 correlations.push({
@@ -344,7 +331,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return correlations;
     };
 
-    // 🚨 تحليل المخاطر (Risk Prediction)
+    // 🚨 تحليل المخاطر
     const analyzeRisks = (healthData) => {
         const risks = [];
         
@@ -384,7 +371,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return null;
     };
     
-    // الحصول على أيقونة النشاط المفضل
     const getBestActivityIcon = (activity) => {
         if (!activity) return '🏃';
         if (activity.includes('مشي') || activity.includes('Walk')) return '🚶';
@@ -393,8 +379,8 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return '🏅';
     };
 
-    // جلب جميع البيانات
-    const fetchAllData = async () => {
+    // ✅ جلب جميع البيانات - محسّن مع useCallback
+    const fetchAllData = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
         isFetchingRef.current = true;
@@ -402,7 +388,14 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         setError(null);
         
         try {
-            const activitiesRes = await axiosInstance.get('/activities/').catch(() => ({ data: [] }));
+            const [activitiesRes, healthRes, glucoseRes] = await Promise.all([
+                axiosInstance.get('/activities/').catch(() => ({ data: [] })),
+                axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
+                axiosInstance.get('/blood-sugar/').catch(() => ({ data: [] }))
+            ]);
+            
+            if (!isMountedRef.current) return;
+            
             let activitiesData = [];
             if (activitiesRes.data?.results) {
                 activitiesData = activitiesRes.data.results;
@@ -410,7 +403,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 activitiesData = activitiesRes.data;
             }
             
-            const healthRes = await axiosInstance.get('/health_status/').catch(() => ({ data: [] }));
             let healthRecords = [];
             if (healthRes.data?.results) {
                 healthRecords = healthRes.data.results;
@@ -418,15 +410,12 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 healthRecords = healthRes.data;
             }
             
-            const glucoseRes = await axiosInstance.get('/blood-sugar/').catch(() => ({ data: [] }));
             let glucoseRecords = [];
             if (glucoseRes.data?.results) {
                 glucoseRecords = glucoseRes.data.results;
             } else if (Array.isArray(glucoseRes.data)) {
                 glucoseRecords = glucoseRes.data;
             }
-            
-            if (!isMountedRef.current) return;
             
             const latestHealth = healthRecords[0] || {};
             const latestGlucose = glucoseRecords[0] || {};
@@ -450,6 +439,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             const totalCalories = activitiesData.reduce((sum, a) => sum + (a.calories_burned || 0), 0);
             const weekProgress = calculateWeekProgress(activitiesData);
             const bestActivity = findBestActivity(activitiesData);
+            const preferredTime = detectPreferredActivityTime(activitiesData);
             
             const activitySummary = {
                 totalMinutes: totalActivity,
@@ -457,6 +447,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 activitiesCount: activitiesCount,
                 weekProgress: weekProgress,
                 bestActivity: bestActivity,
+                preferredTime: preferredTime,
                 activities: activitiesData
             };
             
@@ -465,15 +456,18 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             const correlations = analyzeCorrelations(currentHealthData);
             const risks = analyzeRisks(currentHealthData);
             
-            setActivityInsights({
-                summary: activitySummary,
-                globalHealth,
-                trends,
-                correlations,
-                risks,
-                healthData: currentHealthData,
-                lastUpdated: new Date().toISOString()
-            });
+            if (isMountedRef.current) {
+                setActivityInsights({
+                    summary: activitySummary,
+                    globalHealth,
+                    trends,
+                    correlations,
+                    risks,
+                    healthData: currentHealthData,
+                    lastUpdated: new Date().toISOString()
+                });
+                setError(null);
+            }
             
         } catch (err) {
             console.error('❌ Error fetching analytics:', err);
@@ -487,9 +481,26 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             }
             isFetchingRef.current = false;
         }
-    };
+    }, [isArabic]);
 
-    // الحصول على لون الحالة الصحية
+    // ✅ useEffect محسّن مع useCallback
+    useEffect(() => {
+        isMountedRef.current = true;
+        fetchAllData();
+        
+        return () => {
+            isMountedRef.current = false;
+            isFetchingRef.current = false;
+        };
+    }, [fetchAllData]);
+
+    // ✅ تأثير التحديث الخارجي
+    useEffect(() => {
+        if (refreshTrigger !== undefined && isMountedRef.current && !isFetchingRef.current) {
+            fetchAllData();
+        }
+    }, [refreshTrigger, fetchAllData]);
+
     const getHealthStatusColor = (status) => {
         switch(status) {
             case 'excellent': return '#10b981';
@@ -532,7 +543,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         );
     }
 
-    if (!activityInsights) {
+    if (!activityInsights || !activityInsights.summary || activityInsights.summary.activitiesCount === 0) {
         return (
             <div className={`analytics-container activity-analytics ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="analytics-header">
@@ -540,11 +551,13 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                     <button onClick={fetchAllData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                         🔄
                     </button>
-                    {/* ✅ تم إزالة زر اللغة من هنا */}
                 </div>
                 <div className="no-data">
-                    <p>📊 {isArabic ? 'لا توجد بيانات كافية للتحليل' : 'Insufficient data for analysis'}</p>
-                    <p className="hint">{isArabic ? 'قم بتسجيل أنشطتك وقياساتك الصحية للحصول على تحليلات مخصصة' : 'Log your activities and health measurements for personalized insights'}</p>
+                    <div className="no-data-icon">📊</div>
+                    <p>{isArabic ? 'لا توجد بيانات كافية للتحليل' : 'Insufficient data for analysis'}</p>
+                    <p className="hint">
+                        {isArabic ? 'قم بتسجيل أنشطتك وقياساتك الصحية للحصول على تحليلات مخصصة' : 'Log your activities and health measurements for personalized insights'}
+                    </p>
                 </div>
             </div>
         );
@@ -557,7 +570,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 <button onClick={fetchAllData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
-                {/* ✅ تم إزالة زر اللغة من هنا */}
             </div>
 
             <div className="insights-container">
@@ -589,12 +601,11 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                         </div>
                     </div>
                     
-                    {/* التحليلات الإيجابية والتحذيرات */}
                     <div className="health-analysis">
-                        {activityInsights.globalHealth.positives.length > 0 && (
+                        {activityInsights.globalHealth.positives && activityInsights.globalHealth.positives.length > 0 && (
                             <div className="positives-list">
                                 <strong>{isArabic ? '✅ الإيجابيات' : '✅ Positives'}</strong>
-                                {activityInsights.globalHealth.positives.map((p, i) => (
+                                {activityInsights.globalHealth.positives.slice(0, 3).map((p, i) => (
                                     <div key={i} className="positive-item">
                                         {p.message}: <span>{p.value}</span>
                                     </div>
@@ -602,10 +613,10 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                             </div>
                         )}
                         
-                        {activityInsights.globalHealth.warnings.length > 0 && (
+                        {activityInsights.globalHealth.warnings && activityInsights.globalHealth.warnings.length > 0 && (
                             <div className="warnings-list">
                                 <strong>{isArabic ? '⚠️ يحتاج انتباه' : '⚠️ Needs attention'}</strong>
-                                {activityInsights.globalHealth.warnings.map((w, i) => (
+                                {activityInsights.globalHealth.warnings.slice(0, 3).map((w, i) => (
                                     <div key={i} className={`warning-item severity-${w.severity}`}>
                                         {w.message}: <span>{w.value}</span>
                                     </div>
@@ -630,7 +641,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* 🧠 ملاحظات ذكية - تحليل العلاقات */}
+                {/* 🧠 ملاحظات ذكية */}
                 {activityInsights.correlations && activityInsights.correlations.length > 0 && (
                     <div className="correlations-card">
                         <h3>{isArabic ? '🧠 ملاحظات ذكية' : '🧠 Smart Insights'}</h3>
@@ -686,7 +697,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                         </div>
                     </div>
                     
-                    {/* شريط التقدم الأسبوعي */}
                     <div className="progress-container">
                         <div className="progress-bar-bg">
                             <div 
@@ -700,12 +710,20 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                         </div>
                     </div>
                     
-                    {/* النشاط المفضل */}
                     {activityInsights.summary.bestActivity && (
                         <div className="best-activity">
                             <span className="best-icon">{getBestActivityIcon(activityInsights.summary.bestActivity)}</span>
                             <span className="best-text">
                                 {isArabic ? 'نشاطك المفضل' : 'Your favorite activity'}: {activityInsights.summary.bestActivity}
+                            </span>
+                        </div>
+                    )}
+                    
+                    {activityInsights.summary.preferredTime && (
+                        <div className="preferred-time">
+                            <span className="time-icon">⏰</span>
+                            <span className="time-text">
+                                {isArabic ? 'وقتك المفضل للنشاط' : 'Your preferred activity time'}: {activityInsights.summary.preferredTime}
                             </span>
                         </div>
                     )}
