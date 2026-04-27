@@ -25,12 +25,16 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
     const isMountedRef = useRef(true);
     const abortControllerRef = useRef(null);
     const isFetchingRef = useRef(false);
+    const lastFetchTimeRef = useRef(0);
+    const hasAttemptedFetchRef = useRef(false);
 
     // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
                 setLang(event.detail.lang);
+                // إعادة تعيين وقت آخر طلب عند تغيير اللغة
+                lastFetchTimeRef.current = 0;
                 fetchInsights();
             }
         };
@@ -52,6 +56,14 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
     const fetchInsights = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
+        // ✅ منع الطلبات المتكررة (مرة كل 10 ثوانٍ كحد أقصى)
+        const now = Date.now();
+        if (now - lastFetchTimeRef.current < 10000 && hasAttemptedFetchRef.current) {
+            console.log('⏸️ AdvancedHealthInsights: تم تجاهل الطلب المتكرر');
+            return;
+        }
+        lastFetchTimeRef.current = now;
+        
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
@@ -70,7 +82,7 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                 params: { lang: currentLang },
                 signal: abortControllerRef.current.signal,
                 timeout: 10000
-            }).catch(() => null); // تجاهل خطأ الشبكة
+            }).catch(() => null);
             
             if (!isMountedRef.current) return;
             
@@ -79,16 +91,17 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                 processedData = response.data.data;
                 console.log('✅ Data from API');
             } else {
-                // ✅ استخدام البيانات المحلية دائماً للتأكد من وجود بيانات
                 processedData = generateLocalInsights();
                 console.log('✅ Using local insights data');
             }
             
             if (processedData && isMountedRef.current) {
                 setInsights(processedData);
+                hasAttemptedFetchRef.current = true;
                 setError(null);
             } else {
-                setInsights(generateLocalInsights()); // تأكد من وجود بيانات
+                setInsights(generateLocalInsights());
+                hasAttemptedFetchRef.current = true;
             }
         } catch (err) {
             if (err.name === 'AbortError') return;
@@ -96,7 +109,8 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
             if (isMountedRef.current) {
                 const localInsights = generateLocalInsights();
                 setInsights(localInsights);
-                setError(null); // لا نظهر خطأ لأن لدينا بيانات محلية
+                hasAttemptedFetchRef.current = true;
+                setError(null);
             }
         } finally {
             if (isMountedRef.current) setLoading(false);
@@ -124,65 +138,65 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                     },
                     { 
                         type: 'activity', 
-                        severity: 'warning', 
-                        message: isArabic ? 'نشاط محدود اليوم' : 'Limited activity today', 
-                        value: isArabic ? '٢٠ دقيقة' : '20 mins' 
+                        severity: 'info', 
+                        message: isArabic ? 'سجل نشاطك للحصول على تحليلات أفضل' : 'Log your activity for better insights', 
+                        value: isArabic ? 'غير مسجل' : 'Not logged' 
                     },
                     { 
                         type: 'sleep', 
-                        severity: 'good', 
-                        message: isArabic ? 'نوم جيد' : 'Good sleep', 
-                        value: isArabic ? '٧.٥ ساعات' : '7.5 hours' 
+                        severity: 'info', 
+                        message: isArabic ? 'سجل نومك للحصول على تحليلات أفضل' : 'Log your sleep for better insights', 
+                        value: isArabic ? 'غير مسجل' : 'Not logged' 
                     }
                 ]
             },
             trends: [
-                { metric: isArabic ? 'النشاط البدني' : 'Physical Activity', direction: 'up', change: 15, message: isArabic ? 'تحسن ملحوظ' : 'Significant improvement' },
-                { metric: isArabic ? 'جودة النوم' : 'Sleep Quality', direction: 'stable', change: 5, message: isArabic ? 'مستقر' : 'Stable' },
-                { metric: isArabic ? 'معدل النبض' : 'Heart Rate', direction: 'down', change: 8, message: isArabic ? 'انخفاض إيجابي' : 'Positive decrease' }
+                { metric: isArabic ? 'النشاط البدني' : 'Physical Activity', direction: 'stable', change: 0, message: isArabic ? 'سجل نشاطك لرؤية الاتجاهات' : 'Log activity to see trends' },
+                { metric: isArabic ? 'جودة النوم' : 'Sleep Quality', direction: 'stable', change: 0, message: isArabic ? 'سجل نومك لرؤية الاتجاهات' : 'Log sleep to see trends' }
             ],
             correlations: [
                 { 
-                    insight: isArabic ? 'النشاط المنتظم يحسن جودة النوم' : 'Regular activity improves sleep quality',
-                    details: isArabic ? 'عندما تمارس النشاط لمدة 30 دقيقة يومياً، يتحسن نومك بنسبة 20%' : 'When you exercise 30 mins daily, your sleep improves by 20%'
-                },
-                { 
-                    insight: isArabic ? 'النوم الكافي يقلل التوتر' : 'Adequate sleep reduces stress',
-                    details: isArabic ? 'النوم 7-8 ساعات يقلل مستويات التوتر بنسبة 30%' : 'Sleeping 7-8 hours reduces stress levels by 30%'
+                    insight: isArabic ? 'سجل بياناتك للحصول على تحليلات مخصصة' : 'Log your data for personalized insights',
+                    details: isArabic ? 'كلما زادت البيانات التي تسجلها، أصبحت التحليلات أكثر دقة' : 'The more data you log, the more accurate the insights become'
                 }
             ],
-            risks: [
-                {
-                    type: 'inactivity',
-                    severity: 'medium',
-                    message: isArabic ? 'خطر انخفاض النشاط' : 'Low activity risk',
-                    details: isArabic ? 'نشاطك اليومي أقل من المستوى الموصى به' : 'Your daily activity is below recommended levels',
-                    action: isArabic ? 'قم بزيادة النشاط تدريجياً إلى 30 دقيقة يومياً' : 'Gradually increase activity to 30 minutes daily'
-                }
-            ],
+            risks: [],
             recommendations: {
                 immediate: [
-                    { icon: '🚶', text: isArabic ? 'قم بالمشي لمدة 10 دقائق' : 'Take a 10-minute walk', timing: 'now' },
-                    { icon: '💧', text: isArabic ? 'اشرب كوباً من الماء' : 'Drink a glass of water', timing: 'now' }
+                    { icon: '📝', text: isArabic ? 'سجل نشاطك اليومي' : 'Log your daily activity', timing: 'now' },
+                    { icon: '😴', text: isArabic ? 'سجل نومك' : 'Log your sleep', timing: 'now' }
                 ],
                 later: [
-                    { icon: '🏋️', text: isArabic ? 'خطط لتمرين الغد' : 'Plan tomorrow\'s workout', timing: 'later' },
-                    { icon: '😴', text: isArabic ? 'حدد وقتاً منتظماً للنوم' : 'Set a regular sleep schedule', timing: 'later' }
+                    { icon: '📊', text: isArabic ? 'تابع تحليلاتك بعد تسجيل البيانات' : 'Check insights after logging data', timing: 'later' }
                 ],
                 holistic: [
-                    { area: isArabic ? 'نشاط بدني' : 'Physical Activity', recommendation: isArabic ? 'استهدف 30 دقيقة من النشاط المعتدل يومياً' : 'Aim for 30 minutes of moderate activity daily', priority: 'high' },
-                    { area: isArabic ? 'نوم' : 'Sleep', recommendation: isArabic ? 'حافظ على 7-8 ساعات نوم يومياً' : 'Maintain 7-8 hours of sleep daily', priority: 'high' },
-                    { area: isArabic ? 'ترطيب' : 'Hydration', recommendation: isArabic ? 'اشرب 2-3 لتر ماء يومياً' : 'Drink 2-3 liters of water daily', priority: 'medium' }
+                    { area: isArabic ? 'البدء' : 'Getting Started', recommendation: isArabic ? 'ابدأ بتسجيل نشاطك الأول وقياساتك الصحية' : 'Start by logging your first activity and health measurements', priority: 'high' }
                 ]
             }
         };
     }, [isArabic]);
 
+    // ✅ تأثير التحميل الأولي - مع منع التكرار
     useEffect(() => {
+        isMountedRef.current = true;
         fetchInsights();
+        
         return () => {
+            isMountedRef.current = false;
             if (abortControllerRef.current) abortControllerRef.current.abort();
         };
+    }, [fetchInsights]);
+
+    // ✅ تأثير التحديث الخارجي - مع منع التكرار
+    useEffect(() => {
+        if (refreshTrigger !== undefined && isMountedRef.current && !isFetchingRef.current) {
+            const now = Date.now();
+            if (now - lastFetchTimeRef.current < 10000) {
+                console.log('⏸️ AdvancedHealthInsights: تم تجاهل التحديث المتكرر من refreshTrigger');
+                return;
+            }
+            fetchInsights();
+        }
     }, [refreshTrigger, fetchInsights]);
 
     useEffect(() => {
@@ -209,18 +223,24 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
         );
     }
 
-    // ✅ بدون بيانات - يجب ألا يحدث هذا لأن لدينا بيانات محلية
+    // ✅ بدون بيانات
     if (!insights) {
         return (
             <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="analytics-header">
                     <h2>{isArabic ? 'التحليلات المتقدمة' : 'Advanced Health Insights'}</h2>
-                    <button onClick={fetchInsights} className="refresh-btn">🔄</button>
+                    <button onClick={() => {
+                        lastFetchTimeRef.current = 0;
+                        fetchInsights();
+                    }} className="refresh-btn">🔄</button>
                 </div>
                 <div className="analytics-no-data">
                     <div className="no-data-icon">📊</div>
-                    <p>{isArabic ? 'جاري تحضير التحليلات...' : 'Preparing insights...'}</p>
-                    <button onClick={fetchInsights} className="retry-btn">{isArabic ? 'إعادة المحاولة' : 'Retry'}</button>
+                    <p>{isArabic ? 'لا توجد بيانات كافية' : 'Insufficient data'}</p>
+                    <button onClick={() => {
+                        lastFetchTimeRef.current = 0;
+                        fetchInsights();
+                    }} className="retry-btn">{isArabic ? 'إعادة المحاولة' : 'Retry'}</button>
                 </div>
             </div>
         );
@@ -234,7 +254,10 @@ const AdvancedHealthInsights = ({ refreshTrigger }) => {
                     <span className="header-icon">📊</span>
                     {isArabic ? 'التحليلات المتقدمة' : 'Advanced Health Insights'}
                 </h2>
-                <button onClick={fetchInsights} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
+                <button onClick={() => {
+                    lastFetchTimeRef.current = 0;
+                    fetchInsights();
+                }} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
             </div>

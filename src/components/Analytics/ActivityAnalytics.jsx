@@ -28,9 +28,11 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
     
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
+    const lastFetchTimeRef = useRef(0);
 
     // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
@@ -239,8 +241,8 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             score -= 25;
             warnings.push({ 
                 type: 'activity', 
-                severity: 'warning', 
-                message: isArabic ? '⚠️ لا يوجد نشاط' : '⚠️ No activity', 
+                severity: 'info', 
+                message: isArabic ? 'ℹ️ لا يوجد نشاط بعد' : 'ℹ️ No activity yet', 
                 value: isArabic ? '0 دقيقة' : '0 minutes' 
             });
         } else if (totalMinutes < 150) {
@@ -379,9 +381,17 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return '🏅';
     };
 
-    // ✅ جلب جميع البيانات - محسّن مع useCallback
+    // ✅ جلب جميع البيانات
     const fetchAllData = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
+        
+        // منع الطلبات المتكررة (مرة كل 10 ثوانٍ كحد أقصى)
+        const now = Date.now();
+        if (now - lastFetchTimeRef.current < 10000 && hasAttemptedFetch) {
+            console.log('⏸️ ActivityAnalytics: تم تجاهل الطلب المتكرر');
+            return;
+        }
+        lastFetchTimeRef.current = now;
         
         isFetchingRef.current = true;
         setLoading(true);
@@ -466,6 +476,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                     healthData: currentHealthData,
                     lastUpdated: new Date().toISOString()
                 });
+                setHasAttemptedFetch(true);
                 setError(null);
             }
             
@@ -481,9 +492,9 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             }
             isFetchingRef.current = false;
         }
-    }, [isArabic]);
+    }, [isArabic, hasAttemptedFetch]);
 
-    // ✅ useEffect محسّن مع useCallback
+    // ✅ التحميل الأولي
     useEffect(() => {
         isMountedRef.current = true;
         fetchAllData();
@@ -494,9 +505,15 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         };
     }, [fetchAllData]);
 
-    // ✅ تأثير التحديث الخارجي
+    // ✅ تأثير التحديث الخارجي - مع منع التكرار
     useEffect(() => {
         if (refreshTrigger !== undefined && isMountedRef.current && !isFetchingRef.current) {
+            // ✅ منع التحديث أكثر من مرة كل 10 ثوانٍ
+            const now = Date.now();
+            if (now - lastFetchTimeRef.current < 10000) {
+                console.log('⏸️ ActivityAnalytics: تم تجاهل التحديث المتكرر من refreshTrigger');
+                return;
+            }
             fetchAllData();
         }
     }, [refreshTrigger, fetchAllData]);
@@ -527,7 +544,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return (
             <div className={`analytics-loading ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="spinner"></div>
-                <p>{isArabic ? '🧠 جاري التحليل الذكي...' : '🧠 Running smart analysis...'}</p>
+                <p>{isArabic ? '🧠 جاري التحليل...' : '🧠 Analyzing...'}</p>
             </div>
         );
     }
@@ -536,7 +553,10 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return (
             <div className={`analytics-error ${darkMode ? 'dark-mode' : ''}`}>
                 <p>⚠️ {error}</p>
-                <button onClick={fetchAllData} className="retry-btn">
+                <button onClick={() => {
+                    lastFetchTimeRef.current = 0;
+                    fetchAllData();
+                }} className="retry-btn">
                     🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                 </button>
             </div>
@@ -548,7 +568,10 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             <div className={`analytics-container activity-analytics ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="analytics-header">
                     <h2>{isArabic ? '🧠 تحليلات النشاط الذكية' : '🧠 Smart Activity Analytics'}</h2>
-                    <button onClick={fetchAllData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
+                    <button onClick={() => {
+                        lastFetchTimeRef.current = 0;
+                        fetchAllData();
+                    }} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                         🔄
                     </button>
                 </div>
@@ -556,8 +579,17 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                     <div className="no-data-icon">📊</div>
                     <p>{isArabic ? 'لا توجد بيانات كافية للتحليل' : 'Insufficient data for analysis'}</p>
                     <p className="hint">
-                        {isArabic ? 'قم بتسجيل أنشطتك وقياساتك الصحية للحصول على تحليلات مخصصة' : 'Log your activities and health measurements for personalized insights'}
+                        {isArabic ? 'ابدأ بإضافة الأنشطة والقياسات الصحية' : 'Start by adding activities and health measurements'}
                     </p>
+                    <button 
+                        onClick={() => {
+                            const activityForm = document.querySelector('.activity-form-card');
+                            if (activityForm) activityForm.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="add-data-btn"
+                    >
+                        ➕ {isArabic ? 'أضف نشاطاً جديداً' : 'Add New Activity'}
+                    </button>
                 </div>
             </div>
         );
@@ -567,7 +599,10 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         <div className={`analytics-container activity-analytics ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
                 <h2>{isArabic ? '🧠 تحليلات النشاط الذكية' : '🧠 Smart Activity Analytics'}</h2>
-                <button onClick={fetchAllData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
+                <button onClick={() => {
+                    lastFetchTimeRef.current = 0;
+                    fetchAllData();
+                }} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
             </div>
