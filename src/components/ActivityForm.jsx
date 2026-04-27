@@ -128,144 +128,144 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
         setSensorSupported(esp32Service.isSupported());
     }, []);
     
-    // ✅ تفعيل ESP32 Service
-    useEffect(() => {
-        const enableESP32 = () => {
-            console.log('ESP32 Service: Starting');
-            esp32Service.startPolling();
-            setSensorActive(true);
-        };
-        enableESP32();
+    // // ✅ تفعيل ESP32 Service
+    // useEffect(() => {
+    //     const enableESP32 = () => {
+    //         console.log('ESP32 Service: Starting');
+    //         esp32Service.startPolling();
+    //         setSensorActive(true);
+    //     };
+    //     enableESP32();
         
-        return () => {
-            esp32Service.stopPolling();
-            if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-            }
-        };
-    }, []);
+    //     return () => {
+    //         esp32Service.stopPolling();
+    //         if (pollingIntervalRef.current) {
+    //             clearInterval(pollingIntervalRef.current);
+    //         }
+    //     };
+    // }, []);
     
-        // ✅ استماع لبيانات ESP32
-    // ✅ استماع لبيانات ESP32 - معدل لتعبئة النموذج
-    useEffect(() => {
-        const handleESP32Data = (type, data) => {
-            if (!isMountedRef.current) return;
-            console.log('ESP32 Data received:', type, data);
+    //     // ✅ استماع لبيانات ESP32
+    // // ✅ استماع لبيانات ESP32 - معدل لتعبئة النموذج
+    // useEffect(() => {
+    //     const handleESP32Data = (type, data) => {
+    //         if (!isMountedRef.current) return;
+    //         console.log('ESP32 Data received:', type, data);
             
-            switch (type) {
-                case 'heartRate':
-                    setSensorHeartRate(data);
-                    setSensorData(prev => ({ ...prev, heartRate: data, lastUpdate: new Date() }));
-                    setSensorConnected(true);
-                    setSensorActive(true);
-                    setSensorStatus('connected');
-                    setSensorError(null);
+    //         switch (type) {
+    //             case 'heartRate':
+    //                 setSensorHeartRate(data);
+    //                 setSensorData(prev => ({ ...prev, heartRate: data, lastUpdate: new Date() }));
+    //                 setSensorConnected(true);
+    //                 setSensorActive(true);
+    //                 setSensorStatus('connected');
+    //                 setSensorError(null);
                     
-                    // ✅ تعبئة حقل الملاحظات تلقائياً مع قراءة النبض
-                    const heartRateNote = isArabic ? `النبض: ${data} BPM` : `Heart rate: ${data} BPM`;
-                    setFormData(prev => ({
-                        ...prev,
-                        notes: prev.notes ? `${prev.notes} - ${heartRateNote}` : heartRateNote
-                    }));
+    //                 // ✅ تعبئة حقل الملاحظات تلقائياً مع قراءة النبض
+    //                 const heartRateNote = isArabic ? `النبض: ${data} BPM` : `Heart rate: ${data} BPM`;
+    //                 setFormData(prev => ({
+    //                     ...prev,
+    //                     notes: prev.notes ? `${prev.notes} - ${heartRateNote}` : heartRateNote
+    //                 }));
                     
-                    if (data > 100) {
-                        addSensorAlert(isArabic ? `⚠️ نبض مرتفع: ${data} BPM` : `⚠️ High heart rate: ${data} BPM`, 'error');
-                    } else if (data < 60 && data > 0) {
-                        addSensorAlert(isArabic ? `⚠️ نبض منخفض: ${data} BPM` : `⚠️ Low heart rate: ${data} BPM`, 'warning');
-                    }
-                    break;
+    //                 if (data > 100) {
+    //                     addSensorAlert(isArabic ? `⚠️ نبض مرتفع: ${data} BPM` : `⚠️ High heart rate: ${data} BPM`, 'error');
+    //                 } else if (data < 60 && data > 0) {
+    //                     addSensorAlert(isArabic ? `⚠️ نبض منخفض: ${data} BPM` : `⚠️ Low heart rate: ${data} BPM`, 'warning');
+    //                 }
+    //                 break;
                     
-                case 'spo2':
-                    setSensorSpO2(data);
-                    setSensorData(prev => ({ ...prev, spo2: data, lastUpdate: new Date() }));
-                    setSensorConnected(true);
-                    setSensorActive(true);
-                    setSensorStatus('connected');
-                    setSensorError(null);
+    //             case 'spo2':
+    //                 setSensorSpO2(data);
+    //                 setSensorData(prev => ({ ...prev, spo2: data, lastUpdate: new Date() }));
+    //                 setSensorConnected(true);
+    //                 setSensorActive(true);
+    //                 setSensorStatus('connected');
+    //                 setSensorError(null);
                     
-                    // ✅ تعبئة حقل الملاحظات تلقائياً مع قراءة الأكسجين
-                    const spo2Note = isArabic ? `الأكسجين: ${data}%` : `Oxygen: ${data}%`;
-                    setFormData(prev => ({
-                        ...prev,
-                        notes: prev.notes ? `${prev.notes} - ${spo2Note}` : spo2Note
-                    }));
+    //                 // ✅ تعبئة حقل الملاحظات تلقائياً مع قراءة الأكسجين
+    //                 const spo2Note = isArabic ? `الأكسجين: ${data}%` : `Oxygen: ${data}%`;
+    //                 setFormData(prev => ({
+    //                     ...prev,
+    //                     notes: prev.notes ? `${prev.notes} - ${spo2Note}` : spo2Note
+    //                 }));
                     
-                    if (data < 90 && data > 0) {
-                        addSensorAlert(isArabic ? `⚠️ أكسجين منخفض: ${data}%` : `⚠️ Low oxygen: ${data}%`, 'error');
-                    }
-                    break;
+    //                 if (data < 90 && data > 0) {
+    //                     addSensorAlert(isArabic ? `⚠️ أكسجين منخفض: ${data}%` : `⚠️ Low oxygen: ${data}%`, 'error');
+    //                 }
+    //                 break;
                     
-                case 'data':
-                    if (data.heartRate) setSensorHeartRate(data.heartRate);
-                    if (data.spo2) setSensorSpO2(data.spo2);
-                    setSensorData(prev => ({ ...prev, heartRate: data.heartRate, spo2: data.spo2, lastUpdate: new Date() }));
-                    setSensorConnected(true);
-                    setSensorActive(true);
-                    setSensorStatus('connected');
-                    setSensorError(null);
+    //             case 'data':
+    //                 if (data.heartRate) setSensorHeartRate(data.heartRate);
+    //                 if (data.spo2) setSensorSpO2(data.spo2);
+    //                 setSensorData(prev => ({ ...prev, heartRate: data.heartRate, spo2: data.spo2, lastUpdate: new Date() }));
+    //                 setSensorConnected(true);
+    //                 setSensorActive(true);
+    //                 setSensorStatus('connected');
+    //                 setSensorError(null);
                     
-                    // ✅ تعبئة حقل الملاحظات تلقائياً ببيانات المستشعر
-                    let sensorNotes = [];
-                    if (data.heartRate) sensorNotes.push(isArabic ? `النبض: ${data.heartRate} BPM` : `Heart rate: ${data.heartRate} BPM`);
-                    if (data.spo2) sensorNotes.push(isArabic ? `الأكسجين: ${data.spo2}%` : `Oxygen: ${data.spo2}%`);
+    //                 // ✅ تعبئة حقل الملاحظات تلقائياً ببيانات المستشعر
+    //                 let sensorNotes = [];
+    //                 if (data.heartRate) sensorNotes.push(isArabic ? `النبض: ${data.heartRate} BPM` : `Heart rate: ${data.heartRate} BPM`);
+    //                 if (data.spo2) sensorNotes.push(isArabic ? `الأكسجين: ${data.spo2}%` : `Oxygen: ${data.spo2}%`);
                     
-                    if (sensorNotes.length > 0) {
-                        setFormData(prev => ({
-                            ...prev,
-                            notes: prev.notes ? `${prev.notes} - ${sensorNotes.join(' - ')}` : sensorNotes.join(' - ')
-                        }));
-                    }
+    //                 if (sensorNotes.length > 0) {
+    //                     setFormData(prev => ({
+    //                         ...prev,
+    //                         notes: prev.notes ? `${prev.notes} - ${sensorNotes.join(' - ')}` : sensorNotes.join(' - ')
+    //                     }));
+    //                 }
                     
-                    // ✅ عرض رسالة للمستخدم بأن البيانات جاهزة
-                    showTemporaryMessage(
-                        isArabic ? '✅ تم استلام بيانات المستشعر، يمكنك إضافتها كنشاط' : '✅ Sensor data received, you can add it as an activity',
-                        'success'
-                    );
-                    break;
+    //                 // ✅ عرض رسالة للمستخدم بأن البيانات جاهزة
+    //                 showTemporaryMessage(
+    //                     isArabic ? '✅ تم استلام بيانات المستشعر، يمكنك إضافتها كنشاط' : '✅ Sensor data received, you can add it as an activity',
+    //                     'success'
+    //                 );
+    //                 break;
                     
-                case 'connected':
-                    setSensorConnected(true);
-                    setSensorActive(true);
-                    setSensorStatus('connected');
-                    setSensorError(null);
-                    showTemporaryMessage(isArabic ? '✅ تم الاتصال بـ ESP32' : '✅ Connected to ESP32', 'success');
-                    break;
+    //             case 'connected':
+    //                 setSensorConnected(true);
+    //                 setSensorActive(true);
+    //                 setSensorStatus('connected');
+    //                 setSensorError(null);
+    //                 showTemporaryMessage(isArabic ? '✅ تم الاتصال بـ ESP32' : '✅ Connected to ESP32', 'success');
+    //                 break;
                     
-                case 'disconnected':
-                    setSensorConnected(false);
-                    setSensorActive(false);
-                    setSensorStatus('disconnected');
-                    showTemporaryMessage(isArabic ? '⚠️ تم قطع الاتصال بـ ESP32' : '⚠️ Disconnected from ESP32', 'warning');
-                    break;
+    //             case 'disconnected':
+    //                 setSensorConnected(false);
+    //                 setSensorActive(false);
+    //                 setSensorStatus('disconnected');
+    //                 showTemporaryMessage(isArabic ? '⚠️ تم قطع الاتصال بـ ESP32' : '⚠️ Disconnected from ESP32', 'warning');
+    //                 break;
                     
-                case 'error':
-                    setSensorStatus('error');
-                    setSensorError(isArabic ? 'خطأ في الاتصال بـ ESP32' : 'ESP32 connection error');
-                    showTemporaryMessage(isArabic ? '❌ خطأ في الاتصال بـ ESP32' : '❌ ESP32 connection error', 'error');
-                    break;
+    //             case 'error':
+    //                 setSensorStatus('error');
+    //                 setSensorError(isArabic ? 'خطأ في الاتصال بـ ESP32' : 'ESP32 connection error');
+    //                 showTemporaryMessage(isArabic ? '❌ خطأ في الاتصال بـ ESP32' : '❌ ESP32 connection error', 'error');
+    //                 break;
                     
-                default:
-                    break;
-            }
-        };
+    //             default:
+    //                 break;
+    //         }
+    //     };
         
-        esp32Service.onData(handleESP32Data);
+    //     esp32Service.onData(handleESP32Data);
         
-        return () => {
-            const index = esp32Service.listeners.indexOf(handleESP32Data);
-            if (index > -1) esp32Service.listeners.splice(index, 1);
-        };
-    }, [isArabic]);
+    //     return () => {
+    //         const index = esp32Service.listeners.indexOf(handleESP32Data);
+    //         if (index > -1) esp32Service.listeners.splice(index, 1);
+    //     };
+    // }, [isArabic]);
     
-    // ✅ إضافة تنبيه المستشعر
-    const addSensorAlert = (alert, type) => {
-        setSensorAlerts(prev => [{ message: alert, type, timestamp: Date.now() }, ...prev].slice(0, 5));
-        setTimeout(() => {
-            if (isMountedRef.current) {
-                setSensorAlerts(prev => prev.filter(a => a.timestamp !== Date.now()));
-            }
-        }, 5000);
-    };
+    // // ✅ إضافة تنبيه المستشعر
+    // const addSensorAlert = (alert, type) => {
+    //     setSensorAlerts(prev => [{ message: alert, type, timestamp: Date.now() }, ...prev].slice(0, 5));
+    //     setTimeout(() => {
+    //         if (isMountedRef.current) {
+    //             setSensorAlerts(prev => prev.filter(a => a.timestamp !== Date.now()));
+    //         }
+    //     }, 5000);
+    // };
     
     // ✅ عرض رسالة مؤقتة
     const showTemporaryMessage = (msg, type = 'success') => {
