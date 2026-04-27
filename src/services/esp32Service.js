@@ -1,7 +1,7 @@
 // src/services/esp32Service.js
 import axios from 'axios';
 
-const ESP32_API_URL = process.env.REACT_APP_ESP32_API_URL || 'https://sensors-api-6mej.onrender.com';
+const ESP32_API_URL = process.env.REACT_APP_ESP32_API_URL || 'https://livocare-sensor-api.onrender.com';
 
 class ESP32Service {
     constructor() {
