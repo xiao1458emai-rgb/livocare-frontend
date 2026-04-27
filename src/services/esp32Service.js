@@ -5,7 +5,7 @@ const DJANGO_API_URL = process.env.REACT_APP_DJANGO_API_URL || 'https://livocare
 
 class ESP32Service {
     constructor() {
-        this.listeners = [];
+        this.listeners = [];  // ✅ مصفوفة المستمعين
         this.pollingInterval = null;
         this.isPolling = false;
         this.lastReading = null;
@@ -40,7 +40,6 @@ class ESP32Service {
             }
 
             const url = `${DJANGO_API_URL}/esp32/latest/`;
-            console.log('🔄 Fetching from:', url);
             
             const response = await axios.get(url, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -51,7 +50,7 @@ class ESP32Service {
                 
                 const newReading = {
                     heartRate: data.heart_rate,
-                    spo2: data.blood_oxygen,
+                    spo2: data.blood_oxygen || data.spo2,
                     timestamp: data.recorded_at || new Date().toISOString(),
                     raw: data
                 };
@@ -62,6 +61,8 @@ class ESP32Service {
                     this.lastReading?.spo2 !== newReading.spo2) {
                     
                     this.lastReading = newReading;
+                    
+                    // ✅ استدعاء المستمعين بشكل صحيح
                     this.notifyListeners('heartRate', newReading.heartRate);
                     this.notifyListeners('spo2', newReading.spo2);
                     this.notifyListeners('data', newReading);
@@ -102,24 +103,43 @@ class ESP32Service {
         }
     }
 
-    // ✅ دالة on المفقودة (هذا كان سبب الخطأ)
+    // ✅ دالة on الصحيحة
     on(callback) {
-        this.listeners.push(callback);
-        return () => {
-            const index = this.listeners.indexOf(callback);
-            if (index > -1) this.listeners.splice(index, 1);
-        };
+        if (typeof callback === 'function') {
+            this.listeners.push(callback);
+            console.log(`✅ Listener added. Total: ${this.listeners.length}`);
+            return () => {
+                const index = this.listeners.indexOf(callback);
+                if (index > -1) {
+                    this.listeners.splice(index, 1);
+                    console.log(`❌ Listener removed. Remaining: ${this.listeners.length}`);
+                }
+            };
+        } else {
+            console.error('❌ on() requires a function callback');
+            return () => {};
+        }
     }
 
-    // ✅ دالة off لإزالة المستمعين
+    // ✅ دالة off
     off(callback) {
         const index = this.listeners.indexOf(callback);
-        if (index > -1) this.listeners.splice(index, 1);
+        if (index > -1) {
+            this.listeners.splice(index, 1);
+            console.log(`❌ Listener removed. Remaining: ${this.listeners.length}`);
+        }
     }
 
+    // ✅ دالة notifyListeners المعدلة
     notifyListeners(type, data) {
+        if (this.listeners.length === 0) {
+            console.log(`⚠️ No listeners for event: ${type}`);
+            return;
+        }
+        
         this.listeners.forEach(listener => {
             try {
+                // ✅ استدعاء المستمع مع (type, data)
                 listener(type, data);
             } catch (err) {
                 console.error('ESP32 Service: Listener error', err);
