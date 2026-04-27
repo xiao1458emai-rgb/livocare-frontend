@@ -27,11 +27,53 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
     const analyticsFetchedRef = useRef(false);
+    const unsubscribeESP32Ref = useRef(null); // ✅ لتخزين دالة إلغاء الاشتراك
 
     // ✅ جلب الأنشطة - مرة واحدة فقط
     useEffect(() => {
         fetchActivities();
         fetchAnalytics();
+    }, []);
+
+    // ✅ ✅ ✅ تسجيل مستمع ESP32 (الجزء المصحح)
+    useEffect(() => {
+        console.log('🎯 Setting up ESP32 listener...');
+        
+        // ✅ دالة معالجة بيانات ESP32 (الصيغة الصحيحة)
+        const handleESP32Event = (type, data) => {
+            console.log(`📡 ESP32 Event received: ${type} =`, data);
+            
+            if (!isMountedRef.current) return;
+            
+            if (type === 'heartRate') {
+                setSensorHeartRate(data);
+            } else if (type === 'spo2') {
+                setSensorSpO2(data);
+            } else if (type === 'data') {
+                if (data && data.heartRate) setSensorHeartRate(data.heartRate);
+                if (data && data.spo2) setSensorSpO2(data.spo2);
+            } else if (type === 'error') {
+                console.error('ESP32 Error:', data);
+            }
+        };
+        
+        // ✅ تسجيل المستمع (تأكد من أن esp32Service.on موجود)
+        if (esp32Service && typeof esp32Service.on === 'function') {
+            unsubscribeESP32Ref.current = esp32Service.on(handleESP32Event);
+            console.log('✅ ESP32 listener registered');
+        } else {
+            console.error('❌ esp32Service.on is not a function');
+        }
+        
+        return () => {
+            if (unsubscribeESP32Ref.current) {
+                unsubscribeESP32Ref.current();
+                console.log('❌ ESP32 listener removed');
+            }
+            if (esp32Service && typeof esp32Service.stopPolling === 'function') {
+                esp32Service.stopPolling();
+            }
+        };
     }, []);
 
     // ✅ تنسيق التاريخ والوقت
@@ -134,7 +176,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             } else if (isMountedRef.current) {
                 setAnalytics({
                     total_activities: activities.length,
-                    total_calories: 0,
+                    total_calories: activities.reduce((sum, act) => sum + (act.calories_burned || 0), 0),
                     total_duration: activities.reduce((sum, act) => sum + (act.duration_minutes || 0), 0),
                     avg_duration: activities.length > 0 ? Math.round(activities.reduce((sum, act) => sum + (act.duration_minutes || 0), 0) / activities.length) : 0
                 });
@@ -213,20 +255,23 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         }
     };
 
+    // ✅ ✅ ✅ دالة الاتصال بـ ESP32 (المصححة)
     const connectSensor = useCallback(async () => {
         setSensorConnecting(true);
         
         try {
-            esp32Service.startPolling();
-            setSensorActive(true);
-            
-            const handleData = (data) => {
-                if (data.heartRate) setSensorHeartRate(data.heartRate);
-                if (data.spo2) setSensorSpO2(data.spo2);
-            };
-            
-            esp32Service.on('data', handleData);
-            
+            // بدء الـ polling (المستمع مسجل بالفعل في useEffect)
+            if (esp32Service && typeof esp32Service.startPolling === 'function') {
+                esp32Service.startPolling();
+                setSensorActive(true);
+                
+                // جلب قراءة فورية
+                if (typeof esp32Service.fetchLatestReading === 'function') {
+                    await esp32Service.fetchLatestReading();
+                }
+            } else {
+                console.error('❌ esp32Service not available');
+            }
         } catch (error) {
             console.error('ESP32 connection error:', error);
         } finally {
@@ -235,7 +280,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     }, []);
 
     const disconnectSensor = useCallback(() => {
-        esp32Service.stopPolling();
+        if (esp32Service && typeof esp32Service.stopPolling === 'function') {
+            esp32Service.stopPolling();
+        }
         setSensorActive(false);
         setSensorHeartRate(null);
         setSensorSpO2(null);
@@ -245,7 +292,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
-            esp32Service.stopPolling();
+            if (esp32Service && typeof esp32Service.stopPolling === 'function') {
+                esp32Service.stopPolling();
+            }
         };
     }, []);
 
@@ -288,30 +337,32 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             <div style={{ background: '#1a1a2e', color: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
                 <h3 style={{ margin: '0 0 15px 0' }}>🫀 ESP32 Health Monitor</h3>
                 
-                {!sensorActive ? (
-                    <button onClick={connectSensor} disabled={sensorConnecting} style={{ padding: '10px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-                        {sensorConnecting ? 'جاري الاتصال...' : '🔌 اتصال ESP32'}
-                    </button>
-                ) : (
-                    <button onClick={disconnectSensor} style={{ padding: '10px 20px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-                        🔌 قطع الاتصال
-                    </button>
-                )}
-                
-                {sensorActive && (
-                    <div style={{ display: 'flex', gap: '30px', marginTop: '15px' }}>
-                        <div>
-                            <span style={{ fontSize: '20px' }}>❤️</span>
-                            <strong style={{ fontSize: '24px', marginLeft: '10px' }}>{sensorHeartRate || '---'}</strong>
-                            <span> BPM</span>
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {!sensorActive ? (
+                        <button onClick={connectSensor} disabled={sensorConnecting} style={{ padding: '10px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                            {sensorConnecting ? '⏳ جاري الاتصال...' : '🔌 اتصال ESP32'}
+                        </button>
+                    ) : (
+                        <button onClick={disconnectSensor} style={{ padding: '10px 20px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                            🔌 قطع الاتصال
+                        </button>
+                    )}
+                    
+                    {sensorActive && (
+                        <div style={{ display: 'flex', gap: '30px', marginTop: '15px' }}>
+                            <div>
+                                <span style={{ fontSize: '20px' }}>❤️</span>
+                                <strong style={{ fontSize: '24px', marginLeft: '10px' }}>{sensorHeartRate !== null ? sensorHeartRate : '---'}</strong>
+                                <span> BPM</span>
+                            </div>
+                            <div>
+                                <span style={{ fontSize: '20px' }}>💨</span>
+                                <strong style={{ fontSize: '24px', marginLeft: '10px' }}>{sensorSpO2 !== null ? sensorSpO2 : '---'}</strong>
+                                <span> SpO₂%</span>
+                            </div>
                         </div>
-                        <div>
-                            <span style={{ fontSize: '20px' }}>💨</span>
-                            <strong style={{ fontSize: '24px', marginLeft: '10px' }}>{sensorSpO2 || '---'}</strong>
-                            <span> SpO₂%</span>
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
             
             {/* ✅ نموذج إضافة نشاط */}
@@ -354,7 +405,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                     
                     {showCharts && (
                         <>
-                            {/* ✅ مخطط 1: توزيع الأنشطة حسب النوع */}
+                            {/* مخطط 1: توزيع الأنشطة حسب النوع */}
                             <div style={{ marginBottom: '30px' }}>
                                 <h4 style={{ margin: '0 0 15px 0', color: '#333' }}>📊 توزيع الأنشطة حسب النوع</h4>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -366,7 +417,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                                             </div>
                                             <div style={{ background: '#e0e0e0', borderRadius: '10px', overflow: 'hidden' }}>
                                                 <div style={{
-                                                    width: `${(stats.duration / maxDuration) * 100}%`,
+                                                    width: `${maxDuration > 0 ? (stats.duration / maxDuration) * 100 : 0}%`,
                                                     background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
                                                     padding: '8px 10px',
                                                     borderRadius: '10px',
@@ -383,7 +434,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                                 </div>
                             </div>
                             
-                            {/* ✅ مخطط 2: نشاط آخر 7 أيام */}
+                            {/* مخطط 2: نشاط آخر 7 أيام */}
                             <div>
                                 <h4 style={{ margin: '0 0 15px 0', color: '#333' }}>📅 آخر 7 أيام</h4>
                                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', justifyContent: 'center', minHeight: '200px' }}>
@@ -419,7 +470,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                                 </div>
                             </div>
                             
-                            {/* ✅ مخطط 3: إحصائيات دائرية بسيطة */}
+                            {/* مخطط 3: إحصائيات دائرية بسيطة */}
                             <div style={{ marginTop: '30px', padding: '15px', background: '#f8f9fa', borderRadius: '10px' }}>
                                 <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#666' }}>🎯 ملخص سريع</h4>
                                 <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
