@@ -1,4 +1,4 @@
-// src/components/ActivityForm.jsx - نسخة مستقرة مع ESP32 فقط
+// src/components/ActivityForm.jsx - نسخة مستقرة مع ESP32 + تحليلات مبسطة
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axiosInstance from '../services/api';
 import esp32Service from '../services/esp32Service';
@@ -13,6 +13,10 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         start_time: ''
     });
     
+    // ✅ حالة التحليلات
+    const [analytics, setAnalytics] = useState(null);
+    const [analyticsLoading, setAnalyticsLoading] = useState(false);
+    
     // ✅ حالة ESP32
     const [sensorActive, setSensorActive] = useState(false);
     const [sensorHeartRate, setSensorHeartRate] = useState(null);
@@ -21,11 +25,49 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
+    const analyticsFetchedRef = useRef(false);
 
     // ✅ جلب الأنشطة - مرة واحدة فقط
     useEffect(() => {
         fetchActivities();
+        fetchAnalytics(); // ✅ جلب التحليلات مرة واحدة
     }, []);
+
+    // ✅ جلب التحليلات
+    const fetchAnalytics = async () => {
+        if (analyticsFetchedRef.current) return;
+        analyticsFetchedRef.current = true;
+        setAnalyticsLoading(true);
+        
+        try {
+            const response = await axiosInstance.get('/analytics/activity-insights/').catch(() => null);
+            
+            if (response?.data && isMountedRef.current) {
+                setAnalytics(response.data);
+                console.log('✅ Activity analytics loaded');
+            } else if (isMountedRef.current) {
+                // ✅ بيانات محلية بديلة
+                setAnalytics({
+                    total_activities: activities.length,
+                    total_calories: 0,
+                    total_duration: activities.reduce((sum, act) => sum + (act.duration_minutes || 0), 0),
+                    message: isArabic ? 'قم بتسجيل المزيد من الأنشطة' : 'Log more activities'
+                });
+            }
+        } catch (err) {
+            console.error('Error fetching analytics:', err);
+            if (isMountedRef.current) {
+                setAnalytics({
+                    total_activities: activities.length,
+                    total_calories: 0,
+                    total_duration: 0,
+                    message: isArabic ? 'غير متاح حالياً' : 'Currently unavailable'
+                });
+            }
+        } finally {
+            if (isMountedRef.current) setAnalyticsLoading(false);
+        }
+    };
 
     const fetchActivities = async () => {
         if (isFetchingRef.current) return;
@@ -36,6 +78,15 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             const response = await axiosInstance.get('/activities/');
             let data = response.data?.results || response.data || [];
             setActivities(data);
+            
+            // ✅ تحديث التحليلات بعد جلب الأنشطة
+            if (analytics) {
+                setAnalytics(prev => ({
+                    ...prev,
+                    total_activities: data.length,
+                    total_duration: data.reduce((sum, act) => sum + (act.duration_minutes || 0), 0)
+                }));
+            }
         } catch (err) {
             console.error('Error fetching activities:', err);
         } finally {
@@ -60,6 +111,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             });
             
             await fetchActivities();
+            await fetchAnalytics(); // ✅ تحديث التحليلات بعد الإضافة
             
             if (onDataSubmitted) onDataSubmitted();
             if (onActivityChange) onActivityChange();
@@ -78,11 +130,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         setSensorConnecting(true);
         
         try {
-            // ✅ بدء polling يدوياً فقط
             esp32Service.startPolling();
             setSensorActive(true);
             
-            // ✅ بدء الاستماع للبيانات
             const handleData = (data) => {
                 if (data.heartRate) setSensorHeartRate(data.heartRate);
                 if (data.spo2) setSensorSpO2(data.spo2);
@@ -116,9 +166,35 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
 
     return (
         <div style={{ padding: '20px', border: '1px solid #ccc', borderRadius: '10px' }}>
+            
+            {/* ✅ قسم التحليلات */}
+            <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
+                <h3 style={{ margin: '0 0 10px 0' }}>📊 تحليل الأنشطة</h3>
+                {analyticsLoading ? (
+                    <p>جاري التحليل...</p>
+                ) : analytics ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', textAlign: 'center' }}>
+                        <div>
+                            <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_activities || 0}</div>
+                            <div style={{ fontSize: '12px', opacity: 0.8 }}>عدد الأنشطة</div>
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_calories || 0}</div>
+                            <div style={{ fontSize: '12px', opacity: 0.8 }}>سعرات حرارية</div>
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_duration || 0}</div>
+                            <div style={{ fontSize: '12px', opacity: 0.8 }}>دقائق</div>
+                        </div>
+                    </div>
+                ) : (
+                    <p>لا توجد بيانات كافية</p>
+                )}
+            </div>
+            
             {/* ✅ قسم ESP32 */}
             <div style={{ background: '#1a1a2e', color: 'white', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
-                <h3>🫀 ESP32 Health Monitor</h3>
+                <h3 style={{ margin: '0 0 10px 0' }}>🫀 ESP32 Health Monitor</h3>
                 
                 {!sensorActive ? (
                     <button onClick={connectSensor} disabled={sensorConnecting} style={{ padding: '8px 16px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
@@ -145,9 +221,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             </div>
             
             {/* ✅ نموذج إضافة نشاط */}
-            <h3>➕ إضافة نشاط جديد</h3>
+            <h3 style={{ margin: '0 0 15px 0' }}>➕ إضافة نشاط جديد</h3>
             <form onSubmit={handleSubmit}>
-                <select name="activity_type" value={formData.activity_type} onChange={handleChange} required style={{ width: '100%', padding: '8px', marginBottom: '10px' }}>
+                <select name="activity_type" value={formData.activity_type} onChange={handleChange} required style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
                     <option value="">اختر نوع النشاط</option>
                     <option value="walking">🚶 مشي</option>
                     <option value="running">🏃 جري</option>
@@ -156,29 +232,32 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                     <option value="yoga">🧘 يوجا</option>
                 </select>
                 
-                <input type="number" name="duration_minutes" placeholder="المدة (دقائق)" value={formData.duration_minutes} onChange={handleChange} required style={{ width: '100%', padding: '8px', marginBottom: '10px' }} />
+                <input type="number" name="duration_minutes" placeholder="المدة (دقائق)" value={formData.duration_minutes} onChange={handleChange} required style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #ddd' }} />
                 
-                <input type="datetime-local" name="start_time" value={formData.start_time} onChange={handleChange} required style={{ width: '100%', padding: '8px', marginBottom: '10px' }} />
+                <input type="datetime-local" name="start_time" value={formData.start_time} onChange={handleChange} required style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #ddd' }} />
                 
-                <button type="submit" disabled={loading} style={{ width: '100%', padding: '10px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
                     {loading ? 'جاري الحفظ...' : '💾 حفظ النشاط'}
                 </button>
             </form>
             
-            <hr />
+            <hr style={{ margin: '20px 0' }} />
             
             {/* ✅ قائمة الأنشطة */}
-            <h4>📋 سجل الأنشطة ({activities.length})</h4>
+            <h4 style={{ margin: '0 0 10px 0' }}>📋 سجل الأنشطة ({activities.length})</h4>
             {fetching ? (
                 <p>جاري التحميل...</p>
             ) : activities.length === 0 ? (
-                <p>لا توجد أنشطة مسجلة</p>
+                <p style={{ color: '#666', textAlign: 'center' }}>لا توجد أنشطة مسجلة</p>
             ) : (
-                activities.map(act => (
-                    <div key={act.id} style={{ borderBottom: '1px solid #eee', padding: '8px 0' }}>
-                        {act.activity_type} - {act.duration_minutes} دقيقة
-                    </div>
-                ))
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    {activities.map(act => (
+                        <div key={act.id} style={{ borderBottom: '1px solid #eee', padding: '10px 0', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{act.activity_type}</span>
+                            <span>{act.duration_minutes} دقيقة</span>
+                        </div>
+                    ))}
+                </div>
             )}
         </div>
     );
