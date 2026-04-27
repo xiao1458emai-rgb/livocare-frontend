@@ -58,7 +58,11 @@ function Dashboard({ onLogout }) {
     const [refreshKey, setRefreshKey] = useState(0); 
     const [activeSection, setActiveSection] = useState('health');
     const [isAuthReady, setIsAuthReady] = useState(false);
-    const [autoRefresh, setAutoRefresh] = useState(false);
+    // ✅ التعديل 1: جعل autoRefresh false بشكل افتراضي
+    const [autoRefresh, setAutoRefresh] = useState(() => {
+        const saved = localStorage.getItem('livocare_autoRefresh');
+        return saved === 'true' ? true : false;
+    });
     const [isSidebarVisible, setIsSidebarVisible] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     
@@ -71,6 +75,11 @@ function Dashboard({ onLogout }) {
         }
         return false;
     });
+
+    // ✅ حفظ حالة autoRefresh في localStorage
+    useEffect(() => {
+        localStorage.setItem('livocare_autoRefresh', autoRefresh.toString());
+    }, [autoRefresh]);
 
     // ✅ كشف حجم الشاشة
     useEffect(() => {
@@ -209,13 +218,16 @@ function Dashboard({ onLogout }) {
         }
     }, [refreshKey, isAuthReady, fetchHealthData]);
     
-    // ✅ التحديث التلقائي
+    // ✅ التحديث التلقائي - مع تحسين الأداء
     useEffect(() => {
         if (!autoRefresh || !isAuthReady) return;
         
+        // ✅ زيادة الفاصل الزمني إلى 5 دقائق بدلاً من دقيقة
         refreshIntervalRef.current = setInterval(() => {
-            setRefreshKey(prev => prev + 1);
-        }, 60000);
+            if (isMountedRef.current) {
+                setRefreshKey(prev => prev + 1);
+            }
+        }, 300000); // 5 دقائق
         
         return () => {
             if (refreshIntervalRef.current) {
@@ -243,9 +255,11 @@ function Dashboard({ onLogout }) {
         };
     }, []);
     
-    // ✅ معالج تحديث البيانات
+    // ✅ معالج تحديث البيانات - مع منع التحديث المتكرر
     const handleDataSubmitted = useCallback(() => {
-        setRefreshKey(prev => prev + 1);
+        if (isMountedRef.current) {
+            setRefreshKey(prev => prev + 1);
+        }
     }, []);
     
     // ✅ عرض قيمة آمن
