@@ -1,7 +1,6 @@
 // src/services/esp32Service.js
 import axios from 'axios';
 
-// ✅ تغيير الرابط إلى Django Backend الخاص بك
 const DJANGO_API_URL = process.env.REACT_APP_DJANGO_API_URL || 'https://livocare-backend.onrender.com/api';
 
 class ESP32Service {
@@ -10,22 +9,6 @@ class ESP32Service {
         this.pollingInterval = null;
         this.isPolling = false;
         this.lastReading = null;
-        
-        // ✅ إعداد axios interceptor لإضافة التوكن
-        this.setupAxiosInterceptor();
-    }
-
-    setupAxiosInterceptor() {
-        axios.interceptors.request.use(
-            (config) => {
-                const token = localStorage.getItem('access_token');
-                if (token) {
-                    config.headers.Authorization = `Bearer ${token}`;
-                }
-                return config;
-            },
-            (error) => Promise.reject(error)
-        );
     }
 
     startPolling() {
@@ -50,14 +33,19 @@ class ESP32Service {
 
     async fetchLatestReading() {
         try {
-            // ✅ استخدام المسار الجديد في Django
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                console.log('⚠️ No token available');
+                return null;
+            }
+
             const url = `${DJANGO_API_URL}/esp32/latest/`;
             console.log('🔄 Fetching from:', url);
             
-            const response = await axios.get(url);
-            console.log('📊 Full response:', response.data);
+            const response = await axios.get(url, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             
-            // ✅ التنسيق الجديد للبيانات
             if (response.data?.status === 'success' && response.data?.data) {
                 const data = response.data.data;
                 
@@ -90,26 +78,18 @@ class ESP32Service {
         return null;
     }
 
-    async fetchAllReadings(limit = 50) {
-        try {
-            // ✅ استخدام المسار الجديد للتاريخ
-            const url = `${DJANGO_API_URL}/esp32/history/`;
-            const response = await axios.get(url);
-            
-            if (response.data?.status === 'success') {
-                return response.data.data || [];
-            }
-            return [];
-        } catch (error) {
-            console.error('ESP32 Service: Error fetching all readings', error);
-            return [];
-        }
-    }
-
     async sendReading(bpm, spo2) {
         try {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                console.log('⚠️ No token available');
+                return null;
+            }
+
             const url = `${DJANGO_API_URL}/esp32/update/`;
-            const response = await axios.post(url, { bpm, spo2 });
+            const response = await axios.post(url, { bpm, spo2 }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             
             if (response.data?.status === 'success') {
                 console.log('✅ Reading sent successfully');
@@ -122,30 +102,19 @@ class ESP32Service {
         }
     }
 
-    async testConnection() {
-        try {
-            // ✅ اختبار الاتصال بالخادم
-            const url = `${DJANGO_API_URL}/esp32/test/`;
-            const response = await axios.post(url, { bpm: 75, spo2: 98 });
-            console.log('🔌 Test connection:', response.data);
-            return response.data?.status === 'success';
-        } catch (error) {
-            console.error('❌ Test connection failed:', error);
-            return false;
-        }
-    }
-
-    async requestMeasurement() {
-        console.log('📡 ESP32 Service: Measurement requested (continuous)');
-        return true;
-    }
-
-    onData(callback) {
+    // ✅ دالة on المفقودة (هذا كان سبب الخطأ)
+    on(callback) {
         this.listeners.push(callback);
         return () => {
             const index = this.listeners.indexOf(callback);
             if (index > -1) this.listeners.splice(index, 1);
         };
+    }
+
+    // ✅ دالة off لإزالة المستمعين
+    off(callback) {
+        const index = this.listeners.indexOf(callback);
+        if (index > -1) this.listeners.splice(index, 1);
     }
 
     notifyListeners(type, data) {
