@@ -45,7 +45,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
         activity_type: '',
         duration_minutes: '',
         start_time: '',
-        notes: ''
+        notes: '',
+        calories_burned: null
     });
     
     // قائمة الأنشطة
@@ -128,144 +129,11 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
         setSensorSupported(esp32Service.isSupported());
     }, []);
     
-    // // ✅ تفعيل ESP32 Service
-    // useEffect(() => {
-    //     const enableESP32 = () => {
-    //         console.log('ESP32 Service: Starting');
-    //         esp32Service.startPolling();
-    //         setSensorActive(true);
-    //     };
-    //     enableESP32();
-        
-    //     return () => {
-    //         esp32Service.stopPolling();
-    //         if (pollingIntervalRef.current) {
-    //             clearInterval(pollingIntervalRef.current);
-    //         }
-    //     };
-    // }, []);
+    // ✅ تم تعطيل ESP32 Service التلقائي لمنع الدورة اللا نهائية
+    // تم تعليق الـ useEffect الخاص بتشغيل ESP32 Service
     
-    //     // ✅ استماع لبيانات ESP32
-    // // ✅ استماع لبيانات ESP32 - معدل لتعبئة النموذج
-    // useEffect(() => {
-    //     const handleESP32Data = (type, data) => {
-    //         if (!isMountedRef.current) return;
-    //         console.log('ESP32 Data received:', type, data);
-            
-    //         switch (type) {
-    //             case 'heartRate':
-    //                 setSensorHeartRate(data);
-    //                 setSensorData(prev => ({ ...prev, heartRate: data, lastUpdate: new Date() }));
-    //                 setSensorConnected(true);
-    //                 setSensorActive(true);
-    //                 setSensorStatus('connected');
-    //                 setSensorError(null);
-                    
-    //                 // ✅ تعبئة حقل الملاحظات تلقائياً مع قراءة النبض
-    //                 const heartRateNote = isArabic ? `النبض: ${data} BPM` : `Heart rate: ${data} BPM`;
-    //                 setFormData(prev => ({
-    //                     ...prev,
-    //                     notes: prev.notes ? `${prev.notes} - ${heartRateNote}` : heartRateNote
-    //                 }));
-                    
-    //                 if (data > 100) {
-    //                     addSensorAlert(isArabic ? `⚠️ نبض مرتفع: ${data} BPM` : `⚠️ High heart rate: ${data} BPM`, 'error');
-    //                 } else if (data < 60 && data > 0) {
-    //                     addSensorAlert(isArabic ? `⚠️ نبض منخفض: ${data} BPM` : `⚠️ Low heart rate: ${data} BPM`, 'warning');
-    //                 }
-    //                 break;
-                    
-    //             case 'spo2':
-    //                 setSensorSpO2(data);
-    //                 setSensorData(prev => ({ ...prev, spo2: data, lastUpdate: new Date() }));
-    //                 setSensorConnected(true);
-    //                 setSensorActive(true);
-    //                 setSensorStatus('connected');
-    //                 setSensorError(null);
-                    
-    //                 // ✅ تعبئة حقل الملاحظات تلقائياً مع قراءة الأكسجين
-    //                 const spo2Note = isArabic ? `الأكسجين: ${data}%` : `Oxygen: ${data}%`;
-    //                 setFormData(prev => ({
-    //                     ...prev,
-    //                     notes: prev.notes ? `${prev.notes} - ${spo2Note}` : spo2Note
-    //                 }));
-                    
-    //                 if (data < 90 && data > 0) {
-    //                     addSensorAlert(isArabic ? `⚠️ أكسجين منخفض: ${data}%` : `⚠️ Low oxygen: ${data}%`, 'error');
-    //                 }
-    //                 break;
-                    
-    //             case 'data':
-    //                 if (data.heartRate) setSensorHeartRate(data.heartRate);
-    //                 if (data.spo2) setSensorSpO2(data.spo2);
-    //                 setSensorData(prev => ({ ...prev, heartRate: data.heartRate, spo2: data.spo2, lastUpdate: new Date() }));
-    //                 setSensorConnected(true);
-    //                 setSensorActive(true);
-    //                 setSensorStatus('connected');
-    //                 setSensorError(null);
-                    
-    //                 // ✅ تعبئة حقل الملاحظات تلقائياً ببيانات المستشعر
-    //                 let sensorNotes = [];
-    //                 if (data.heartRate) sensorNotes.push(isArabic ? `النبض: ${data.heartRate} BPM` : `Heart rate: ${data.heartRate} BPM`);
-    //                 if (data.spo2) sensorNotes.push(isArabic ? `الأكسجين: ${data.spo2}%` : `Oxygen: ${data.spo2}%`);
-                    
-    //                 if (sensorNotes.length > 0) {
-    //                     setFormData(prev => ({
-    //                         ...prev,
-    //                         notes: prev.notes ? `${prev.notes} - ${sensorNotes.join(' - ')}` : sensorNotes.join(' - ')
-    //                     }));
-    //                 }
-                    
-    //                 // ✅ عرض رسالة للمستخدم بأن البيانات جاهزة
-    //                 showTemporaryMessage(
-    //                     isArabic ? '✅ تم استلام بيانات المستشعر، يمكنك إضافتها كنشاط' : '✅ Sensor data received, you can add it as an activity',
-    //                     'success'
-    //                 );
-    //                 break;
-                    
-    //             case 'connected':
-    //                 setSensorConnected(true);
-    //                 setSensorActive(true);
-    //                 setSensorStatus('connected');
-    //                 setSensorError(null);
-    //                 showTemporaryMessage(isArabic ? '✅ تم الاتصال بـ ESP32' : '✅ Connected to ESP32', 'success');
-    //                 break;
-                    
-    //             case 'disconnected':
-    //                 setSensorConnected(false);
-    //                 setSensorActive(false);
-    //                 setSensorStatus('disconnected');
-    //                 showTemporaryMessage(isArabic ? '⚠️ تم قطع الاتصال بـ ESP32' : '⚠️ Disconnected from ESP32', 'warning');
-    //                 break;
-                    
-    //             case 'error':
-    //                 setSensorStatus('error');
-    //                 setSensorError(isArabic ? 'خطأ في الاتصال بـ ESP32' : 'ESP32 connection error');
-    //                 showTemporaryMessage(isArabic ? '❌ خطأ في الاتصال بـ ESP32' : '❌ ESP32 connection error', 'error');
-    //                 break;
-                    
-    //             default:
-    //                 break;
-    //         }
-    //     };
-        
-    //     esp32Service.onData(handleESP32Data);
-        
-    //     return () => {
-    //         const index = esp32Service.listeners.indexOf(handleESP32Data);
-    //         if (index > -1) esp32Service.listeners.splice(index, 1);
-    //     };
-    // }, [isArabic]);
-    
-    // // ✅ إضافة تنبيه المستشعر
-    // const addSensorAlert = (alert, type) => {
-    //     setSensorAlerts(prev => [{ message: alert, type, timestamp: Date.now() }, ...prev].slice(0, 5));
-    //     setTimeout(() => {
-    //         if (isMountedRef.current) {
-    //             setSensorAlerts(prev => prev.filter(a => a.timestamp !== Date.now()));
-    //         }
-    //     }, 5000);
-    // };
+    // ✅ تم تعطيل الاستماع لبيانات ESP32 لمنع التحديثات المتكررة
+    // تم تعليق الـ useEffect الخاص بـ handleESP32Data
     
     // ✅ عرض رسالة مؤقتة
     const showTemporaryMessage = (msg, type = 'success') => {
@@ -318,7 +186,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
             activity_type: activity.activity_type || '',
             duration_minutes: activity.duration_minutes?.toString() || '',
             start_time: activity.start_time ? new Date(activity.start_time).toISOString().slice(0, 16) : '',
-            notes: activity.notes || ''
+            notes: activity.notes || '',
+            calories_burned: activity.calories_burned || null
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, []);
@@ -385,34 +254,33 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic: propIsArabi
     }, [formData, isArabic]);
     
     // ✅ إرسال النموذج
-const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    
-    if (isSubmittingRef.current || !isMountedRef.current) return;
-    
-    setLoading(true);
-    setError(null);
-    setMessage('');
-    
-    const validationError = validateFormData();
-    if (validationError) {
-        if (isMountedRef.current) setError(validationError);
-        setLoading(false);
-        return;
-    }
-    
-    isSubmittingRef.current = true;
-    
-    // Use manually entered calories if provided, otherwise auto-calculate
-    const calculatedCalories = formData.calories_burned || calculateCalories(formData.activity_type, formData.duration_minutes);
-    const dataToSend = {
-        activity_type: formData.activity_type,
-        duration_minutes: parseInt(formData.duration_minutes),
-        start_time: formData.start_time || new Date().toISOString().slice(0, 16),
-        calories_burned: calculatedCalories,
-        notes: formData.notes
-    };
-
+    const handleSubmit = useCallback(async (e) => {
+        e.preventDefault();
+        
+        if (isSubmittingRef.current || !isMountedRef.current) return;
+        
+        setLoading(true);
+        setError(null);
+        setMessage('');
+        
+        const validationError = validateFormData();
+        if (validationError) {
+            if (isMountedRef.current) setError(validationError);
+            setLoading(false);
+            return;
+        }
+        
+        isSubmittingRef.current = true;
+        
+        // Use manually entered calories if provided, otherwise auto-calculate
+        const calculatedCalories = formData.calories_burned || calculateCalories(formData.activity_type, formData.duration_minutes);
+        const dataToSend = {
+            activity_type: formData.activity_type,
+            duration_minutes: parseInt(formData.duration_minutes),
+            start_time: formData.start_time || new Date().toISOString().slice(0, 16),
+            calories_burned: calculatedCalories,
+            notes: formData.notes
+        };
         
         try {
             let response;
@@ -460,17 +328,17 @@ const handleSubmit = useCallback(async (e) => {
     }, [isArabic]);
     
     // ✅ إعادة تعيين النموذج
-const resetForm = useCallback(() => {
-    setFormData({
-        activity_type: '',
-        duration_minutes: '',
-        start_time: '',
-        notes: '',
-        calories_burned: null  // Add this field
-    });
-}, []);
+    const resetForm = useCallback(() => {
+        setFormData({
+            activity_type: '',
+            duration_minutes: '',
+            start_time: '',
+            notes: '',
+            calories_burned: null
+        });
+    }, []);
     
-    // ✅ الاتصال بالمستشعر
+    // ✅ الاتصال بالمستشعر (يدوياً)
     const connectSensor = useCallback(async () => {
         setSensorConnecting(true);
         setSensorStatus('connecting');
@@ -542,75 +410,6 @@ const resetForm = useCallback(() => {
             if (isMountedRef.current) setLoading(false);
         }
     }, [sensorHeartRate, sensorSpO2, sensorData, onActivityChange, onDataSubmitted, isArabic]);
-    
-    // ✅ إضافة قراءة المستشعر كنشاط
-    const addSensorDataAsActivity = useCallback(async () => {
-        if (!sensorHeartRate && !sensorSpO2) {
-            setError(isArabic ? '⚠️ لا توجد بيانات من المستشعر' : '⚠️ No sensor data available');
-            setTimeout(() => {
-                if (isMountedRef.current) setError(null);
-            }, 3000);
-            return;
-        }
-        
-        setLoading(true);
-        
-        const notes = [];
-        if (sensorHeartRate) notes.push(isArabic ? `النبض: ${sensorHeartRate} BPM` : `Heart rate: ${sensorHeartRate} BPM`);
-        if (sensorSpO2) notes.push(isArabic ? `الأكسجين: ${sensorSpO2}%` : `Oxygen: ${sensorSpO2}%`);
-        
-        const sensorActivity = {
-            activity_type: 'walking',
-            duration_minutes: 30,
-            start_time: sensorData.lastUpdate ? new Date(sensorData.lastUpdate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-            notes: notes.join(' - ')
-        };
-        
-        const calculatedCalories = calculateCalories('walking', 30);
-        const dataToSend = {
-            activity_type: 'walking',
-            duration_minutes: 30,
-            start_time: sensorActivity.start_time,
-            calories_burned: calculatedCalories,
-            notes: sensorActivity.notes
-        };
-        
-        try {
-            const response = await axiosInstance.post('/activities/', dataToSend);
-            if (isMountedRef.current) {
-                setActivities(prev => [{ ...response.data, activity_type: 'walking' }, ...prev]);
-                showTemporaryMessage(isArabic ? '✅ تم إضافة النشاط من المستشعر' : '✅ Activity added from sensor', 'success');
-                setRefreshAnalytics(prev => prev + 1);
-                if (onActivityChange) onActivityChange();
-                if (onDataSubmitted) onDataSubmitted();
-            }
-        } catch (err) {
-            console.error('Error adding sensor activity:', err);
-            if (isMountedRef.current) {
-                setError(isArabic ? '❌ فشل إضافة النشاط' : '❌ Failed to add activity');
-            }
-        } finally {
-            if (isMountedRef.current) setLoading(false);
-        }
-    }, [sensorHeartRate, sensorSpO2, sensorData, onActivityChange, onDataSubmitted, isArabic, calculateCalories]);
-    
-    // ✅ طلب قياس من المستشعر
-    const requestMeasurement = useCallback(async () => {
-        setLoading(true);
-        try {
-            await esp32Service.requestMeasurement();
-            if (isMountedRef.current) {
-                showTemporaryMessage(isArabic ? '📊 جاري طلب القياس...' : '📊 Requesting measurement...', 'info');
-            }
-        } catch (error) {
-            console.error('Measurement request failed:', error);
-            if (isMountedRef.current) {
-                setError(isArabic ? '❌ فشل طلب القياس' : '❌ Measurement request failed');
-            }
-        } finally {
-            if (isMountedRef.current) setLoading(false);
-        }
-    }, [isArabic]);
     
     // ✅ جلب الأنشطة عند التحميل
     useEffect(() => {
@@ -735,6 +534,7 @@ const resetForm = useCallback(() => {
                                             activity_type: 'walking',
                                             duration_minutes: '30',
                                             start_time: new Date().toISOString().slice(0, 16),
+                                            calories_burned: null,
                                             notes: prev.notes || (sensorHeartRate ? (isArabic ? `النبض: ${sensorHeartRate} BPM` : `Heart rate: ${sensorHeartRate} BPM`) : '') + 
                                                 (sensorSpO2 ? (sensorHeartRate ? ' - ' : '') + (isArabic ? `الأكسجين: ${sensorSpO2}%` : `Oxygen: ${sensorSpO2}%`) : '')
                                         }));
@@ -759,16 +559,6 @@ const resetForm = useCallback(() => {
                                 💾 {isArabic ? 'حفظ كقراءة صحية' : 'Save as Health Record'}
                             </button>
                         </div>
-                    </div>
-                )}
-                
-                {sensorAlerts.length > 0 && (
-                    <div className="sensor-alerts">
-                        {sensorAlerts.map((alert, i) => (
-                            <div key={i} className={`sensor-alert ${alert.type}`}>
-                                ⚠️ {alert.message}
-                            </div>
-                        ))}
                     </div>
                 )}
                 
@@ -844,33 +634,33 @@ const resetForm = useCallback(() => {
                         </div>
                     </div>
                     
-                        {formData.activity_type && formData.duration_minutes && (
-                            <div className="calories-card">
-                                <div className="calories-icon">🔥</div>
-                                <div className="calories-details">
-                                    <div className="calories-label">{isArabic ? 'السعرات الحرارية' : 'Calories Burned'}</div>
-                                    <div className="calories-input-wrapper">
-                                        <input 
-                                            type="number" 
-                                            name="calories_burned"
-                                            value={formData.calories_burned || calculateCalories(formData.activity_type, formData.duration_minutes)}
-                                            onChange={(e) => {
-                                                const value = parseInt(e.target.value) || 0;
-                                                setFormData(prev => ({ ...prev, calories_burned: value }));
-                                            }}
-                                            min="0"
-                                            max="5000"
-                                            step="5"
-                                            className="calories-input"
-                                        />
-                                        <span className="calories-unit">{isArabic ? 'سعرة' : 'kcal'}</span>
-                                    </div>
-                                    <div className="calories-auto-hint">
-                                        <small>{isArabic ? '↻ محسوب تلقائياً، يمكنك تعديله' : '↻ Auto-calculated, editable'}</small>
-                                    </div>
+                    {formData.activity_type && formData.duration_minutes && (
+                        <div className="calories-card">
+                            <div className="calories-icon">🔥</div>
+                            <div className="calories-details">
+                                <div className="calories-label">{isArabic ? 'السعرات الحرارية' : 'Calories Burned'}</div>
+                                <div className="calories-input-wrapper">
+                                    <input 
+                                        type="number" 
+                                        name="calories_burned"
+                                        value={formData.calories_burned || calculateCalories(formData.activity_type, formData.duration_minutes)}
+                                        onChange={(e) => {
+                                            const value = parseInt(e.target.value) || 0;
+                                            setFormData(prev => ({ ...prev, calories_burned: value }));
+                                        }}
+                                        min="0"
+                                        max="5000"
+                                        step="5"
+                                        className="calories-input"
+                                    />
+                                    <span className="calories-unit">{isArabic ? 'سعرة' : 'kcal'}</span>
+                                </div>
+                                <div className="calories-auto-hint">
+                                    <small>{isArabic ? '↻ محسوب تلقائياً، يمكنك تعديله' : '↻ Auto-calculated, editable'}</small>
                                 </div>
                             </div>
-                        )}
+                        </div>
+                    )}
                     
                     <div className="form-group">
                         <label className="form-label">{isArabic ? 'ملاحظات (اختياري)' : 'Notes (Optional)'}</label>
@@ -1179,9 +969,9 @@ const resetForm = useCallback(() => {
                     border-color: #10b981;
                 }
                 
-                .sensor-action-btn.activity:hover {
-                    background: #6366f1;
-                    border-color: #6366f1;
+                .sensor-action-btn.fill-form:hover {
+                    background: #f59e0b;
+                    border-color: #f59e0b;
                 }
                 
                 .sensor-alerts {
@@ -1325,6 +1115,40 @@ const resetForm = useCallback(() => {
                 .calories-unit {
                     font-size: 0.7rem;
                     font-weight: normal;
+                }
+                
+                .calories-input-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    flex-wrap: wrap;
+                }
+                
+                .calories-input {
+                    width: 120px;
+                    padding: 0.4rem 0.6rem;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                    border-radius: 8px;
+                    background: var(--input-bg, #ffffff);
+                    color: var(--text-primary, #0f172a);
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    text-align: center;
+                }
+                
+                .calories-input:focus {
+                    outline: none;
+                    border-color: #6366f1;
+                    ring: 2px solid rgba(99, 102, 241, 0.2);
+                }
+                
+                .calories-auto-hint {
+                    margin-top: 0.25rem;
+                }
+                
+                .calories-auto-hint small {
+                    font-size: 0.65rem;
+                    opacity: 0.7;
                 }
                 
                 .form-message {
@@ -1650,43 +1474,6 @@ const resetForm = useCallback(() => {
                 [dir="rtl"] .form-actions {
                     flex-direction: row-reverse;
                 }
-                    .calories-input-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.calories-input {
-    width: 120px;
-    padding: 0.4rem 0.6rem;
-    border: 1px solid var(--border-light, #e2e8f0);
-    border-radius: 8px;
-    background: var(--input-bg, #ffffff);
-    color: var(--text-primary, #0f172a);
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-align: center;
-}
-
-.calories-input:focus {
-    outline: none;
-    border-color: #6366f1;
-    ring: 2px solid rgba(99, 102, 241, 0.2);
-}
-
-.calories-auto-hint {
-    margin-top: 0.25rem;
-}
-
-.calories-auto-hint small {
-    font-size: 0.65rem;
-    opacity: 0.7;
-}
-    .sensor-action-btn.fill-form:hover {
-    background: #f59e0b;
-    border-color: #f59e0b;
-}
             `}</style>
         </div>
     );
