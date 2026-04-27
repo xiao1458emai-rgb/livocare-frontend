@@ -160,7 +160,7 @@ function Login({ onLoginSuccess }) {
         try {
             console.log('📤 Sending login request for:', username);
             
-            const response = await axiosInstance.post('/token/', {
+            const response = await axiosInstance.post('/auth/token/', {
                 username: username.trim(),
                 password: password
             });
