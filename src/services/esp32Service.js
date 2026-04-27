@@ -1,7 +1,8 @@
 // src/services/esp32Service.js
 import axios from 'axios';
 
-const ESP32_API_URL = process.env.REACT_APP_ESP32_API_URL || 'https://livocare-sensor-api.onrender.com';
+// ✅ تغيير الرابط إلى Django Backend الخاص بك
+const DJANGO_API_URL = process.env.REACT_APP_DJANGO_API_URL || 'https://livocare-backend.onrender.com/api';
 
 class ESP32Service {
     constructor() {
@@ -9,6 +10,22 @@ class ESP32Service {
         this.pollingInterval = null;
         this.isPolling = false;
         this.lastReading = null;
+        
+        // ✅ إعداد axios interceptor لإضافة التوكن
+        this.setupAxiosInterceptor();
+    }
+
+    setupAxiosInterceptor() {
+        axios.interceptors.request.use(
+            (config) => {
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
+                return config;
+            },
+            (error) => Promise.reject(error)
+        );
     }
 
     startPolling() {
@@ -33,18 +50,21 @@ class ESP32Service {
 
     async fetchLatestReading() {
         try {
-            console.log('🔄 Fetching from:', `${ESP32_API_URL}/api/readings/latest`);
-            const response = await axios.get(`${ESP32_API_URL}/api/readings/latest`);
+            // ✅ استخدام المسار الجديد في Django
+            const url = `${DJANGO_API_URL}/esp32/latest/`;
+            console.log('🔄 Fetching from:', url);
+            
+            const response = await axios.get(url);
             console.log('📊 Full response:', response.data);
             
-            // ✅ التعديل هنا: البيانات موجودة في response.data.data
-            const data = response.data?.data;
-            
-            if (data && data.bpm && data.spo2) {
+            // ✅ التنسيق الجديد للبيانات
+            if (response.data?.status === 'success' && response.data?.data) {
+                const data = response.data.data;
+                
                 const newReading = {
-                    heartRate: data.bpm,
-                    spo2: data.spo2,
-                    timestamp: data.timestamp || new Date().toISOString(),
+                    heartRate: data.heart_rate,
+                    spo2: data.blood_oxygen,
+                    timestamp: data.recorded_at || new Date().toISOString(),
                     raw: data
                 };
                 
@@ -64,7 +84,7 @@ class ESP32Service {
                 console.log('⚠️ No data available yet');
             }
         } catch (error) {
-            console.error('❌ ESP32 Service Error:', error.message);
+            console.error('❌ ESP32 Service Error:', error.response?.data?.message || error.message);
             this.notifyListeners('error', error.message);
         }
         return null;
@@ -72,11 +92,46 @@ class ESP32Service {
 
     async fetchAllReadings(limit = 50) {
         try {
-            const response = await axios.get(`${ESP32_API_URL}/api/readings/all?limit=${limit}`);
-            return response.data?.data || [];
+            // ✅ استخدام المسار الجديد للتاريخ
+            const url = `${DJANGO_API_URL}/esp32/history/`;
+            const response = await axios.get(url);
+            
+            if (response.data?.status === 'success') {
+                return response.data.data || [];
+            }
+            return [];
         } catch (error) {
             console.error('ESP32 Service: Error fetching all readings', error);
             return [];
+        }
+    }
+
+    async sendReading(bpm, spo2) {
+        try {
+            const url = `${DJANGO_API_URL}/esp32/update/`;
+            const response = await axios.post(url, { bpm, spo2 });
+            
+            if (response.data?.status === 'success') {
+                console.log('✅ Reading sent successfully');
+                return response.data.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('❌ Error sending reading:', error);
+            return null;
+        }
+    }
+
+    async testConnection() {
+        try {
+            // ✅ اختبار الاتصال بالخادم
+            const url = `${DJANGO_API_URL}/esp32/test/`;
+            const response = await axios.post(url, { bpm: 75, spo2: 98 });
+            console.log('🔌 Test connection:', response.data);
+            return response.data?.status === 'success';
+        } catch (error) {
+            console.error('❌ Test connection failed:', error);
+            return false;
         }
     }
 
