@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axiosInstance from '../services/api';
 import '../index.css';
-
+import EditHealthForm from './EditHealthForm';
 function HealthHistory({ refreshKey, onDataSubmitted }) {
     // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
     const [lang, setLang] = useState(() => {
@@ -668,135 +668,23 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                 </div>
             )}
 
-{/* ✅ نموذج التعديل المدمج */}
+{/* ✅ نموذج التعديل */}
 {editingRecord && (
-    <div className="modal-overlay" onClick={() => setEditingRecord(null)}>
-        <div className="edit-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-                <h3>{isArabic ? '✏️ تعديل القراءة' : '✏️ Edit Reading'}</h3>
-                <button onClick={() => setEditingRecord(null)} className="close-btn">✕</button>
-            </div>
-            <form onSubmit={async (e) => {
-                e.preventDefault();
-                const form = e.target;
-                const updatedData = {};
-                if (form.weight.value) updatedData.weight_kg = parseFloat(form.weight.value);
-                if (form.systolic.value) updatedData.systolic_pressure = parseInt(form.systolic.value);
-                if (form.diastolic.value) updatedData.diastolic_pressure = parseInt(form.diastolic.value);
-                if (form.glucose.value) updatedData.blood_glucose = parseFloat(form.glucose.value);
-                if (form.heartRate.value) updatedData.heart_rate = parseInt(form.heartRate.value);
-                if (form.spo2.value) updatedData.spo2 = parseInt(form.spo2.value);
-                if (form.temperature.value) updatedData.body_temperature = parseFloat(form.temperature.value);
-                
-                try {
-                    await axiosInstance.put(`/health_status/${editingRecord.id}/`, updatedData);
-                    setEditingRecord(null);
-                    if (onDataSubmitted) onDataSubmitted();
-                    fetchHistory();
-                } catch (err) {
-                    console.error('Update error:', err);
-                }
-            }}>
-                <div className="edit-form-grid">
-                    <div className="form-group">
-                        <label>⚖️ {isArabic ? 'الوزن' : 'Weight'} (kg)</label>
-                        <input name="weight" type="number" step="0.1" defaultValue={editingRecord.weight_kg || ''} />
-                    </div>
-                    <div className="form-group">
-                        <label>❤️ {isArabic ? 'الضغط الانقباضي' : 'Systolic'} (mmHg)</label>
-                        <input name="systolic" type="number" defaultValue={editingRecord.systolic_pressure || ''} />
-                    </div>
-                    <div className="form-group">
-                        <label>💙 {isArabic ? 'الضغط الانبساطي' : 'Diastolic'} (mmHg)</label>
-                        <input name="diastolic" type="number" defaultValue={editingRecord.diastolic_pressure || ''} />
-                    </div>
-                    <div className="form-group">
-                        <label>🩸 {isArabic ? 'سكر الدم' : 'Glucose'} (mg/dL)</label>
-                        <input name="glucose" type="number" step="0.1" defaultValue={editingRecord.blood_glucose || ''} />
-                    </div>
-                    <div className="form-group">
-                        <label>💓 {isArabic ? 'النبض' : 'Heart Rate'} (BPM)</label>
-                        <input name="heartRate" type="number" defaultValue={editingRecord.heart_rate || ''} />
-                    </div>
-                    <div className="form-group">
-                        <label>💨 SpO₂ (%)</label>
-                        <input name="spo2" type="number" defaultValue={editingRecord.spo2 || ''} />
-                    </div>
-                    <div className="form-group">
-                        <label>🌡️ {isArabic ? 'درجة الحرارة' : 'Temperature'} (°C)</label>
-                        <input name="temperature" type="number" step="0.1" defaultValue={editingRecord.body_temperature || ''} />
-                    </div>
-                </div>
-                <div className="modal-footer">
-                    <button type="button" onClick={() => setEditingRecord(null)} className="cancel-btn">
-                        {isArabic ? 'إلغاء' : 'Cancel'}
-                    </button>
-                    <button type="submit" className="save-btn">
-                        💾 {isArabic ? 'حفظ' : 'Save'}
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <EditHealthForm
+        currentRecord={editingRecord}
+        onClose={() => setEditingRecord(null)}
+        onUpdate={() => {
+            setEditingRecord(null);
+            if (onDataSubmitted) onDataSubmitted();
+            fetchHistory();
+        }}
+        isArabic={isArabic}
+    />
 )}
 
             {/* ... CSS styles تبقى كما هي مع إضافة تحسينات للعرض على الشاشات الصغيرة ... */}
             <style jsx>{`
-            /* أضف هذه الأنماط داخل الـ style jsx */
-
-.edit-modal {
-    background: var(--card-bg);
-    border-radius: 24px;
-    width: 90%;
-    max-width: 700px;
-    max-height: 90vh;
-    overflow-y: auto;
-    padding: 1.5rem;
-}
-
-.edit-form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-    margin: 1.5rem 0;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.form-group label {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-}
-
-.form-group input {
-    padding: 0.75rem;
-    border: 1px solid var(--border-light);
-    border-radius: 12px;
-    background: var(--input-bg);
-    color: var(--text-primary);
-}
-
-.close-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: none;
-    background: rgba(239,68,68,0.1);
-    color: #ef4444;
-    cursor: pointer;
-    font-size: 1.2rem;
-}
-
-@media (max-width: 640px) {
-    .edit-form-grid {
-        grid-template-columns: 1fr;
-    }
-}
+    
                 .health-history-container {
                     background: var(--card-bg);
                     border-radius: 24px;
