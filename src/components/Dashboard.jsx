@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx - النسخة المعدلة (مع HealthForm فقط لإضافة القياسات)
+// src/components/Dashboard.jsx - النسخة المعدلة (مع ActivityForm)
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -6,8 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/api'; 
 import '../index.css';
 
-// ✅ المكونات المتبقية
-import HealthForm from './HealthForm';  // ✅ تمت إضافة HealthForm مرة أخرى
+// ✅ المكونات المتبقية (مع إضافة ActivityForm)
 import Sidebar from './Sidebar';   
 import NutritionMain from './nutrition/NutritionMain';
 import SleepTracker from './SleepTracker';
@@ -18,6 +17,7 @@ import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
 import Notifications from './Notifications/Notifications';
 import Reports from './Reports';
+import ActivityForm from './ActivityForm'; // ✅ إضافة ActivityForm
 
 // ✅ دالة عامة لتطبيق اللغة
 const applyLanguage = (lang) => {
@@ -44,14 +44,10 @@ function Dashboard({ onLogout }) {
     
     const isMountedRef = useRef(true);
     
-    const [activeSection, setActiveSection] = useState('health'); // ✅ تغيير القسم الافتراضي إلى health لإضافة القياسات
+    const [activeSection, setActiveSection] = useState('activity'); // ✅ تغيير القسم الافتراضي إلى الأنشطة
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [isSidebarVisible, setIsSidebarVisible] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-    
-    // ✅ إضافة حالة لجلب البيانات الصحية (لـ HealthForm فقط)
-    const [healthRecords, setHealthRecords] = useState([]);
-    const [loading, setLoading] = useState(false);
     
     // ✅ الوضع المظلم
     const [darkMode, setDarkMode] = useState(() => {
@@ -141,46 +137,6 @@ function Dashboard({ onLogout }) {
         return () => { isActive = false; };
     }, [navigate]);
     
-    // ✅ جلب البيانات الصحية (لـ HealthForm فقط)
-    const fetchHealthData = useCallback(async () => {
-        if (!isAuthReady || !isMountedRef.current) return;
-        
-        setLoading(true);
-        
-        try {
-            const response = await axiosInstance.get('/health_status/');
-            
-            if (!isMountedRef.current) return;
-            
-            let records = [];
-            if (response.data?.results) {
-                records = response.data.results;
-            } else if (Array.isArray(response.data)) {
-                records = response.data;
-            }
-            
-            setHealthRecords(records);
-        } catch (err) {
-            console.error('Error fetching health data:', err);
-        } finally {
-            if (isMountedRef.current) {
-                setLoading(false);
-            }
-        }
-    }, [isAuthReady]);
-    
-    // ✅ جلب البيانات عند التحميل
-    useEffect(() => {
-        if (isAuthReady) {
-            fetchHealthData();
-        }
-    }, [isAuthReady, fetchHealthData]);
-    
-    // ✅ التحديث عند إضافة بيانات جديدة
-    const handleDataSubmitted = useCallback(() => {
-        fetchHealthData();
-    }, [fetchHealthData]);
-    
     // ✅ تطبيق اللغة عند التحميل
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -210,7 +166,7 @@ function Dashboard({ onLogout }) {
     // ✅ عناوين الأقسام
     const getSectionTitle = useCallback((sectionKey) => {
         const titles = {
-            'health': isArabic ? '🩺 إضافة قياس صحي' : '🩺 Add Health Reading',
+            'activity': isArabic ? '🏃 النشاط البدني' : '🏃 Physical Activity',
             'nutrition': isArabic ? '🍽️ التغذية' : '🍽️ Nutrition',
             'sleep': isArabic ? '😴 النوم' : '😴 Sleep',
             'habits': isArabic ? '✅ العادات' : '✅ Habits',
@@ -221,7 +177,7 @@ function Dashboard({ onLogout }) {
             'notifications': isArabic ? '🔔 الإشعارات' : '🔔 Notifications',
             'reports': isArabic ? '📊 التقارير' : '📊 Reports'
         };
-        return titles[sectionKey] || (isArabic ? '🩺 إضافة قياس صحي' : '🩺 Add Health Reading');
+        return titles[sectionKey] || (isArabic ? '🏃 النشاط البدني' : '🏃 Physical Activity');
     }, [isArabic]);
     
     // ✅ الحصول على تاريخ اليوم
@@ -232,17 +188,21 @@ function Dashboard({ onLogout }) {
         return today.toLocaleDateString(locale, options);
     }, [isArabic]);
     
+    // ✅ دالة معالجة إضافة البيانات (لـ ActivityForm)
+    const handleDataSubmitted = useCallback(() => {
+        // يمكن إضافة أي منطق إضافي هنا إذا لزم الأمر
+        console.log('Data submitted to ActivityForm');
+    }, []);
+    
     // ✅ عرض محتوى القسم المحدد
     const renderSectionContent = useCallback(() => {
         switch (activeSection) {
-            case 'health': 
-                return (
-                    <div className="health-section">
-                        <div className="health-form-section">
-                            <HealthForm onDataSubmitted={handleDataSubmitted} isArabic={isArabic} />
-                        </div>
-                    </div>
-                );
+            case 'activity': 
+                return <ActivityForm 
+                    onDataSubmitted={handleDataSubmitted} 
+                    onActivityChange={handleDataSubmitted} 
+                    isArabic={isArabic} 
+                />;
             case 'nutrition': 
                 return <NutritionMain onDataSubmitted={() => {}} isAuthReady={isAuthReady} isArabic={isArabic} />;
             case 'sleep': 
@@ -262,13 +222,11 @@ function Dashboard({ onLogout }) {
             case 'reports': 
                 return <Reports isAuthReady={isAuthReady} isArabic={isArabic} />;
             default: 
-                return (
-                    <div className="health-section">
-                        <div className="health-form-section">
-                            <HealthForm onDataSubmitted={handleDataSubmitted} isArabic={isArabic} />
-                        </div>
-                    </div>
-                );
+                return <ActivityForm 
+                    onDataSubmitted={handleDataSubmitted} 
+                    onActivityChange={handleDataSubmitted} 
+                    isArabic={isArabic} 
+                />;
         }
     }, [activeSection, isAuthReady, isArabic, handleDataSubmitted]);
     
@@ -338,13 +296,6 @@ function Dashboard({ onLogout }) {
             <main className="dashboard-content">
                 <div className="section-header">
                     <h1 className="section-title">{getSectionTitle(activeSection)}</h1>
-                    {latestHealthData?.recorded_at && (
-                        <div className="last-updated">
-                            🕐 {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(latestHealthData.recorded_at).toLocaleDateString(
-                                isArabic ? 'ar-EG' : 'en-US'
-                            )}
-                        </div>
-                    )}
                 </div>
 
                 <div className="section-content">
@@ -537,14 +488,6 @@ function Dashboard({ onLogout }) {
                     background: var(--primary-bg, #0f172a);
                 }
                 
-                .health-section {
-                    background: var(--card-bg);
-                    border-radius: 24px;
-                    padding: 1.5rem;
-                    margin-bottom: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-                
                 .section-header {
                     display: flex;
                     justify-content: space-between;
@@ -569,21 +512,6 @@ function Dashboard({ onLogout }) {
                 
                 .dark-mode .section-title {
                     color: var(--text-primary, #f1f5f9);
-                }
-                
-                .last-updated {
-                    padding: 0.5rem 1rem;
-                    background: var(--secondary-bg, #ffffff);
-                    border-radius: 9999px;
-                    font-size: 0.75rem;
-                    color: var(--text-secondary, #475569);
-                    border: 1px solid var(--border-light, #e2e8f0);
-                }
-                
-                .dark-mode .last-updated {
-                    background: var(--secondary-bg, #0f1420);
-                    border-color: var(--border-light, #334155);
-                    color: var(--text-secondary, #94a3b8);
                 }
                 
                 @media (max-width: 768px) {
@@ -616,10 +544,6 @@ function Dashboard({ onLogout }) {
                     .section-header {
                         flex-direction: column;
                         align-items: flex-start;
-                    }
-                    
-                    .health-section {
-                        padding: 1rem;
                     }
                 }
                 
