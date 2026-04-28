@@ -22,15 +22,7 @@ function HealthForm({ onDataSubmitted }) {
         glucose: '',
         heartRate: '',
         spo2: '',
-        temperature: ''  // ✅ حقل درجة الحرارة الجديد
-    });
-    
-    // ✅ بيانات النشاط البدني
-    const [activityData, setActivityData] = useState({
-        activityType: 'walking',
-        duration: '',
-        calories: '',
-        manualCalories: false
+        temperature: '' // ✅ إضافة درجة الحرارة
     });
     
     const [loading, setLoading] = useState(false);
@@ -40,18 +32,6 @@ function HealthForm({ onDataSubmitted }) {
     const [autoSave, setAutoSave] = useState(false);
     const [lastAutoSave, setLastAutoSave] = useState(null);
     const [showScanner, setShowScanner] = useState(false);
-    
-    // ✅ معاملات حساب السعرات الحرارية لكل نشاط
-    const activityFactors = {
-        walking: { nameAr: '🚶 مشي', nameEn: '🚶 Walking', met: 3.5, descAr: 'مشي معتدل', descEn: 'Moderate walking' },
-        running: { nameAr: '🏃 جري', nameEn: '🏃 Running', met: 8.0, descAr: 'جري سريع', descEn: 'Fast running' },
-        cycling: { nameAr: '🚲 ركوب دراجة', nameEn: '🚲 Cycling', met: 6.0, descAr: 'ركوب دراجة معتدل', descEn: 'Moderate cycling' },
-        swimming: { nameAr: '🏊 سباحة', nameEn: '🏊 Swimming', met: 7.0, descAr: 'سباحة معتدلة', descEn: 'Moderate swimming' },
-        gym: { nameAr: '💪 تمارين قوة', nameEn: '💪 Strength Training', met: 5.0, descAr: 'تمارين مقاومة', descEn: 'Resistance training' },
-        yoga: { nameAr: '🧘 يوغا', nameEn: '🧘 Yoga', met: 2.5, descAr: 'تمارين مرونة واسترخاء', descEn: 'Flexibility and relaxation' },
-        dancing: { nameAr: '💃 رقص', nameEn: '💃 Dancing', met: 5.5, descAr: 'رقص حيوي', descEn: 'Energetic dancing' },
-        football: { nameAr: '⚽ كرة قدم', nameEn: '⚽ Football', met: 7.5, descAr: 'رياضة جماعية', descEn: 'Team sport' }
-    };
 
     // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
@@ -70,7 +50,7 @@ function HealthForm({ onDataSubmitted }) {
         };
     }, [lang]);
 
-    // ✅ حدود التحقق من الصحة
+    // ✅ حدود التحقق من الصحة (تمت إضافة درجة الحرارة)
     const VALIDATION_LIMITS = {
         weight: { min: 20, max: 300, normalMin: 50, normalMax: 100, unit: 'kg', icon: '⚖️' },
         systolic: { min: 50, max: 250, normalMin: 90, normalMax: 140, unit: 'mmHg', icon: '❤️' },
@@ -78,24 +58,8 @@ function HealthForm({ onDataSubmitted }) {
         glucose: { min: 30, max: 600, normalMin: 70, normalMax: 140, unit: 'mg/dL', icon: '🩸' },
         heartRate: { min: 30, max: 220, normalMin: 60, normalMax: 100, unit: 'BPM', icon: '💓' },
         spo2: { min: 50, max: 100, normalMin: 95, normalMax: 100, unit: '%', icon: '💨' },
-        temperature: { min: 35, max: 42, normalMin: 36.5, normalMax: 37.5, unit: '°C', icon: '🌡️' }
+        temperature: { min: 35, max: 42, normalMin: 36.5, normalMax: 37.5, unit: '°C', icon: '🌡️' } // ✅ حدود درجة الحرارة
     };
-
-    // ✅ حساب السعرات الحرارية تلقائياً
-    useEffect(() => {
-        if (!activityData.manualCalories && activityData.duration && formData.weight) {
-            const weight = parseFloat(formData.weight);
-            const duration = parseFloat(activityData.duration);
-            const activity = activityFactors[activityData.activityType];
-            
-            if (weight && duration && activity && !isNaN(weight) && !isNaN(duration) && weight > 0 && duration > 0) {
-                // المعادلة: MET × الوزن بالكجم × (المدة بالساعات)
-                const hours = duration / 60;
-                const calculatedCalories = Math.round(activity.met * weight * hours);
-                setActivityData(prev => ({ ...prev, calories: calculatedCalories.toString() }));
-            }
-        }
-    }, [activityData.activityType, activityData.duration, formData.weight, activityData.manualCalories]);
 
     // ✅ الحفظ التلقائي
     useEffect(() => {
@@ -105,14 +69,13 @@ function HealthForm({ onDataSubmitted }) {
             const hasData = Object.values(formData).some(value => value && value.toString().trim() !== '');
             if (hasData && isMountedRef.current) {
                 localStorage.setItem('healthForm_autoSave', JSON.stringify(formData));
-                localStorage.setItem('activityData_autoSave', JSON.stringify(activityData));
                 setLastAutoSave(new Date());
             }
         };
 
         const timeoutId = setTimeout(autoSaveForm, 2000);
         return () => clearTimeout(timeoutId);
-    }, [formData, activityData, autoSave]);
+    }, [formData, autoSave]);
 
     // ✅ استعادة البيانات المحفوظة
     useEffect(() => {
@@ -124,16 +87,6 @@ function HealthForm({ onDataSubmitted }) {
                 showMessage(isArabic ? '📂 تم استعادة البيانات المحفوظة تلقائياً' : '📂 Auto-saved data restored', 'info');
             } catch (error) {
                 console.error('Error loading auto-saved data:', error);
-            }
-        }
-        
-        const savedActivity = localStorage.getItem('activityData_autoSave');
-        if (savedActivity && isMountedRef.current) {
-            try {
-                const parsedActivity = JSON.parse(savedActivity);
-                setActivityData(parsedActivity);
-            } catch (error) {
-                console.error('Error loading activity data:', error);
             }
         }
     }, [isArabic]);
@@ -150,7 +103,7 @@ function HealthForm({ onDataSubmitted }) {
         }, 4000);
     }, []);
 
-    // ✅ التحقق من صحة النموذج
+    // ✅ التحقق من صحة النموذج (تمت إضافة درجة الحرارة)
     const validateForm = useCallback(() => {
         let errors = {};
         let hasAnyData = false;
@@ -187,6 +140,7 @@ function HealthForm({ onDataSubmitted }) {
                 errors.diastolic = `${isArabic ? 'النطاق المسموح' : 'Allowed range'}: ${VALIDATION_LIMITS.diastolic.min} - ${VALIDATION_LIMITS.diastolic.max} ${VALIDATION_LIMITS.diastolic.unit}`;
             }
             
+            // التحقق من أن الانقباضي أكبر من الانبساطي
             if (formData.systolic && formData.systolic.toString().trim() !== '') {
                 const systolic = parseInt(formData.systolic);
                 if (!isNaN(systolic) && !isNaN(diastolic) && systolic <= diastolic) {
@@ -227,7 +181,7 @@ function HealthForm({ onDataSubmitted }) {
                 errors.spo2 = `${isArabic ? 'النطاق المسموح' : 'Allowed range'}: ${VALIDATION_LIMITS.spo2.min} - ${VALIDATION_LIMITS.spo2.max} ${VALIDATION_LIMITS.spo2.unit}`;
             }
         }
-        
+
         // ✅ التحقق من درجة الحرارة
         if (formData.temperature && formData.temperature.toString().trim() !== '') {
             hasAnyData = true;
@@ -239,14 +193,14 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        if (!hasAnyData && !activityData.duration) {
+        if (!hasAnyData) {
             showMessage(isArabic ? '⚠️ الرجاء إدخال قيمة واحدة على الأقل' : '⚠️ Please enter at least one value', 'error');
             return false;
         }
 
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
-    }, [formData, activityData.duration, isArabic, showMessage, VALIDATION_LIMITS]);
+    }, [formData, isArabic, showMessage, VALIDATION_LIMITS]);
 
     // ✅ معالجة تغيير الحقول
     const handleInputChange = useCallback((field, value) => {
@@ -255,16 +209,6 @@ function HealthForm({ onDataSubmitted }) {
             setValidationErrors(prev => ({ ...prev, [field]: '' }));
         }
     }, [validationErrors]);
-
-    // ✅ معالجة تغيير بيانات النشاط
-    const handleActivityChange = useCallback((field, value) => {
-        setActivityData(prev => ({ ...prev, [field]: value }));
-        if (field === 'manualCalories' && value === true) {
-            // عند تفعيل الوضع اليدوي، نحتفظ بالقيمة الحالية
-        } else if (field === 'calories' && activityData.manualCalories) {
-            setActivityData(prev => ({ ...prev, calories: value }));
-        }
-    }, [activityData.manualCalories]);
 
     // ✅ مسح النموذج
     const resetForm = useCallback(() => {
@@ -275,21 +219,14 @@ function HealthForm({ onDataSubmitted }) {
             glucose: '',
             heartRate: '',
             spo2: '',
-            temperature: ''
-        });
-        setActivityData({
-            activityType: 'walking',
-            duration: '',
-            calories: '',
-            manualCalories: false
+            temperature: '' // ✅ إعادة تعيين درجة الحرارة
         });
         setValidationErrors({});
         localStorage.removeItem('healthForm_autoSave');
-        localStorage.removeItem('activityData_autoSave');
         showMessage(isArabic ? '🗑️ تم مسح النموذج' : '🗑️ Form cleared', 'info');
     }, [isArabic, showMessage]);
 
-    // ✅ إرسال النموذج
+    // ✅ إرسال النموذج (تمت إضافة درجة الحرارة)
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
@@ -329,18 +266,9 @@ function HealthForm({ onDataSubmitted }) {
             data.spo2 = parseInt(formData.spo2);
         }
         
-        // ✅ إضافة درجة الحرارة
+        // ✅ إضافة درجة الحرارة إلى البيانات المرسلة
         if (formData.temperature && formData.temperature.toString().trim() !== '') {
             data.body_temperature = parseFloat(formData.temperature);
-        }
-        
-        // ✅ إضافة بيانات النشاط
-        if (activityData.duration && activityData.duration.toString().trim() !== '') {
-            data.activity_type = activityData.activityType;
-            data.activity_duration_minutes = parseInt(activityData.duration);
-            if (activityData.calories && activityData.calories.toString().trim() !== '') {
-                data.calories_burned = parseInt(activityData.calories);
-            }
         }
 
         try {
@@ -350,7 +278,6 @@ function HealthForm({ onDataSubmitted }) {
                 showMessage(isArabic ? '✅ تم حفظ البيانات بنجاح' : '✅ Data saved successfully', 'success');
                 resetForm();
                 localStorage.removeItem('healthForm_autoSave');
-                localStorage.removeItem('activityData_autoSave');
                 
                 if (onDataSubmitted) {
                     onDataSubmitted();
@@ -377,7 +304,7 @@ function HealthForm({ onDataSubmitted }) {
                     errorMessage = Array.isArray(errorData.heart_rate) ? errorData.heart_rate[0] : errorData.heart_rate;
                 } else if (errorData?.spo2) {
                     errorMessage = Array.isArray(errorData.spo2) ? errorData.spo2[0] : errorData.spo2;
-                } else if (errorData?.body_temperature) {
+                } else if (errorData?.body_temperature) { // ✅ معالجة أخطاء درجة الحرارة من الخادم
                     errorMessage = Array.isArray(errorData.body_temperature) ? errorData.body_temperature[0] : errorData.body_temperature;
                 } else if (typeof errorData === 'string') {
                     errorMessage = errorData;
@@ -397,9 +324,9 @@ function HealthForm({ onDataSubmitted }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [formData, activityData, onDataSubmitted, isArabic, validateForm, resetForm, showMessage]);
+    }, [formData, onDataSubmitted, isArabic, validateForm, resetForm, showMessage]);
 
-    // ✅ حساب المؤشرات الصحية
+    // ✅ حساب المؤشرات الصحية (تمت إضافة درجة الحرارة)
     const calculateHealthIndicators = useCallback(() => {
         const indicators = [];
         
@@ -426,7 +353,7 @@ function HealthForm({ onDataSubmitted }) {
                     advice: isArabic ? '🥑 حاول زيادة السعرات الحرارية بطريقة صحية' : '🥑 Try to increase calories in a healthy way',
                     value: `${weight} kg`
                 });
-            } else {
+            } else if (weight >= VALIDATION_LIMITS.weight.normalMin && weight <= VALIDATION_LIMITS.weight.normalMax) {
                 indicators.push({
                     type: 'success',
                     severity: 'good',
@@ -578,31 +505,31 @@ function HealthForm({ onDataSubmitted }) {
                 });
             }
         }
-        
-        // ✅ تحليل درجة الحرارة
+
+        // ✅ تحليل درجة حرارة الجسم
         if (formData.temperature && formData.temperature.toString().trim() !== '') {
-            const temp = parseFloat(formData.temperature);
-            if (temp > VALIDATION_LIMITS.temperature.normalMax) {
+            const temperature = parseFloat(formData.temperature);
+            if (temperature > VALIDATION_LIMITS.temperature.normalMax) {
                 indicators.push({
                     type: 'warning',
-                    severity: temp > 38.5 ? 'critical' : 'high',
-                    icon: temp > 38.5 ? '🔥' : '⚠️',
+                    severity: temperature > 38.5 ? 'high' : 'medium',
+                    icon: '🌡️',
                     field: 'temperature',
-                    message: isArabic ? 'درجة حرارة مرتفعة' : 'High temperature',
-                    advice: temp > 38.5 
-                        ? (isArabic ? '🩺 استشر طبيبك، قد تكون مصاباً بحمى شديدة' : '🩺 Consult your doctor, you may have a high fever')
-                        : (isArabic ? '💊 خذ قسطاً من الراحة، اشرب سوائل دافئة' : '💊 Rest and drink warm fluids'),
-                    value: `${temp}°C`
+                    message: isArabic ? 'ارتفاع درجة الحرارة' : 'High temperature',
+                    advice: temperature > 39 
+                        ? (isArabic ? '🚨 حرارة مرتفعة جداً! استشر طبيبك فوراً' : '🚨 Very high fever! Consult your doctor immediately')
+                        : (isArabic ? '💊 خذ قسطاً من الراحة، اشرب سوائل، واستشر طبيبك إذا استمرت' : '💊 Rest, drink fluids, and consult your doctor if persistent'),
+                    value: `${temperature} ${VALIDATION_LIMITS.temperature.unit}`
                 });
-            } else if (temp < VALIDATION_LIMITS.temperature.normalMin) {
+            } else if (temperature < VALIDATION_LIMITS.temperature.normalMin) {
                 indicators.push({
                     type: 'warning',
                     severity: 'medium',
-                    icon: '❄️',
+                    icon: '🌡️',
                     field: 'temperature',
-                    message: isArabic ? 'درجة حرارة منخفضة' : 'Low temperature',
-                    advice: isArabic ? '🧣 ارتدِ ملابس دافئة وتناول مشروبات ساخنة' : '🧣 Wear warm clothes and drink hot beverages',
-                    value: `${temp}°C`
+                    message: isArabic ? 'انخفاض درجة الحرارة' : 'Low temperature',
+                    advice: isArabic ? '🧣 تدفئة الجسم وارتداء ملابس دافئة، استشر طبيبك' : '🧣 Keep warm and consult your doctor',
+                    value: `${temperature} ${VALIDATION_LIMITS.temperature.unit}`
                 });
             } else {
                 indicators.push({
@@ -611,8 +538,8 @@ function HealthForm({ onDataSubmitted }) {
                     icon: '✅',
                     field: 'temperature',
                     message: isArabic ? 'درجة حرارة طبيعية' : 'Normal temperature',
-                    advice: isArabic ? '✨ حافظ على صحتك وعافيتك' : '✨ Maintain your health and wellness',
-                    value: `${temp}°C`
+                    advice: isArabic ? '✨ حافظ على صحتك واستمر في المراقبة' : '✨ Stay healthy and keep monitoring',
+                    value: `${temperature} ${VALIDATION_LIMITS.temperature.unit}`
                 });
             }
         }
@@ -628,6 +555,8 @@ function HealthForm({ onDataSubmitted }) {
     }, []);
 
     const healthIndicators = calculateHealthIndicators();
+
+    // ✅ حساب عدد الحقول المملوءة (تمت إضافة درجة الحرارة)
     const filledFieldsCount = Object.values(formData).filter(v => v && v.toString().trim() !== '').length;
 
     return (
@@ -637,7 +566,7 @@ function HealthForm({ onDataSubmitted }) {
                 <div className="header-title">
                     <h2>
                         <span className="title-icon">📝</span>
-                        {isArabic ? 'إضافة قياس صحي ونشاط بدني' : 'Add Health Reading & Physical Activity'}
+                        {isArabic ? 'إضافة قياس صحي' : 'Add Health Reading'}
                     </h2>
                     {filledFieldsCount > 0 && (
                         <div className="fields-badge">
@@ -667,11 +596,6 @@ function HealthForm({ onDataSubmitted }) {
 
             {/* ✅ نموذج الإدخال */}
             <form onSubmit={handleSubmit} className="health-form">
-                <div className="section-title">
-                    <span className="section-title-icon">🩺</span>
-                    <h3>{isArabic ? 'القياسات الحيوية' : 'Vital Signs'}</h3>
-                </div>
-                
                 <div className="form-grid">
                     {/* الوزن */}
                     <div className="form-field">
@@ -825,11 +749,11 @@ function HealthForm({ onDataSubmitted }) {
                         </div>
                     </div>
 
-                    {/* ✅ درجة حرارة الجسم (جديد) */}
+                    {/* ✅ درجة حرارة الجسم - حقل جديد */}
                     <div className="form-field">
                         <label className="field-label">
                             <span className="field-icon">🌡️</span>
-                            {isArabic ? 'درجة حرارة الجسم' : 'Body Temperature'}
+                            {isArabic ? 'درجة الحرارة' : 'Temperature'}
                             <span className="field-unit">(°C)</span>
                         </label>
                         <div className="input-wrapper">
@@ -848,131 +772,8 @@ function HealthForm({ onDataSubmitted }) {
                         )}
                         <div className="field-hint">
                             <span className="hint-normal">✅ {isArabic ? 'الطبيعي' : 'Normal'}: 36.5-37.5 °C</span>
-                            <span className="hint-warning">⚠️ {isArabic ? 'فوق 38°C يعني حمى' : 'Above 38°C means fever'}</span>
                         </div>
                     </div>
-                </div>
-
-                {/* ✅ قسم النشاط البدني (جديد محسن) */}
-                <div className="activity-section">
-                    <div className="section-title">
-                        <span className="section-title-icon">🏃‍♂️</span>
-                        <h3>{isArabic ? 'النشاط البدني' : 'Physical Activity'}</h3>
-                        <span className="section-badge">
-                            {isArabic ? 'احسب السعرات المحروقة' : 'Calculate calories burned'}
-                        </span>
-                    </div>
-                    
-                    <div className="activity-grid">
-                        {/* اختيار نوع النشاط */}
-                        <div className="form-field">
-                            <label className="field-label">
-                                <span className="field-icon">🎯</span>
-                                {isArabic ? 'نوع النشاط' : 'Activity Type'}
-                            </label>
-                            <div className="activity-selector">
-                                <select
-                                    value={activityData.activityType}
-                                    onChange={(e) => handleActivityChange('activityType', e.target.value)}
-                                    className="activity-select"
-                                >
-                                    {Object.entries(activityFactors).map(([key, value]) => (
-                                        <option key={key} value={key}>
-                                            {isArabic ? value.nameAr : value.nameEn}
-                                        </option>
-                                    ))}
-                                </select>
-                                <div className="activity-desc">
-                                    {isArabic ? activityFactors[activityData.activityType].descAr : activityFactors[activityData.activityType].descEn}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* المدة */}
-                        <div className="form-field">
-                            <label className="field-label">
-                                <span className="field-icon">⏱️</span>
-                                {isArabic ? 'المدة' : 'Duration'}
-                                <span className="field-unit">({isArabic ? 'دقائق' : 'minutes'})</span>
-                            </label>
-                            <div className="input-wrapper">
-                                <input
-                                    type="number"
-                                    step="1"
-                                    min="1"
-                                    max="720"
-                                    value={activityData.duration}
-                                    onChange={(e) => handleActivityChange('duration', e.target.value)}
-                                    placeholder={isArabic ? 'مثال: 30' : 'Example: 30'}
-                                    className="form-input"
-                                />
-                                <span className="input-suffix">{isArabic ? 'دقيقة' : 'min'}</span>
-                            </div>
-                            {activityData.duration && formData.weight && (
-                                <div className="field-hint success">
-                                    💡 {isArabic 
-                                        ? `بحسب وزنك ${formData.weight} كجم، كل دقيقة تحرق تقريباً ${Math.round(activityFactors[activityData.activityType].met * parseFloat(formData.weight) / 60)} سعرة`
-                                        : `Based on your weight ${formData.weight} kg, each minute burns approximately ${Math.round(activityFactors[activityData.activityType].met * parseFloat(formData.weight) / 60)} calories`
-                                    }
-                                </div>
-                            )}
-                        </div>
-
-                        {/* السعرات المحروقة */}
-                        <div className="form-field">
-                            <label className="field-label">
-                                <span className="field-icon">🔥</span>
-                                {isArabic ? 'السعرات المحروقة' : 'Calories Burned'}
-                                <span className="field-unit">(kcal)</span>
-                            </label>
-                            <div className="input-wrapper">
-                                <input
-                                    type="number"
-                                    step="5"
-                                    value={activityData.calories}
-                                    onChange={(e) => handleActivityChange('calories', e.target.value)}
-                                    placeholder={isArabic ? 'تلقائي أو يدوي' : 'Auto or manual'}
-                                    className="form-input"
-                                    readOnly={!activityData.manualCalories}
-                                    style={!activityData.manualCalories ? { backgroundColor: 'var(--tertiary-bg)', opacity: 0.8 } : {}}
-                                />
-                                <button
-                                    type="button"
-                                    className={`manual-toggle ${activityData.manualCalories ? 'active' : ''}`}
-                                    onClick={() => handleActivityChange('manualCalories', !activityData.manualCalories)}
-                                    title={isArabic ? 'تعديل يدوي' : 'Manual edit'}
-                                >
-                                    ✏️
-                                </button>
-                            </div>
-                            {!activityData.manualCalories && activityData.duration && formData.weight && (
-                                <div className="field-hint info">
-                                    🤖 {isArabic ? 'محسوبة تلقائياً بناءً على الوزن والمدة' : 'Auto-calculated based on weight and duration'}
-                                </div>
-                            )}
-                            {activityData.manualCalories && (
-                                <div className="field-hint warning">
-                                    ✏️ {isArabic ? 'وضع التعديل اليدوي مفعل' : 'Manual edit mode enabled'}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* ملخص النشاط */}
-                    {activityData.duration && (activityData.calories || (!activityData.manualCalories && formData.weight)) && (
-                        <div className="activity-summary">
-                            <div className="summary-icon">🏆</div>
-                            <div className="summary-text">
-                                {isArabic 
-                                    ? `قمتَ بـ ${activityData.duration} دقيقة من ${activityFactors[activityData.activityType].nameAr}`
-                                    : `You did ${activityData.duration} minutes of ${activityFactors[activityData.activityType].nameEn}`
-                                }
-                                {activityData.calories && (
-                                    <strong> — {isArabic ? `حرقت ${activityData.calories} سعرة حرارية` : `burned ${activityData.calories} calories`}</strong>
-                                )}
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 {/* ✅ المؤشرات الصحية */}
@@ -980,7 +781,7 @@ function HealthForm({ onDataSubmitted }) {
                     <div className="indicators-section">
                         <div className="section-header">
                             <span className="section-icon">💡</span>
-                            <h3>{isArabic ? 'المؤشرات الصحية والتوصيات' : 'Health Indicators & Recommendations'}</h3>
+                            <h3>{isArabic ? 'المؤشرات الصحية' : 'Health Indicators'}</h3>
                         </div>
                         <div className="indicators-list">
                             {healthIndicators.map((indicator, index) => (
@@ -1007,7 +808,7 @@ function HealthForm({ onDataSubmitted }) {
                         className="action-btn clear-btn"
                         disabled={loading}
                     >
-                        🗑️ {isArabic ? 'مسح الكل' : 'Clear All'}
+                        🗑️ {isArabic ? 'مسح النموذج' : 'Clear Form'}
                     </button>
                     <button 
                         type="submit" 
@@ -1020,7 +821,7 @@ function HealthForm({ onDataSubmitted }) {
                                 {isArabic ? 'جاري الحفظ...' : 'Saving...'}
                             </>
                         ) : (
-                            <>💾 {isArabic ? 'حفظ البيانات' : 'Save Data'}</>
+                            <>💾 {isArabic ? 'حفظ' : 'Save'}</>
                         )}
                     </button>
                 </div>
@@ -1044,7 +845,7 @@ function HealthForm({ onDataSubmitted }) {
                 </div>
             )}
 
-            {/* ✅ أنماط CSS المضمنة */}
+            {/* ✅ أنماط CSS المضمنة - تم تحسينها قليلاً */}
             <style jsx>{`
                 .health-form-container {
                     background: var(--card-bg);
@@ -1052,39 +853,6 @@ function HealthForm({ onDataSubmitted }) {
                     padding: 1.5rem;
                     border: 1px solid var(--border-light);
                     transition: all var(--transition-medium);
-                }
-
-                /* ===== عناوين الأقسام ===== */
-                .section-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    margin: 1.5rem 0 1rem 0;
-                    padding-bottom: 0.5rem;
-                    border-bottom: 2px solid var(--border-light);
-                }
-
-                .section-title:first-of-type {
-                    margin-top: 0;
-                }
-
-                .section-title-icon {
-                    font-size: 1.3rem;
-                }
-
-                .section-title h3 {
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1.1rem;
-                    font-weight: 600;
-                }
-
-                .section-badge {
-                    background: var(--primary-gradient);
-                    padding: 0.25rem 0.75rem;
-                    border-radius: 50px;
-                    font-size: 0.7rem;
-                    color: white;
                 }
 
                 /* ===== رأس النموذج ===== */
@@ -1284,127 +1052,10 @@ function HealthForm({ onDataSubmitted }) {
                     color: var(--text-tertiary);
                 }
 
-                .field-hint.success {
-                    color: var(--success);
-                }
-
-                .field-hint.info {
-                    color: var(--info);
-                }
-
-                .field-hint.warning {
-                    color: var(--warning);
-                }
-
                 .hint-normal {
                     display: inline-flex;
                     align-items: center;
                     gap: 0.25rem;
-                    margin-right: 0.5rem;
-                }
-
-                .hint-warning {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 0.25rem;
-                    color: var(--warning);
-                }
-
-                /* ===== قسم النشاط البدني ===== */
-                .activity-section {
-                    background: linear-gradient(135deg, var(--secondary-bg) 0%, var(--tertiary-bg) 100%);
-                    border-radius: 20px;
-                    padding: 1.25rem;
-                    margin: 1.5rem 0;
-                    border: 1px solid var(--border-light);
-                }
-
-                .activity-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                    gap: 1.25rem;
-                    margin-bottom: 1rem;
-                }
-
-                .activity-selector {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.5rem;
-                }
-
-                .activity-select {
-                    padding: 0.75rem;
-                    border: 1px solid var(--border-light);
-                    border-radius: 12px;
-                    background: var(--card-bg);
-                    color: var(--text-primary);
-                    font-size: 0.9rem;
-                    cursor: pointer;
-                }
-
-                .activity-select:focus {
-                    outline: none;
-                    border-color: var(--primary);
-                }
-
-                .activity-desc {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                    padding: 0.25rem 0.5rem;
-                }
-
-                .manual-toggle {
-                    position: absolute;
-                    right: 1rem;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                    font-size: 1rem;
-                    padding: 0.25rem;
-                    border-radius: 8px;
-                    transition: all var(--transition-fast);
-                    opacity: 0.6;
-                }
-
-                [dir="rtl"] .manual-toggle {
-                    right: auto;
-                    left: 1rem;
-                }
-
-                .manual-toggle:hover {
-                    opacity: 1;
-                    background: var(--border-light);
-                }
-
-                .manual-toggle.active {
-                    opacity: 1;
-                    background: var(--primary);
-                    color: white;
-                }
-
-                .activity-summary {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    padding: 0.75rem;
-                    background: rgba(16, 185, 129, 0.1);
-                    border-radius: 12px;
-                    margin-top: 0.75rem;
-                }
-
-                .summary-icon {
-                    font-size: 1.5rem;
-                }
-
-                .summary-text {
-                    font-size: 0.85rem;
-                    color: var(--text-primary);
-                }
-
-                .summary-text strong {
-                    color: var(--success);
                 }
 
                 /* ===== المؤشرات الصحية ===== */
@@ -1663,13 +1314,9 @@ function HealthForm({ onDataSubmitted }) {
                         left: 1rem;
                         right: 1rem;
                     }
-                    
-                    .activity-grid {
-                        grid-template-columns: 1fr;
-                    }
                 }
 
-                @media (max-width: 480px) {
+                @media (max-width: 640px) {
                     .form-grid {
                         grid-template-columns: 1fr;
                     }
