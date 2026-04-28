@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx - النسخة المعدلة (مع ActivityForm)
+// src/components/Dashboard.jsx - النسخة المعدلة (مع ActivityForm, HealthHistory, HealthCharts)
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/api'; 
 import '../index.css';
 
-// ✅ المكونات المتبقية (مع إضافة ActivityForm)
+// ✅ المكونات المتبقية (مع إضافة ActivityForm, HealthHistory, HealthCharts)
 import Sidebar from './Sidebar';   
 import NutritionMain from './nutrition/NutritionMain';
 import SleepTracker from './SleepTracker';
@@ -17,7 +17,9 @@ import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
 import Notifications from './Notifications/Notifications';
 import Reports from './Reports';
-import ActivityForm from './ActivityForm'; // ✅ إضافة ActivityForm
+import ActivityForm from './ActivityForm';
+import HealthHistory from './HealthHistory';   // ✅ إضافة HealthHistory
+import HealthCharts from './HealthCharts';     // ✅ إضافة HealthCharts
 
 // ✅ دالة عامة لتطبيق اللغة
 const applyLanguage = (lang) => {
@@ -43,11 +45,14 @@ function Dashboard({ onLogout }) {
     const navigate = useNavigate();
     
     const isMountedRef = useRef(true);
+    const refreshIntervalRef = useRef(null);
+    const isFetchingRef = useRef(false);
     
-    const [activeSection, setActiveSection] = useState('activity'); // ✅ تغيير القسم الافتراضي إلى الأنشطة
+    const [activeSection, setActiveSection] = useState('activity'); // ✅ القسم الافتراضي إلى الأنشطة
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [isSidebarVisible, setIsSidebarVisible] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0); // ✅ لإعادة تحميل البيانات
     
     // ✅ الوضع المظلم
     const [darkMode, setDarkMode] = useState(() => {
@@ -150,6 +155,9 @@ function Dashboard({ onLogout }) {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
+            if (refreshIntervalRef.current) {
+                clearInterval(refreshIntervalRef.current);
+            }
         };
     }, []);
     
@@ -163,10 +171,17 @@ function Dashboard({ onLogout }) {
         setIsSidebarVisible(prev => !prev);
     }, []);
     
+    // ✅ تحديث البيانات
+    const refreshData = useCallback(() => {
+        setRefreshKey(prev => prev + 1);
+    }, []);
+    
     // ✅ عناوين الأقسام
     const getSectionTitle = useCallback((sectionKey) => {
         const titles = {
             'activity': isArabic ? '🏃 النشاط البدني' : '🏃 Physical Activity',
+            'history': isArabic ? '📋 السجل الصحي' : '📋 Health History',
+            'charts': isArabic ? '📊 الرسوم البيانية' : '📊 Health Charts',
             'nutrition': isArabic ? '🍽️ التغذية' : '🍽️ Nutrition',
             'sleep': isArabic ? '😴 النوم' : '😴 Sleep',
             'habits': isArabic ? '✅ العادات' : '✅ Habits',
@@ -188,11 +203,11 @@ function Dashboard({ onLogout }) {
         return today.toLocaleDateString(locale, options);
     }, [isArabic]);
     
-    // ✅ دالة معالجة إضافة البيانات (لـ ActivityForm)
+    // ✅ دالة معالجة إضافة البيانات
     const handleDataSubmitted = useCallback(() => {
-        // يمكن إضافة أي منطق إضافي هنا إذا لزم الأمر
-        console.log('Data submitted to ActivityForm');
-    }, []);
+        console.log('Data submitted - refreshing charts and history');
+        refreshData();
+    }, [refreshData]);
     
     // ✅ عرض محتوى القسم المحدد
     const renderSectionContent = useCallback(() => {
@@ -201,6 +216,17 @@ function Dashboard({ onLogout }) {
                 return <ActivityForm 
                     onDataSubmitted={handleDataSubmitted} 
                     onActivityChange={handleDataSubmitted} 
+                    isArabic={isArabic} 
+                />;
+            case 'history':
+                return <HealthHistory 
+                    refreshKey={refreshKey} 
+                    onDataSubmitted={handleDataSubmitted} 
+                    isArabic={isArabic} 
+                />;
+            case 'charts':
+                return <HealthCharts 
+                    refreshKey={refreshKey} 
                     isArabic={isArabic} 
                 />;
             case 'nutrition': 
@@ -228,7 +254,7 @@ function Dashboard({ onLogout }) {
                     isArabic={isArabic} 
                 />;
         }
-    }, [activeSection, isAuthReady, isArabic, handleDataSubmitted]);
+    }, [activeSection, isAuthReady, isArabic, refreshKey, handleDataSubmitted]);
     
     // ✅ العرض الرئيسي
     return (
@@ -296,6 +322,11 @@ function Dashboard({ onLogout }) {
             <main className="dashboard-content">
                 <div className="section-header">
                     <h1 className="section-title">{getSectionTitle(activeSection)}</h1>
+                    {activeSection !== 'activity' && (
+                        <button onClick={refreshData} className="refresh-section-btn">
+                            🔄 {isArabic ? 'تحديث' : 'Refresh'}
+                        </button>
+                    )}
                 </div>
 
                 <div className="section-content">
@@ -512,6 +543,22 @@ function Dashboard({ onLogout }) {
                 
                 .dark-mode .section-title {
                     color: var(--text-primary, #f1f5f9);
+                }
+                
+                .refresh-section-btn {
+                    padding: 0.5rem 1rem;
+                    background: var(--primary, #6366f1);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 0.85rem;
+                    transition: all 0.15s;
+                }
+                
+                .refresh-section-btn:hover {
+                    background: var(--primary-dark, #4f46e5);
+                    transform: translateY(-2px);
                 }
                 
                 @media (max-width: 768px) {
