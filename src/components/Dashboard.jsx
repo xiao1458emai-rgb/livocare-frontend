@@ -10,7 +10,6 @@ import '../index.css';
 import HealthForm from './HealthForm';
 import HealthHistory from './HealthHistory';
 import HealthCharts from './HealthCharts';
-import ActivityAnalytics from './Analytics/ActivityAnalytics';
 import Sidebar from './Sidebar';   
 import NutritionMain from './nutrition/NutritionMain';
 import SleepTracker from './SleepTracker';
@@ -22,7 +21,6 @@ import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
 import Notifications from './Notifications/Notifications';
 import Reports from './Reports';
-import AdvancedHealthInsights from './Analytics/AdvancedHealthInsights';
 
 // ✅ دالة عامة لتطبيق اللغة
 const applyLanguage = (lang) => {
