@@ -291,63 +291,80 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         }), { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0 });
     }, [foodItems]);
     
-    // ✅ ==================== 9. دوال حفظ وتحديث الوجبة ====================
-    const handleSubmit = useCallback(async (e) => {
-        e.preventDefault();
-        if (!isAuthReady) {
-            showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
-            return;
-        }
-        
-        setIsLoading(true);
-        const validItems = foodItems.filter(item => item.name && item.quantity);
-        
-        if (validItems.length === 0) {
-            showMessage(isArabic ? '⚠️ أضف مكون واحد على الأقل' : '⚠️ Add at least one ingredient', 'error');
-            setIsLoading(false);
-            return;
-        }
-        
-        const ingredients = validItems.map(item => ({
-            name: item.name,
-            quantity: parseFloat(item.quantity) || 100,
-            unit: item.unit || 'g',
-            calories: parseFloat(item.calories) || 0,
-            protein: parseFloat(item.protein) || 0,
-            carbs: parseFloat(item.carbs) || 0,
-            fat: parseFloat(item.fat) || 0
-        }));
-        
-        const totalCalories = ingredients.reduce((sum, ing) => sum + (ing.calories || 0), 0);
-        const totalProtein = ingredients.reduce((sum, ing) => sum + (ing.protein || 0), 0);
-        const totalCarbs = ingredients.reduce((sum, ing) => sum + (ing.carbs || 0), 0);
-        const totalFat = ingredients.reduce((sum, ing) => sum + (ing.fat || 0), 0);
-        
-        const submitData = {
-            meal_type: mealData.meal_type,
-            meal_time: mealData.meal_time,
-            notes: mealData.notes || '',
-            ingredients: ingredients,
-            total_calories: totalCalories,
-            total_protein: totalProtein,
-            total_carbs: totalCarbs,
-            total_fat: totalFat
-        };
-        
-        try {
-            await axiosInstance.post('/meals/', submitData);
-            showMessage(isArabic ? '✅ تم إضافة الوجبة بنجاح' : '✅ Meal added successfully', 'success');
-            await fetchMeals();
-            clearForm();
-            if (onDataSubmitted) onDataSubmitted();
-        } catch (error) {
-            console.error('Submission error:', error);
-            showMessage(isArabic ? '❌ فشل حفظ الوجبة' : '❌ Failed to save meal', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [isAuthReady, isArabic, foodItems, mealData, fetchMeals, clearForm, onDataSubmitted, showMessage]);
+ const handleSubmit = useCallback(async (e) => {
+    e.preventDefault();
+    if (!isAuthReady) {
+        showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
+        return;
+    }
     
+    setIsLoading(true);
+    const validItems = foodItems.filter(item => item.name && item.quantity);
+    
+    if (validItems.length === 0) {
+        showMessage(isArabic ? '⚠️ أضف مكون واحد على الأقل' : '⚠️ Add at least one ingredient', 'error');
+        setIsLoading(false);
+        return;
+    }
+    
+    // ✅ تأكد من أن ingredients بالشكل الصحيح
+    const ingredients = validItems.map(item => ({
+        name: String(item.name).trim(),
+        quantity: Number(parseFloat(item.quantity)) || 100,
+        unit: item.unit || 'g',
+        calories: Number(parseFloat(item.calories)) || 0,
+        protein: Number(parseFloat(item.protein)) || 0,
+        carbs: Number(parseFloat(item.carbs)) || 0,
+        fat: Number(parseFloat(item.fat)) || 0
+    }));
+    
+    const totalCalories = ingredients.reduce((sum, ing) => sum + ing.calories, 0);
+    const totalProtein = ingredients.reduce((sum, ing) => sum + ing.protein, 0);
+    const totalCarbs = ingredients.reduce((sum, ing) => sum + ing.carbs, 0);
+    const totalFat = ingredients.reduce((sum, ing) => sum + ing.fat, 0);
+    
+    const submitData = {
+        meal_type: mealData.meal_type,
+        meal_time: mealData.meal_time,
+        notes: mealData.notes || '',
+        ingredients: ingredients,  // ✅ مصفوفة من الكائنات
+        total_calories: totalCalories,
+        total_protein: totalProtein,
+        total_carbs: totalCarbs,
+        total_fat: totalFat
+    };
+    
+    // ✅ طباعة البيانات للتصحيح
+    console.log('📤 Sending meal data:', JSON.stringify(submitData, null, 2));
+    
+    try {
+        const response = await axiosInstance.post('/meals/', submitData);
+        console.log('✅ Response:', response.data);
+        showMessage(isArabic ? '✅ تم إضافة الوجبة بنجاح' : '✅ Meal added successfully', 'success');
+        await fetchMeals();
+        clearForm();
+        if (onDataSubmitted) onDataSubmitted();
+    } catch (error) {
+        console.error('❌ Submission error:', error);
+        console.error('❌ Response data:', error.response?.data);
+        console.error('❌ Response status:', error.response?.status);
+        
+        // عرض تفاصيل الخطأ
+        let errorMsg = isArabic ? '❌ فشل حفظ الوجبة' : '❌ Failed to save meal';
+        if (error.response?.data) {
+            const errData = error.response.data;
+            if (typeof errData === 'object') {
+                const firstError = Object.values(errData)[0];
+                if (firstError) {
+                    errorMsg += `: ${Array.isArray(firstError) ? firstError[0] : firstError}`;
+                }
+            }
+        }
+        showMessage(errorMsg, 'error');
+    } finally {
+        setIsLoading(false);
+    }
+}, [isAuthReady, isArabic, foodItems, mealData, fetchMeals, clearForm, onDataSubmitted, showMessage]);
     const handleUpdateMeal = useCallback(async (e) => {
         e.preventDefault();
         if (!isAuthReady || !editingMeal) {
@@ -710,6 +727,896 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                     <button className="toast-close" onClick={() => setMessage('')}>✕</button>
                 </div>
             )}
+
+            {/* ✅ أنماط CSS المضمنة */}
+            <style jsx>{`
+                .nutrition-form-container {
+                    background: var(--card-bg);
+                    border-radius: 24px;
+                    padding: 1.5rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                /* ===== رأس النموذج ===== */
+                .form-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid var(--border-light);
+                }
+
+                .form-header h2 {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.3rem;
+                }
+
+                .header-icon {
+                    font-size: 1.5rem;
+                }
+
+                .header-actions {
+                    display: flex;
+                    gap: 0.5rem;
+                }
+
+                .scan-btn {
+                    padding: 0.5rem 1rem;
+                    background: linear-gradient(135deg, #10b981, #059669);
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+
+                .scan-btn:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+
+                .cancel-edit-btn {
+                    padding: 0.5rem 1rem;
+                    background: rgba(239, 68, 68, 0.1);
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                    border-radius: 10px;
+                    color: #ef4444;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                }
+
+                .cancel-edit-btn:hover {
+                    background: #ef4444;
+                    color: white;
+                }
+
+                /* ===== ملخص التغذية ===== */
+                .nutrition-summary {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                }
+
+                .summary-card {
+                    background: var(--secondary-bg);
+                    border-radius: 16px;
+                    padding: 1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                .summary-card.calories .summary-value { color: #f59e0b; }
+                .summary-card.protein .summary-value { color: #10b981; }
+                .summary-card.carbs .summary-value { color: #3b82f6; }
+                .summary-card.fats .summary-value { color: #ef4444; }
+
+                .summary-icon {
+                    font-size: 1.5rem;
+                    width: 45px;
+                    height: 45px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: var(--hover-bg);
+                    border-radius: 12px;
+                }
+
+                .summary-info {
+                    flex: 1;
+                }
+
+                .summary-value {
+                    font-size: 1.3rem;
+                    font-weight: bold;
+                    line-height: 1.2;
+                }
+
+                .summary-label {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                /* ===== النموذج ===== */
+                .nutrition-form {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.5rem;
+                }
+
+                .form-section {
+                    background: var(--secondary-bg);
+                    border-radius: 20px;
+                    padding: 1rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                .section-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    margin-bottom: 1rem;
+                    font-size: 0.9rem;
+                }
+
+                .label-icon {
+                    font-size: 1rem;
+                }
+
+                .optional {
+                    font-weight: normal;
+                    color: var(--text-tertiary);
+                    font-size: 0.7rem;
+                }
+
+                .meal-type-buttons {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }
+
+                .meal-type-btn {
+                    padding: 0.5rem 1rem;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    font-size: 0.85rem;
+                    border: 1px solid;
+                }
+
+                .meal-type-btn.active {
+                    transform: scale(1.02);
+                }
+
+                .form-input,
+                .form-select,
+                .form-textarea {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    background: var(--card-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 12px;
+                    color: var(--text-primary);
+                    font-size: 0.9rem;
+                }
+
+                .form-input:focus,
+                .form-select:focus,
+                .form-textarea:focus {
+                    outline: none;
+                    border-color: var(--primary);
+                }
+
+                .form-textarea {
+                    resize: vertical;
+                    font-family: inherit;
+                }
+
+                /* ===== المكونات ===== */
+                .ingredients-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1rem;
+                    margin-bottom: 1rem;
+                }
+
+                .ingredient-card {
+                    background: var(--card-bg);
+                    border-radius: 16px;
+                    padding: 1rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                .ingredient-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1rem;
+                }
+
+                .ingredient-number {
+                    width: 30px;
+                    height: 30px;
+                    background: var(--primary);
+                    color: white;
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                }
+
+                .remove-ingredient-btn {
+                    background: none;
+                    border: none;
+                    font-size: 1.1rem;
+                    cursor: pointer;
+                    opacity: 0.6;
+                    transition: opacity var(--transition-fast);
+                }
+
+                .remove-ingredient-btn:hover {
+                    opacity: 1;
+                }
+
+                .ingredient-field {
+                    margin-bottom: 1rem;
+                }
+
+                .ingredient-field label {
+                    display: block;
+                    font-size: 0.75rem;
+                    color: var(--text-tertiary);
+                    margin-bottom: 0.25rem;
+                }
+
+                .ingredient-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 1rem;
+                    margin-bottom: 1rem;
+                }
+
+                .ingredient-field.half {
+                    margin-bottom: 0;
+                }
+
+                .nutrition-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 0.5rem;
+                }
+
+                .nutrition-field label {
+                    display: block;
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    margin-bottom: 0.25rem;
+                }
+
+                .search-container {
+                    position: relative;
+                }
+
+                .search-results {
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: var(--card-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 12px;
+                    max-height: 200px;
+                    overflow-y: auto;
+                    z-index: 100;
+                    box-shadow: var(--shadow-lg);
+                }
+
+                .search-result-item {
+                    padding: 0.75rem 1rem;
+                    cursor: pointer;
+                    transition: background var(--transition-fast);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+
+                .search-result-item:hover {
+                    background: var(--hover-bg);
+                }
+
+                .result-name {
+                    color: var(--text-primary);
+                }
+
+                .result-calories {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                .searching-indicator {
+                    position: absolute;
+                    right: 12px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                [dir="rtl"] .searching-indicator {
+                    right: auto;
+                    left: 12px;
+                }
+
+                .add-ingredient-btn {
+                    width: 100%;
+                    padding: 0.75rem;
+                    background: var(--secondary-bg);
+                    border: 2px dashed var(--border-light);
+                    border-radius: 12px;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                }
+
+                .add-ingredient-btn:hover {
+                    border-color: var(--primary);
+                    color: var(--primary);
+                }
+
+                /* ===== أزرار الإجراء ===== */
+                .form-actions {
+                    display: flex;
+                    gap: 1rem;
+                    margin-top: 1rem;
+                }
+
+                .reset-btn {
+                    flex: 1;
+                    padding: 0.75rem;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 12px;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                    font-weight: 500;
+                }
+
+                .reset-btn:hover {
+                    background: var(--hover-bg);
+                }
+
+                .submit-btn {
+                    flex: 2;
+                    padding: 0.75rem;
+                    background: var(--primary-gradient);
+                    color: white;
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    transition: all var(--transition-medium);
+                    font-weight: 600;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                }
+
+                .submit-btn:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+
+                .submit-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                .btn-spinner {
+                    width: 14px;
+                    height: 14px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    animation: spin 0.6s linear infinite;
+                }
+
+                /* ===== الوجبات المسجلة ===== */
+                .meals-history {
+                    margin-top: 1.5rem;
+                    padding-top: 1.5rem;
+                    border-top: 1px solid var(--border-light);
+                }
+
+                .history-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1rem;
+                }
+
+                .history-header h3 {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1rem;
+                }
+
+                .refresh-history-btn {
+                    background: none;
+                    border: none;
+                    font-size: 1.1rem;
+                    cursor: pointer;
+                    padding: 0.25rem;
+                    border-radius: 8px;
+                    transition: all var(--transition-fast);
+                }
+
+                .refresh-history-btn:hover:not(:disabled) {
+                    background: var(--hover-bg);
+                    transform: rotate(180deg);
+                }
+
+                .meals-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                    max-height: 500px;
+                    overflow-y: auto;
+                }
+
+                .meal-history-item {
+                    background: var(--secondary-bg);
+                    border-radius: 16px;
+                    padding: 1rem;
+                    border: 1px solid var(--border-light);
+                }
+
+                .meal-item-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 0.5rem;
+                }
+
+                .meal-type-badge {
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 20px;
+                    font-size: 0.8rem;
+                    font-weight: 500;
+                }
+
+                .meal-item-actions {
+                    display: flex;
+                    gap: 0.5rem;
+                }
+
+                .edit-meal-btn,
+                .delete-meal-btn {
+                    background: none;
+                    border: none;
+                    font-size: 0.9rem;
+                    cursor: pointer;
+                    padding: 0.25rem;
+                    border-radius: 6px;
+                    transition: all var(--transition-fast);
+                }
+
+                .edit-meal-btn:hover {
+                    background: rgba(59, 130, 246, 0.1);
+                }
+
+                .delete-meal-btn:hover {
+                    background: rgba(239, 68, 68, 0.1);
+                }
+
+                .meal-item-date {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    margin-bottom: 0.5rem;
+                }
+
+                .meal-item-nutrition {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                    margin-bottom: 0.5rem;
+                }
+
+                .nutrition-badge {
+                    padding: 0.2rem 0.6rem;
+                    border-radius: 20px;
+                    font-size: 0.7rem;
+                }
+
+                .nutrition-badge.calories {
+                    background: rgba(245, 158, 11, 0.15);
+                    color: #f59e0b;
+                }
+
+                .nutrition-badge.protein {
+                    background: rgba(16, 185, 129, 0.15);
+                    color: #10b981;
+                }
+
+                .nutrition-badge.carbs {
+                    background: rgba(59, 130, 246, 0.15);
+                    color: #3b82f6;
+                }
+
+                .nutrition-badge.fats {
+                    background: rgba(239, 68, 68, 0.15);
+                    color: #ef4444;
+                }
+
+                .meal-item-ingredients {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                    margin-bottom: 0.5rem;
+                }
+
+                .ingredient-tag {
+                    background: var(--tertiary-bg);
+                    padding: 0.2rem 0.6rem;
+                    border-radius: 20px;
+                    font-size: 0.7rem;
+                    color: var(--text-secondary);
+                }
+
+                .ingredient-more {
+                    background: var(--tertiary-bg);
+                    padding: 0.2rem 0.6rem;
+                    border-radius: 20px;
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                }
+
+                .meal-item-notes {
+                    margin-top: 0.5rem;
+                    padding-top: 0.5rem;
+                    border-top: 1px solid var(--border-light);
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                }
+
+                /* ===== حالات خاصة ===== */
+                .loading-state,
+                .empty-state {
+                    text-align: center;
+                    padding: 2rem;
+                }
+
+                .spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid var(--border-light);
+                    border-top-color: var(--primary);
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    margin: 0 auto 1rem;
+                }
+
+                .spinner-small {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid var(--border-light);
+                    border-top-color: var(--primary);
+                    border-radius: 50%;
+                    animation: spin 0.6s linear infinite;
+                }
+
+                .empty-icon {
+                    font-size: 3rem;
+                    margin-bottom: 0.5rem;
+                    opacity: 0.5;
+                }
+
+                .empty-hint {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary);
+                    margin-top: 0.5rem;
+                }
+
+                /* ===== ماسح الباركود ===== */
+                .scanner-modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.85);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                    animation: fadeIn 0.3s ease;
+                }
+
+                .scanner-modal-content {
+                    background: var(--card-bg);
+                    border-radius: 24px;
+                    width: 90%;
+                    max-width: 500px;
+                    padding: 1rem;
+                }
+
+                .scanner-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1rem;
+                    padding-bottom: 0.5rem;
+                    border-bottom: 1px solid var(--border-light);
+                }
+
+                .scanner-header h3 {
+                    margin: 0;
+                    color: var(--text-primary);
+                }
+
+                .close-btn {
+                    background: none;
+                    border: none;
+                    font-size: 1.2rem;
+                    cursor: pointer;
+                }
+
+                .scanner-footer {
+                    margin-top: 1rem;
+                    text-align: center;
+                }
+
+                .scanner-footer p {
+                    font-size: 0.8rem;
+                    color: var(--text-secondary);
+                    margin-bottom: 0.5rem;
+                }
+
+                .cancel-btn {
+                    padding: 0.5rem 1rem;
+                    background: var(--secondary-bg);
+                    border: 1px solid var(--border-light);
+                    border-radius: 10px;
+                    cursor: pointer;
+                }
+
+                /* ===== إشعار ===== */
+                .notification-toast {
+                    position: fixed;
+                    bottom: 1.5rem;
+                    right: 1.5rem;
+                    padding: 0.75rem 1rem;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    z-index: 1000;
+                    animation: slideIn 0.3s ease;
+                    box-shadow: var(--shadow-lg);
+                }
+
+                [dir="rtl"] .notification-toast {
+                    right: auto;
+                    left: 1.5rem;
+                }
+
+                .notification-toast.success {
+                    background: #10b981;
+                    color: white;
+                }
+
+                .notification-toast.error {
+                    background: #ef4444;
+                    color: white;
+                }
+
+                .notification-toast.info {
+                    background: #3b82f6;
+                    color: white;
+                }
+
+                .toast-close {
+                    background: none;
+                    border: none;
+                    color: white;
+                    cursor: pointer;
+                    font-size: 1rem;
+                }
+
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+
+                @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateX(100%);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+
+                [dir="rtl"] @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-100%);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+
+                /* ===== استجابة الشاشات ===== */
+                @media (max-width: 1024px) {
+                    .nutrition-summary {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                }
+
+                @media (max-width: 768px) {
+                    .nutrition-form-container {
+                        padding: 1rem;
+                    }
+
+                    .form-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    .header-actions {
+                        width: 100%;
+                    }
+
+                    .scan-btn,
+                    .cancel-edit-btn {
+                        flex: 1;
+                        justify-content: center;
+                    }
+
+                    .nutrition-summary {
+                        grid-template-columns: repeat(2, 1fr);
+                        gap: 0.75rem;
+                    }
+
+                    .summary-card {
+                        padding: 0.75rem;
+                    }
+
+                    .summary-icon {
+                        width: 35px;
+                        height: 35px;
+                        font-size: 1.2rem;
+                    }
+
+                    .summary-value {
+                        font-size: 1.1rem;
+                    }
+
+                    .ingredient-row {
+                        grid-template-columns: 1fr;
+                        gap: 0.75rem;
+                    }
+
+                    .nutrition-grid {
+                        grid-template-columns: repeat(2, 1fr);
+                        gap: 0.75rem;
+                    }
+
+                    .form-actions {
+                        flex-direction: column;
+                    }
+
+                    .meal-type-buttons {
+                        justify-content: center;
+                    }
+
+                    .meal-type-btn {
+                        flex: 1;
+                        text-align: center;
+                    }
+
+                    .meals-list {
+                        max-height: 400px;
+                    }
+
+                    .notification-toast {
+                        left: 1rem;
+                        right: 1rem;
+                        bottom: 1rem;
+                    }
+
+                    [dir="rtl"] .notification-toast {
+                        left: 1rem;
+                        right: 1rem;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    .nutrition-summary {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .meal-item-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 0.5rem;
+                    }
+
+                    .meal-item-actions {
+                        width: 100%;
+                        justify-content: flex-end;
+                    }
+                }
+
+                /* ===== RTL دعم ===== */
+                [dir="rtl"] .summary-card {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .ingredient-header {
+                    flex-direction: row-reverse;
+                }
+
+                [dir="rtl"] .meal-item-header {
+                    flex-direction: row-reverse;
+                }
+
+                @media (max-width: 480px) {
+                    [dir="rtl"] .meal-item-header {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    [dir="rtl"] .meal-item-actions {
+                        justify-content: flex-start;
+                    }
+                }
+
+                /* ===== دعم الحركة المخفضة ===== */
+                @media (prefers-reduced-motion: reduce) {
+                    .spinner,
+                    .spinner-small,
+                    .btn-spinner {
+                        animation: none;
+                    }
+
+                    .scanner-modal,
+                    .notification-toast {
+                        animation: none;
+                    }
+                }
+            `}</style>
         </div>
     );
 }
