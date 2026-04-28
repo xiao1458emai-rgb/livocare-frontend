@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx - النسخة المعدلة (مع ActivityForm, HealthHistory, HealthCharts)
+// src/components/Dashboard.jsx - النسخة النهائية المبسطة
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/api'; 
 import '../index.css';
 
-// ✅ المكونات المتبقية (مع إضافة ActivityForm, HealthHistory, HealthCharts)
+// ✅ المكونات المتبقية فقط (أزلنا HealthHistory, HealthCharts, HealthForm)
 import Sidebar from './Sidebar';   
 import NutritionMain from './nutrition/NutritionMain';
 import SleepTracker from './SleepTracker';
@@ -17,10 +17,7 @@ import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
 import Notifications from './Notifications/Notifications';
 import Reports from './Reports';
-import HealthForm from './HealthForm';
-import ActivityForm from './ActivityForm';
-import HealthHistory from './HealthHistory';   // ✅ إضافة HealthHistory
-import HealthCharts from './HealthCharts';     // ✅ إضافة HealthCharts
+import ActivityForm from './ActivityForm'; // ✅ هذا المكون يحتوي على كل شيء
 
 // ✅ دالة عامة لتطبيق اللغة
 const applyLanguage = (lang) => {
@@ -53,7 +50,7 @@ function Dashboard({ onLogout }) {
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [isSidebarVisible, setIsSidebarVisible] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-    const [refreshKey, setRefreshKey] = useState(0); // ✅ لإعادة تحميل البيانات
+    const [refreshKey, setRefreshKey] = useState(0);
     
     // ✅ الوضع المظلم
     const [darkMode, setDarkMode] = useState(() => {
@@ -181,8 +178,6 @@ function Dashboard({ onLogout }) {
     const getSectionTitle = useCallback((sectionKey) => {
         const titles = {
             'activity': isArabic ? '🏃 النشاط البدني' : '🏃 Physical Activity',
-            'history': isArabic ? '📋 السجل الصحي' : '📋 Health History',
-            'charts': isArabic ? '📊 الرسوم البيانية' : '📊 Health Charts',
             'nutrition': isArabic ? '🍽️ التغذية' : '🍽️ Nutrition',
             'sleep': isArabic ? '😴 النوم' : '😴 Sleep',
             'habits': isArabic ? '✅ العادات' : '✅ Habits',
@@ -206,7 +201,7 @@ function Dashboard({ onLogout }) {
     
     // ✅ دالة معالجة إضافة البيانات
     const handleDataSubmitted = useCallback(() => {
-        console.log('Data submitted - refreshing charts and history');
+        console.log('Data submitted - refreshing');
         refreshData();
     }, [refreshData]);
     
@@ -217,19 +212,6 @@ function Dashboard({ onLogout }) {
                 return <ActivityForm 
                     onDataSubmitted={handleDataSubmitted} 
                     onActivityChange={handleDataSubmitted} 
-                    isArabic={isArabic} 
-                />;
-                        case 'healthForm': 
-            return <HealthForm onDataSubmitted={handleDataSubmitted} />;
-            case 'history':
-                return <HealthHistory 
-                    refreshKey={refreshKey} 
-                    onDataSubmitted={handleDataSubmitted} 
-                    isArabic={isArabic} 
-                />;
-            case 'charts':
-                return <HealthCharts 
-                    refreshKey={refreshKey} 
                     isArabic={isArabic} 
                 />;
             case 'nutrition': 
@@ -257,7 +239,7 @@ function Dashboard({ onLogout }) {
                     isArabic={isArabic} 
                 />;
         }
-    }, [activeSection, isAuthReady, isArabic, refreshKey, handleDataSubmitted]);
+    }, [activeSection, isAuthReady, isArabic, handleDataSubmitted]);
     
     // ✅ العرض الرئيسي
     return (
@@ -325,11 +307,6 @@ function Dashboard({ onLogout }) {
             <main className="dashboard-content">
                 <div className="section-header">
                     <h1 className="section-title">{getSectionTitle(activeSection)}</h1>
-                    {activeSection !== 'activity' && (
-                        <button onClick={refreshData} className="refresh-section-btn">
-                            🔄 {isArabic ? 'تحديث' : 'Refresh'}
-                        </button>
-                    )}
                 </div>
 
                 <div className="section-content">
@@ -546,22 +523,6 @@ function Dashboard({ onLogout }) {
                 
                 .dark-mode .section-title {
                     color: var(--text-primary, #f1f5f9);
-                }
-                
-                .refresh-section-btn {
-                    padding: 0.5rem 1rem;
-                    background: var(--primary, #6366f1);
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-size: 0.85rem;
-                    transition: all 0.15s;
-                }
-                
-                .refresh-section-btn:hover {
-                    background: var(--primary-dark, #4f46e5);
-                    transform: translateY(-2px);
                 }
                 
                 @media (max-width: 768px) {
