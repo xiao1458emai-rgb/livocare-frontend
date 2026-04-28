@@ -38,7 +38,6 @@ class ESP32Service {
             const url = `${ESP32_API_URL}/api/readings/latest`;
             
             const response = await axios.get(url, {
-                headers: { 'Cache-Control': 'no-cache' }
             });
             
             if (response.data?.status === 'success' && response.data?.data) {
