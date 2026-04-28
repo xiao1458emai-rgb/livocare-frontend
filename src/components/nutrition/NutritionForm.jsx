@@ -461,107 +461,127 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
     };
 
     // ✅ تحديث الوجبة
-    const handleUpdateMeal = async (e) => {
-        e.preventDefault();
-        if (!isAuthReady || !editingMeal) {
-            showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
-            return;
+ const handleUpdateMeal = async (e) => {
+    e.preventDefault();
+    if (!isAuthReady || !editingMeal) {
+        showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
+        return;
+    }
+    
+    setIsLoading(true);
+    const validItems = foodItems.filter(item => item.name && item.quantity);
+    
+    if (validItems.length === 0) {
+        showMessage(isArabic ? '⚠️ أضف مكون واحد على الأقل' : '⚠️ Add at least one ingredient', 'error');
+        setIsLoading(false);
+        return;
+    }
+    
+    const ingredients = validItems.map(item => ({
+        name: item.name,
+        quantity: parseFloat(item.quantity) || 0,
+        unit: item.unit,
+        calories: parseFloat(item.calories) || 0,
+        protein: parseFloat(item.protein) || 0,
+        carbs: parseFloat(item.carbs) || 0,
+        fat: parseFloat(item.fat) || 0,
+        barcode: item.barcode || null
+    }));
+    
+    // ✅ احسب الإجماليات
+    const totalCalories = ingredients.reduce((sum, ing) => sum + (ing.calories || 0), 0);
+    const totalProtein = ingredients.reduce((sum, ing) => sum + (ing.protein || 0), 0);
+    const totalCarbs = ingredients.reduce((sum, ing) => sum + (ing.carbs || 0), 0);
+    const totalFat = ingredients.reduce((sum, ing) => sum + (ing.fat || 0), 0);
+    
+    try {
+        await axiosInstance.put(`/meals/${editingMeal.id}/`, {
+            meal_type: mealData.meal_type,
+            meal_time: mealData.meal_time,
+            notes: mealData.notes,
+            ingredients,
+            total_calories: totalCalories,   // ✅ أضف هذا
+            total_protein: totalProtein,     // ✅ أضف هذا
+            total_carbs: totalCarbs,         // ✅ أضف هذا
+            total_fat: totalFat              // ✅ أضف هذا
+        });
+        
+        if (isMountedRef.current) {
+            showMessage(isArabic ? '✅ تم تحديث الوجبة بنجاح' : '✅ Meal updated successfully', 'success');
+            setRefreshAnalytics(prev => prev + 1);
+            setShowEditForm(false);
+            setEditingMeal(null);
+            clearForm();
+            await fetchMeals();
         }
-        
-        setIsLoading(true);
-        const validItems = foodItems.filter(item => item.name && item.quantity);
-        
-        if (validItems.length === 0) {
-            showMessage(isArabic ? '⚠️ أضف مكون واحد على الأقل' : '⚠️ Add at least one ingredient', 'error');
-            setIsLoading(false);
-            return;
-        }
-        
-        const ingredients = validItems.map(item => ({
-            name: item.name,
-            quantity: parseFloat(item.quantity) || 0,
-            unit: item.unit,
-            calories: parseFloat(item.calories) || 0,
-            protein: parseFloat(item.protein) || 0,
-            carbs: parseFloat(item.carbs) || 0,
-            fat: parseFloat(item.fat) || 0,
-            barcode: item.barcode || null
-        }));
-        
-        try {
-            await axiosInstance.put(`/meals/${editingMeal.id}/`, {
-                meal_type: mealData.meal_type,
-                meal_time: mealData.meal_time,
-                notes: mealData.notes,
-                ingredients
-            });
-            
-            if (isMountedRef.current) {
-                showMessage(isArabic ? '✅ تم تحديث الوجبة بنجاح' : '✅ Meal updated successfully', 'success');
-                setRefreshAnalytics(prev => prev + 1);
-                setShowEditForm(false);
-                setEditingMeal(null);
-                clearForm();
-                await fetchMeals();
-            }
-        } catch (error) {
-            console.error('Update error:', error);
-            showMessage(isArabic ? '❌ فشل تحديث الوجبة' : '❌ Failed to update meal', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    } catch (error) {
+        console.error('Update error:', error);
+        showMessage(isArabic ? '❌ فشل تحديث الوجبة' : '❌ Failed to update meal', 'error');
+    } finally {
+        setIsLoading(false);
+    }
+};
 
-    // ✅ إضافة وجبة
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!isAuthReady) {
-            showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
-            return;
+// ✅ أضف total_calories المحسوبة إلى الطلب
+const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!isAuthReady) {
+        showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
+        return;
+    }
+    
+    setIsLoading(true);
+    const validItems = foodItems.filter(item => item.name && item.quantity);
+    
+    if (validItems.length === 0) {
+        showMessage(isArabic ? '⚠️ أضف مكون واحد على الأقل' : '⚠️ Add at least one ingredient', 'error');
+        setIsLoading(false);
+        return;
+    }
+    
+    const ingredients = validItems.map(item => ({
+        name: item.name,
+        quantity: parseFloat(item.quantity) || 0,
+        unit: item.unit,
+        calories: parseFloat(item.calories) || 0,
+        protein: parseFloat(item.protein) || 0,
+        carbs: parseFloat(item.carbs) || 0,
+        fat: parseFloat(item.fat) || 0,
+        barcode: item.barcode || null
+    }));
+    
+    // ✅ احسب الإجماليات
+    const totalCalories = ingredients.reduce((sum, ing) => sum + (ing.calories || 0), 0);
+    const totalProtein = ingredients.reduce((sum, ing) => sum + (ing.protein || 0), 0);
+    const totalCarbs = ingredients.reduce((sum, ing) => sum + (ing.carbs || 0), 0);
+    const totalFat = ingredients.reduce((sum, ing) => sum + (ing.fat || 0), 0);
+    
+    try {
+        await axiosInstance.post('/meals/', {
+            meal_type: mealData.meal_type,
+            meal_time: mealData.meal_time,
+            notes: mealData.notes,
+            ingredients,
+            total_calories: totalCalories,   // ✅ أضف هذا
+            total_protein: totalProtein,     // ✅ أضف هذا
+            total_carbs: totalCarbs,         // ✅ أضف هذا
+            total_fat: totalFat              // ✅ أضف هذا
+        });
+        
+        if (isMountedRef.current) {
+            showMessage(isArabic ? '✅ تم إضافة الوجبة بنجاح' : '✅ Meal added successfully', 'success');
+            setRefreshAnalytics(prev => prev + 1);
+            await fetchMeals();
+            clearForm();
+            if (onDataSubmitted) onDataSubmitted();
         }
-        
-        setIsLoading(true);
-        const validItems = foodItems.filter(item => item.name && item.quantity);
-        
-        if (validItems.length === 0) {
-            showMessage(isArabic ? '⚠️ أضف مكون واحد على الأقل' : '⚠️ Add at least one ingredient', 'error');
-            setIsLoading(false);
-            return;
-        }
-        
-        const ingredients = validItems.map(item => ({
-            name: item.name,
-            quantity: parseFloat(item.quantity) || 0,
-            unit: item.unit,
-            calories: parseFloat(item.calories) || 0,
-            protein: parseFloat(item.protein) || 0,
-            carbs: parseFloat(item.carbs) || 0,
-            fat: parseFloat(item.fat) || 0,
-            barcode: item.barcode || null
-        }));
-        
-        try {
-            await axiosInstance.post('/meals/', {
-                meal_type: mealData.meal_type,
-                meal_time: mealData.meal_time,
-                notes: mealData.notes,
-                ingredients
-            });
-            
-            if (isMountedRef.current) {
-                showMessage(isArabic ? '✅ تم إضافة الوجبة بنجاح' : '✅ Meal added successfully', 'success');
-                setRefreshAnalytics(prev => prev + 1);
-                await fetchMeals();
-                clearForm();
-                if (onDataSubmitted) onDataSubmitted();
-            }
-        } catch (error) {
-            console.error('Submission error:', error);
-            showMessage(isArabic ? '❌ فشل حفظ الوجبة' : '❌ Failed to save meal', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    } catch (error) {
+        console.error('Submission error:', error);
+        showMessage(isArabic ? '❌ فشل حفظ الوجبة' : '❌ Failed to save meal', 'error');
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     // ✅ مسح النموذج
     const clearForm = () => {
