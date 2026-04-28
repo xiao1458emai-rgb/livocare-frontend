@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // ✅ استخدم خادم ESP32 المنفصل بدلاً من Django Backend
-const ESP32_API_URL = process.env.REACT_APP_ESP32_API_URL || 'https://livocare-sensor-api.onrender.com';
+const ESP32_API_URL = process.env.REACT_APP_ESP32_API_URL || 'https://esp32-sensor-api.onrender.com';
 
 class ESP32Service {
     constructor() {
