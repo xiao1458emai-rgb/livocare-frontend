@@ -26,7 +26,7 @@ ChartJS.register(
     Filler
 );
 
-// ✅ دالة مساعدة للحصول على ألوان الثيم
+// ✅ دالة مساعدة للحصول على ألوان الثيم (تمت إضافة temperatureColor)
 const getThemeColors = (darkMode) => ({
     textPrimary: darkMode ? '#f1f5f9' : '#0f172a',
     textSecondary: darkMode ? '#cbd5e1' : '#475569',
@@ -39,6 +39,7 @@ const getThemeColors = (darkMode) => ({
     glucoseColor: '#10b981',
     heartRateColor: '#ec489a',
     spo2Color: '#06b6d4',
+    temperatureColor: '#f97316', // ✅ لون درجة الحرارة
 });
 
 function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
@@ -124,7 +125,8 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                  record.diastolic_pressure !== null ||
                  record.blood_glucose !== null ||
                  record.heart_rate !== null ||
-                 record.spo2 !== null)
+                 record.spo2 !== null ||
+                 record.body_temperature !== null) // ✅ إضافة درجة الحرارة
             );
             
             if (isMountedRef.current) {
@@ -171,10 +173,10 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
         };
     }, []);
 
-    // ✅ معالجة البيانات للرسوم البيانية
+    // ✅ معالجة البيانات للرسوم البيانية (تمت إضافة درجة الحرارة)
     const processChartData = useCallback(() => {
         if (!history || history.length === 0) {
-            return { dates: [], weights: [], systolic: [], diastolic: [], glucose: [], heartRate: [], spo2: [] };
+            return { dates: [], weights: [], systolic: [], diastolic: [], glucose: [], heartRate: [], spo2: [], temperatures: [] };
         }
 
         const sortedHistory = [...history].sort((a, b) => 
@@ -222,7 +224,13 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
             return (val !== null && val !== undefined && !isNaN(parseInt(val))) ? parseInt(val) : null;
         });
 
-        return { dates, weights, systolic, diastolic, glucose, heartRate, spo2 };
+        // ✅ استخراج بيانات درجة الحرارة
+        const temperatures = sortedHistory.map(record => {
+            const val = record.body_temperature;
+            return (val !== null && val !== undefined && !isNaN(parseFloat(val))) ? parseFloat(val) : null;
+        });
+
+        return { dates, weights, systolic, diastolic, glucose, heartRate, spo2, temperatures };
     }, [history, isArabic]);
 
     // ✅ خيارات الرسم البياني
@@ -275,15 +283,15 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                 }
             },
             y: {
-                beginAtZero: false,
+                beginAtZero: yLabel !== '°C',
                 grid: {
                     color: themeColors.gridColor,
                 },
                 ticks: {
                     color: themeColors.textTertiary,
-                    stepSize: yLabel === 'BPM' ? 20 : (yLabel === 'SpO₂%' ? 5 : undefined),
+                    stepSize: yLabel === 'BPM' ? 20 : (yLabel === 'SpO₂%' ? 5 : (yLabel === '°C' ? 0.5 : undefined)),
                     callback: function(value) {
-                        return value;
+                        return yLabel === '°C' ? value.toFixed(1) : value;
                     }
                 },
                 min: min,
@@ -333,7 +341,7 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
         if (validData.length === 0) return null;
         
         const sum = validData.reduce((a, b) => a + b, 0);
-        const avg = Math.round(sum / validData.length);
+        const avg = Math.round(sum / validData.length * 10) / 10;
         const min = Math.min(...validData);
         const max = Math.max(...validData);
         const last = validData[validData.length - 1];
@@ -369,7 +377,7 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
         );
     }
 
-    const { dates, weights, systolic, diastolic, glucose, heartRate, spo2 } = processChartData();
+    const { dates, weights, systolic, diastolic, glucose, heartRate, spo2, temperatures } = processChartData();
     const themeColors = getThemeColors(darkMode);
     
     const hasWeightData = weights.some(w => w !== null);
@@ -377,31 +385,20 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
     const hasGlucoseData = glucose.some(g => g !== null);
     const hasHeartRateData = heartRate.some(h => h !== null);
     const hasSpO2Data = spo2.some(s => s !== null);
+    const hasTemperatureData = temperatures.some(t => t !== null); // ✅ كشف وجود بيانات الحرارة
 
-    // ✅ حالة عدم وجود بيانات كافية
-    if (!hasWeightData && !hasBPData && !hasGlucoseData && !hasHeartRateData && !hasSpO2Data) {
-        return (
-            <div className={`charts-empty ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="empty-content">
-                    <div className="empty-icon">📊</div>
-                    <h3>{isArabic ? 'لا توجد بيانات كافية' : 'Insufficient Data'}</h3>
-                    <p>{isArabic ? 'يلزم على الأقل قراءتان لعرض الرسوم البيانية' : 'At least 2 readings are required to display charts'}</p>
-                    <p className="empty-hint">{isArabic ? 'أضف المزيد من القراءات الصحية' : 'Add more health readings'}</p>
-                </div>
-            </div>
-        );
-    }
-
-    // ✅ حساب الإحصائيات
+    // ✅ حساب الإحصائيات (تمت إضافة temperatureStats)
     const weightStats = calculateStats(weights);
     const glucoseStats = calculateStats(glucose);
     const heartRateStats = calculateStats(heartRate);
     const spo2Stats = calculateStats(spo2);
+    const temperatureStats = calculateStats(temperatures); // ✅ إحصائيات درجة الحرارة
     
     const weightRange = getDynamicRange(weights);
     const glucoseRange = getDynamicRange(glucose);
     const heartRateRange = getDynamicRange(heartRate, 0.15, 40, 120);
     const spo2Range = getDynamicRange(spo2, 0.1, 85, 100);
+    const temperatureRange = getDynamicRange(temperatures, 0.2, 35, 40); // ✅ نطاق درجة الحرارة
     
     const pressureMin = Math.min(
         ...systolic.filter(s => s !== null),
@@ -414,6 +411,20 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
         140
     );
     const pressureRange = { min: Math.max(0, pressureMin - 10), max: pressureMax + 10 };
+
+    // ✅ حالة عدم وجود بيانات كافية (تمت إضافة hasTemperatureData)
+    if (!hasWeightData && !hasBPData && !hasGlucoseData && !hasHeartRateData && !hasSpO2Data && !hasTemperatureData) {
+        return (
+            <div className={`charts-empty ${darkMode ? 'dark-mode' : ''}`}>
+                <div className="empty-content">
+                    <div className="empty-icon">📊</div>
+                    <h3>{isArabic ? 'لا توجد بيانات كافية' : 'Insufficient Data'}</h3>
+                    <p>{isArabic ? 'يلزم على الأقل قراءتان لعرض الرسوم البيانية' : 'At least 2 readings are required to display charts'}</p>
+                    <p className="empty-hint">{isArabic ? 'أضف المزيد من القراءات الصحية' : 'Add more health readings'}</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={`health-charts-container ${darkMode ? 'dark-mode' : ''}`}>
@@ -756,6 +767,86 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                         </div>
                     </div>
                 )}
+
+                {/* ✅ رسم درجة حرارة الجسم */}
+                {hasTemperatureData && (
+                    <div className="chart-card temperature-card">
+                        <div className="chart-card-header">
+                            <div className="chart-title">
+                                <span className="chart-icon">🌡️</span>
+                                <h3>{isArabic ? 'درجة حرارة الجسم' : 'Body Temperature'}</h3>
+                            </div>
+                            {temperatureStats && (
+                                <div className="chart-stats">
+                                    <div className="chart-stat">
+                                        <span className="stat-label">{isArabic ? 'المتوسط' : 'Avg'}</span>
+                                        <span className="stat-value">{temperatureStats.avg.toFixed(1)}</span>
+                                        <span className="stat-unit">°C</span>
+                                    </div>
+                                    <div className="chart-stat">
+                                        <span className="stat-label">{isArabic ? 'الآخر' : 'Last'}</span>
+                                        <span className="stat-value">{temperatureStats.last.toFixed(1)}</span>
+                                        <span className="stat-unit">°C</span>
+                                    </div>
+                                    <div className={`chart-stat ${temperatureStats.avg > 37.5 ? 'warning' : temperatureStats.avg < 36.5 ? 'warning' : ''}`}>
+                                        <span className="stat-label">{isArabic ? 'الحالة' : 'Status'}</span>
+                                        <span className="stat-value">
+                                            {temperatureStats.avg > 37.5 ? '⚠️' : temperatureStats.avg < 36.5 ? '⚠️' : '✓'}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="chart-wrapper">
+                            <Line 
+                                data={{
+                                    labels: dates,
+                                    datasets: [
+                                        {
+                                            label: isArabic ? 'درجة الحرارة (°C)' : 'Temperature (°C)',
+                                            data: temperatures,
+                                            borderColor: themeColors.temperatureColor,
+                                            backgroundColor: `${themeColors.temperatureColor}20`,
+                                            borderWidth: 3,
+                                            tension: 0.4,
+                                            pointRadius: 5,
+                                            pointHoverRadius: 7,
+                                            pointBackgroundColor: themeColors.temperatureColor,
+                                            pointBorderColor: darkMode ? '#1e293b' : '#ffffff',
+                                            pointBorderWidth: 2,
+                                            fill: true,
+                                        },
+                                        {
+                                            label: isArabic ? 'الحد الأدنى الطبيعي' : 'Lower Normal (36.5°C)',
+                                            data: Array(dates.length).fill(36.5),
+                                            borderColor: '#10b981',
+                                            borderWidth: 2,
+                                            borderDash: [5, 5],
+                                            pointRadius: 0,
+                                            fill: false,
+                                        },
+                                        {
+                                            label: isArabic ? 'الحد الأعلى الطبيعي' : 'Upper Normal (37.5°C)',
+                                            data: Array(dates.length).fill(37.5),
+                                            borderColor: '#10b981',
+                                            borderWidth: 2,
+                                            borderDash: [5, 5],
+                                            pointRadius: 0,
+                                            fill: false,
+                                        }
+                                    ]
+                                }} 
+                                options={getChartOptions(temperatureRange.min, temperatureRange.max, '°C', themeColors)}
+                            />
+                        </div>
+                        <div className="chart-card-footer">
+                            <div className="normal-range-info">
+                                <span className="info-icon">ℹ️</span>
+                                <span>{isArabic ? 'المعدل الطبيعي: 36.5°C - 37.5°C' : 'Normal range: 36.5°C - 37.5°C'}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* ✅ أنماط CSS المضمنة */}
@@ -974,12 +1065,13 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
                     font-size: 0.8rem;
                 }
 
-                /* ===== حالات خاصة ===== */
+                /* ===== ألوان حواف البطاقات ===== */
                 .weight-card:hover { border-top: 3px solid #3b82f6; }
                 .bp-card:hover { border-top: 3px solid #ef4444; }
                 .glucose-card:hover { border-top: 3px solid #10b981; }
                 .heartrate-card:hover { border-top: 3px solid #ec489a; }
                 .spo2-card:hover { border-top: 3px solid #06b6d4; }
+                .temperature-card:hover { border-top: 3px solid #f97316; }
 
                 /* ===== حالات التحميل والخطأ ===== */
                 .charts-loading,
