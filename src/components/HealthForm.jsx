@@ -1,11 +1,12 @@
-// src/components/HealthForm.jsx
+// src/components/HealthForm.jsx - نسخة مع زرين منفصلين لـ ESP32
 'use client'
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axiosInstance from '../services/api';
+import esp32Service from '../services/esp32Service';
 import '../index.css';
 
 function HealthForm({ onDataSubmitted }) {
-    // ✅ إعدادات اللغة - تستمع للتغييرات من ProfileManager
+    // ✅ إعدادات اللغة
     const [lang, setLang] = useState(() => {
         const saved = localStorage.getItem('app_lang');
         return saved === 'en' ? 'en' : 'ar';
@@ -14,6 +15,7 @@ function HealthForm({ onDataSubmitted }) {
     
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
+    const unsubscribeESP32Ref = useRef(null);
     
     const [formData, setFormData] = useState({
         weight: '',
@@ -22,16 +24,24 @@ function HealthForm({ onDataSubmitted }) {
         glucose: '',
         heartRate: '',
         spo2: '',
-        temperature: '' // ✅ إضافة درجة الحرارة
+        temperature: ''
     });
     
     const [loading, setLoading] = useState(false);
+    const [savingSensorData, setSavingSensorData] = useState(false); // ✅ حفظ قراءة المستشعر
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState('');
     const [validationErrors, setValidationErrors] = useState({});
     const [autoSave, setAutoSave] = useState(false);
     const [lastAutoSave, setLastAutoSave] = useState(null);
     const [showScanner, setShowScanner] = useState(false);
+    
+    // ✅ حالة ESP32
+    const [sensorActive, setSensorActive] = useState(false);
+    const [sensorHeartRate, setSensorHeartRate] = useState(null);
+    const [sensorSpO2, setSensorSpO2] = useState(null);
+    const [sensorConnecting, setSensorConnecting] = useState(false);
+    const [lastSensorReading, setLastSensorReading] = useState(null); // ✅ تخزين آخر قراءة
 
     // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
@@ -50,7 +60,150 @@ function HealthForm({ onDataSubmitted }) {
         };
     }, [lang]);
 
-    // ✅ حدود التحقق من الصحة (تمت إضافة درجة الحرارة)
+    // ✅ تسجيل مستمع ESP32
+    useEffect(() => {
+        console.log('🎯 Setting up ESP32 listener in HealthForm...');
+        
+        const handleESP32Event = (type, data) => {
+            console.log(`📡 ESP32 Event received: ${type} =`, data);
+            
+            if (!isMountedRef.current) return;
+            
+            if (type === 'heartRate') {
+                setSensorHeartRate(data);
+                // ✅ تخزين آخر قراءة كاملة
+                setLastSensorReading(prev => ({ ...prev, heartRate: data, timestamp: new Date() }));
+            } else if (type === 'spo2') {
+                setSensorSpO2(data);
+                setLastSensorReading(prev => ({ ...prev, spo2: data, timestamp: new Date() }));
+            } else if (type === 'data') {
+                if (data && data.heartRate) {
+                    setSensorHeartRate(data.heartRate);
+                    setLastSensorReading(prev => ({ ...prev, heartRate: data.heartRate, timestamp: new Date() }));
+                }
+                if (data && data.spo2) {
+                    setSensorSpO2(data.spo2);
+                    setLastSensorReading(prev => ({ ...prev, spo2: data.spo2, timestamp: new Date() }));
+                }
+            } else if (type === 'error') {
+                console.error('ESP32 Error:', data);
+                showMessage(isArabic ? '⚠️ خطأ في جهاز ESP32' : '⚠️ ESP32 Error', 'error');
+            }
+        };
+        
+        if (esp32Service && typeof esp32Service.on === 'function') {
+            unsubscribeESP32Ref.current = esp32Service.on(handleESP32Event);
+            console.log('✅ ESP32 listener registered in HealthForm');
+        } else {
+            console.error('❌ esp32Service.on is not a function');
+        }
+        
+        return () => {
+            if (unsubscribeESP32Ref.current) {
+                unsubscribeESP32Ref.current();
+                console.log('❌ ESP32 listener removed from HealthForm');
+            }
+            if (esp32Service && typeof esp32Service.stopPolling === 'function') {
+                esp32Service.stopPolling();
+            }
+        };
+    }, [isArabic]);
+
+    // ✅ دالة الاتصال بـ ESP32
+    const connectSensor = useCallback(async () => {
+        setSensorConnecting(true);
+        
+        try {
+            if (esp32Service && typeof esp32Service.startPolling === 'function') {
+                esp32Service.startPolling();
+                setSensorActive(true);
+                
+                if (typeof esp32Service.fetchLatestReading === 'function') {
+                    await esp32Service.fetchLatestReading();
+                }
+                
+                showMessage(isArabic ? '✅ تم الاتصال بجهاز ESP32' : '✅ ESP32 connected', 'success');
+            } else {
+                console.error('❌ esp32Service not available');
+                showMessage(isArabic ? '❌ خدمة ESP32 غير متاحة' : '❌ ESP32 service not available', 'error');
+            }
+        } catch (error) {
+            console.error('ESP32 connection error:', error);
+            showMessage(isArabic ? '❌ فشل الاتصال بـ ESP32' : '❌ Failed to connect to ESP32', 'error');
+        } finally {
+            setSensorConnecting(false);
+        }
+    }, [isArabic, showMessage]);
+
+    // ✅ قطع الاتصال بـ ESP32
+    const disconnectSensor = useCallback(() => {
+        if (esp32Service && typeof esp32Service.stopPolling === 'function') {
+            esp32Service.stopPolling();
+        }
+        setSensorActive(false);
+        setSensorHeartRate(null);
+        setSensorSpO2(null);
+        showMessage(isArabic ? '🔌 تم قطع الاتصال بـ ESP32' : '🔌 ESP32 disconnected', 'info');
+    }, [isArabic, showMessage]);
+
+    // ✅ ✅ ✅ الزر الأول: تعبئة النموذج بالقراءات (بدون حفظ)
+    const fillFormWithSensorData = useCallback(() => {
+        if (sensorHeartRate !== null) {
+            setFormData(prev => ({ ...prev, heartRate: sensorHeartRate.toString() }));
+        }
+        if (sensorSpO2 !== null) {
+            setFormData(prev => ({ ...prev, spo2: sensorSpO2.toString() }));
+        }
+        showMessage(isArabic ? '📥 تم تعبئة النموذج بقراءات المستشعر' : '📥 Form filled with sensor readings', 'success');
+    }, [sensorHeartRate, sensorSpO2, isArabic, showMessage]);
+
+    // ✅ ✅ ✅ الزر الثاني: حفظ قراءة المستشعر مباشرة كقراءة صحية
+    const saveSensorReadingAsHealthRecord = useCallback(async () => {
+        if (!sensorHeartRate && !sensorSpO2) {
+            showMessage(isArabic ? '⚠️ لا توجد قراءات من المستشعر للحفظ' : '⚠️ No sensor readings to save', 'error');
+            return;
+        }
+
+        setSavingSensorData(true);
+        
+        const data = {};
+        if (sensorHeartRate !== null) {
+            data.heart_rate = sensorHeartRate;
+        }
+        if (sensorSpO2 !== null) {
+            data.spo2 = sensorSpO2;
+        }
+
+        try {
+            const response = await axiosInstance.post('/health_status/', data);
+            
+            if (isMountedRef.current) {
+                showMessage(isArabic ? '✅ تم حفظ قراءة المستشعر كقياس صحي' : '✅ Sensor reading saved as health record', 'success');
+                
+                // ✅ تحديث البيانات في المكون الأب
+                if (onDataSubmitted) {
+                    onDataSubmitted();
+                }
+            }
+        } catch (err) {
+            console.error('❌ Failed to save sensor reading:', err);
+            let errorMessage = isArabic ? '❌ فشل حفظ قراءة المستشعر' : '❌ Failed to save sensor reading';
+            
+            if (err.response?.status === 400) {
+                const errorData = err.response.data;
+                if (errorData?.heart_rate) {
+                    errorMessage = Array.isArray(errorData.heart_rate) ? errorData.heart_rate[0] : errorData.heart_rate;
+                } else if (errorData?.spo2) {
+                    errorMessage = Array.isArray(errorData.spo2) ? errorData.spo2[0] : errorData.spo2;
+                }
+            }
+            showMessage(errorMessage, 'error');
+        } finally {
+            setSavingSensorData(false);
+        }
+    }, [sensorHeartRate, sensorSpO2, isArabic, showMessage, onDataSubmitted]);
+
+    // ✅ حدود التحقق من الصحة
     const VALIDATION_LIMITS = {
         weight: { min: 20, max: 300, normalMin: 50, normalMax: 100, unit: 'kg', icon: '⚖️' },
         systolic: { min: 50, max: 250, normalMin: 90, normalMax: 140, unit: 'mmHg', icon: '❤️' },
@@ -58,7 +211,7 @@ function HealthForm({ onDataSubmitted }) {
         glucose: { min: 30, max: 600, normalMin: 70, normalMax: 140, unit: 'mg/dL', icon: '🩸' },
         heartRate: { min: 30, max: 220, normalMin: 60, normalMax: 100, unit: 'BPM', icon: '💓' },
         spo2: { min: 50, max: 100, normalMin: 95, normalMax: 100, unit: '%', icon: '💨' },
-        temperature: { min: 35, max: 42, normalMin: 36.5, normalMax: 37.5, unit: '°C', icon: '🌡️' } // ✅ حدود درجة الحرارة
+        temperature: { min: 35, max: 42, normalMin: 36.5, normalMax: 37.5, unit: '°C', icon: '🌡️' }
     };
 
     // ✅ الحفظ التلقائي
@@ -103,12 +256,11 @@ function HealthForm({ onDataSubmitted }) {
         }, 4000);
     }, []);
 
-    // ✅ التحقق من صحة النموذج (تمت إضافة درجة الحرارة)
+    // ✅ التحقق من صحة النموذج
     const validateForm = useCallback(() => {
         let errors = {};
         let hasAnyData = false;
 
-        // التحقق من الوزن
         if (formData.weight && formData.weight.toString().trim() !== '') {
             hasAnyData = true;
             const weight = parseFloat(formData.weight);
@@ -119,7 +271,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // التحقق من الضغط الانقباضي
         if (formData.systolic && formData.systolic.toString().trim() !== '') {
             hasAnyData = true;
             const systolic = parseInt(formData.systolic);
@@ -130,7 +281,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // التحقق من الضغط الانبساطي
         if (formData.diastolic && formData.diastolic.toString().trim() !== '') {
             hasAnyData = true;
             const diastolic = parseInt(formData.diastolic);
@@ -140,7 +290,6 @@ function HealthForm({ onDataSubmitted }) {
                 errors.diastolic = `${isArabic ? 'النطاق المسموح' : 'Allowed range'}: ${VALIDATION_LIMITS.diastolic.min} - ${VALIDATION_LIMITS.diastolic.max} ${VALIDATION_LIMITS.diastolic.unit}`;
             }
             
-            // التحقق من أن الانقباضي أكبر من الانبساطي
             if (formData.systolic && formData.systolic.toString().trim() !== '') {
                 const systolic = parseInt(formData.systolic);
                 if (!isNaN(systolic) && !isNaN(diastolic) && systolic <= diastolic) {
@@ -149,7 +298,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // التحقق من الجلوكوز
         if (formData.glucose && formData.glucose.toString().trim() !== '') {
             hasAnyData = true;
             const glucose = parseFloat(formData.glucose);
@@ -160,7 +308,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // التحقق من نبضات القلب
         if (formData.heartRate && formData.heartRate.toString().trim() !== '') {
             hasAnyData = true;
             const heartRate = parseInt(formData.heartRate);
@@ -171,7 +318,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // التحقق من الأكسجين
         if (formData.spo2 && formData.spo2.toString().trim() !== '') {
             hasAnyData = true;
             const spo2 = parseInt(formData.spo2);
@@ -182,7 +328,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // ✅ التحقق من درجة الحرارة
         if (formData.temperature && formData.temperature.toString().trim() !== '') {
             hasAnyData = true;
             const temperature = parseFloat(formData.temperature);
@@ -219,14 +364,14 @@ function HealthForm({ onDataSubmitted }) {
             glucose: '',
             heartRate: '',
             spo2: '',
-            temperature: '' // ✅ إعادة تعيين درجة الحرارة
+            temperature: ''
         });
         setValidationErrors({});
         localStorage.removeItem('healthForm_autoSave');
         showMessage(isArabic ? '🗑️ تم مسح النموذج' : '🗑️ Form cleared', 'info');
     }, [isArabic, showMessage]);
 
-    // ✅ إرسال النموذج (تمت إضافة درجة الحرارة)
+    // ✅ إرسال النموذج الكامل
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
@@ -266,7 +411,6 @@ function HealthForm({ onDataSubmitted }) {
             data.spo2 = parseInt(formData.spo2);
         }
         
-        // ✅ إضافة درجة الحرارة إلى البيانات المرسلة
         if (formData.temperature && formData.temperature.toString().trim() !== '') {
             data.body_temperature = parseFloat(formData.temperature);
         }
@@ -304,7 +448,7 @@ function HealthForm({ onDataSubmitted }) {
                     errorMessage = Array.isArray(errorData.heart_rate) ? errorData.heart_rate[0] : errorData.heart_rate;
                 } else if (errorData?.spo2) {
                     errorMessage = Array.isArray(errorData.spo2) ? errorData.spo2[0] : errorData.spo2;
-                } else if (errorData?.body_temperature) { // ✅ معالجة أخطاء درجة الحرارة من الخادم
+                } else if (errorData?.body_temperature) {
                     errorMessage = Array.isArray(errorData.body_temperature) ? errorData.body_temperature[0] : errorData.body_temperature;
                 } else if (typeof errorData === 'string') {
                     errorMessage = errorData;
@@ -326,11 +470,10 @@ function HealthForm({ onDataSubmitted }) {
         }
     }, [formData, onDataSubmitted, isArabic, validateForm, resetForm, showMessage]);
 
-    // ✅ حساب المؤشرات الصحية (تمت إضافة درجة الحرارة)
+    // ✅ حساب المؤشرات الصحية
     const calculateHealthIndicators = useCallback(() => {
         const indicators = [];
         
-        // تحليل الوزن
         if (formData.weight && formData.weight.toString().trim() !== '') {
             const weight = parseFloat(formData.weight);
             if (weight > VALIDATION_LIMITS.weight.normalMax) {
@@ -353,7 +496,7 @@ function HealthForm({ onDataSubmitted }) {
                     advice: isArabic ? '🥑 حاول زيادة السعرات الحرارية بطريقة صحية' : '🥑 Try to increase calories in a healthy way',
                     value: `${weight} kg`
                 });
-            } else if (weight >= VALIDATION_LIMITS.weight.normalMin && weight <= VALIDATION_LIMITS.weight.normalMax) {
+            } else {
                 indicators.push({
                     type: 'success',
                     severity: 'good',
@@ -366,7 +509,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
         
-        // تحليل ضغط الدم
         if (formData.systolic && formData.diastolic && 
             formData.systolic.toString().trim() !== '' && 
             formData.diastolic.toString().trim() !== '') {
@@ -406,7 +548,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
         
-        // تحليل الجلوكوز
         if (formData.glucose && formData.glucose.toString().trim() !== '') {
             const glucose = parseFloat(formData.glucose);
             if (glucose > VALIDATION_LIMITS.glucose.normalMax) {
@@ -442,7 +583,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
         
-        // تحليل نبضات القلب
         if (formData.heartRate && formData.heartRate.toString().trim() !== '') {
             const heartRate = parseInt(formData.heartRate);
             if (heartRate > VALIDATION_LIMITS.heartRate.normalMax) {
@@ -478,7 +618,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
         
-        // تحليل الأكسجين
         if (formData.spo2 && formData.spo2.toString().trim() !== '') {
             const spo2 = parseInt(formData.spo2);
             if (spo2 < VALIDATION_LIMITS.spo2.normalMin) {
@@ -506,7 +645,6 @@ function HealthForm({ onDataSubmitted }) {
             }
         }
 
-        // ✅ تحليل درجة حرارة الجسم
         if (formData.temperature && formData.temperature.toString().trim() !== '') {
             const temperature = parseFloat(formData.temperature);
             if (temperature > VALIDATION_LIMITS.temperature.normalMax) {
@@ -555,9 +693,17 @@ function HealthForm({ onDataSubmitted }) {
     }, []);
 
     const healthIndicators = calculateHealthIndicators();
-
-    // ✅ حساب عدد الحقول المملوءة (تمت إضافة درجة الحرارة)
     const filledFieldsCount = Object.values(formData).filter(v => v && v.toString().trim() !== '').length;
+
+    // ✅ تنسيق وقت آخر قراءة
+    const getLastReadingTime = () => {
+        if (!lastSensorReading?.timestamp) return '';
+        return lastSensorReading.timestamp.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    };
 
     return (
         <div className="health-form-container">
@@ -594,10 +740,135 @@ function HealthForm({ onDataSubmitted }) {
                 </div>
             </div>
 
+            {/* ✅ قسم ESP32 - مع زرين منفصلين */}
+            <div className="esp32-section">
+                <div className="esp32-header">
+                    <span className="esp32-icon">🫀</span>
+                    <h3>{isArabic ? 'جهاز مراقبة الصحي ESP32' : 'ESP32 Health Monitor'}</h3>
+                    {sensorActive && <span className="online-badge">🟢 {isArabic ? 'متصل' : 'Online'}</span>}
+                </div>
+                
+                <div className="esp32-controls">
+                    {!sensorActive ? (
+                        <button 
+                            onClick={connectSensor} 
+                            disabled={sensorConnecting}
+                            className="esp32-connect-btn"
+                        >
+                            {sensorConnecting ? (
+                                <>
+                                    <span className="spinner-small"></span>
+                                    {isArabic ? 'جاري الاتصال...' : 'Connecting...'}
+                                </>
+                            ) : (
+                                <>🔌 {isArabic ? 'اتصال ESP32' : 'Connect ESP32'}</>
+                            )}
+                        </button>
+                    ) : (
+                        <>
+                            <button onClick={disconnectSensor} className="esp32-disconnect-btn">
+                                🔌 {isArabic ? 'قطع الاتصال' : 'Disconnect'}
+                            </button>
+                            
+                            {/* ✅ الزر الأول: تعبئة النموذج */}
+                            <button 
+                                onClick={fillFormWithSensorData} 
+                                className="esp32-fill-btn"
+                                disabled={sensorHeartRate === null && sensorSpO2 === null}
+                            >
+                                📋 {isArabic ? 'تعبئة النموذج' : 'Fill Form'}
+                            </button>
+                            
+                            {/* ✅ الزر الثاني: حفظ كقراءة صحية */}
+                            <button 
+                                onClick={saveSensorReadingAsHealthRecord} 
+                                className="esp32-save-btn"
+                                disabled={savingSensorData || (sensorHeartRate === null && sensorSpO2 === null)}
+                            >
+                                {savingSensorData ? (
+                                    <>
+                                        <span className="spinner-small"></span>
+                                        {isArabic ? 'جاري الحفظ...' : 'Saving...'}
+                                    </>
+                                ) : (
+                                    <>💾 {isArabic ? 'حفظ كقياس صحي' : 'Save as Record'}</>
+                                )}
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                {sensorActive && (
+                    <>
+                        <div className="esp32-readings">
+                            <div className="sensor-card heart-rate">
+                                <span className="sensor-icon">❤️</span>
+                                <div className="sensor-info">
+                                    <span className="sensor-label">{isArabic ? 'معدل ضربات القلب' : 'Heart Rate'}</span>
+                                    <span className="sensor-value">
+                                        {sensorHeartRate !== null ? sensorHeartRate : '---'}
+                                        <span className="sensor-unit">BPM</span>
+                                    </span>
+                                </div>
+                                {sensorHeartRate !== null && (
+                                    <div className={`sensor-status ${sensorHeartRate >= 60 && sensorHeartRate <= 100 ? 'normal' : 'warning'}`}>
+                                        {sensorHeartRate >= 60 && sensorHeartRate <= 100 ? '✓' : '⚠️'}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="sensor-card spo2">
+                                <span className="sensor-icon">💨</span>
+                                <div className="sensor-info">
+                                    <span className="sensor-label">{isArabic ? 'نسبة الأكسجين' : 'Oxygen Level'}</span>
+                                    <span className="sensor-value">
+                                        {sensorSpO2 !== null ? sensorSpO2 : '---'}
+                                        <span className="sensor-unit">SpO₂%</span>
+                                    </span>
+                                </div>
+                                {sensorSpO2 !== null && (
+                                    <div className={`sensor-status ${sensorSpO2 >= 95 ? 'normal' : 'warning'}`}>
+                                        {sensorSpO2 >= 95 ? '✓' : '⚠️'}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        
+                        {/* ✅ عرض وقت آخر قراءة */}
+                        {lastSensorReading?.timestamp && (
+                            <div className="esp32-timestamp">
+                                <span className="timestamp-icon">🕐</span>
+                                <span>
+                                    {isArabic ? 'آخر تحديث:' : 'Last update:'}
+                                    {getLastReadingTime()}
+                                </span>
+                            </div>
+                        )}
+                        
+                        {/* ✅ شرح الأزرار */}
+                        <div className="esp32-help">
+                            <div className="help-item">
+                                <span className="help-icon">📋</span>
+                                <span>{isArabic ? 'تعبئة النموذج: تعبئة حقول النبض والأكسجين في النموذج أدناه' : 'Fill Form: Fill heart rate and oxygen fields in the form below'}</span>
+                            </div>
+                            <div className="help-item">
+                                <span className="help-icon">💾</span>
+                                <span>{isArabic ? 'حفظ كقياس صحي: حفظ القراءات مباشرة كسجل صحي منفصل' : 'Save as Record: Save readings directly as a separate health record'}</span>
+                            </div>
+                        </div>
+                    </>
+                )}
+                
+                {!sensorActive && !sensorConnecting && (
+                    <div className="esp32-hint">
+                        <span className="hint-icon">💡</span>
+                        <span>{isArabic ? 'اتصل بجهاز ESP32 لجلب قراءات النبض والأكسجين' : 'Connect to ESP32 device to fetch heart rate and oxygen readings'}</span>
+                    </div>
+                )}
+            </div>
+
             {/* ✅ نموذج الإدخال */}
             <form onSubmit={handleSubmit} className="health-form">
                 <div className="form-grid">
-                    {/* الوزن */}
                     <div className="form-field">
                         <label className="field-label">
                             <span className="field-icon">⚖️</span>
@@ -615,15 +886,12 @@ function HealthForm({ onDataSubmitted }) {
                             />
                             <span className="input-suffix">kg</span>
                         </div>
-                        {validationErrors.weight && (
-                            <div className="field-error">{validationErrors.weight}</div>
-                        )}
+                        {validationErrors.weight && <div className="field-error">{validationErrors.weight}</div>}
                         <div className="field-hint">
                             <span className="hint-normal">✅ {isArabic ? 'الطبيعي' : 'Normal'}: 50-100 kg</span>
                         </div>
                     </div>
 
-                    {/* الضغط الانقباضي */}
                     <div className="form-field">
                         <label className="field-label">
                             <span className="field-icon">❤️</span>
@@ -640,15 +908,12 @@ function HealthForm({ onDataSubmitted }) {
                             />
                             <span className="input-suffix">mmHg</span>
                         </div>
-                        {validationErrors.systolic && (
-                            <div className="field-error">{validationErrors.systolic}</div>
-                        )}
+                        {validationErrors.systolic && <div className="field-error">{validationErrors.systolic}</div>}
                         <div className="field-hint">
                             <span className="hint-normal">✅ {isArabic ? 'الطبيعي' : 'Normal'}: 90-140 mmHg</span>
                         </div>
                     </div>
 
-                    {/* الضغط الانبساطي */}
                     <div className="form-field">
                         <label className="field-label">
                             <span className="field-icon">💙</span>
@@ -665,15 +930,12 @@ function HealthForm({ onDataSubmitted }) {
                             />
                             <span className="input-suffix">mmHg</span>
                         </div>
-                        {validationErrors.diastolic && (
-                            <div className="field-error">{validationErrors.diastolic}</div>
-                        )}
+                        {validationErrors.diastolic && <div className="field-error">{validationErrors.diastolic}</div>}
                         <div className="field-hint">
                             <span className="hint-normal">✅ {isArabic ? 'الطبيعي' : 'Normal'}: 60-90 mmHg</span>
                         </div>
                     </div>
 
-                    {/* سكر الدم */}
                     <div className="form-field">
                         <label className="field-label">
                             <span className="field-icon">🩸</span>
@@ -691,20 +953,23 @@ function HealthForm({ onDataSubmitted }) {
                             />
                             <span className="input-suffix">mg/dL</span>
                         </div>
-                        {validationErrors.glucose && (
-                            <div className="field-error">{validationErrors.glucose}</div>
-                        )}
+                        {validationErrors.glucose && <div className="field-error">{validationErrors.glucose}</div>}
                         <div className="field-hint">
                             <span className="hint-normal">✅ {isArabic ? 'الطبيعي' : 'Normal'}: 70-140 mg/dL</span>
                         </div>
                     </div>
 
-                    {/* نبضات القلب */}
+                    {/* حقل نبضات القلب مع إشارة من ESP32 */}
                     <div className="form-field">
                         <label className="field-label">
                             <span className="field-icon">💓</span>
                             {isArabic ? 'نبضات القلب' : 'Heart Rate'}
                             <span className="field-unit">(BPM)</span>
+                            {sensorHeartRate !== null && sensorActive && (
+                                <span className="esp32-indicator" title={isArabic ? 'قادم من المستشعر' : 'From sensor'}>
+                                    📡
+                                </span>
+                            )}
                         </label>
                         <div className="input-wrapper">
                             <input
@@ -712,24 +977,27 @@ function HealthForm({ onDataSubmitted }) {
                                 value={formData.heartRate}
                                 onChange={(e) => handleInputChange('heartRate', e.target.value)}
                                 placeholder={isArabic ? 'مثال: 75' : 'Example: 75'}
-                                className={`form-input ${validationErrors.heartRate ? 'error' : ''}`}
+                                className={`form-input ${validationErrors.heartRate ? 'error' : ''} ${sensorHeartRate !== null && sensorActive ? 'sensor-filled' : ''}`}
                             />
                             <span className="input-suffix">BPM</span>
                         </div>
-                        {validationErrors.heartRate && (
-                            <div className="field-error">{validationErrors.heartRate}</div>
-                        )}
+                        {validationErrors.heartRate && <div className="field-error">{validationErrors.heartRate}</div>}
                         <div className="field-hint">
                             <span className="hint-normal">✅ {isArabic ? 'الطبيعي' : 'Normal'}: 60-100 BPM</span>
                         </div>
                     </div>
 
-                    {/* نسبة الأكسجين */}
+                    {/* حقل نسبة الأكسجين مع إشارة من ESP32 */}
                     <div className="form-field">
                         <label className="field-label">
                             <span className="field-icon">💨</span>
                             {isArabic ? 'نسبة الأكسجين' : 'Oxygen Level'}
                             <span className="field-unit">(%)</span>
+                            {sensorSpO2 !== null && sensorActive && (
+                                <span className="esp32-indicator" title={isArabic ? 'قادم من المستشعر' : 'From sensor'}>
+                                    📡
+                                </span>
+                            )}
                         </label>
                         <div className="input-wrapper">
                             <input
@@ -737,19 +1005,16 @@ function HealthForm({ onDataSubmitted }) {
                                 value={formData.spo2}
                                 onChange={(e) => handleInputChange('spo2', e.target.value)}
                                 placeholder={isArabic ? 'مثال: 98' : 'Example: 98'}
-                                className={`form-input ${validationErrors.spo2 ? 'error' : ''}`}
+                                className={`form-input ${validationErrors.spo2 ? 'error' : ''} ${sensorSpO2 !== null && sensorActive ? 'sensor-filled' : ''}`}
                             />
                             <span className="input-suffix">%</span>
                         </div>
-                        {validationErrors.spo2 && (
-                            <div className="field-error">{validationErrors.spo2}</div>
-                        )}
+                        {validationErrors.spo2 && <div className="field-error">{validationErrors.spo2}</div>}
                         <div className="field-hint">
                             <span className="hint-normal">✅ {isArabic ? 'الطبيعي' : 'Normal'}: 95-100%</span>
                         </div>
                     </div>
 
-                    {/* ✅ درجة حرارة الجسم - حقل جديد */}
                     <div className="form-field">
                         <label className="field-label">
                             <span className="field-icon">🌡️</span>
@@ -767,9 +1032,7 @@ function HealthForm({ onDataSubmitted }) {
                             />
                             <span className="input-suffix">°C</span>
                         </div>
-                        {validationErrors.temperature && (
-                            <div className="field-error">{validationErrors.temperature}</div>
-                        )}
+                        {validationErrors.temperature && <div className="field-error">{validationErrors.temperature}</div>}
                         <div className="field-hint">
                             <span className="hint-normal">✅ {isArabic ? 'الطبيعي' : 'Normal'}: 36.5-37.5 °C</span>
                         </div>
@@ -821,7 +1084,7 @@ function HealthForm({ onDataSubmitted }) {
                                 {isArabic ? 'جاري الحفظ...' : 'Saving...'}
                             </>
                         ) : (
-                            <>💾 {isArabic ? 'حفظ' : 'Save'}</>
+                            <>💾 {isArabic ? 'حفظ الكل' : 'Save All'}</>
                         )}
                     </button>
                 </div>
@@ -845,7 +1108,7 @@ function HealthForm({ onDataSubmitted }) {
                 </div>
             )}
 
-            {/* ✅ أنماط CSS المضمنة - تم تحسينها قليلاً */}
+            {/* ✅ أنماط CSS - إضافة أنماط جديدة للأزرار */}
             <style jsx>{`
                 .health-form-container {
                     background: var(--card-bg);
@@ -962,6 +1225,247 @@ function HealthForm({ onDataSubmitted }) {
                     padding: 0.25rem 0.5rem;
                     background: var(--tertiary-bg);
                     border-radius: 8px;
+                }
+
+                /* ===== قسم ESP32 ===== */
+                .esp32-section {
+                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                    border-radius: 20px;
+                    padding: 1.25rem;
+                    margin-bottom: 1.5rem;
+                    border: 1px solid rgba(99, 102, 241, 0.3);
+                }
+
+                .esp32-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    margin-bottom: 1rem;
+                }
+
+                .esp32-icon {
+                    font-size: 1.5rem;
+                }
+
+                .esp32-header h3 {
+                    margin: 0;
+                    color: #fff;
+                    font-size: 1rem;
+                    font-weight: 600;
+                }
+
+                .online-badge {
+                    font-size: 0.7rem;
+                    padding: 0.2rem 0.6rem;
+                    background: rgba(16, 185, 129, 0.2);
+                    border-radius: 20px;
+                    color: #10b981;
+                }
+
+                .esp32-controls {
+                    display: flex;
+                    gap: 0.75rem;
+                    margin-bottom: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                .esp32-connect-btn,
+                .esp32-disconnect-btn,
+                .esp32-fill-btn,
+                .esp32-save-btn {
+                    padding: 0.5rem 1rem;
+                    border: none;
+                    border-radius: 10px;
+                    font-size: 0.8rem;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+
+                .esp32-connect-btn {
+                    background: #10b981;
+                    color: white;
+                }
+
+                .esp32-connect-btn:hover:not(:disabled) {
+                    background: #059669;
+                    transform: translateY(-2px);
+                }
+
+                .esp32-connect-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                .esp32-disconnect-btn {
+                    background: #ef4444;
+                    color: white;
+                }
+
+                .esp32-disconnect-btn:hover {
+                    background: #dc2626;
+                    transform: translateY(-2px);
+                }
+
+                .esp32-fill-btn {
+                    background: #f59e0b;
+                    color: white;
+                }
+
+                .esp32-fill-btn:hover:not(:disabled) {
+                    background: #d97706;
+                    transform: translateY(-2px);
+                }
+
+                .esp32-fill-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                .esp32-save-btn {
+                    background: #8b5cf6;
+                    color: white;
+                }
+
+                .esp32-save-btn:hover:not(:disabled) {
+                    background: #7c3aed;
+                    transform: translateY(-2px);
+                }
+
+                .esp32-save-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                .esp32-readings {
+                    display: flex;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                    margin-bottom: 0.75rem;
+                }
+
+                .sensor-card {
+                    flex: 1;
+                    min-width: 150px;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 16px;
+                    padding: 0.85rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    backdrop-filter: blur(10px);
+                }
+
+                .sensor-icon {
+                    font-size: 2rem;
+                }
+
+                .sensor-info {
+                    flex: 1;
+                }
+
+                .sensor-label {
+                    font-size: 0.7rem;
+                    color: #94a3b8;
+                    display: block;
+                }
+
+                .sensor-value {
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                    color: white;
+                }
+
+                .sensor-unit {
+                    font-size: 0.7rem;
+                    font-weight: normal;
+                    margin-left: 4px;
+                    color: #94a3b8;
+                }
+
+                .sensor-status {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 0.9rem;
+                    font-weight: bold;
+                }
+
+                .sensor-status.normal {
+                    background: rgba(16, 185, 129, 0.2);
+                    color: #10b981;
+                }
+
+                .sensor-status.warning {
+                    background: rgba(245, 158, 11, 0.2);
+                    color: #f59e0b;
+                }
+
+                .esp32-timestamp {
+                    padding: 0.5rem;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 10px;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-size: 0.7rem;
+                    color: #94a3b8;
+                    margin-bottom: 0.75rem;
+                }
+
+                .esp32-help {
+                    padding: 0.5rem;
+                    background: rgba(99, 102, 241, 0.1);
+                    border-radius: 10px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+
+                .help-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-size: 0.65rem;
+                    color: #94a3b8;
+                }
+
+                .help-icon {
+                    font-size: 0.8rem;
+                }
+
+                .esp32-hint {
+                    margin-top: 0.75rem;
+                    padding: 0.5rem;
+                    background: rgba(99, 102, 241, 0.1);
+                    border-radius: 10px;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-size: 0.7rem;
+                    color: #94a3b8;
+                }
+
+                .hint-icon {
+                    font-size: 0.9rem;
+                }
+
+                .esp32-indicator {
+                    font-size: 0.7rem;
+                    margin-left: 0.5rem;
+                    cursor: help;
+                    opacity: 0.7;
+                }
+
+                .form-input.sensor-filled {
+                    border-color: #10b981;
+                    background: rgba(16, 185, 129, 0.05);
                 }
 
                 /* ===== شبكة الحقول ===== */
@@ -1313,6 +1817,26 @@ function HealthForm({ onDataSubmitted }) {
                     [dir="rtl"] .notification-toast {
                         left: 1rem;
                         right: 1rem;
+                    }
+
+                    .esp32-readings {
+                        flex-direction: column;
+                    }
+
+                    .sensor-card {
+                        min-width: auto;
+                    }
+
+                    .esp32-controls {
+                        flex-direction: column;
+                    }
+                    
+                    .esp32-connect-btn,
+                    .esp32-disconnect-btn,
+                    .esp32-fill-btn,
+                    .esp32-save-btn {
+                        width: 100%;
+                        justify-content: center;
                     }
                 }
 
