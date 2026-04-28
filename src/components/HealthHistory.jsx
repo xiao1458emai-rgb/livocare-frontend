@@ -23,7 +23,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
-    const [filterType, setFilterType] = useState('all'); // all, weight, bp, glucose, heartRate, spo2
+    const [filterType, setFilterType] = useState('all'); // all, weight, bp, glucose, heartRate, spo2, temperature
     
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
@@ -109,6 +109,8 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                         return record.heart_rate && record.heart_rate !== null;
                     case 'spo2':
                         return record.spo2 && record.spo2 !== null;
+                    case 'temperature': // ✅ فلتر درجة الحرارة
+                        return record.body_temperature && record.body_temperature !== null;
                     default:
                         return true;
                 }
@@ -126,7 +128,8 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                        record.diastolic_pressure?.toString().includes(searchLower) ||
                        record.blood_glucose?.toString().includes(searchLower) ||
                        record.heart_rate?.toString().includes(searchLower) ||
-                       record.spo2?.toString().includes(searchLower);
+                       record.spo2?.toString().includes(searchLower) ||
+                       record.body_temperature?.toString().includes(searchLower);
             });
         }
         
@@ -144,8 +147,14 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                     : new Date(a.recorded_at) - new Date(b.recorded_at);
             }
             
-            const aVal = a[sortConfig.key] || 0;
-            const bVal = b[sortConfig.key] || 0;
+            let aVal = a[sortConfig.key] || 0;
+            let bVal = b[sortConfig.key] || 0;
+            
+            // معالجة خاصة لدرجة الحرارة (body_temperature)
+            if (sortConfig.key === 'body_temperature') {
+                aVal = a.body_temperature || 0;
+                bVal = b.body_temperature || 0;
+            }
             
             return sortConfig.direction === 'desc' ? bVal - aVal : aVal - bVal;
         });
@@ -255,7 +264,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         return sortConfig.direction === 'desc' ? '⬇️' : '⬆️';
     }, [sortConfig]);
 
-    // ✅ الحصول على الحالة الصحية
+    // ✅ الحصول على الحالة الصحية (تمت إضافة درجة الحرارة)
     const getHealthStatus = useCallback((record) => {
         const issues = [];
         
@@ -312,6 +321,18 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
             }
         }
         
+        // ✅ درجة حرارة الجسم
+        if (record.body_temperature) {
+            const temp = record.body_temperature;
+            if (temp > 37.5) {
+                issues.push({ status: 'warning', icon: '🌡️', text: isArabic ? 'حرارة مرتفعة' : 'High Temp', value: `${temp}°C` });
+            } else if (temp < 36.5) {
+                issues.push({ status: 'warning', icon: '🌡️', text: isArabic ? 'حرارة منخفضة' : 'Low Temp', value: `${temp}°C` });
+            } else {
+                issues.push({ status: 'success', icon: '✅', text: isArabic ? 'حرارة طبيعية' : 'Normal Temp', value: `${temp}°C` });
+            }
+        }
+        
         return issues;
     }, [isArabic]);
 
@@ -359,7 +380,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         };
     }, [isArabic]);
 
-    // ✅ حساب الإحصائيات
+    // ✅ حساب الإحصائيات (تمت إضافة درجة الحرارة)
     const safeHistory = Array.isArray(history) ? history : [];
     const stats = {
         total: safeHistory.length,
@@ -369,6 +390,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
         glucose: safeHistory.filter(r => r.blood_glucose && r.blood_glucose !== null).length,
         heartRate: safeHistory.filter(r => r.heart_rate && r.heart_rate !== null).length,
         spo2: safeHistory.filter(r => r.spo2 && r.spo2 !== null).length,
+        temperature: safeHistory.filter(r => r.body_temperature && r.body_temperature !== null).length, // ✅ إحصائية درجة الحرارة
     };
 
     // ✅ حالة التحميل
@@ -432,7 +454,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                 </div>
             </div>
 
-            {/* ✅ فلاتر سريعة */}
+            {/* ✅ فلاتر سريعة (تمت إضافة فلتر درجة الحرارة) */}
             <div className="filter-tabs">
                 <button 
                     className={`filter-tab ${filterType === 'all' ? 'active' : ''}`}
@@ -470,6 +492,13 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                 >
                     💨 SpO₂ ({stats.spo2})
                 </button>
+                {/* ✅ فلتر درجة الحرارة */}
+                <button 
+                    className={`filter-tab ${filterType === 'temperature' ? 'active' : ''}`}
+                    onClick={() => setFilterType('temperature')}
+                >
+                    🌡️ {isArabic ? 'الحرارة' : 'Temp'} ({stats.temperature})
+                </button>
             </div>
 
             {/* ✅ حالة عدم وجود بيانات */}
@@ -485,7 +514,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                 </div>
             )}
 
-            {/* ✅ جدول البيانات */}
+            {/* ✅ جدول البيانات (تمت إضافة عمود درجة الحرارة) */}
             {safeHistory.length > 0 && (
                 <>
                     <div className="table-wrapper">
@@ -509,7 +538,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                                         <span className="sort-icon">{getSortIcon('weight_kg')}</span>
                                     </th>
                                     <th>
-                                        ❤️ {isArabic ? 'ضغط الدم' : 'Blood Pressure'}
+                                        ❤️ {isArabic ? 'ضغط الدم' : 'BP'}
                                     </th>
                                     <th className="sortable" onClick={() => handleSort('blood_glucose')}>
                                         🩸 {isArabic ? 'السكر' : 'Glucose'}
@@ -522,6 +551,11 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                                     <th className="sortable" onClick={() => handleSort('spo2')}>
                                         💨 SpO₂
                                         <span className="sort-icon">{getSortIcon('spo2')}</span>
+                                    </th>
+                                    {/* ✅ عمود درجة الحرارة */}
+                                    <th className="sortable" onClick={() => handleSort('body_temperature')}>
+                                        🌡️ {isArabic ? 'الحرارة' : 'Temp'}
+                                        <span className="sort-icon">{getSortIcon('body_temperature')}</span>
                                     </th>
                                     <th>{isArabic ? 'الحالة' : 'Status'}</th>
                                     <th>{isArabic ? 'الإجراءات' : 'Actions'}</th>
@@ -552,6 +586,8 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                                             <td>{displayValue(record.blood_glucose, 'mg/dL', 0)}</td>
                                             <td className="center">{displayValue(record.heart_rate, 'BPM', 0)}</td>
                                             <td className="center">{displayValue(record.spo2, '%', 0)}</td>
+                                            {/* ✅ عرض درجة الحرارة */}
+                                            <td className="center">{displayValue(record.body_temperature, '°C', 1)}</td>
                                             <td className="status-cell">
                                                 <div className="status-list">
                                                     {statuses.map((status, index) => (
@@ -576,7 +612,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                                                 >
                                                     🗑️
                                                 </button>
-                                            </td>
+                                             </td>
                                         </tr>
                                     );
                                 })}
@@ -647,7 +683,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                 />
             )}
 
-            {/* ✅ أنماط CSS المضمنة */}
+            {/* ... CSS styles تبقى كما هي مع إضافة تحسينات للعرض على الشاشات الصغيرة ... */}
             <style jsx>{`
                 .health-history-container {
                     background: var(--card-bg);
@@ -790,6 +826,7 @@ function HealthHistory({ refreshKey, onDataSubmitted }) {
                     width: 100%;
                     border-collapse: collapse;
                     font-size: 0.85rem;
+                    min-width: 900px;
                 }
 
                 .history-table th {
