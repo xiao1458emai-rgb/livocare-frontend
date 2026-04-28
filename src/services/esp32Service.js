@@ -1,11 +1,12 @@
 // src/services/esp32Service.js
 import axios from 'axios';
 
-const DJANGO_API_URL = process.env.REACT_APP_DJANGO_API_URL || 'https://livocare-backend.onrender.com/api';
+// ✅ استخدم خادم ESP32 المنفصل بدلاً من Django Backend
+const ESP32_API_URL = process.env.REACT_APP_ESP32_API_URL || 'https://livocare-sensor-api.onrender.com';
 
 class ESP32Service {
     constructor() {
-        this.listeners = [];  // ✅ مصفوفة المستمعين
+        this.listeners = [];
         this.pollingInterval = null;
         this.isPolling = false;
         this.lastReading = null;
@@ -33,47 +34,35 @@ class ESP32Service {
 
     async fetchLatestReading() {
         try {
-            const token = localStorage.getItem('access_token');
-            if (!token) {
-                console.log('⚠️ No token available');
-                return null;
-            }
-
-            const url = `${DJANGO_API_URL}/esp32/latest/`;
+            // ✅ استخدم مسار خادم ESP32 المنفصل
+            const url = `${ESP32_API_URL}/api/readings/latest`;
             
             const response = await axios.get(url, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { 'Cache-Control': 'no-cache' }
             });
             
             if (response.data?.status === 'success' && response.data?.data) {
                 const data = response.data.data;
                 
                 const newReading = {
-                    heartRate: data.heart_rate,
-                    spo2: data.blood_oxygen || data.spo2,
-                    timestamp: data.recorded_at || new Date().toISOString(),
+                    heartRate: data.bpm,
+                    spo2: data.spo2,
+                    timestamp: data.timestamp || new Date().toISOString(),
                     raw: data
                 };
                 
                 console.log('❤️ New reading - BPM:', newReading.heartRate, 'SpO2:', newReading.spo2);
                 
-                if (this.lastReading?.heartRate !== newReading.heartRate ||
-                    this.lastReading?.spo2 !== newReading.spo2) {
-                    
-                    this.lastReading = newReading;
-                    
-                    // ✅ استدعاء المستمعين بشكل صحيح
-                    this.notifyListeners('heartRate', newReading.heartRate);
-                    this.notifyListeners('spo2', newReading.spo2);
-                    this.notifyListeners('data', newReading);
-                }
+                // ✅ تحديث دائماً (أزل شرط المقارنة للاختبار)
+                this.lastReading = newReading;
+                this.notifyListeners('heartRate', newReading.heartRate);
+                this.notifyListeners('spo2', newReading.spo2);
+                this.notifyListeners('data', newReading);
                 
                 return newReading;
-            } else {
-                console.log('⚠️ No data available yet');
             }
         } catch (error) {
-            console.error('❌ ESP32 Service Error:', error.response?.data?.message || error.message);
+            console.error('❌ ESP32 Service Error:', error.message);
             this.notifyListeners('error', error.message);
         }
         return null;
@@ -81,16 +70,8 @@ class ESP32Service {
 
     async sendReading(bpm, spo2) {
         try {
-            const token = localStorage.getItem('access_token');
-            if (!token) {
-                console.log('⚠️ No token available');
-                return null;
-            }
-
-            const url = `${DJANGO_API_URL}/esp32/update/`;
-            const response = await axios.post(url, { bpm, spo2 }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const url = `${ESP32_API_URL}/api/readings`;
+            const response = await axios.post(url, { bpm, spo2 });
             
             if (response.data?.status === 'success') {
                 console.log('✅ Reading sent successfully');
@@ -103,7 +84,6 @@ class ESP32Service {
         }
     }
 
-    // ✅ دالة on الصحيحة
     on(callback) {
         if (typeof callback === 'function') {
             this.listeners.push(callback);
@@ -115,13 +95,11 @@ class ESP32Service {
                     console.log(`❌ Listener removed. Remaining: ${this.listeners.length}`);
                 }
             };
-        } else {
-            console.error('❌ on() requires a function callback');
-            return () => {};
         }
+        console.error('❌ on() requires a function callback');
+        return () => {};
     }
 
-    // ✅ دالة off
     off(callback) {
         const index = this.listeners.indexOf(callback);
         if (index > -1) {
@@ -130,7 +108,6 @@ class ESP32Service {
         }
     }
 
-    // ✅ دالة notifyListeners المعدلة
     notifyListeners(type, data) {
         if (this.listeners.length === 0) {
             console.log(`⚠️ No listeners for event: ${type}`);
@@ -139,7 +116,6 @@ class ESP32Service {
         
         this.listeners.forEach(listener => {
             try {
-                // ✅ استدعاء المستمع مع (type, data)
                 listener(type, data);
             } catch (err) {
                 console.error('ESP32 Service: Listener error', err);
