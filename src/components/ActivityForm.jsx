@@ -5,7 +5,6 @@ import esp32Service from '../services/esp32Service';
 import HealthHistory from './HealthHistory';
 import HealthCharts from './HealthCharts';
 import ActivityAnalytics from './Analytics/ActivityAnalytics';
-import AdvancedHealthInsights from './Analytics/AdvancedHealthInsights';
 
 const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     // ==================== القياسات الصحية (HealthForm) ====================
@@ -740,11 +739,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             <div style={{ marginBottom: '20px' }}>
                 <ActivityAnalytics refreshTrigger={refreshKey} />
             </div>
-            
-            {/* ✅ القسم 5: التحليلات المتقدمة */}
-            <div style={{ marginBottom: '20px' }}>
-                <AdvancedHealthInsights refreshTrigger={refreshKey} />
-            </div>
+
             
             {/* ==================== القسم 6: تحليل الأنشطة والمخططات ==================== */}
             {activities.length > 0 && (
