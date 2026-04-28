@@ -522,7 +522,7 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
     }
 };
 
-// ✅ أضف total_calories المحسوبة إلى الطلب
+// في handleSubmit و handleUpdateMeal
 const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isAuthReady) {
@@ -539,34 +539,40 @@ const handleSubmit = async (e) => {
         return;
     }
     
+    // ✅ تأكد من أن البيانات بالشكل الصحيح
     const ingredients = validItems.map(item => ({
         name: item.name,
-        quantity: parseFloat(item.quantity) || 0,
-        unit: item.unit,
+        quantity: parseFloat(item.quantity) || 100,
+        unit: item.unit || 'g',
         calories: parseFloat(item.calories) || 0,
         protein: parseFloat(item.protein) || 0,
         carbs: parseFloat(item.carbs) || 0,
-        fat: parseFloat(item.fat) || 0,
-        barcode: item.barcode || null
+        fat: parseFloat(item.fat) || 0
     }));
     
-    // ✅ احسب الإجماليات
+    // ✅ حساب الإجماليات
     const totalCalories = ingredients.reduce((sum, ing) => sum + (ing.calories || 0), 0);
     const totalProtein = ingredients.reduce((sum, ing) => sum + (ing.protein || 0), 0);
     const totalCarbs = ingredients.reduce((sum, ing) => sum + (ing.carbs || 0), 0);
     const totalFat = ingredients.reduce((sum, ing) => sum + (ing.fat || 0), 0);
     
+    // ✅ إعداد البيانات للإرسال
+    const mealData = {
+        meal_type: mealData.meal_type,
+        meal_time: mealData.meal_time,
+        notes: mealData.notes || '',
+        ingredients: ingredients,
+        total_calories: totalCalories,
+        total_protein: totalProtein,
+        total_carbs: totalCarbs,
+        total_fat: totalFat
+    };
+    
+    console.log('📤 Sending meal data:', mealData); // ✅ للتصحيح
+    
     try {
-        await axiosInstance.post('/meals/', {
-            meal_type: mealData.meal_type,
-            meal_time: mealData.meal_time,
-            notes: mealData.notes,
-            ingredients,
-            total_calories: totalCalories,   // ✅ أضف هذا
-            total_protein: totalProtein,     // ✅ أضف هذا
-            total_carbs: totalCarbs,         // ✅ أضف هذا
-            total_fat: totalFat              // ✅ أضف هذا
-        });
+        const response = await axiosInstance.post('/meals/', mealData);
+        console.log('✅ Meal saved:', response.data);
         
         if (isMountedRef.current) {
             showMessage(isArabic ? '✅ تم إضافة الوجبة بنجاح' : '✅ Meal added successfully', 'success');
@@ -577,6 +583,7 @@ const handleSubmit = async (e) => {
         }
     } catch (error) {
         console.error('Submission error:', error);
+        console.error('Error response:', error.response?.data); // ✅ لعرض تفاصيل الخطأ
         showMessage(isArabic ? '❌ فشل حفظ الوجبة' : '❌ Failed to save meal', 'error');
     } finally {
         setIsLoading(false);
