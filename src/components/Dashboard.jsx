@@ -219,6 +219,8 @@ function Dashboard({ onLogout }) {
                     onActivityChange={handleDataSubmitted} 
                     isArabic={isArabic} 
                 />;
+                        case 'healthForm': 
+            return <HealthForm onDataSubmitted={handleDataSubmitted} />;
             case 'history':
                 return <HealthHistory 
                     refreshKey={refreshKey} 
