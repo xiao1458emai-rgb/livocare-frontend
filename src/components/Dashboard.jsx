@@ -17,6 +17,7 @@ import ChatInterface from './Chat/ChatInterface';
 import SmartDashboard from './SmartFeatures/SmartDashboard';
 import Notifications from './Notifications/Notifications';
 import Reports from './Reports';
+import HealthForm from './HealthForm';
 import ActivityForm from './ActivityForm';
 import HealthHistory from './HealthHistory';   // ✅ إضافة HealthHistory
 import HealthCharts from './HealthCharts';     // ✅ إضافة HealthCharts
