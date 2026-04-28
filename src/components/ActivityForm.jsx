@@ -1,11 +1,12 @@
-// src/components/ActivityForm.jsx - نسخة متكاملة مع القياسات الصحية والأنشطة
+// src/components/ActivityForm.jsx - نسخة متكاملة مع القياسات الصحية والأنشطة والمخططات والسجل الصحي
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axiosInstance from '../services/api';
 import esp32Service from '../services/esp32Service';
+import HealthHistory from './HealthHistory';   // ✅ استدعاء السجل الصحي
+import HealthCharts from './HealthCharts';     // ✅ استدعاء المخططات الصحية
 
 const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     // ==================== القياسات الصحية (HealthForm) ====================
-    // ✅ حالة القياسات الصحية
     const [healthFormData, setHealthFormData] = useState({
         weight: '',
         systolic: '',
@@ -35,7 +36,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     const isSubmittingRef = useRef(false);
     const unsubscribeESP32Ref = useRef(null);
     
-    // ==================== الأنشطة (ActivityForm الأصلي) ====================
+    // ==================== الأنشطة ====================
     const [activities, setActivities] = useState([]);
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
@@ -51,20 +52,21 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     const [analytics, setAnalytics] = useState(null);
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
     
-    // ✅ وزن المستخدم (لحساب السعرات بدقة)
+    // ✅ وزن المستخدم
     const [userWeight, setUserWeight] = useState(null);
     const [showCaloriesEdit, setShowCaloriesEdit] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0); // ✅ لإعادة تحميل History و Charts
     
     const isFetchingRef = useRef(false);
     const analyticsFetchedRef = useRef(false);
     
-    // ✅ معاملات حرق السعرات لكل نشاط
+    // ✅ معاملات حرق السعرات
     const MET_VALUES = {
         walking: 3.5, running: 9.8, cycling: 7.5, swimming: 7.0,
         yoga: 2.5, weightlifting: 5.0, cardio: 6.5, other: 4.0
     };
     
-    // ✅ حدود التحقق من الصحة للقياسات الصحية
+    // ✅ حدود التحقق من الصحة
     const VALIDATION_LIMITS = {
         weight: { min: 20, max: 300, normalMin: 50, normalMax: 100, unit: 'kg', icon: '⚖️' },
         systolic: { min: 50, max: 250, normalMin: 90, normalMax: 140, unit: 'mmHg', icon: '❤️' },
@@ -87,7 +89,11 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         }, 4000);
     }, []);
     
-    // ==================== دوال القياسات الصحية ====================
+    // ✅ تحديث البيانات (لـ History و Charts)
+    const refreshData = useCallback(() => {
+        setRefreshKey(prev => prev + 1);
+    }, []);
+    
     // ✅ جلب وزن المستخدم
     useEffect(() => {
         fetchUserWeight();
@@ -208,6 +214,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             if (isMountedRef.current) {
                 showMessage(isArabic ? '✅ تم حفظ قراءة المستشعر كقياس صحي' : '✅ Sensor reading saved as health record', 'success');
                 if (onDataSubmitted) onDataSubmitted();
+                refreshData(); // ✅ تحديث السجل الصحي والمخططات
             }
         } catch (err) {
             console.error('❌ Failed to save sensor reading:', err);
@@ -215,7 +222,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         } finally {
             setSavingSensorData(false);
         }
-    }, [sensorHeartRate, sensorSpO2, isArabic, showMessage, onDataSubmitted]);
+    }, [sensorHeartRate, sensorSpO2, isArabic, showMessage, onDataSubmitted, refreshData]);
     
     // ✅ الحفظ التلقائي للقياسات الصحية
     useEffect(() => {
@@ -257,7 +264,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 errors.weight = `${isArabic ? 'النطاق المسموح' : 'Allowed range'}: ${VALIDATION_LIMITS.weight.min} - ${VALIDATION_LIMITS.weight.max} ${VALIDATION_LIMITS.weight.unit}`;
             }
         }
-        // ... باقي التحقق من الصحة (مشابه للـ HealthForm الأصلي)
         
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
@@ -307,6 +313,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 showMessage(isArabic ? '✅ تم حفظ البيانات بنجاح' : '✅ Data saved successfully', 'success');
                 resetHealthForm();
                 if (onDataSubmitted) onDataSubmitted();
+                refreshData(); // ✅ تحديث السجل الصحي والمخططات
             }
         } catch (err) {
             console.error('❌ Submission failed:', err);
@@ -315,11 +322,11 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             if (isMountedRef.current) setHealthLoading(false);
             isSubmittingRef.current = false;
         }
-    }, [healthFormData, onDataSubmitted, isArabic, validateHealthForm, resetHealthForm, showMessage]);
+    }, [healthFormData, onDataSubmitted, isArabic, validateHealthForm, resetHealthForm, showMessage, refreshData]);
     
     const calculateHealthIndicators = useCallback(() => {
         const indicators = [];
-        // ... حساب المؤشرات الصحية (مشابه للـ HealthForm الأصلي)
+        // .. حساب المؤشرات الصحية
         return indicators;
     }, [healthFormData, isArabic, VALIDATION_LIMITS]);
     
@@ -432,6 +439,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             await fetchAnalytics();
             if (onDataSubmitted) onDataSubmitted();
             if (onActivityChange) onActivityChange();
+            refreshData(); // ✅ تحديث السجل الصحي والمخططات
             setActivityFormData({ activity_type: '', duration_minutes: '', start_time: '', calories_burned: '' });
             setShowCaloriesEdit(false);
         } catch (err) {
@@ -585,49 +593,42 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 {/* نموذج القياسات الصحية */}
                 <form onSubmit={handleHealthSubmit}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
-                        {/* الوزن */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>⚖️</span> {isArabic ? 'الوزن' : 'Weight'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(kg)</span></label>
                             <input type="number" step="0.1" value={healthFormData.weight} onChange={(e) => handleHealthInputChange('weight', e.target.value)} placeholder={isArabic ? 'مثال: 70.5' : 'Example: 70.5'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
                             <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 50-100 kg</span></div>
                         </div>
                         
-                        {/* الضغط الانقباضي */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>❤️</span> {isArabic ? 'الضغط الانقباضي' : 'Systolic'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(mmHg)</span></label>
                             <input type="number" value={healthFormData.systolic} onChange={(e) => handleHealthInputChange('systolic', e.target.value)} placeholder={isArabic ? 'مثال: 120' : 'Example: 120'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
                             <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 90-140 mmHg</span></div>
                         </div>
                         
-                        {/* الضغط الانبساطي */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>💙</span> {isArabic ? 'الضغط الانبساطي' : 'Diastolic'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(mmHg)</span></label>
                             <input type="number" value={healthFormData.diastolic} onChange={(e) => handleHealthInputChange('diastolic', e.target.value)} placeholder={isArabic ? 'مثال: 80' : 'Example: 80'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
                             <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 60-90 mmHg</span></div>
                         </div>
                         
-                        {/* سكر الدم */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>🩸</span> {isArabic ? 'سكر الدم' : 'Blood Glucose'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(mg/dL)</span></label>
                             <input type="number" step="0.1" value={healthFormData.glucose} onChange={(e) => handleHealthInputChange('glucose', e.target.value)} placeholder={isArabic ? 'مثال: 95' : 'Example: 95'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
                             <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 70-140 mg/dL</span></div>
                         </div>
                         
-                        {/* نبضات القلب */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>💓</span> {isArabic ? 'نبضات القلب' : 'Heart Rate'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(BPM)</span></label>
                             <input type="number" value={healthFormData.heartRate} onChange={(e) => handleHealthInputChange('heartRate', e.target.value)} placeholder={isArabic ? 'مثال: 75' : 'Example: 75'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
                             <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 60-100 BPM</span></div>
                         </div>
                         
-                        {/* نسبة الأكسجين */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>💨</span> {isArabic ? 'نسبة الأكسجين' : 'Oxygen Level'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(%)</span></label>
                             <input type="number" value={healthFormData.spo2} onChange={(e) => handleHealthInputChange('spo2', e.target.value)} placeholder={isArabic ? 'مثال: 98' : 'Example: 98'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
                             <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 95-100%</span></div>
                         </div>
                         
-                        {/* درجة الحرارة */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>🌡️</span> {isArabic ? 'درجة الحرارة' : 'Temperature'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(°C)</span></label>
                             <input type="number" step="0.1" value={healthFormData.temperature} onChange={(e) => handleHealthInputChange('temperature', e.target.value)} placeholder={isArabic ? 'مثال: 37.0' : 'Example: 37.0'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
@@ -635,7 +636,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                         </div>
                     </div>
                     
-                    {/* المؤشرات الصحية */}
                     {healthIndicators.length > 0 && (
                         <div style={{ marginBottom: '1rem' }}>
                             {healthIndicators.map((indicator, index) => (
@@ -651,7 +651,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                         </div>
                     )}
                     
-                    {/* أزرار القياسات الصحية */}
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                         <button type="button" onClick={resetHealthForm} disabled={healthLoading} style={{ flex: 1, padding: '0.75rem', background: 'var(--secondary-bg)', border: '1px solid var(--border-light)', borderRadius: '12px', cursor: 'pointer' }}>🗑️ {isArabic ? 'مسح النموذج' : 'Clear Form'}</button>
                         <button type="submit" disabled={healthLoading} style={{ flex: 1, padding: '0.75rem', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer' }}>{healthLoading ? '⏳ جاري الحفظ...' : `💾 ${isArabic ? 'حفظ الكل' : 'Save All'}`}</button>
@@ -659,7 +658,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 </form>
             </div>
             
-            {/* ==================== القسم 2: الأنشطة (ActivityForm الأصلي) ==================== */}
+            {/* ==================== القسم 2: الأنشطة ==================== */}
             <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
                 <h3 style={{ margin: '0 0 15px 0' }}>🏃 {isArabic ? 'إضافة نشاط جديد' : 'Add New Activity'}</h3>
                 
@@ -713,16 +712,47 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 </form>
             </div>
             
-            {/* ==================== القسم 3: تحليل الأنشطة والمخططات ==================== */}
+            {/* ==================== القسم 3: السجل الصحي والمخططات ==================== */}
+            <div style={{ marginBottom: '20px' }}>
+                <HealthHistory 
+                    refreshKey={refreshKey} 
+                    onDataSubmitted={refreshData} 
+                    isArabic={isArabic} 
+                />
+            </div>
+            
+            <div style={{ marginBottom: '20px' }}>
+                <HealthCharts 
+                    refreshKey={refreshKey} 
+                    isArabic={isArabic} 
+                />
+            </div>
+            
+            {/* ==================== القسم 4: تحليل الأنشطة والمخططات ==================== */}
             {activities.length > 0 && (
                 <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e0e0e0', marginBottom: '20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-                        <h3 style={{ margin: 0 }}>📈 {isArabic ? 'المخططات البيانية' : 'Charts'}</h3>
+                        <h3 style={{ margin: 0 }}>📈 {isArabic ? 'تحليل الأنشطة' : 'Activity Analytics'}</h3>
                         <button onClick={() => setShowCharts(!showCharts)} style={{ padding: '5px 12px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>{showCharts ? '📋 إخفاء' : '📊 إظهار'}</button>
                     </div>
                     
                     {showCharts && (
                         <>
+                            <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
+                                <h4 style={{ margin: '0 0 15px 0' }}>📊 {isArabic ? 'تحليل الأنشطة' : 'Activity Analytics'}</h4>
+                                {analyticsLoading ? (
+                                    <p>{isArabic ? 'جاري التحليل...' : 'Loading...'}</p>
+                                ) : analytics ? (
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '15px', textAlign: 'center' }}>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_activities || 0}</div><div style={{ fontSize: '12px', opacity: 0.8 }}>{isArabic ? 'عدد الأنشطة' : 'Activities'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_calories || 0}</div><div style={{ fontSize: '12px', opacity: 0.8 }}>{isArabic ? 'سعرات حرارية' : 'Calories'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_duration || 0}</div><div style={{ fontSize: '12px', opacity: 0.8 }}>{isArabic ? 'دقائق' : 'Minutes'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.avg_duration || 0}</div><div style={{ fontSize: '12px', opacity: 0.8 }}>{isArabic ? 'متوسط المدة' : 'Avg Duration'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.avg_calories_per_activity || 0}</div><div style={{ fontSize: '12px', opacity: 0.8 }}>{isArabic ? 'سعرات/نشاط' : 'Cal/Activity'}</div></div>
+                                    </div>
+                                ) : <p>{isArabic ? 'لا توجد بيانات كافية' : 'Insufficient data'}</p>}
+                            </div>
+                            
                             <div style={{ marginBottom: '30px' }}>
                                 <h4 style={{ margin: '0 0 15px 0', color: '#333' }}>📊 {isArabic ? 'توزيع الأنشطة حسب النوع' : 'Activities by Type'}</h4>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -769,7 +799,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 </div>
             )}
             
-            {/* ==================== القسم 4: السجل الزمني ==================== */}
+            {/* ==================== القسم 5: السجل الزمني للأنشطة ==================== */}
             <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e0e0e0' }}>
                 <h3 style={{ margin: '0 0 15px 0' }}>📋 {isArabic ? 'السجل الزمني للأنشطة' : 'Activity Timeline'}</h3>
                 
