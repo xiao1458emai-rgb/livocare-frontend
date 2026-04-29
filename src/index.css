@@ -1,7 +1,7 @@
 /* ===========================================
    التصميم العام المتكيف - بدون تداخلات أو خروج
-   ✅ السايدبار عند الفتح على الهاتف: 70% من العرض
-   ✅ المحتوى الرئيسي يغطي كامل الشاشة
+   ✅ السايدبار يغطي كامل ارتفاع الشاشة (100vh)
+   ✅ المحتوى الرئيسي يغطي كامل المساحة
    ✅ تجاوب كامل مع جميع الأجهزة والاتجاهات
    =========================================== */
 
@@ -12,7 +12,13 @@
     box-sizing: border-box;
 }
 
-/* 2. الحاوية الرئيسية */
+/* 2. الحاوية الرئيسية - تغطي كامل الشاشة */
+html, body, #root {
+    height: 100%;
+    width: 100%;
+    overflow-x: hidden;
+}
+
 .dashboard-container {
     display: flex;
     width: 100%;
@@ -24,14 +30,14 @@
 }
 
 /* ===========================================
-   القائمة الجانبية - تصميم منسدل حديث
+   القائمة الجانبية - كامل الارتفاع
    =========================================== */
 .sidebar {
     position: fixed;
     top: 0;
     left: 0;
-    bottom: 0;
     width: 280px;
+    height: 100vh; /* تغطي كامل ارتفاع الشاشة */
     background: var(--sidebar-bg, #1e1e2f);
     color: white;
     z-index: 1000;
@@ -42,6 +48,20 @@
     flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
+}
+
+/* إزالة الازدحام */
+.sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
 }
 
 .sidebar.visible {
@@ -60,47 +80,76 @@
     transform: translateX(0);
 }
 
-/* محتوى القائمة الجانبية */
+/* محتوى القائمة الجانبية - تباعد منظم */
 .sidebar-content {
-    padding: 1rem;
+    padding: 1.5rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
     flex: 1;
 }
 
-/* عناصر القائمة */
+/* عناصر القائمة - تصميم أنيق وغير مزدحم */
 .sidebar .nav-item {
-    padding: 0.75rem 1rem;
-    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 14px;
     transition: all 0.2s;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
 .sidebar .nav-item:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
 }
 
 .sidebar .nav-item.active {
     background: linear-gradient(135deg, #6366f1, #8b5cf6);
     color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* أيقونات القائمة */
+.sidebar .nav-icon {
+    font-size: 1.3rem;
+    min-width: 32px;
+    text-align: center;
+}
+
+.sidebar .nav-text {
+    flex: 1;
+}
+
+.sidebar .nav-name {
+    font-weight: 600;
 }
 
 /* ===========================================
-   المحتوى الرئيسي - يغطي كامل الشاشة
+   المحتوى الرئيسي - يغطي كامل المساحة
    =========================================== */
 .main-content {
     flex: 1;
     min-width: 0;
     width: 100%;
+    min-height: 100vh;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 1rem;
+    padding: 0;
     background: var(--primary-bg, #f8fafc);
     transition: all 0.3s ease;
+}
+
+/* محتوى داخلي مع تباعد مناسب */
+.content-wrapper {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    width: 100%;
 }
 
 /* ===========================================
@@ -167,10 +216,10 @@
 }
 
 /* ===========================================
-   تحسينات للسايدبار عند فتحه على الهاتف
+   تحسينات للسايدبار على الأجهزة المختلفة
    =========================================== */
 
-/* الهواتف - السايدبار يغطي حوالي 70% من الشاشة */
+/* الهواتف - السايدبار يغطي 70% من العرض */
 @media (max-width: 768px) {
     .sidebar {
         width: 70%;
@@ -178,9 +227,11 @@
         min-width: 220px;
     }
     
-    /* المحتوى الرئيسي يظل يغطي كامل العرض */
     .main-content {
-        width: 100%;
+        padding: 0;
+    }
+    
+    .content-wrapper {
         padding: 1rem;
     }
 }
@@ -205,20 +256,20 @@
     .sidebar {
         position: sticky;
         transform: translateX(0);
+        height: 100vh;
     }
     
-    /* إخفاء زر الإغلاق والخلفية على الشاشات الكبيرة */
     .sidebar-overlay {
         display: none;
     }
     
-    .main-content {
+    .content-wrapper {
         padding: 1.5rem;
     }
 }
 
 /* ===========================================
-   استجابة الشبكات والبطاقات لجميع الأجهزة
+   استجابة الشبكات والبطاقات
    =========================================== */
 
 /* الهواتف (عمودي) */
@@ -291,10 +342,8 @@
 
 /* شاشات عريضة جداً */
 @media (min-width: 1920px) {
-    .main-content {
-        max-width: 1920px;
-        margin: 0 auto;
-        width: 100%;
+    .content-wrapper {
+        max-width: 1800px;
     }
     
     .activities-grid {
@@ -303,27 +352,21 @@
 }
 
 /* ===========================================
-   الحاوية الرئيسية للصفحات
-   =========================================== */
-.page-wrapper {
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
-}
-
-/* ===========================================
-   شريط التحكم العلوي (Control Bar)
+   شريط التحكم العلوي
    =========================================== */
 .control-bar {
     background: var(--card-bg, #ffffff);
     border-bottom: 1px solid var(--border-light, #eef2f6);
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 1rem;
     width: 100%;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .dark-mode .control-bar {
@@ -341,7 +384,7 @@
     background: var(--secondary-bg, #f8fafc);
     border: 1px solid var(--border-light, #e2e8f0);
     border-radius: 12px;
-    padding: 0.5rem;
+    padding: 0.5rem 0.75rem;
     cursor: pointer;
     font-size: 1.2rem;
     display: flex;
@@ -368,19 +411,16 @@ img, svg, video, iframe {
     height: auto;
 }
 
-button, a, .nav-item, .activity-card {
+button, a {
     cursor: pointer;
-    user-select: none;
 }
 
-/* منع التمرير الأفقي على أي عنصر */
+/* منع التمرير الأفقي */
 html, body {
     max-width: 100%;
     overflow-x: hidden;
-    scroll-behavior: smooth;
 }
 
-/* إزالة الهوامش غير المرغوب فيها */
 body {
     margin: 0;
     padding: 0;
@@ -400,6 +440,10 @@ body {
 }
 
 [dir="rtl"] .control-left {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sidebar .nav-item {
     flex-direction: row-reverse;
 }
 
