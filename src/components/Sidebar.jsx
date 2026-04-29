@@ -287,443 +287,533 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic, isVis
             </div>
 
             <style jsx>{`
-                /* ===== السايدبار الرئيسي ===== */
-                .sidebar {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    bottom: 0;
-                    width: 280px;
-                    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-                    color: white;
-                    display: flex;
-                    flex-direction: column;
-                    z-index: 1000;
-                    transform: translateX(-100%);
-                    transition: transform 0.3s ease;
-                    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
-                }
-                
-                /* عندما يظهر السايدبار */
-                .sidebar.visible {
-                    transform: translateX(0);
-                }
-                
-                /* دعم RTL */
-                .sidebar.rtl {
-                    left: auto;
-                    right: 0;
-                    transform: translateX(100%);
-                    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
-                }
-                
-                .sidebar.rtl.visible {
-                    transform: translateX(0);
-                }
-                
-                /* ===== رأس السايدبار ===== */
-                .sidebar-header {
-                    padding: 2rem 1.5rem;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                }
-                
-                .app-logo {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                }
-                
-                .logo-wrapper {
-                    position: relative;
-                    width: 50px;
-                    height: 50px;
-                    flex-shrink: 0;
-                }
-                
-                .logo-glow {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: linear-gradient(135deg, #60a5fa, #a78bfa);
-                    border-radius: 12px;
-                    filter: blur(10px);
-                    opacity: 0.6;
-                    animation: glowPulse 2s infinite;
-                }
-                
-                @keyframes glowPulse {
-                    0%, 100% { opacity: 0.6; transform: scale(1); }
-                    50% { opacity: 0.8; transform: scale(1.05); }
-                }
-                
-                .logo-icon {
-                    position: relative;
-                    width: 50px;
-                    height: 50px;
-                    background: linear-gradient(135deg, #60a5fa, #a78bfa);
-                    border-radius: 12px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 2rem;
-                }
-                
-                .logo-text {
-                    display: flex;
-                    flex-direction: column;
-                }
-                
-                .app-name {
-                    font-size: 1.5rem;
-                    font-weight: 700;
-                    background: linear-gradient(135deg, #fff, #a78bfa);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                }
-                
-                .app-tagline {
-                    font-size: 0.8rem;
-                    color: rgba(255, 255, 255, 0.7);
-                }
-                
-                .sidebar-close-btn {
-                    width: 36px;
-                    height: 36px;
-                    border-radius: 50%;
-                    background: rgba(255, 255, 255, 0.1);
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                    color: white;
-                    font-size: 1.2rem;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all 0.2s ease;
-                }
-                
-                .sidebar-close-btn:hover {
-                    background: rgba(255, 255, 255, 0.2);
-                    transform: scale(1.05);
-                }
-                
-                .sidebar-close-btn:active {
-                    transform: scale(0.95);
-                }
-                
-                /* ===== قائمة التنقل ===== */
-                .sidebar-nav {
-                    flex: 1;
-                    padding: 1.5rem 0;
-                    overflow-y: auto;
-                }
-                
-                .nav-items {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.25rem;
-                }
-                
-                .nav-item {
-                    background: none;
-                    border: none;
-                    color: white;
-                    padding: 0;
-                    margin: 0 0.75rem;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    position: relative;
-                    width: calc(100% - 1.5rem);
-                    text-align: left;
-                }
-                
-                .rtl .nav-item {
-                    text-align: right;
-                }
-                
-                .nav-item-content {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    padding: 0.75rem 1rem;
-                    border-radius: 12px;
-                    transition: all 0.2s ease;
-                }
-                
-                .nav-item:hover .nav-item-content {
-                    background: rgba(255, 255, 255, 0.1);
-                    transform: translateX(5px);
-                }
-                
-                .rtl .nav-item:hover .nav-item-content {
-                    transform: translateX(-5px);
-                }
-                
-                .nav-item.active .nav-item-content {
-                    background: rgba(255, 255, 255, 0.15);
-                }
-                
-                .nav-icon-wrapper {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 10px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all 0.2s ease;
-                    flex-shrink: 0;
-                }
-                
-                .nav-icon {
-                    font-size: 1.3rem;
-                    transition: transform 0.2s ease;
-                }
-                
-                .nav-item:hover .nav-icon {
-                    transform: scale(1.1);
-                }
-                
-                .nav-text {
-                    flex: 1;
-                    min-width: 0;
-                }
-                
-                .nav-name {
-                    font-weight: 600;
-                    font-size: 1rem;
-                    margin-bottom: 0.2rem;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-                
-                .nav-description {
-                    font-size: 0.7rem;
-                    color: rgba(255, 255, 255, 0.7);
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-                
-                .nav-badge {
-                    position: absolute;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    right: 1rem;
-                    background: #ef4444;
-                    color: white;
-                    font-size: 0.7rem;
-                    font-weight: 600;
-                    padding: 0.2rem 0.5rem;
-                    border-radius: 20px;
-                    min-width: 20px;
-                    text-align: center;
-                }
-                
-                .rtl .nav-badge {
-                    right: auto;
-                    left: 1rem;
-                }
-                
-                .active-indicator {
-                    position: absolute;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    left: 0;
-                    width: 4px;
-                    height: 60%;
-                    background: var(--active-color);
-                    border-radius: 0 4px 4px 0;
-                }
-                
-                .rtl .active-indicator {
-                    left: auto;
-                    right: 0;
-                    border-radius: 4px 0 0 4px;
-                }
-                
-                .active-glow {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: var(--active-gradient);
-                    border-radius: 12px;
-                    opacity: 0.2;
-                    filter: blur(8px);
-                    pointer-events: none;
-                }
-                
-                .nav-tooltip {
-                    position: absolute;
-                    left: 100%;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    margin-left: 10px;
-                    background: #1e293b;
-                    padding: 0.5rem 1rem;
-                    border-radius: 8px;
-                    white-space: nowrap;
-                    z-index: 1001;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                    border: 1px solid rgba(255,255,255,0.1);
-                }
-                
-                .rtl .nav-tooltip {
-                    left: auto;
-                    right: 100%;
-                    margin-left: 0;
-                    margin-right: 10px;
-                }
-                
-                .tooltip-name {
-                    display: block;
-                    font-weight: 600;
-                    font-size: 0.85rem;
-                }
-                
-                .tooltip-desc {
-                    display: block;
-                    font-size: 0.7rem;
-                    color: rgba(255,255,255,0.7);
-                }
-                
-                /* ===== تذييل السايدبار ===== */
-                .sidebar-footer {
-                    padding: 1.5rem;
-                    border-top: 1px solid rgba(255, 255, 255, 0.1);
-                }
-                
-                .user-stats {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-around;
-                    margin-bottom: 1rem;
-                    padding: 0.75rem;
-                    background: rgba(0, 0, 0, 0.2);
-                    border-radius: 12px;
-                }
-                
-                .stat-item {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 0.25rem;
-                }
-                
-                .stat-value {
-                    font-size: 1.3rem;
-                    font-weight: 700;
-                    background: linear-gradient(135deg, #60a5fa, #a78bfa);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                }
-                
-                .stat-label {
-                    font-size: 0.7rem;
-                    color: rgba(255, 255, 255, 0.7);
-                }
-                
-                .stat-divider {
-                    width: 1px;
-                    height: 30px;
-                    background: rgba(255, 255, 255, 0.2);
-                }
-                
-                .user-profile {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    padding: 0.5rem;
-                    background: rgba(0, 0, 0, 0.2);
-                    border-radius: 12px;
-                }
-                
-                .user-avatar {
-                    position: relative;
-                    width: 40px;
-                    height: 40px;
-                    background: linear-gradient(135deg, #60a5fa, #a78bfa);
-                    border-radius: 10px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    flex-shrink: 0;
-                }
-                
-                .avatar-icon {
-                    font-size: 1.5rem;
-                }
-                
-                .avatar-status {
-                    position: absolute;
-                    bottom: -2px;
-                    right: -2px;
-                    width: 10px;
-                    height: 10px;
-                    border-radius: 50%;
-                    background: #10b981;
-                    border: 2px solid #1e293b;
-                }
-                
-                .rtl .avatar-status {
-                    right: auto;
-                    left: -2px;
-                }
-                
-                .user-info {
-                    flex: 1;
-                    min-width: 0;
-                }
-                
-                .user-name {
-                    display: block;
-                    font-weight: 600;
-                    font-size: 0.9rem;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-                
-                .user-role {
-                    display: block;
-                    font-size: 0.7rem;
-                    color: rgba(255, 255, 255, 0.7);
-                }
-                
-                /* ===== شريط التمرير ===== */
-                .sidebar-nav::-webkit-scrollbar {
-                    width: 4px;
-                }
-                
-                .sidebar-nav::-webkit-scrollbar-track {
-                    background: rgba(255,255,255,0.05);
-                    border-radius: 4px;
-                }
-                
-                .sidebar-nav::-webkit-scrollbar-thumb {
-                    background: rgba(255,255,255,0.2);
-                    border-radius: 4px;
-                }
-                
-                .sidebar-nav::-webkit-scrollbar-thumb:hover {
-                    background: rgba(255,255,255,0.3);
-                }
-                
-                /* ===== استجابة للشاشات الصغيرة ===== */
-                @media (max-width: 768px) {
-                    .sidebar {
-                        width: 85%;
-                    }
-                }
+  /* ===========================================
+   Sidebar.css - الأنماط الداخلية فقط
+   ✅ القائمة الجانبية - تصميم عصري
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
+   =========================================== */
+
+/* ===== السايدبار الرئيسي ===== */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+}
+
+/* عندما يظهر السايدبار */
+.sidebar.visible {
+    transform: translateX(0);
+}
+
+/* دعم RTL */
+.sidebar.rtl {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar.rtl.visible {
+    transform: translateX(0);
+}
+
+/* ===== رأس السايدبار ===== */
+.sidebar-header {
+    padding: 2rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.app-logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.logo-wrapper {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+}
+
+.logo-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    border-radius: 12px;
+    filter: blur(10px);
+    opacity: 0.6;
+    animation: glowPulse 2s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+    0%, 100% { 
+        opacity: 0.6; 
+        transform: scale(1); 
+    }
+    50% { 
+        opacity: 0.8; 
+        transform: scale(1.05); 
+    }
+}
+
+.logo-icon {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+
+.logo-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.app-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #ffffff, #a78bfa);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+[dir="rtl"] .app-name {
+    background: linear-gradient(135deg, #ffffff, #a78bfa);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.app-tagline {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* زر إغلاق السايدبار */
+.sidebar-close-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.sidebar-close-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(1.05);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.sidebar-close-btn:active {
+    transform: scale(0.95);
+}
+
+/* ===== قائمة التنقل ===== */
+.sidebar-nav {
+    flex: 1;
+    padding: 1.5rem 0;
+    overflow-y: auto;
+}
+
+.nav-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.nav-item {
+    background: none;
+    border: none;
+    color: white;
+    padding: 0;
+    margin: 0 0.75rem;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    width: calc(100% - 1.5rem);
+    text-align: left;
+}
+
+[dir="rtl"] .nav-item {
+    text-align: right;
+}
+
+.nav-item-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 14px;
+    transition: all 0.2s ease;
+}
+
+.nav-item:hover .nav-item-content {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateX(4px);
+}
+
+[dir="rtl"] .nav-item:hover .nav-item-content {
+    transform: translateX(-4px);
+}
+
+.nav-item.active .nav-item-content {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* أيقونة القائمة */
+.nav-icon-wrapper {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.nav-icon {
+    font-size: 1.4rem;
+    transition: transform 0.2s ease;
+}
+
+.nav-item:hover .nav-icon {
+    transform: scale(1.1);
+}
+
+/* نص القائمة */
+.nav-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.nav-name {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nav-description {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* شارة الإشعارات */
+.nav-badge {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 1rem;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 20px;
+    min-width: 22px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+[dir="rtl"] .nav-badge {
+    right: auto;
+    left: 1rem;
+}
+
+/* مؤشر العنصر النشط */
+.active-indicator {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 0;
+    width: 4px;
+    height: 60%;
+    background: var(--active-color);
+    border-radius: 0 4px 4px 0;
+}
+
+[dir="rtl"] .active-indicator {
+    left: auto;
+    right: 0;
+    border-radius: 4px 0 0 4px;
+}
+
+/* توهج العنصر النشط */
+.active-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--active-gradient);
+    border-radius: 14px;
+    opacity: 0.15;
+    filter: blur(10px);
+    pointer-events: none;
+}
+
+/* تلميح الأدوات (Tooltip) */
+.nav-tooltip {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 10px;
+    background: #1e293b;
+    padding: 0.6rem 1rem;
+    border-radius: 12px;
+    white-space: nowrap;
+    z-index: 1001;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+}
+
+[dir="rtl"] .nav-tooltip {
+    left: auto;
+    right: 100%;
+    margin-left: 0;
+    margin-right: 10px;
+}
+
+.tooltip-name {
+    display: block;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 0.2rem;
+}
+
+.tooltip-desc {
+    display: block;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* ===== تذييل السايدبار ===== */
+.sidebar-footer {
+    padding: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* إحصائيات المستخدم */
+.user-stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 16px;
+    backdrop-filter: blur(4px);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.stat-value {
+    font-size: 1.3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 500;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 30px;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* معلومات المستخدم */
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 16px;
+    transition: all 0.2s ease;
+}
+
+.user-profile:hover {
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.user-avatar {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.avatar-icon {
+    font-size: 1.6rem;
+}
+
+.avatar-status {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #10b981;
+    border: 2px solid #1e293b;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+[dir="rtl"] .avatar-status {
+    right: auto;
+    left: -2px;
+}
+
+.user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-name {
+    display: block;
+    font-weight: 700;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-role {
+    display: block;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ===== شريط التمرير المخصص ===== */
+.sidebar-nav::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .sidebar {
+    direction: rtl;
+}
+
+[dir="rtl"] .nav-item-content {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .user-profile {
+    flex-direction: row-reverse;
+}
+
+/* ===== تقليل الحركة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .sidebar {
+        transition: none;
+    }
+    
+    .logo-glow {
+        animation: none;
+    }
+    
+    .nav-item:hover .nav-item-content {
+        transform: none;
+    }
+    
+    .nav-item:hover .nav-icon {
+        transform: none;
+    }
+    
+    .sidebar-close-btn:hover {
+        transform: none;
+    }
+}
+
+/* ===== دعم التباين العالي ===== */
+@media (prefers-contrast: high) {
+    .sidebar {
+        border-right: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .sidebar.rtl {
+        border-right: none;
+        border-left: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .active-indicator {
+        width: 6px;
+    }
+    
+    .nav-badge {
+        border: 1px solid white;
+    }
+}
             `}</style>
         </aside>
     );
