@@ -1,7 +1,7 @@
 // src/utils/pushNotifications.js
 import axiosInstance from '../services/api';
 
-const NOTIFICATION_SERVICE_URL = 'https://notification-service-ssgo.onrender.com';
+const NOTIFICATION_SERVICE_URL = 'https://notification-v4jz.onrender.com';
 
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
