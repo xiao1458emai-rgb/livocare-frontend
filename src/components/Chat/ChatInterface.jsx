@@ -10,11 +10,6 @@ const ChatInterface = ({ isAuthReady }) => {
     const [inputMessage, setInputMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
-    const [conversationContext, setConversationContext] = useState({
-        lastTopic: null,
-        userMood: 'neutral',
-        topicsDiscussed: []
-    });
     const messagesEndRef = useRef(null);
 
     // تحميل إعدادات الوضع المظلم
@@ -39,31 +34,34 @@ const ChatInterface = ({ isAuthReady }) => {
         }
     }, [isAuthReady]);
 
-    // ✅ Fixed: Ensure messages is always an array
+    // ✅ fetchChatHistory مصححة
     const fetchChatHistory = async () => {
         try {
             const response = await axiosInstance.get('/chat-logs/');
-            console.log('Chat history response:', response.data);
+            console.log('📜 Chat history response:', response.data);
             
-            // Handle different API response structures
             let messagesData = [];
-            if (Array.isArray(response.data)) {
-                messagesData = response.data;
-            } else if (response.data && Array.isArray(response.data.results)) {
-                // Django REST framework pagination
+            
+            // Django REST framework pagination format
+            if (response.data && response.data.results && Array.isArray(response.data.results)) {
                 messagesData = response.data.results;
-            } else if (response.data && Array.isArray(response.data.messages)) {
-                messagesData = response.data.messages;
-            } else if (response.data && typeof response.data === 'object') {
-                // If it's an object but not an array, try to extract messages
-                console.warn('Unexpected response structure:', response.data);
+            } 
+            // Direct array format
+            else if (Array.isArray(response.data)) {
+                messagesData = response.data;
+            }
+            // Format from send_message endpoint
+            else if (response.data && response.data.success && response.data.data) {
+                messagesData = response.data.data;
+            }
+            else {
                 messagesData = [];
             }
             
             setMessages(messagesData);
         } catch (error) {
             console.error('Error fetching chat history:', error);
-            setMessages([]); // Set empty array on error
+            setMessages([]);
         }
     };
 
@@ -72,35 +70,41 @@ const ChatInterface = ({ isAuthReady }) => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // ✅ Fixed: Add safety check for messages array
+    // حذف رسالة
     const handleDeleteMessage = async (messageId) => {
         if (!window.confirm(t('chat.deleteConfirm') || 'هل أنت متأكد من حذف هذه الرسالة؟')) return;
         
         try {
             await axiosInstance.delete(`/chat-logs/${messageId}/`);
-            // تحديث القائمة بعد الحذف
-            setMessages(prev => Array.isArray(prev) ? prev.filter(msg => msg.id !== messageId) : []);
+            setMessages(prev => prev.filter(msg => msg.id !== messageId));
         } catch (error) {
             console.error('Error deleting message:', error);
             alert(t('chat.deleteError') || 'فشل في حذف الرسالة');
         }
     };
 
-    // ✅ Fixed: Add safety check
+    // مسح كل المحادثة
     const handleClearChat = async () => {
         if (!window.confirm(t('chat.clearConfirm') || 'هل أنت متأكد من حذف كل المحادثة؟')) return;
         
         try {
-            // حذف جميع الرسائل (قد تحتاج endpoint خاص)
             await axiosInstance.delete('/chat-logs/clear_all/');
             setMessages([]);
         } catch (error) {
             console.error('Error clearing chat:', error);
-            alert(t('chat.clearError') || 'فشل في حذف المحادثة');
+            // إذا لم يكن endpoint clear_all موجود، نحذف رسالة رسالة
+            for (const msg of messages) {
+                try {
+                    await axiosInstance.delete(`/chat-logs/${msg.id}/`);
+                } catch (e) {
+                    console.error('Failed to delete message:', msg.id);
+                }
+            }
+            setMessages([]);
         }
     };
 
-    // ✅ Fixed: Ensure response data is properly handled
+    // ✅ handleSendMessage المصححة
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!inputMessage.trim() || loading) return;
@@ -111,28 +115,47 @@ const ChatInterface = ({ isAuthReady }) => {
                 message: inputMessage
             });
             
-            // Handle different response structures
-            let newMessages = [];
-            if (Array.isArray(response.data)) {
-                newMessages = response.data;
-            } else if (response.data && Array.isArray(response.data.messages)) {
-                newMessages = response.data.messages;
-            } else if (response.data && Array.isArray(response.data.results)) {
-                newMessages = response.data.results;
-            } else if (response.data && typeof response.data === 'object') {
-                // If it's a single message object, add it to existing messages
-                if (response.data.id && response.data.message_text) {
-                    newMessages = [...(Array.isArray(messages) ? messages : []), response.data];
-                } else {
-                    newMessages = [];
-                }
-            }
+            console.log('📨 Send message response:', response.data);
             
-            setMessages(newMessages);
-            setInputMessage('');
+            // معالجة تنسيق response الصحيح
+            if (response.data && response.data.success && response.data.data) {
+                // التنسيق الصحيح من ChatLogViewSet.send_message
+                setMessages(response.data.data);
+                setInputMessage('');
+            } 
+            else if (Array.isArray(response.data)) {
+                // تنسيق بديل
+                setMessages(response.data);
+                setInputMessage('');
+            }
+            else if (response.data && response.data.message) {
+                // تنسيق آخر محتمل
+                const newMessage = {
+                    id: Date.now(),
+                    sender: 'Bot',
+                    message_text: response.data.message,
+                    timestamp: new Date().toISOString()
+                };
+                setMessages(prev => [...prev, newMessage]);
+                setInputMessage('');
+            }
+            else {
+                console.error('Unexpected response structure:', response.data);
+                alert(t('chat.sendError') || 'فشل في إرسال الرسالة');
+            }
         } catch (error) {
             console.error('Error sending message:', error);
-            alert(t('chat.sendError') || 'فشل في إرسال الرسالة');
+            console.error('Error details:', error.response?.data);
+            
+            // رسالة خطأ ودية
+            const errorMessage = {
+                id: Date.now(),
+                sender: 'Bot',
+                message_text: t('chat.errorMessage') || 'عذراً، حدث خطأ في معالجة طلبك. يرجى المحاولة مرة أخرى.',
+                timestamp: new Date().toISOString(),
+                isError: true
+            };
+            setMessages(prev => [...prev, errorMessage]);
         } finally {
             setLoading(false);
         }
@@ -146,9 +169,6 @@ const ChatInterface = ({ isAuthReady }) => {
             minute: '2-digit'
         });
     };
-
-    // ✅ Safety: Ensure messages is always an array for rendering
-    const safeMessages = Array.isArray(messages) ? messages : [];
 
     return (
         <div className={`chat-container ${darkMode ? 'dark-mode' : ''}`}>
@@ -164,42 +184,49 @@ const ChatInterface = ({ isAuthReady }) => {
                     </div>
                 </div>
                 
-                {/* أزرار حذف الدردشة */}
                 <div className="chat-actions">
-                    {safeMessages.length > 0 && (
-                        <>
-                            <button 
-                                onClick={handleClearChat}
-                                className="clear-chat-btn"
-                                title={t('chat.clearAll') || 'حذف كل المحادثة'}
-                            >
-                                🗑️
-                            </button>
-                        </>
+                    {messages.length > 0 && (
+                        <button 
+                            onClick={handleClearChat}
+                            className="clear-chat-btn"
+                            title={t('chat.clearAll') || 'حذف كل المحادثة'}
+                        >
+                            🗑️
+                        </button>
                     )}
                 </div>
             </div>
 
             <div className="chat-messages">
-                {safeMessages.length === 0 ? (
+                {messages.length === 0 ? (
                     <div className="chat-welcome">
                         <div className="welcome-icon">💬</div>
                         <h3>{t('chat.welcome') || 'مرحباً!'}</h3>
                         <p>{t('chat.welcomeMessage') || 'أنا مساعدك الصحي الذكي. كيف يمكنني مساعدتك اليوم؟'}</p>
+                        <div className="suggested-questions">
+                            <button onClick={() => setInputMessage("كيف حالتي الصحية اليوم؟")}>
+                                🩺 كيف حالتي الصحية؟
+                            </button>
+                            <button onClick={() => setInputMessage("نصائح لتحسين النوم")}>
+                                😴 نصائح للنوم
+                            </button>
+                            <button onClick={() => setInputMessage("ما هو الوزن المثالي؟")}>
+                                ⚖️ الوزن المثالي
+                            </button>
+                        </div>
                     </div>
                 ) : (
-                    safeMessages.map((msg, index) => (
+                    messages.map((msg, index) => (
                         <div
                             key={msg.id || index}
-                            className={`message ${msg.sender === 'User' ? 'user-message' : 'bot-message'}`}
+                            className={`message ${msg.sender === 'User' ? 'user-message' : 'bot-message'} ${msg.isError ? 'error-message' : ''}`}
                         >
-                            {msg.sender === 'Bot' && <span className="bot-icon">🤖</span>}
+                            {msg.sender !== 'User' && <span className="bot-icon">🤖</span>}
                             <div className="message-content">
                                 <p>{msg.message_text}</p>
                                 <span className="message-time">{formatTime(msg.timestamp)}</span>
                             </div>
                             
-                            {/* زر حذف لكل رسالة (يظهر عند التحويم) */}
                             {msg.id && (
                                 <button 
                                     onClick={() => handleDeleteMessage(msg.id)}
