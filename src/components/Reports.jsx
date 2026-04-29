@@ -1810,623 +1810,787 @@ const Reports = ({ isAuthReady }) => {
 
             {/* ✅ أنماط CSS المضمنة */}
             <style jsx>{`
-                .reports-container {
-                    background: var(--card-bg);
-                    border-radius: 24px;
-                    padding: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                /* ===== رأس الصفحة ===== */
-                .reports-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 1rem;
-                    margin-bottom: 1.5rem;
-                    padding-bottom: 1rem;
-                    border-bottom: 2px solid var(--border-light);
-                }
-
-                .header-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
-
-                .header-title h2 {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1.3rem;
-                }
-
-                .title-icon {
-                    font-size: 1.5rem;
-                }
-
-                .period-badge {
-                    padding: 0.35rem 0.85rem;
-                    background: var(--tertiary-bg);
-                    border-radius: 50px;
-                    font-size: 0.75rem;
-                    color: var(--text-secondary);
-                }
-
-                .header-controls {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
-
-                .report-select {
-                    padding: 0.5rem 1rem;
-                    background: var(--secondary-bg);
-                    border: 1px solid var(--border-light);
-                    border-radius: 10px;
-                    color: var(--text-primary);
-                    font-size: 0.85rem;
-                    cursor: pointer;
-                }
-
-                .date-range {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                }
-
-                .date-input {
-                    padding: 0.5rem 0.75rem;
-                    background: var(--secondary-bg);
-                    border: 1px solid var(--border-light);
-                    border-radius: 8px;
-                    color: var(--text-primary);
-                    font-size: 0.8rem;
-                }
-
-                .export-buttons {
-                    display: flex;
-                    gap: 0.5rem;
-                }
-
-                .export-btn {
-                    padding: 0.5rem 1rem;
-                    border: none;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-size: 0.8rem;
-                    font-weight: 500;
-                    transition: all var(--transition-fast);
-                }
-
-                .export-btn.json {
-                    background: #ef4444;
-                    color: white;
-                }
-
-                .export-btn.csv {
-                    background: #10b981;
-                    color: white;
-                }
-
-                .export-btn:hover:not(:disabled) {
-                    transform: translateY(-2px);
-                    filter: brightness(1.05);
-                }
-
-                .export-btn:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-
-                /* ===== درجة الصحة ===== */
-                .health-score-card {
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
-                    padding: 1.5rem;
-                    margin-bottom: 1.5rem;
-                    border: 1px solid var(--border-light);
-                    border-bottom: 4px solid;
-                }
-
-                .score-main {
-                    display: flex;
-                    align-items: center;
-                    gap: 1.5rem;
-                    margin-bottom: 1.5rem;
-                    flex-wrap: wrap;
-                }
-
-                .score-circle {
-                    width: 100px;
-                    height: 100px;
-                    border-radius: 50%;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    background: var(--card-bg);
-                    border: 4px solid;
-                    box-shadow: var(--shadow-md);
-                }
-
-                .score-value {
-                    font-size: 2.5rem;
-                    font-weight: bold;
-                    line-height: 1;
-                }
-
-                .score-max {
-                    font-size: 0.8rem;
-                    opacity: 0.7;
-                }
-
-                .score-grade {
-                    font-size: 2rem;
-                    font-weight: bold;
-                }
-
-                .score-status {
-                    font-size: 0.9rem;
-                    color: var(--text-secondary);
-                }
-
-                .score-details {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 0.75rem;
-                }
-
-                .score-detail {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    padding: 0.5rem;
-                    background: var(--card-bg);
-                    border-radius: 10px;
-                    font-size: 0.8rem;
-                }
-
-                .detail-icon {
-                    font-size: 1rem;
-                }
-
-                .detail-name {
-                    flex: 1;
-                    color: var(--text-secondary);
-                }
-
-                .detail-points {
-                    font-weight: bold;
-                    color: var(--text-primary);
-                }
-
-                /* ===== القصة الذكية ===== */
-                .story-section {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    border-radius: 20px;
-                    padding: 1.5rem;
-                    margin-bottom: 1.5rem;
-                    color: white;
-                }
-
-                .section-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin-bottom: 1rem;
-                }
-
-                .section-icon {
-                    font-size: 1.3rem;
-                }
-
-                .section-header h3 {
-                    margin: 0;
-                    color: white;
-                }
-
-                .story-content {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.75rem;
-                }
-
-                .story-paragraph {
-                    margin: 0;
-                    line-height: 1.6;
-                    font-size: 0.9rem;
-                }
-
-                /* ===== التوصية ===== */
-                .recommendation-card {
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
-                    padding: 1.5rem;
-                    margin-bottom: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                .recommendation-card.priority-high {
-                    border-right: 4px solid #ef4444;
-                }
-
-                .recommendation-card.priority-medium {
-                    border-right: 4px solid #f59e0b;
-                }
-
-                .recommendation-card.priority-low {
-                    border-right: 4px solid #10b981;
-                }
-
-                [dir="rtl"] .recommendation-card.priority-high { border-right: none; border-left: 4px solid #ef4444; }
-                [dir="rtl"] .recommendation-card.priority-medium { border-right: none; border-left: 4px solid #f59e0b; }
-                [dir="rtl"] .recommendation-card.priority-low { border-right: none; border-left: 4px solid #10b981; }
-
-                .recommendation-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    margin-bottom: 1rem;
-                }
-
-                .rec-icon {
-                    font-size: 2rem;
-                }
-
-                .rec-title {
-                    font-weight: bold;
-                    font-size: 1.1rem;
-                    color: var(--text-primary);
-                    margin-bottom: 0.25rem;
-                }
-
-                .rec-advice {
-                    color: var(--text-secondary);
-                    font-size: 0.85rem;
-                }
-
-                .rec-action {
-                    background: var(--tertiary-bg);
-                    padding: 0.75rem;
-                    border-radius: 12px;
-                    font-size: 0.85rem;
-                    color: var(--text-primary);
-                }
-
-                /* ===== تبويبات ===== */
-                .reports-tabs {
-                    display: flex;
-                    gap: 0.5rem;
-                    flex-wrap: wrap;
-                    margin-bottom: 1.5rem;
-                    border-bottom: 1px solid var(--border-light);
-                    padding-bottom: 0.5rem;
-                }
-
-                .tab-btn {
-                    padding: 0.5rem 1rem;
-                    background: var(--secondary-bg);
-                    border: 1px solid var(--border-light);
-                    border-radius: 10px;
-                    cursor: pointer;
-                    transition: all var(--transition-fast);
-                    font-size: 0.85rem;
-                }
-
-                .tab-btn:hover {
-                    background: var(--hover-bg);
-                    transform: translateY(-2px);
-                }
-
-                .tab-btn.active {
-                    background: var(--primary);
-                    color: white;
-                    border-color: var(--primary);
-                }
-
-                /* ===== محتوى التبويبات ===== */
-                .summary-tab .stats-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                    gap: 1rem;
-                }
-
-                .stat-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    padding: 1rem;
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    border: 1px solid var(--border-light);
-                }
-
-                .stat-icon {
-                    font-size: 2rem;
-                }
-
-                .stat-info {
-                    flex: 1;
-                }
-
-                .stat-label {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-
-                .stat-value {
-                    font-size: 1.3rem;
-                    font-weight: bold;
-                    color: var(--text-primary);
-                }
-
-                .stat-unit {
-                    font-size: 0.7rem;
-                    font-weight: normal;
-                    margin-left: 0.25rem;
-                    color: var(--text-tertiary);
-                }
-
-                .stat-status {
-                    font-size: 0.7rem;
-                    margin-top: 0.25rem;
-                }
-
-                .stat-status.ideal,
-                .stat-status.excellent,
-                .stat-status.good {
-                    color: #10b981;
-                }
-
-                .stat-status.acceptable {
-                    color: #3b82f6;
-                }
-
-                .stat-status.low,
-                .stat-status.fair {
-                    color: #f59e0b;
-                }
-
-                .stat-status.very_low {
-                    color: #ef4444;
-                }
-
-                /* ===== بطاقات التفاصيل ===== */
-                .detail-card {
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
-                    padding: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                .detail-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    margin-bottom: 1rem;
-                    padding-bottom: 0.5rem;
-                    border-bottom: 1px solid var(--border-light);
-                }
-
-                .detail-header h3 {
-                    margin: 0;
-                    color: var(--text-primary);
-                }
-
-                .detail-stats {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                    gap: 1rem;
-                    margin-bottom: 1rem;
-                }
-
-                .detail-stat {
-                    text-align: center;
-                }
-
-                .detail-stat .stat-label {
-                    display: block;
-                    font-size: 0.7rem;
-                    margin-bottom: 0.25rem;
-                }
-
-                .detail-stat .stat-value {
-                    font-size: 1.2rem;
-                }
-
-                .trend-up { color: #10b981; }
-                .trend-down { color: #ef4444; }
-
-                .detail-message {
-                    padding: 0.75rem;
-                    background: var(--card-bg);
-                    border-radius: 12px;
-                    margin-bottom: 1rem;
-                    font-size: 0.85rem;
-                }
-
-                .detail-tip {
-                    padding: 0.75rem;
-                    background: rgba(16, 185, 129, 0.1);
-                    border-radius: 12px;
-                    font-size: 0.8rem;
-                    color: #10b981;
-                }
-
-                .subtitle {
-                    font-weight: 600;
-                    margin-bottom: 0.5rem;
-                    color: var(--text-secondary);
-                    font-size: 0.8rem;
-                }
-
-                .activity-types,
-                .mood-distribution,
-                .habits-breakdown {
-                    margin-bottom: 1rem;
-                }
-
-                .types-list,
-                .moods-list,
-                .habits-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.5rem;
-                }
-
-                .type-item,
-                .mood-item,
-                .habit-item {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 0.5rem;
-                    background: var(--card-bg);
-                    border-radius: 8px;
-                    font-size: 0.8rem;
-                }
-
-                .habit-progress {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    width: 60%;
-                }
-
-                .habit-progress .progress-bar {
-                    flex: 1;
-                    height: 6px;
-                }
-
-                .empty-data {
-                    text-align: center;
-                    padding: 3rem;
-                }
-
-                .empty-icon {
-                    font-size: 3rem;
-                    margin-bottom: 1rem;
-                    opacity: 0.5;
-                }
-
-                .empty-hint {
-                    font-size: 0.8rem;
-                    color: var(--text-tertiary);
-                    margin-top: 0.5rem;
-                }
-
-                /* ===== حالات التحميل والخطأ ===== */
-                .reports-loading,
-                .reports-error {
-                    background: var(--card-bg);
-                    border-radius: 24px;
-                    padding: 3rem;
-                    text-align: center;
-                }
-
-                .loading-spinner .spinner {
-                    width: 48px;
-                    height: 48px;
-                    border: 3px solid var(--border-light);
-                    border-top-color: var(--primary);
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                    margin: 0 auto 1rem;
-                }
-
-                .error-icon {
-                    font-size: 3rem;
-                    margin-bottom: 1rem;
-                }
-
-                .retry-btn {
-                    margin-top: 1rem;
-                    padding: 0.5rem 1.25rem;
-                    background: var(--primary);
-                    color: white;
-                    border: none;
-                    border-radius: 10px;
-                    cursor: pointer;
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-
-                /* ===== استجابة الشاشات ===== */
-                @media (max-width: 1024px) {
-                    .reports-container {
-                        padding: 1rem;
-                    }
-
-                    .summary-tab .stats-grid {
-                        grid-template-columns: repeat(2, 1fr);
-                    }
-                }
-
-                @media (max-width: 768px) {
-                    .reports-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-
-                    .header-controls {
-                        width: 100%;
-                        flex-direction: column;
-                    }
-
-                    .report-select,
-                    .date-range,
-                    .export-buttons {
-                        width: 100%;
-                    }
-
-                    .date-range {
-                        justify-content: space-between;
-                    }
-
-                    .export-buttons {
-                        gap: 1rem;
-                    }
-
-                    .export-btn {
-                        flex: 1;
-                        text-align: center;
-                    }
-
-                    .score-main {
-                        flex-direction: column;
-                        text-align: center;
-                    }
-
-                    .score-details {
-                        grid-template-columns: 1fr;
-                    }
-
-                    .summary-tab .stats-grid {
-                        grid-template-columns: 1fr;
-                    }
-
-                    .reports-tabs {
-                        justify-content: center;
-                    }
-                }
-
-                @media (max-width: 480px) {
-                    .detail-stats {
-                        grid-template-columns: 1fr;
-                    }
-
-                    .habit-progress {
-                        width: 50%;
-                    }
-                }
+   /* ===========================================
+   Reports.css - الأنماط الداخلية فقط
+   ✅ التقارير الصحية - تصميم احترافي
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
+   =========================================== */
+
+/* ===== الحاوية الرئيسية ===== */
+.reports-container {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-light, #eef2f6);
+    transition: all 0.2s ease;
+}
+
+.dark-mode .reports-container {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+/* ===== رأس الصفحة ===== */
+.reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .reports-header {
+    border-bottom-color: #334155;
+}
+
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.header-title h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.dark-mode .header-title h2 {
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.title-icon {
+    font-size: 1.5rem;
+}
+
+.period-badge {
+    padding: 0.35rem 0.85rem;
+    background: var(--tertiary-bg, #f1f5f9);
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .period-badge {
+    background: #0f172a;
+    color: #94a3b8;
+}
+
+/* ===== أدوات التحكم ===== */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.report-select {
+    padding: 0.5rem 1rem;
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary, #0f172a);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dark-mode .report-select {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+.report-select:focus {
+    outline: none;
+    border-color: #6366f1;
+}
+
+.date-range {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.date-input {
+    padding: 0.5rem 0.75rem;
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 10px;
+    font-size: 0.8rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .date-input {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+/* أزرار التصدير */
+.export-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.export-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.export-btn.json {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.export-btn.csv {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.export-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    filter: brightness(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.export-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== بطاقة درجة الصحة ===== */
+.health-score-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-bottom: 4px solid;
+}
+
+.dark-mode .health-score-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.score-main {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.score-circle {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-bg, #ffffff);
+    border: 4px solid;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.dark-mode .score-circle {
+    background: #1e293b;
+}
+
+.score-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text-primary, #0f172a);
+}
+
+.score-max {
+    font-size: 0.8rem;
+    opacity: 0.6;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.score-grade {
+    font-size: 2.5rem;
+    font-weight: 800;
+}
+
+.score-status {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary, #64748b);
+}
+
+/* تفاصيل الدرجة */
+.score-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+
+.score-detail {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 12px;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .score-detail {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+.detail-icon {
+    font-size: 1rem;
+}
+
+.detail-name {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+.detail-points {
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+/* ===== القصة الذكية ===== */
+.story-section {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.section-icon {
+    font-size: 1.3rem;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: white;
+}
+
+.story-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.story-paragraph {
+    margin: 0;
+    line-height: 1.6;
+    font-size: 0.9rem;
+    opacity: 0.95;
+}
+
+/* ===== بطاقة التوصية ===== */
+.recommendation-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .recommendation-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.recommendation-card.priority-high {
+    border-right: 4px solid #ef4444;
+}
+
+.recommendation-card.priority-medium {
+    border-right: 4px solid #f59e0b;
+}
+
+.recommendation-card.priority-low {
+    border-right: 4px solid #10b981;
+}
+
+[dir="rtl"] .recommendation-card.priority-high { border-right: none; border-left: 4px solid #ef4444; }
+[dir="rtl"] .recommendation-card.priority-medium { border-right: none; border-left: 4px solid #f59e0b; }
+[dir="rtl"] .recommendation-card.priority-low { border-right: none; border-left: 4px solid #10b981; }
+
+.recommendation-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.rec-icon {
+    font-size: 2rem;
+}
+
+.rec-title {
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--text-primary, #0f172a);
+    margin-bottom: 0.25rem;
+}
+
+.rec-advice {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+.rec-action {
+    background: var(--tertiary-bg, #f1f5f9);
+    padding: 0.75rem;
+    border-radius: 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .rec-action {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+/* ===== التبويبات ===== */
+.reports-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+    padding-bottom: 0.5rem;
+}
+
+.dark-mode .reports-tabs {
+    border-bottom-color: #334155;
+}
+
+.tab-btn {
+    padding: 0.5rem 1rem;
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .tab-btn {
+    background: #0f172a;
+    border-color: #334155;
+    color: #94a3b8;
+}
+
+.tab-btn:hover {
+    background: var(--hover-bg, #f1f5f9);
+    transform: translateY(-2px);
+}
+
+.dark-mode .tab-btn:hover {
+    background: #334155;
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border-color: transparent;
+}
+
+/* ===== محتوى التبويبات ===== */
+/* ملخص */
+.summary-tab .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 18px;
+    border: 1px solid var(--border-light, #e2e8f0);
+    transition: all 0.2s;
+}
+
+.dark-mode .stat-item {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.stat-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.stat-icon {
+    font-size: 2rem;
+}
+
+.stat-info {
+    flex: 1;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.stat-value {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+}
+
+.stat-unit {
+    font-size: 0.7rem;
+    font-weight: 500;
+    margin-left: 0.25rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.stat-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+}
+
+.stat-status.ideal,
+.stat-status.excellent,
+.stat-status.good {
+    color: #10b981;
+}
+
+.stat-status.acceptable {
+    color: #3b82f6;
+}
+
+.stat-status.low,
+.stat-status.fair {
+    color: #f59e0b;
+}
+
+.stat-status.very_low,
+.stat-status.unknown {
+    color: #ef4444;
+}
+
+/* ===== بطاقات التفاصيل ===== */
+.detail-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 22px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .detail-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.detail-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .detail-header {
+    border-bottom-color: #334155;
+}
+
+.detail-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.detail-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.detail-stat {
+    text-align: center;
+    padding: 0.5rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 14px;
+}
+
+.dark-mode .detail-stat {
+    background: #1e293b;
+}
+
+.detail-stat .stat-label {
+    display: block;
+    font-size: 0.65rem;
+    margin-bottom: 0.25rem;
+}
+
+.detail-stat .stat-value {
+    font-size: 1.2rem;
+}
+
+.trend-up { color: #10b981; }
+.trend-down { color: #ef4444; }
+
+.detail-message {
+    padding: 0.75rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 14px;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+.detail-tip {
+    padding: 0.75rem;
+    background: rgba(16, 185, 129, 0.08);
+    border-radius: 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #10b981;
+    border-left: 3px solid #10b981;
+}
+
+[dir="rtl"] .detail-tip {
+    border-left: none;
+    border-right: 3px solid #10b981;
+}
+
+.subtitle {
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #64748b);
+}
+
+/* توزيع الأنشطة والمزاج */
+.types-list,
+.moods-list,
+.habits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.type-item,
+.mood-item,
+.habit-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.dark-mode .type-item,
+.dark-mode .mood-item,
+.dark-mode .habit-item {
+    background: #1e293b;
+}
+
+.type-name,
+.mood-name,
+.habit-name {
+    color: var(--text-primary, #0f172a);
+}
+
+.type-minutes,
+.mood-count,
+.habit-rate {
+    color: var(--text-secondary, #64748b);
+    font-weight: 600;
+}
+
+/* شريط تقدم العادات */
+.habit-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 60%;
+}
+
+.habit-progress .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--border-light, #e2e8f0);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.habit-progress .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+/* ===== حالة عدم وجود بيانات ===== */
+.empty-data {
+    text-align: center;
+    padding: 3rem;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-data p {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+    margin-bottom: 0.5rem;
+}
+
+.empty-hint {
+    font-size: 0.75rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== حالات التحميل والخطأ ===== */
+.reports-loading,
+.reports-error {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 3rem;
+    text-align: center;
+    border: 1px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .reports-loading,
+.dark-mode .reports-error {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.loading-spinner .spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border-light, #e2e8f0);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+.error-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.retry-btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1.25rem;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.retry-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+/* ===== أنيميشن ===== */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .recommendation-header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .stat-item {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .score-main {
+    flex-direction: row-reverse;
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .spinner {
+        animation: none;
+    }
+    
+    .stat-item:hover,
+    .tab-btn:hover,
+    .export-btn:hover:not(:disabled),
+    .retry-btn:hover {
+        transform: none;
+    }
+    
+    .habit-progress .progress-fill {
+        transition: none;
+    }
+}
             `}</style>
         </div>
     );

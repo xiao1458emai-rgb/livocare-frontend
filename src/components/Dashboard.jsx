@@ -315,286 +315,315 @@ function Dashboard({ onLogout }) {
             </main>
             
             <style jsx>{`
-                .dashboard-layout {
-                    min-height: 100vh;
-                    background: var(--primary-bg, #f8fafc);
-                    transition: all 0.3s ease;
-                }
-                
-                .dark-mode .dashboard-layout {
-                    background: var(--primary-bg, #0f172a);
-                }
-                
-                .control-bar {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: 70px;
-                    background: var(--card-bg, #ffffff);
-                    border-bottom: 1px solid var(--border-light, #e2e8f0);
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 0 32px;
-                    z-index: 100;
-                    backdrop-filter: blur(10px);
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                }
-                
-                .dark-mode .control-bar {
-                    background: var(--card-bg, #1e293b);
-                    border-color: var(--border-light, #334155);
-                }
-                
-                .control-left {
-                    display: flex;
-                    align-items: center;
-                    gap: 16px;
-                }
-                
-                .menu-toggle {
-                    width: 42px;
-                    height: 42px;
-                    border: none;
-                    border-radius: 8px;
-                    background: var(--secondary-bg, #ffffff);
-                    color: var(--text-primary, #0f172a);
-                    font-size: 1.2rem;
-                    cursor: pointer;
-                    transition: all 0.15s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    border: 1px solid var(--border-light, #e2e8f0);
-                }
-                
-                .dark-mode .menu-toggle {
-                    background: var(--secondary-bg, #0f1420);
-                    border-color: var(--border-light, #334155);
-                }
-                
-                .menu-toggle:hover {
-                    background: rgba(99,102,241,0.08);
-                    transform: scale(1.05);
-                }
-                
-                .app-name {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 1.3rem;
-                    font-weight: 700;
-                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                }
-                
-                .app-name .logo {
-                    font-size: 1.5rem;
-                    -webkit-text-fill-color: initial;
-                }
-                
-                .control-center {
-                    flex: 1;
-                    text-align: center;
-                }
-                
-                .date-display {
-                    display: inline-block;
-                    padding: 0.5rem 1rem;
-                    background: var(--secondary-bg, #ffffff);
-                    border-radius: 9999px;
-                    color: var(--text-secondary, #475569);
-                    font-size: 0.85rem;
-                    border: 1px solid var(--border-light, #e2e8f0);
-                }
-                
-                .dark-mode .date-display {
-                    background: var(--secondary-bg, #0f1420);
-                    border-color: var(--border-light, #334155);
-                }
-                
-                .control-right {
-                    display: flex;
-                    align-items: center;
-                    gap: 16px;
-                    flex-wrap: wrap;
-                }
-                
-                .theme-toggle {
-                    width: 42px;
-                    height: 42px;
-                    border: none;
-                    border-radius: 8px;
-                    background: var(--secondary-bg, #ffffff);
-                    color: var(--text-primary, #0f172a);
-                    font-size: 1.2rem;
-                    cursor: pointer;
-                    transition: all 0.15s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    border: 1px solid var(--border-light, #e2e8f0);
-                }
-                
-                .dark-mode .theme-toggle {
-                    background: var(--secondary-bg, #0f1420);
-                    border-color: var(--border-light, #334155);
-                }
-                
-                .theme-toggle:hover {
-                    background: rgba(99,102,241,0.08);
-                    transform: rotate(15deg);
-                }
-                
-                .logout-btn {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    padding: 0.5rem 1rem;
-                    background: rgba(239, 68, 68, 0.1);
-                    border: 1px solid rgba(239, 68, 68, 0.3);
-                    border-radius: 9999px;
-                    cursor: pointer;
-                    transition: all 0.25s ease;
-                    color: #ef4444;
-                    font-weight: 500;
-                    font-size: 0.9rem;
-                }
-                
-                .logout-btn:hover {
-                    background: #ef4444;
-                    color: white;
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-                }
-                
-                .sidebar-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.5);
-                    z-index: 998;
-                    animation: fadeIn 0.3s ease;
-                    cursor: pointer;
-                }
-                
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-                
-                .dashboard-content {
-                    margin-top: 70px;
-                    padding: 32px;
-                    min-height: calc(100vh - 70px);
-                    background: var(--primary-bg, #f8fafc);
-                }
-                
-                .dark-mode .dashboard-content {
-                    background: var(--primary-bg, #0f172a);
-                }
-                
-                .section-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 16px;
-                    margin-bottom: 32px;
-                    padding-bottom: 16px;
-                    border-bottom: 2px solid var(--border-light, #e2e8f0);
-                }
-                
-                .dark-mode .section-header {
-                    border-color: var(--border-light, #334155);
-                }
-                
-                .section-title {
-                    margin: 0;
-                    color: var(--text-primary, #0f172a);
-                    font-size: clamp(1.3rem, 4vw, 1.8rem);
-                    font-weight: 700;
-                }
-                
-                .dark-mode .section-title {
-                    color: var(--text-primary, #f1f5f9);
-                }
-                
-                @media (max-width: 768px) {
-                    .control-bar {
-                        padding: 0 16px;
-                        height: 60px;
-                    }
-                    
-                    .dashboard-content {
-                        margin-top: 60px;
-                        padding: 16px;
-                    }
-                    
-                    .app-name span:not(.logo) {
-                        display: none;
-                    }
-                    
-                    .date-display {
-                        display: none;
-                    }
-                    
-                    .logout-text {
-                        display: none;
-                    }
-                    
-                    .logout-btn {
-                        padding: 8px;
-                    }
-                    
-                    .section-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-                }
-                
-                @media (max-width: 480px) {
-                    .control-left {
-                        gap: 8px;
-                    }
-                    
-                    .menu-toggle,
-                    .theme-toggle {
-                        width: 38px;
-                        height: 38px;
-                    }
-                }
-                
-                [dir="rtl"] .control-left {
-                    flex-direction: row-reverse;
-                }
-                
-                [dir="rtl"] .control-right {
-                    flex-direction: row-reverse;
-                }
-                
-                @media (prefers-reduced-motion: reduce) {
-                    *,
-                    *::before,
-                    *::after {
-                        animation-duration: 0.01ms !important;
-                        transition-duration: 0.01ms !important;
-                    }
-                    
-                    .logout-btn:hover,
-                    .theme-toggle:hover {
-                        transform: none !important;
-                    }
-                    
-                    .sidebar-overlay {
-                        animation: none !important;
-                    }
-                }
+  /* ===========================================
+   Dashboard.css - الأنماط الداخلية فقط
+   ✅ لوحة التحكم الرئيسية - تصميم نظيف
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
+   =========================================== */
+
+/* ===== تخطيط لوحة التحكم ===== */
+.dashboard-layout {
+    min-height: 100vh;
+    background: var(--primary-bg, #f8fafc);
+    transition: background 0.3s ease;
+}
+
+.dark-mode .dashboard-layout {
+    background: #0f172a;
+}
+
+/* ===== شريط التحكم العلوي ===== */
+.control-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background: var(--card-bg, #ffffff);
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2rem;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.dark-mode .control-bar {
+    background: #1e293b;
+    border-bottom-color: #334155;
+}
+
+/* ===== الجزء الأيسر من شريط التحكم ===== */
+.control-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* زر القائمة */
+.menu-toggle {
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 12px;
+    background: var(--secondary-bg, #ffffff);
+    color: var(--text-primary, #0f172a);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .menu-toggle {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+.menu-toggle:hover {
+    background: rgba(99, 102, 241, 0.1);
+    transform: scale(1.02);
+}
+
+/* اسم التطبيق */
+.app-name {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.3rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.app-name .logo {
+    font-size: 1.5rem;
+    -webkit-text-fill-color: initial;
+}
+
+/* ===== الجزء الأوسط من شريط التحكم ===== */
+.control-center {
+    flex: 1;
+    text-align: center;
+}
+
+.date-display {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 40px;
+    color: var(--text-secondary, #475569);
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .date-display {
+    background: #0f172a;
+    border-color: #334155;
+    color: #94a3b8;
+}
+
+/* ===== الجزء الأيمن من شريط التحكم ===== */
+.control-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* زر تبديل الوضع المظلم */
+.theme-toggle {
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 12px;
+    background: var(--secondary-bg, #ffffff);
+    color: var(--text-primary, #0f172a);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .theme-toggle {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+.theme-toggle:hover {
+    background: rgba(99, 102, 241, 0.1);
+    transform: rotate(15deg);
+}
+
+/* زر تسجيل الخروج */
+.logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 40px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    color: #ef4444;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.logout-btn:hover {
+    background: #ef4444;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.logout-icon {
+    font-size: 1rem;
+}
+
+/* ===== خلفية السايدبار ===== */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    animation: fadeIn 0.25s ease;
+    cursor: pointer;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ===== المحتوى الرئيسي ===== */
+.dashboard-content {
+    margin-top: 70px;
+    padding: 2rem;
+    min-height: calc(100vh - 70px);
+    background: var(--primary-bg, #f8fafc);
+}
+
+.dark-mode .dashboard-content {
+    background: #0f172a;
+}
+
+/* ===== رأس القسم ===== */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .section-header {
+    border-bottom-color: #334155;
+}
+
+.section-title {
+    margin: 0;
+    font-size: clamp(1.3rem, 4vw, 1.8rem);
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .section-title {
+    color: #f1f5f9;
+}
+
+/* ===== محتوى القسم ===== */
+.section-content {
+    animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .control-left {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .control-right {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .section-header {
+    flex-direction: row-reverse;
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .logout-btn:hover,
+    .theme-toggle:hover,
+    .menu-toggle:hover {
+        transform: none !important;
+    }
+    
+    .sidebar-overlay {
+        animation: none !important;
+    }
+    
+    .section-content {
+        animation: none;
+    }
+}
+
+/* ===== دعم التباين العالي ===== */
+@media (prefers-contrast: high) {
+    .control-bar {
+        border-bottom-width: 2px;
+    }
+    
+    .logout-btn {
+        border-width: 2px;
+    }
+    
+    .menu-toggle,
+    .theme-toggle {
+        border-width: 2px;
+    }
+    
+    .section-header {
+        border-bottom-width: 3px;
+    }
+}
             `}</style>
         </div>
     );

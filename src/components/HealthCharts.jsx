@@ -851,378 +851,452 @@ function HealthCharts({ refreshKey, isArabic: propIsArabic }) {
 
             {/* ✅ أنماط CSS المضمنة */}
             <style jsx>{`
-                .health-charts-container {
-                    background: var(--card-bg);
-                    border-radius: 24px;
-                    padding: 1.5rem;
-                    border: 1px solid var(--border-light);
-                    transition: all var(--transition-medium);
-                    margin: 1.5rem 0;
-                }
+   /* ===========================================
+   HealthCharts.css - الأنماط الداخلية فقط
+   ✅ الرسوم البيانية الصحية - تصميم نظيف
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
+   =========================================== */
 
-                .health-charts-container.dark-mode {
-                    background: var(--card-bg);
-                    border-color: var(--border-light);
-                }
+/* ===== الحاوية الرئيسية ===== */
+.health-charts-container {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-light, #eef2f6);
+    transition: all 0.2s ease;
+    margin: 1.5rem 0;
+}
 
-                /* ===== رأس القسم ===== */
-                .charts-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 1rem;
-                    margin-bottom: 1.5rem;
-                    padding-bottom: 1rem;
-                    border-bottom: 2px solid var(--border-light);
-                }
+.dark-mode .health-charts-container {
+    background: #1e293b;
+    border-color: #334155;
+}
 
-                .header-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                }
+/* ===== رأس القسم ===== */
+.charts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-light, #eef2f6);
+}
 
-                .header-icon {
-                    font-size: 1.8rem;
-                }
+.dark-mode .charts-header {
+    border-bottom-color: #334155;
+}
 
-                .header-title h2 {
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1.3rem;
-                    font-weight: 700;
-                }
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
 
-                .header-stats {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    flex-wrap: wrap;
-                }
+.header-icon {
+    font-size: 1.8rem;
+}
 
-                .stat-badge {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.35rem;
-                    padding: 0.35rem 0.75rem;
-                    background: var(--tertiary-bg);
-                    border-radius: 20px;
-                    font-size: 0.8rem;
-                }
+.header-title h2 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
 
-                .stat-badge .stat-icon {
-                    font-size: 0.9rem;
-                }
+.dark-mode .header-title h2 {
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
 
-                .stat-badge .stat-value {
-                    font-weight: 700;
-                    color: var(--primary);
-                }
+.header-stats {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
 
-                .stat-badge .stat-label {
-                    color: var(--text-secondary);
-                }
+.stat-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    background: var(--tertiary-bg, #f1f5f9);
+    border-radius: 20px;
+    font-size: 0.8rem;
+}
 
-                .refresh-charts-btn {
-                    width: 34px;
-                    height: 34px;
-                    background: var(--secondary-bg);
-                    border: 1px solid var(--border-light);
-                    border-radius: 10px;
-                    cursor: pointer;
-                    transition: all var(--transition-fast);
-                    font-size: 1rem;
-                }
+.dark-mode .stat-badge {
+    background: #0f172a;
+}
 
-                .refresh-charts-btn:hover:not(:disabled) {
-                    background: var(--hover-bg);
-                    transform: rotate(180deg);
-                }
+.stat-badge .stat-icon {
+    font-size: 0.9rem;
+}
 
-                /* ===== شبكة الرسوم ===== */
-                .charts-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-                    gap: 1.5rem;
-                }
+.stat-badge .stat-value {
+    font-weight: 700;
+    color: #6366f1;
+}
 
-                /* ===== بطاقات الرسوم ===== */
-                .chart-card {
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
-                    padding: 1rem;
-                    border: 1px solid var(--border-light);
-                    transition: all var(--transition-medium);
-                }
+.stat-badge .stat-label {
+    color: var(--text-secondary, #64748b);
+}
 
-                .chart-card:hover {
-                    transform: translateY(-3px);
-                    box-shadow: var(--shadow-lg);
-                    border-color: var(--primary);
-                }
+.refresh-charts-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary, #64748b);
+}
 
-                .chart-card-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 0.75rem;
-                    margin-bottom: 1rem;
-                    padding-bottom: 0.75rem;
-                    border-bottom: 1px solid var(--border-light);
-                }
+.dark-mode .refresh-charts-btn {
+    background: #0f172a;
+    border-color: #475569;
+    color: #94a3b8;
+}
 
-                .chart-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                }
+.refresh-charts-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    transform: rotate(180deg);
+    border-color: transparent;
+}
 
-                .chart-icon {
-                    font-size: 1.3rem;
-                }
+.refresh-charts-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
-                .chart-title h3 {
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1rem;
-                    font-weight: 600;
-                }
+/* ===== شبكة الرسوم البيانية ===== */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 1.5rem;
+}
 
-                .chart-legend {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
+/* ===== بطاقات الرسوم البيانية ===== */
+.chart-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 24px;
+    padding: 1.25rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+    transition: all 0.2s ease;
+}
 
-                .legend-dot {
-                    width: 10px;
-                    height: 10px;
-                    border-radius: 3px;
-                }
+.dark-mode .chart-card {
+    background: #0f172a;
+    border-color: #334155;
+}
 
-                .chart-stats {
-                    display: flex;
-                    gap: 0.75rem;
-                }
+.chart-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
 
-                .chart-stat {
-                    display: flex;
-                    align-items: baseline;
-                    gap: 0.25rem;
-                    font-size: 0.7rem;
-                }
+.dark-mode .chart-card:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
 
-                .chart-stat .stat-label {
-                    color: var(--text-tertiary);
-                }
+/* ألوان حواف البطاقات */
+.weight-card:hover { border-top: 3px solid #3b82f6; }
+.bp-card:hover { border-top: 3px solid #ef4444; }
+.glucose-card:hover { border-top: 3px solid #10b981; }
+.heartrate-card:hover { border-top: 3px solid #ec489a; }
+.spo2-card:hover { border-top: 3px solid #06b6d4; }
+.temperature-card:hover { border-top: 3px solid #f97316; }
 
-                .chart-stat .stat-value {
-                    font-weight: 700;
-                    color: var(--text-primary);
-                }
+/* ===== رأس البطاقة ===== */
+.chart-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+}
 
-                .chart-stat .stat-unit {
-                    color: var(--text-tertiary);
-                    font-size: 0.65rem;
-                }
+.dark-mode .chart-card-header {
+    border-bottom-color: #334155;
+}
 
-                .chart-stat.trend.up .stat-value {
-                    color: #ef4444;
-                }
+.chart-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
 
-                .chart-stat.trend.down .stat-value {
-                    color: #10b981;
-                }
+.chart-icon {
+    font-size: 1.3rem;
+}
 
-                .chart-stat.warning .stat-value {
-                    color: #f59e0b;
-                }
+.chart-title h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
 
-                .chart-wrapper {
-                    height: 260px;
-                    position: relative;
-                }
+.dark-mode .chart-title h3 {
+    color: #f1f5f9;
+}
 
-                .chart-card-footer {
-                    margin-top: 0.75rem;
-                    padding-top: 0.75rem;
-                    border-top: 1px solid var(--border-light);
-                }
+/* ===== وسائل الإيضاح والإحصائيات ===== */
+.chart-legend {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+}
 
-                .normal-range-info {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.35rem;
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+}
 
-                .info-icon {
-                    font-size: 0.8rem;
-                }
+.chart-stats {
+    display: flex;
+    gap: 0.75rem;
+}
 
-                /* ===== ألوان حواف البطاقات ===== */
-                .weight-card:hover { border-top: 3px solid #3b82f6; }
-                .bp-card:hover { border-top: 3px solid #ef4444; }
-                .glucose-card:hover { border-top: 3px solid #10b981; }
-                .heartrate-card:hover { border-top: 3px solid #ec489a; }
-                .spo2-card:hover { border-top: 3px solid #06b6d4; }
-                .temperature-card:hover { border-top: 3px solid #f97316; }
+.chart-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    font-size: 0.7rem;
+}
 
-                /* ===== حالات التحميل والخطأ ===== */
-                .charts-loading,
-                .charts-error,
-                .charts-empty {
-                    background: var(--card-bg);
-                    border-radius: 24px;
-                    padding: 3rem;
-                    text-align: center;
-                    border: 1px solid var(--border-light);
-                    margin: 1.5rem 0;
-                }
+.chart-stat .stat-label {
+    color: var(--text-tertiary, #94a3b8);
+}
 
-                .loading-spinner .spinner {
-                    width: 48px;
-                    height: 48px;
-                    border: 3px solid var(--border-light);
-                    border-top-color: var(--primary);
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                    margin: 0 auto 1rem;
-                }
+.chart-stat .stat-value {
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
 
-                .error-content .error-icon {
-                    font-size: 3rem;
-                    margin-bottom: 1rem;
-                }
+.dark-mode .chart-stat .stat-value {
+    color: #f1f5f9;
+}
 
-                .error-content p {
-                    color: var(--error);
-                    margin-bottom: 1rem;
-                }
+.chart-stat .stat-unit {
+    color: var(--text-tertiary, #94a3b8);
+    font-size: 0.65rem;
+}
 
-                .retry-btn {
-                    padding: 0.5rem 1.25rem;
-                    background: var(--primary-gradient);
-                    color: white;
-                    border: none;
-                    border-radius: 10px;
-                    cursor: pointer;
-                    transition: all var(--transition-medium);
-                }
+.chart-stat.trend.up .stat-value {
+    color: #ef4444;
+}
 
-                .retry-btn:hover {
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-lg);
-                }
+.chart-stat.trend.down .stat-value {
+    color: #10b981;
+}
 
-                .empty-content .empty-icon {
-                    font-size: 3.5rem;
-                    margin-bottom: 1rem;
-                    opacity: 0.5;
-                }
+.chart-stat.warning .stat-value {
+    color: #f59e0b;
+}
 
-                .empty-content h3 {
-                    margin: 0 0 0.5rem;
-                    color: var(--text-primary);
-                }
+/* ===== حاوية الرسم البياني ===== */
+.chart-wrapper {
+    height: 280px;
+    position: relative;
+}
 
-                .empty-content p {
-                    color: var(--text-secondary);
-                    margin: 0;
-                }
+/* ===== تذييل البطاقة ===== */
+.chart-card-footer {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-light, #e2e8f0);
+}
 
-                .empty-content .empty-hint {
-                    color: var(--text-tertiary);
-                    font-size: 0.85rem;
-                    margin-top: 0.5rem;
-                }
+.dark-mode .chart-card-footer {
+    border-top-color: #334155;
+}
 
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
+.normal-range-info {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #10b981;
+}
 
-                /* ===== استجابة الشاشات ===== */
-                @media (max-width: 900px) {
-                    .charts-grid {
-                        grid-template-columns: 1fr;
-                    }
-                }
+.info-icon {
+    font-size: 0.8rem;
+}
 
-                @media (max-width: 768px) {
-                    .health-charts-container {
-                        padding: 1rem;
-                    }
+/* ===== حالات التحميل والخطأ والبيانات الفارغة ===== */
+.charts-loading,
+.charts-error,
+.charts-empty {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 3rem;
+    text-align: center;
+    border: 1px solid var(--border-light, #eef2f6);
+    margin: 1.5rem 0;
+}
 
-                    .charts-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
+.dark-mode .charts-loading,
+.dark-mode .charts-error,
+.dark-mode .charts-empty {
+    background: #1e293b;
+    border-color: #334155;
+}
 
-                    .chart-wrapper {
-                        height: 220px;
-                    }
+.loading-spinner .spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border-light, #e2e8f0);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
 
-                    .chart-card-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-                }
+.loading-spinner p {
+    color: var(--text-secondary, #64748b);
+}
 
-                @media (max-width: 480px) {
-                    .chart-wrapper {
-                        height: 180px;
-                    }
+.error-content .error-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
 
-                    .header-stats {
-                        width: 100%;
-                        justify-content: space-between;
-                    }
+.error-content p {
+    color: #ef4444;
+    margin-bottom: 1rem;
+}
 
-                    .refresh-charts-btn {
-                        width: 100%;
-                    }
-                }
+.retry-btn {
+    padding: 0.5rem 1.25rem;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
 
-                /* ===== RTL دعم ===== */
-                [dir="rtl"] .header-title {
-                    flex-direction: row-reverse;
-                }
+.retry-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
 
-                [dir="rtl"] .chart-title {
-                    flex-direction: row-reverse;
-                }
+.empty-content .empty-icon {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
 
-                [dir="rtl"] .chart-legend {
-                    flex-direction: row-reverse;
-                }
+.empty-content h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary, #0f172a);
+}
 
-                [dir="rtl"] .chart-stats {
-                    flex-direction: row-reverse;
-                }
+.dark-mode .empty-content h3 {
+    color: #f1f5f9;
+}
 
-                [dir="rtl"] .normal-range-info {
-                    flex-direction: row-reverse;
-                }
+.empty-content p {
+    color: var(--text-secondary, #64748b);
+    margin: 0;
+}
 
-                /* ===== دعم الحركة المخفضة ===== */
-                @media (prefers-reduced-motion: reduce) {
-                    .spinner {
-                        animation: none;
-                    }
+.empty-content .empty-hint {
+    color: var(--text-tertiary, #94a3b8);
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+}
 
-                    .chart-card:hover {
-                        transform: none;
-                    }
+/* ===== أنيميشن ===== */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
 
-                    .refresh-charts-btn:hover {
-                        transform: none;
-                    }
-                }
+/* ===== دعم RTL ===== */
+[dir="rtl"] .header-title {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .chart-title {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .chart-legend {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .chart-stats {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .normal-range-info {
+    flex-direction: row-reverse;
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .spinner {
+        animation: none;
+    }
+    
+    .chart-card:hover {
+        transform: none;
+    }
+    
+    .refresh-charts-btn:hover:not(:disabled) {
+        transform: none;
+    }
+    
+    .retry-btn:hover {
+        transform: none;
+    }
+}
+
+/* ===== دعم التباين العالي ===== */
+@media (prefers-contrast: high) {
+    .chart-card {
+        border-width: 2px;
+    }
+    
+    .weight-card:hover,
+    .bp-card:hover,
+    .glucose-card:hover,
+    .heartrate-card:hover,
+    .spo2-card:hover,
+    .temperature-card:hover {
+        border-top-width: 4px;
+    }
+    
+    .stat-badge {
+        border: 1px solid currentColor;
+    }
+}
             `}</style>
         </div>
     );

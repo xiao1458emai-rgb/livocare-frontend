@@ -664,686 +664,785 @@ function SleepTracker({ onDataSubmitted }) {
 
             {/* ✅ أنماط CSS المحسنة */}
             <style jsx>{`
-                .sleep-tracker-container {
-                    background: var(--card-bg);
-                    border-radius: 24px;
-                    padding: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                /* ===== رأس الصفحة ===== */
-                .sleep-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 1rem;
-                    margin-bottom: 1.5rem;
-                    padding-bottom: 1rem;
-                    border-bottom: 2px solid var(--border-light);
-                }
-
-                .sleep-header h2 {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1.3rem;
-                }
-
-                .header-icon {
-                    font-size: 1.5rem;
-                }
-
-                .header-controls {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
-
-                .auto-refresh-label {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    cursor: pointer;
-                    padding: 0.25rem 0.5rem;
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
-                    border: 1px solid var(--border-light);
-                }
-
-                .auto-refresh-label input {
-                    position: absolute;
-                    opacity: 0;
-                    width: 0;
-                    height: 0;
-                }
-
-                .toggle-slider {
-                    width: 36px;
-                    height: 18px;
-                    background: var(--border-light);
-                    border-radius: 18px;
-                    position: relative;
-                    transition: all var(--transition-fast);
-                }
-
-                .toggle-slider::before {
-                    content: '';
-                    position: absolute;
-                    width: 14px;
-                    height: 14px;
-                    background: white;
-                    border-radius: 50%;
-                    top: 2px;
-                    left: 2px;
-                    transition: all var(--transition-fast);
-                }
-
-                input:checked + .toggle-slider {
-                    background: var(--primary);
-                }
-
-                input:checked + .toggle-slider::before {
-                    transform: translateX(18px);
-                }
-
-                [dir="rtl"] input:checked + .toggle-slider::before {
-                    transform: translateX(-18px);
-                }
-
-                .toggle-text {
-                    font-size: 0.75rem;
-                    color: var(--text-secondary);
-                }
-
-                .last-update {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                    padding: 0.25rem 0.5rem;
-                    background: var(--tertiary-bg);
-                    border-radius: 12px;
-                }
-
-                /* ===== نموذج النوم ===== */
-                .sleep-form {
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
-                    padding: 1.5rem;
-                    margin-bottom: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                .form-row {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 1rem;
-                    margin-bottom: 1rem;
-                }
-
-                .form-field {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.5rem;
-                }
-
-                .form-field label {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    font-weight: 600;
-                    color: var(--text-primary);
-                    font-size: 0.85rem;
-                }
-
-                .field-icon {
-                    font-size: 1rem;
-                }
-
-                .optional {
-                    font-weight: normal;
-                    color: var(--text-tertiary);
-                    font-size: 0.7rem;
-                }
-
-                .form-input {
-                    width: 100%;
-                    padding: 0.75rem 1rem;
-                    background: var(--card-bg);
-                    border: 1px solid var(--border-light);
-                    border-radius: 12px;
-                    color: var(--text-primary);
-                    font-size: 0.9rem;
-                }
-
-                .form-input:focus {
-                    outline: none;
-                    border-color: var(--primary);
-                }
-
-                .form-textarea {
-                    width: 100%;
-                    padding: 0.75rem 1rem;
-                    background: var(--card-bg);
-                    border: 1px solid var(--border-light);
-                    border-radius: 12px;
-                    color: var(--text-primary);
-                    font-size: 0.9rem;
-                    resize: vertical;
-                    font-family: inherit;
-                }
-
-                .form-textarea:focus {
-                    outline: none;
-                    border-color: var(--primary);
-                }
-
-                .duration-card {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    padding: 0.75rem;
-                    background: rgba(16, 185, 129, 0.1);
-                    border-radius: 12px;
-                    margin-bottom: 1rem;
-                }
-
-                .duration-icon {
-                    font-size: 1.3rem;
-                }
-
-                .duration-content {
-                    flex: 1;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: baseline;
-                    flex-wrap: wrap;
-                    gap: 0.5rem;
-                }
-
-                .duration-label {
-                    font-size: 0.75rem;
-                    color: var(--text-secondary);
-                }
-
-                .duration-value {
-                    font-weight: bold;
-                    font-size: 1.1rem;
-                    color: var(--success);
-                }
-
-                .duration-unit {
-                    font-size: 0.7rem;
-                    font-weight: normal;
-                }
-
-                .quality-selector {
-                    position: relative;
-                }
-
-                .quality-select {
-                    width: 100%;
-                    padding: 0.75rem 1rem;
-                    background: var(--card-bg);
-                    border: 2px solid;
-                    border-radius: 12px;
-                    color: var(--text-primary);
-                    font-size: 0.9rem;
-                    cursor: pointer;
-                }
-
-                .form-actions {
-                    display: flex;
-                    gap: 1rem;
-                    margin-top: 1rem;
-                }
-
-                .submit-btn {
-                    flex: 2;
-                    padding: 0.75rem;
-                    background: var(--primary-gradient);
-                    color: white;
-                    border: none;
-                    border-radius: 12px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all var(--transition-medium);
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 0.5rem;
-                }
-
-                .submit-btn:hover:not(:disabled) {
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-md);
-                }
-
-                .reset-btn {
-                    flex: 1;
-                    padding: 0.75rem;
-                    background: var(--secondary-bg);
-                    border: 1px solid var(--border-light);
-                    border-radius: 12px;
-                    color: var(--text-secondary);
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: all var(--transition-medium);
-                }
-
-                .reset-btn:hover:not(:disabled) {
-                    background: var(--hover-bg);
-                }
-
-                .submit-btn:disabled,
-                .reset-btn:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-
-                .btn-spinner {
-                    width: 14px;
-                    height: 14px;
-                    border: 2px solid rgba(255,255,255,0.3);
-                    border-top-color: white;
-                    border-radius: 50%;
-                    animation: spin 0.6s linear infinite;
-                }
-
-                /* ===== رسائل ===== */
-                .message-toast {
-                    margin-top: 1rem;
-                    padding: 0.75rem 1rem;
-                    border-radius: 12px;
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                }
-
-                .message-toast.success {
-                    background: rgba(16, 185, 129, 0.1);
-                    border: 1px solid #10b981;
-                    color: #10b981;
-                }
-
-                .message-toast.error {
-                    background: rgba(239, 68, 68, 0.1);
-                    border: 1px solid #ef4444;
-                    color: #ef4444;
-                }
-
-                .message-text {
-                    flex: 1;
-                    font-size: 0.85rem;
-                }
-
-                .message-close {
-                    background: none;
-                    border: none;
-                    color: inherit;
-                    cursor: pointer;
-                    font-size: 1rem;
-                }
-
-                /* ===== بطاقات الإحصائيات ===== */
-                .stats-grid {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 1rem;
-                    margin-bottom: 1.5rem;
-                }
-
-                .stat-card {
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    padding: 1rem;
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    border: 1px solid var(--border-light);
-                    transition: all var(--transition-fast);
-                }
-
-                .stat-card:hover {
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-md);
-                }
-
-                .stat-icon {
-                    font-size: 1.8rem;
-                    width: 45px;
-                    height: 45px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: var(--hover-bg);
-                    border-radius: 12px;
-                }
-
-                .stat-info {
-                    flex: 1;
-                }
-
-                .stat-value {
-                    font-size: 1.5rem;
-                    font-weight: bold;
-                    color: var(--text-primary);
-                    line-height: 1.2;
-                }
-
-                .stat-label {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-
-                .stat-unit {
-                    font-size: 0.6rem;
-                    color: var(--text-tertiary);
-                }
-
-                /* ===== سجل النوم ===== */
-                .sleep-history {
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
-                    padding: 1rem;
-                    margin-bottom: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                .history-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 1rem;
-                    padding-bottom: 0.5rem;
-                    border-bottom: 1px solid var(--border-light);
-                }
-
-                .history-header h3 {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1rem;
-                }
-
-                .refresh-history-btn {
-                    background: none;
-                    border: none;
-                    font-size: 1.1rem;
-                    cursor: pointer;
-                    padding: 0.25rem;
-                    border-radius: 8px;
-                    transition: all var(--transition-fast);
-                }
-
-                .refresh-history-btn:hover:not(:disabled) {
-                    background: var(--hover-bg);
-                    transform: rotate(180deg);
-                }
-
-                .history-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.75rem;
-                    max-height: 400px;
-                    overflow-y: auto;
-                }
-
-                .history-item {
-                    background: var(--card-bg);
-                    border-radius: 14px;
-                    padding: 1rem;
-                    border: 1px solid var(--border-light);
-                    border-top: 3px solid;
-                    transition: all var(--transition-fast);
-                }
-
-                .history-item:hover {
-                    transform: translateX(4px);
-                    box-shadow: var(--shadow-sm);
-                }
-
-                [dir="rtl"] .history-item:hover {
-                    transform: translateX(-4px);
-                }
-
-                .item-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 0.5rem;
-                    margin-bottom: 0.75rem;
-                }
-
-                .item-date {
-                    font-size: 0.75rem;
-                    color: var(--text-tertiary);
-                }
-
-                .item-actions {
-                    display: flex;
-                    gap: 0.5rem;
-                }
-
-                .edit-btn,
-                .delete-btn {
-                    background: none;
-                    border: none;
-                    font-size: 0.9rem;
-                    cursor: pointer;
-                    padding: 0.25rem;
-                    border-radius: 6px;
-                    transition: all var(--transition-fast);
-                }
-
-                .edit-btn:hover {
-                    background: rgba(59, 130, 246, 0.1);
-                    transform: scale(1.05);
-                }
-
-                .delete-btn:hover {
-                    background: rgba(239, 68, 68, 0.1);
-                    transform: scale(1.05);
-                }
-
-                .item-stats {
-                    display: flex;
-                    gap: 1rem;
-                    margin-bottom: 0.5rem;
-                    flex-wrap: wrap;
-                }
-
-                .stat-detail {
-                    display: flex;
-                    align-items: baseline;
-                    gap: 0.5rem;
-                    flex-wrap: wrap;
-                }
-
-                .detail-label {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-
-                .detail-value {
-                    font-weight: 600;
-                    font-size: 0.9rem;
-                    color: var(--text-primary);
-                }
-
-                .detail-unit {
-                    font-size: 0.65rem;
-                    font-weight: normal;
-                    color: var(--text-tertiary);
-                }
-
-                .item-notes {
-                    margin-top: 0.5rem;
-                    padding-top: 0.5rem;
-                    border-top: 1px solid var(--border-light);
-                    font-size: 0.75rem;
-                    color: var(--text-secondary);
-                }
-
-                .loading-state,
-                .empty-state {
-                    text-align: center;
-                    padding: 2rem;
-                }
-
-                .spinner {
-                    width: 40px;
-                    height: 40px;
-                    border: 3px solid var(--border-light);
-                    border-top-color: var(--primary);
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                    margin: 0 auto 1rem;
-                }
-
-                .empty-icon {
-                    font-size: 3rem;
-                    margin-bottom: 1rem;
-                    opacity: 0.5;
-                }
-
-                .analytics-wrapper {
-                    margin-top: 1rem;
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-
-                /* ===== استجابة الهواتف ===== */
-                @media (max-width: 768px) {
-                    .sleep-tracker-container {
-                        padding: 1rem;
-                    }
-
-                    .sleep-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-
-                    .header-controls {
-                        width: 100%;
-                        justify-content: space-between;
-                    }
-
-                    .sleep-form {
-                        padding: 1rem;
-                    }
-
-                    .form-row {
-                        grid-template-columns: 1fr;
-                        gap: 0.75rem;
-                    }
-
-                    .form-actions {
-                        flex-direction: column;
-                    }
-
-                    .submit-btn,
-                    .reset-btn {
-                        width: 100%;
-                    }
-
-                    .stats-grid {
-                        grid-template-columns: repeat(2, 1fr);
-                        gap: 0.75rem;
-                    }
-
-                    .stat-card {
-                        padding: 0.75rem;
-                    }
-
-                    .stat-icon {
-                        width: 35px;
-                        height: 35px;
-                        font-size: 1.3rem;
-                    }
-
-                    .stat-value {
-                        font-size: 1.2rem;
-                    }
-
-                    .history-item {
-                        padding: 0.75rem;
-                    }
-
-                    .item-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-
-                    .item-stats {
-                        flex-direction: column;
-                        gap: 0.5rem;
-                    }
-
-                    .duration-content {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-                }
-
-                @media (max-width: 480px) {
-                    .stats-grid {
-                        grid-template-columns: 1fr;
-                    }
-
-                    .stat-card {
-                        flex-direction: row;
-                        justify-content: space-between;
-                    }
-
-                    .stat-info {
-                        text-align: right;
-                    }
-
-                    [dir="rtl"] .stat-info {
-                        text-align: left;
-                    }
-                }
-
-                /* ===== RTL دعم ===== */
-                [dir="rtl"] .auto-refresh-label {
-                    flex-direction: row-reverse;
-                }
-
-                [dir="rtl"] .stat-card {
-                    flex-direction: row-reverse;
-                }
-
-                [dir="rtl"] .item-header {
-                    flex-direction: row-reverse;
-                }
-
-                @media (max-width: 768px) {
-                    [dir="rtl"] .item-header {
-                        flex-direction: column;
-                        align-items: flex-end;
-                    }
-                }
-
-                /* ===== دعم الحركة المخفضة ===== */
-                @media (prefers-reduced-motion: reduce) {
-                    .spinner,
-                    .btn-spinner {
-                        animation: none;
-                    }
-
-                    .stat-card:hover,
-                    .history-item:hover {
-                        transform: none;
-                    }
-                }
+/* ===========================================
+   SleepTracker.css - الأنماط الداخلية فقط
+   ✅ تتبع النوم - تصميم مريح ومهدئ
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
+   =========================================== */
+
+/* ===== الحاوية الرئيسية ===== */
+.sleep-tracker-container {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-light, #eef2f6);
+    transition: all 0.2s ease;
+}
+
+.dark-mode .sleep-tracker-container {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+/* ===== رأس الصفحة ===== */
+.sleep-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .sleep-header {
+    border-bottom-color: #334155;
+}
+
+.sleep-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.dark-mode .sleep-header h2 {
+    background: linear-gradient(135deg, #a78bfa, #f472b6);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.header-icon {
+    font-size: 1.5rem;
+}
+
+/* ===== أدوات التحكم ===== */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.auto-refresh-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .auto-refresh-label {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.auto-refresh-label input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    width: 36px;
+    height: 18px;
+    background: var(--border-light, #e2e8f0);
+    border-radius: 18px;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.dark-mode .toggle-slider {
+    background: #334155;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: all 0.2s;
+}
+
+input:checked + .toggle-slider {
+    background: #8b5cf6;
+}
+
+input:checked + .toggle-slider::before {
+    transform: translateX(18px);
+}
+
+[dir="rtl"] input:checked + .toggle-slider::before {
+    transform: translateX(-18px);
+}
+
+.toggle-text {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary, #64748b);
+}
+
+.last-update {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--text-tertiary, #94a3b8);
+    padding: 0.25rem 0.5rem;
+    background: var(--tertiary-bg, #f1f5f9);
+    border-radius: 12px;
+}
+
+/* ===== نموذج النوم ===== */
+.sleep-form {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .sleep-form {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-field label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .form-field label {
+    color: #f1f5f9;
+}
+
+.field-icon {
+    font-size: 1rem;
+}
+
+.optional {
+    font-weight: 500;
+    color: var(--text-tertiary, #94a3b8);
+    font-size: 0.7rem;
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 14px;
+    font-size: 0.9rem;
+    color: var(--text-primary, #0f172a);
+    transition: all 0.2s;
+}
+
+.dark-mode .form-input {
+    background: #1e293b;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.form-textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 14px;
+    font-size: 0.9rem;
+    color: var(--text-primary, #0f172a);
+    resize: vertical;
+    font-family: inherit;
+}
+
+.dark-mode .form-textarea {
+    background: #1e293b;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+.form-textarea:focus {
+    outline: none;
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+/* بطاقة المدة المحسوبة */
+.duration-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 14px;
+    margin-bottom: 1rem;
+    border-left: 3px solid #8b5cf6;
+}
+
+[dir="rtl"] .duration-card {
+    border-left: none;
+    border-right: 3px solid #8b5cf6;
+}
+
+.duration-icon {
+    font-size: 1.3rem;
+}
+
+.duration-content {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.duration-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary, #64748b);
+}
+
+.duration-value {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #8b5cf6;
+}
+
+.duration-unit {
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+/* منتقي جودة النوم */
+.quality-selector {
+    position: relative;
+}
+
+.quality-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border: 2px solid;
+    border-radius: 14px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary, #0f172a);
+    cursor: pointer;
+}
+
+.dark-mode .quality-select {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+/* أزرار الإجراء */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.submit-btn {
+    flex: 2;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.reset-btn {
+    flex: 1;
+    padding: 0.75rem;
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #64748b);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dark-mode .reset-btn {
+    background: #0f172a;
+    border-color: #334155;
+    color: #94a3b8;
+}
+
+.reset-btn:hover:not(:disabled) {
+    background: var(--hover-bg, #f1f5f9);
+}
+
+.submit-btn:disabled,
+.reset-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+}
+
+/* ===== رسائل الإشعارات ===== */
+.message-toast {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: slideIn 0.3s ease;
+}
+
+.message-toast.success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #10b981;
+}
+
+.message-toast.error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.message-text {
+    flex: 1;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.message-close {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 1rem;
+    opacity: 0.7;
+}
+
+.message-close:hover {
+    opacity: 1;
+}
+
+/* ===== بطاقات الإحصائيات ===== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+    transition: all 0.2s;
+}
+
+.dark-mode .stat-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+.dark-mode .stat-card:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.stat-icon {
+    font-size: 1.8rem;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    border-radius: 16px;
+    color: white;
+}
+
+.stat-info {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+    line-height: 1.2;
+}
+
+.dark-mode .stat-value {
+    color: #f1f5f9;
+}
+
+.stat-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.stat-unit {
+    font-size: 0.6rem;
+    font-weight: 500;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== سجل النوم ===== */
+.sleep-history {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 22px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .sleep-history {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .history-header {
+    border-bottom-color: #334155;
+}
+
+.history-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.refresh-history-btn {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 8px;
+    transition: all 0.2s;
+    color: var(--text-secondary, #64748b);
+}
+
+.refresh-history-btn:hover:not(:disabled) {
+    background: var(--hover-bg, #f1f5f9);
+    transform: rotate(180deg);
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.history-item {
+    background: var(--card-bg, #ffffff);
+    border-radius: 18px;
+    padding: 1rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-top: 3px solid;
+    transition: all 0.2s;
+}
+
+.dark-mode .history-item {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+.history-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+[dir="rtl"] .history-item:hover {
+    transform: translateX(-4px);
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.item-date {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.item-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.edit-btn,
+.delete-btn {
+    background: none;
+    border: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    opacity: 0.6;
+}
+
+.edit-btn:hover {
+    opacity: 1;
+    background: rgba(59, 130, 246, 0.1);
+    transform: scale(1.05);
+}
+
+.delete-btn:hover {
+    opacity: 1;
+    background: rgba(239, 68, 68, 0.1);
+    transform: scale(1.05);
+}
+
+.item-stats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.stat-detail {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.detail-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.detail-value {
+    font-weight: 800;
+    font-size: 0.85rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .detail-value {
+    color: #f1f5f9;
+}
+
+.detail-unit {
+    font-size: 0.6rem;
+    font-weight: 500;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.item-notes {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-light, #e2e8f0);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+/* ===== حالات التحميل والبيانات الفارغة ===== */
+.loading-state,
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light, #e2e8f0);
+    border-top-color: #8b5cf6;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state h4 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.empty-state p {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #64748b);
+}
+
+.analytics-wrapper {
+    margin-top: 1rem;
+}
+
+/* ===== أنيميشن ===== */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .stat-card {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .duration-card {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .message-toast {
+    flex-direction: row-reverse;
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .spinner,
+    .btn-spinner {
+        animation: none;
+    }
+    
+    .message-toast {
+        animation: none;
+    }
+    
+    .stat-card:hover,
+    .history-item:hover,
+    .submit-btn:hover:not(:disabled),
+    .edit-btn:hover,
+    .delete-btn:hover {
+        transform: none;
+    }
+    
+    .refresh-history-btn:hover:not(:disabled) {
+        transform: none;
+    }
+}
+
+/* ===== دعم التباين العالي ===== */
+@media (prefers-contrast: high) {
+    .history-item {
+        border-top-width: 4px;
+    }
+    
+    .duration-card {
+        border-left-width: 4px;
+    }
+    
+    [dir="rtl"] .duration-card {
+        border-right-width: 4px;
+    }
+    
+    .message-toast {
+        border-width: 2px;
+    }
+}
             `}</style>
         </div>
     );

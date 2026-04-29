@@ -711,581 +711,695 @@ function HealthDashboard({ refreshKey }) {
 
             {/* ✅ أنماط CSS المضمنة */}
             <style jsx>{`
-                .health-dashboard-container {
-                    background: var(--card-bg);
-                    border-radius: 24px;
-                    padding: 1.5rem;
-                    border: 1px solid var(--border-light);
-                    transition: all var(--transition-medium);
-                }
-
-                /* ===== رأس اللوحة ===== */
-                .dashboard-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 1rem;
-                    margin-bottom: 1.5rem;
-                    padding-bottom: 1rem;
-                    border-bottom: 2px solid var(--border-light);
-                }
-
-                .header-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
-
-                .header-title h2 {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1.3rem;
-                }
-
-                .title-icon {
-                    font-size: 1.5rem;
-                }
-
-                .health-badge {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 0.35rem;
-                    padding: 0.35rem 0.85rem;
-                    border-radius: 50px;
-                    font-size: 0.8rem;
-                    font-weight: 500;
-                }
-
-                .health-badge.status-critical {
-                    background: #fee2e2;
-                    color: #dc2626;
-                }
-
-                .health-badge.status-warning {
-                    background: #fef3c7;
-                    color: #f59e0b;
-                }
-
-                .health-badge.status-good {
-                    background: #dbeafe;
-                    color: #3b82f6;
-                }
-
-                .health-badge.status-excellent {
-                    background: #d1fae5;
-                    color: #10b981;
-                }
-
-                .dark-mode .health-badge.status-critical { background: rgba(220, 38, 38, 0.2); }
-                .dark-mode .health-badge.status-warning { background: rgba(245, 158, 11, 0.2); }
-                .dark-mode .health-badge.status-good { background: rgba(59, 130, 246, 0.2); }
-                .dark-mode .health-badge.status-excellent { background: rgba(16, 185, 129, 0.2); }
-
-                .header-date {
-                    display: flex;
-                    gap: 1rem;
-                }
-
-                .date-info, .time-info {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.35rem;
-                    padding: 0.35rem 0.75rem;
-                    background: var(--tertiary-bg);
-                    border-radius: 20px;
-                    font-size: 0.8rem;
-                    color: var(--text-secondary);
-                }
-
-                /* ===== درجة الصحة ===== */
-                .health-score-section {
-                    display: flex;
-                    justify-content: center;
-                    margin-bottom: 1.5rem;
-                }
-
-                .score-circle-container {
-                    text-align: center;
-                }
-
-                .score-circle {
-                    position: relative;
-                    width: 120px;
-                    height: 120px;
-                    margin-bottom: 0.5rem;
-                }
-
-                .score-label {
-                    font-size: 0.8rem;
-                    color: var(--text-tertiary);
-                }
-
-                /* ===== بطاقات القراءات ===== */
-                .readings-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-                    gap: 1rem;
-                    margin-bottom: 1.5rem;
-                }
-
-                .reading-card {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    padding: 1rem;
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    border: 1px solid var(--border-light);
-                    transition: all var(--transition-medium);
-                }
-
-                .reading-card:hover {
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-md);
-                }
-
-                .reading-card .card-icon {
-                    font-size: 1.8rem;
-                    width: 48px;
-                    height: 48px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: var(--hover-bg);
-                    border-radius: 12px;
-                }
-
-                .reading-card .card-content {
-                    flex: 1;
-                }
-
-                .reading-card .card-label {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                    text-transform: uppercase;
-                }
-
-                .reading-card .card-value {
-                    font-size: 1.3rem;
-                    font-weight: 700;
-                    color: var(--text-primary);
-                }
-
-                .reading-card .card-unit {
-                    font-size: 0.7rem;
-                    font-weight: normal;
-                    margin-left: 0.25rem;
-                    color: var(--text-tertiary);
-                }
-
-                /* ===== التنبيهات ===== */
-                .alerts-section {
-                    background: rgba(239, 68, 68, 0.05);
-                    border-radius: 16px;
-                    padding: 1rem;
-                    margin-bottom: 1.5rem;
-                    border: 1px solid rgba(239, 68, 68, 0.2);
-                }
-
-                .section-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin-bottom: 1rem;
-                }
-
-                .section-icon {
-                    font-size: 1.2rem;
-                }
-
-                .section-header h3 {
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1rem;
-                }
-
-                .alerts-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.75rem;
-                }
-
-                .alert-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    padding: 0.75rem;
-                    border-radius: 12px;
-                }
-
-                .alert-item.severity-high {
-                    background: rgba(220, 38, 38, 0.1);
-                    border-left: 3px solid #dc2626;
-                }
-
-                .alert-item.severity-medium {
-                    background: rgba(245, 158, 11, 0.1);
-                    border-left: 3px solid #f59e0b;
-                }
-
-                [dir="rtl"] .alert-item.severity-high { border-left: none; border-right: 3px solid #dc2626; }
-                [dir="rtl"] .alert-item.severity-medium { border-left: none; border-right: 3px solid #f59e0b; }
-
-                .alert-icon {
-                    font-size: 1.3rem;
-                }
-
-                .alert-content {
-                    flex: 1;
-                }
-
-                .alert-message {
-                    font-weight: 500;
-                    color: var(--text-primary);
-                }
-
-                .alert-value {
-                    font-size: 0.75rem;
-                    color: var(--text-tertiary);
-                }
-
-                /* ===== التوصيات ===== */
-                .recommendations-section {
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    padding: 1rem;
-                    margin-bottom: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                .recommendations-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.75rem;
-                }
-
-                .recommendation-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    padding: 0.5rem;
-                    border-radius: 8px;
-                }
-
-                .rec-number {
-                    width: 24px;
-                    height: 24px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: var(--primary);
-                    color: white;
-                    border-radius: 50%;
-                    font-size: 0.7rem;
-                    font-weight: bold;
-                }
-
-                .rec-text {
-                    color: var(--text-secondary);
-                    font-size: 0.85rem;
-                }
-
-                /* ===== التحليلات المتقدمة ===== */
-                .advanced-insights-section {
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    padding: 1rem;
-                    margin-bottom: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                .cross-insights-section {
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    padding: 1rem;
-                    margin-bottom: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                .advanced-insights-content {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 1rem;
-                }
-
-                .insight-card {
-                    background: var(--card-bg);
-                    border-radius: 12px;
-                    padding: 1rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                .insight-card-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin-bottom: 0.75rem;
-                    padding-bottom: 0.5rem;
-                    border-bottom: 1px solid var(--border-light);
-                }
-
-                .insight-icon {
-                    font-size: 1.2rem;
-                }
-
-                .insight-card-header h4 {
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 0.9rem;
-                }
-
-                .insight-stats-grid {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 0.75rem;
-                }
-
-                .insight-stat {
-                    text-align: center;
-                }
-
-                .insight-stat .stat-label {
-                    display: block;
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-
-                .insight-stat .stat-value {
-                    display: block;
-                    font-size: 1.1rem;
-                    font-weight: bold;
-                    color: var(--text-primary);
-                }
-
-                .insight-stat .stat-value.positive {
-                    color: #10b981;
-                }
-
-                .insight-stat .stat-value.negative {
-                    color: #ef4444;
-                }
-
-                .pulse-value {
-                    text-align: center;
-                    margin-bottom: 0.5rem;
-                }
-
-                .pulse-value .systolic {
-                    font-size: 1.8rem;
-                    font-weight: bold;
-                    color: #ef4444;
-                }
-
-                .pulse-value .diastolic {
-                    font-size: 1.8rem;
-                    font-weight: bold;
-                    color: #8b5cf6;
-                }
-
-                .pulse-value .separator {
-                    font-size: 1.5rem;
-                    margin: 0 0.25rem;
-                }
-
-                .pulse-value .unit {
-                    font-size: 0.8rem;
-                    color: var(--text-tertiary);
-                }
-
-                .pulse-difference {
-                    text-align: center;
-                    font-size: 0.8rem;
-                    color: var(--text-secondary);
-                }
-
-                .recommendations-list-advanced {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.5rem;
-                }
-
-                .recommendations-list-advanced .recommendation-item {
-                    display: flex;
-                    gap: 0.5rem;
-                    font-size: 0.8rem;
-                    color: var(--text-secondary);
-                }
-
-                .rec-bullet {
-                    color: var(--primary);
-                }
-
-                /* ===== حالات التحميل ===== */
-                .insights-loading, .insights-error, .insights-empty {
-                    text-align: center;
-                    padding: 1rem;
-                }
-
-                .spinner-small {
-                    width: 24px;
-                    height: 24px;
-                    border: 2px solid var(--border-light);
-                    border-top-color: var(--primary);
-                    border-radius: 50%;
-                    animation: spin 0.6s linear infinite;
-                    margin: 0 auto 0.5rem;
-                }
-
-                .cross-insights-content {
-                    text-align: center;
-                }
-
-                .cross-insights-content .insight-stats {
-                    display: flex;
-                    justify-content: center;
-                    gap: 1.5rem;
-                    margin-bottom: 0.75rem;
-                }
-
-                .cross-insights-content .stat {
-                    text-align: center;
-                }
-
-                .cross-insights-content .stat-value {
-                    font-size: 1.5rem;
-                    font-weight: bold;
-                    color: var(--primary);
-                }
-
-                .cross-insights-content .stat-label {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-
-                .insight-message {
-                    font-size: 0.8rem;
-                    color: var(--text-secondary);
-                }
-
-                /* ===== أزرار الإجراءات ===== */
-                .dashboard-actions {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 1rem;
-                    margin-top: 1rem;
-                    padding-top: 1rem;
-                    border-top: 1px solid var(--border-light);
-                }
-
-                .refresh-all-btn {
-                    padding: 0.6rem 1.25rem;
-                    background: var(--primary-gradient);
-                    color: white;
-                    border: none;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    transition: all var(--transition-medium);
-                    font-size: 0.85rem;
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                }
-
-                .refresh-all-btn:hover:not(:disabled) {
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-md);
-                }
-
-                .refresh-all-btn:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-
-                .last-refreshed {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-
-                /* ===== حالات عامة ===== */
-                .dashboard-loading, .dashboard-error {
-                    background: var(--card-bg);
-                    border-radius: 24px;
-                    padding: 3rem;
-                    text-align: center;
-                }
-
-                .spinner {
-                    width: 48px;
-                    height: 48px;
-                    border: 3px solid var(--border-light);
-                    border-top-color: var(--primary);
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                    margin: 0 auto 1rem;
-                }
-
-                /* ===== استجابة الشاشات ===== */
-                @media (max-width: 768px) {
-                    .health-dashboard-container {
-                        padding: 1rem;
-                    }
-
-                    .dashboard-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-
-                    .readings-grid {
-                        grid-template-columns: repeat(2, 1fr);
-                    }
-
-                    .insight-stats-grid {
-                        grid-template-columns: 1fr;
-                    }
-
-                    .dashboard-actions {
-                        flex-direction: column;
-                    }
-
-                    .refresh-all-btn {
-                        width: 100%;
-                        justify-content: center;
-                    }
-                }
-
-                @media (max-width: 480px) {
-                    .readings-grid {
-                        grid-template-columns: 1fr;
-                    }
-
-                    .header-date {
-                        flex-direction: column;
-                    }
-                }
-
-                /* ===== RTL دعم ===== */
-                [dir="rtl"] .header-title {
-                    flex-direction: row-reverse;
-                }
-
-                [dir="rtl"] .section-header {
-                    flex-direction: row-reverse;
-                }
-
-                [dir="rtl"] .recommendation-item {
-                    flex-direction: row-reverse;
-                }
+      /* ===========================================
+   HealthDashboard.css - الأنماط الداخلية فقط
+   ✅ لوحة الصحة الذكية - تصميم نظيف
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
+   =========================================== */
+
+/* ===== الحاوية الرئيسية ===== */
+.health-dashboard-container {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-light, #eef2f6);
+    transition: all 0.2s ease;
+}
+
+.dark-mode .health-dashboard-container {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+/* ===== رأس اللوحة ===== */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .dashboard-header {
+    border-bottom-color: #334155;
+}
+
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.header-title h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.dark-mode .header-title h2 {
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.title-icon {
+    font-size: 1.5rem;
+}
+
+/* شارة الحالة الصحية */
+.health-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.health-badge.status-critical {
+    background: rgba(220, 38, 38, 0.12);
+    color: #dc2626;
+    border: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+.health-badge.status-warning {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.health-badge.status-good {
+    background: rgba(59, 130, 246, 0.12);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.health-badge.status-excellent {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+/* التاريخ والوقت */
+.header-date {
+    display: flex;
+    gap: 1rem;
+}
+
+.date-info, .time-info {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    background: var(--tertiary-bg, #f1f5f9);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .date-info,
+.dark-mode .time-info {
+    background: #0f172a;
+    color: #94a3b8;
+}
+
+/* ===== درجة الصحة ===== */
+.health-score-section {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.score-circle-container {
+    text-align: center;
+}
+
+.score-circle {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin-bottom: 0.5rem;
+}
+
+.score-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== بطاقات القراءات ===== */
+.readings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.reading-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    border: 1px solid var(--border-light, #e2e8f0);
+    transition: all 0.2s;
+}
+
+.dark-mode .reading-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.reading-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+.dark-mode .reading-card:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.reading-card .card-icon {
+    font-size: 1.8rem;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--hover-bg, #f1f5f9);
+    border-radius: 14px;
+}
+
+.dark-mode .reading-card .card-icon {
+    background: #1e293b;
+}
+
+.reading-card .card-content {
+    flex: 1;
+}
+
+.reading-card .card-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.reading-card .card-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .reading-card .card-value {
+    color: #f1f5f9;
+}
+
+.reading-card .card-unit {
+    font-size: 0.7rem;
+    font-weight: 500;
+    margin-left: 0.25rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== التنبيهات الصحية ===== */
+.alerts-section {
+    background: rgba(239, 68, 68, 0.04);
+    border-radius: 20px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.section-icon {
+    font-size: 1.2rem;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .section-header h3 {
+    color: #f1f5f9;
+}
+
+.alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.alert-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 14px;
+}
+
+.alert-item.severity-high {
+    background: rgba(220, 38, 38, 0.08);
+    border-left: 3px solid #dc2626;
+}
+
+.alert-item.severity-medium {
+    background: rgba(245, 158, 11, 0.08);
+    border-left: 3px solid #f59e0b;
+}
+
+[dir="rtl"] .alert-item.severity-high { border-left: none; border-right: 3px solid #dc2626; }
+[dir="rtl"] .alert-item.severity-medium { border-left: none; border-right: 3px solid #f59e0b; }
+
+.alert-icon {
+    font-size: 1.3rem;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-message {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.alert-value {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== التوصيات ===== */
+.recommendations-section {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .recommendations-section {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.recommendations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.recommendation-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    border-radius: 12px;
+}
+
+.rec-number {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.rec-text {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .rec-text {
+    color: #94a3b8;
+}
+
+/* ===== التحليلات المتقدمة ===== */
+.advanced-insights-section,
+.cross-insights-section {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .advanced-insights-section,
+.dark-mode .cross-insights-section {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.advanced-insights-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* بطاقات التحليلات */
+.insight-card {
+    background: var(--card-bg, #ffffff);
+    border-radius: 16px;
+    padding: 1rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .insight-card {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+.insight-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .insight-card-header {
+    border-bottom-color: #334155;
+}
+
+.insight-icon {
+    font-size: 1.2rem;
+}
+
+.insight-card-header h4 {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .insight-card-header h4 {
+    color: #f1f5f9;
+}
+
+.insight-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+}
+
+.insight-stat {
+    text-align: center;
+}
+
+.insight-stat .stat-label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.insight-stat .stat-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .insight-stat .stat-value {
+    color: #f1f5f9;
+}
+
+.insight-stat .stat-value.positive {
+    color: #10b981;
+}
+
+.insight-stat .stat-value.negative {
+    color: #ef4444;
+}
+
+/* ضغط النبض */
+.pulse-value {
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.pulse-value .systolic {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ef4444;
+}
+
+.pulse-value .diastolic {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #8b5cf6;
+}
+
+.pulse-value .separator {
+    font-size: 1.5rem;
+    margin: 0 0.25rem;
+}
+
+.pulse-value .unit {
+    font-size: 0.75rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.pulse-difference {
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+/* التوصيات المتقدمة */
+.recommendations-list-advanced {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.recommendations-list-advanced .recommendation-item {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+.rec-bullet {
+    color: #6366f1;
+    font-weight: 800;
+}
+
+/* ===== الرؤى المتقاطعة ===== */
+.cross-insights-content {
+    text-align: center;
+}
+
+.cross-insights-content .insight-stats {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.cross-insights-content .stat-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #6366f1;
+}
+
+.cross-insights-content .stat-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.insight-message {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+/* ===== حالات التحميل ===== */
+.insights-loading,
+.insights-error,
+.insights-empty {
+    text-align: center;
+    padding: 1rem;
+}
+
+.spinner-small {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-light, #e2e8f0);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin: 0 auto 0.5rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== أزرار الإجراءات ===== */
+.dashboard-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .dashboard-actions {
+    border-top-color: #334155;
+}
+
+.refresh-all-btn {
+    padding: 0.6rem 1.25rem;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.refresh-all-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.refresh-all-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.last-refreshed {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== حالات التحميل والخطأ العامة ===== */
+.dashboard-loading,
+.dashboard-error {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 3rem;
+    text-align: center;
+    border: 1px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .dashboard-loading,
+.dark-mode .dashboard-error {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border-light, #e2e8f0);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+.error-content .error-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.retry-btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1.25rem;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.retry-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .header-title {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .section-header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .recommendation-item {
+    flex-direction: row-reverse;
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .spinner,
+    .spinner-small {
+        animation: none;
+    }
+    
+    .reading-card:hover,
+    .refresh-all-btn:hover:not(:disabled),
+    .retry-btn:hover {
+        transform: none;
+    }
+}
             `}</style>
         </div>
     );

@@ -784,136 +784,916 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
 
             {/* CSS */}
             <style jsx>{`
-                .habits-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 1rem;
-                    margin-bottom: 1.5rem;
-                    padding-bottom: 1rem;
-                    border-bottom: 2px solid var(--border-light);
-                }
-                .habits-title { margin: 0; color: var(--text-primary); font-size: 1.3rem; }
-                .habits-date { padding: 0.25rem 0.75rem; background: var(--tertiary-bg); border-radius: 9999px; font-size: 0.75rem; color: var(--text-secondary); }
-                .section-header-inline { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
-                .section-title-icon { display: flex; align-items: center; gap: 0.5rem; }
-                .section-title-icon .icon { font-size: 1.3rem; }
-                .section-title-icon h3 { margin: 0; color: var(--text-primary); font-size: 1.1rem; }
-                .section-desc { margin: 0; font-size: 0.75rem; color: var(--text-tertiary); }
-                .drug-search-section { background: var(--card-bg); border-radius: 20px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--border-light); }
-                .search-bar { display: flex; flex-direction: column; gap: 1rem; }
-                .search-bar .search-input { width: 100%; padding: 0.75rem 1rem; font-size: 0.9rem; }
-                .search-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-                .search-btn { padding: 0.5rem 1rem; background: var(--secondary-bg); border: 1px solid var(--border-light); border-radius: 9999px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
-                .search-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-                .search-btn:hover:not(:disabled) { background: var(--hover-bg); transform: translateY(-2px); }
-                .scan-btn { padding: 0.5rem 1rem; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 9999px; cursor: pointer; }
-                .scan-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-                .drug-results { margin-top: 1.5rem; }
-                .results-header { font-weight: 600; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.85rem; }
-                .results-list { display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto; }
-                .drug-result-item { padding: 1rem; background: var(--secondary-bg); border-radius: 12px; cursor: pointer; transition: all 0.2s; border: 1px solid var(--border-light); }
-                .drug-result-item:hover { background: var(--hover-bg); transform: translateX(4px); }
-                [dir="rtl"] .drug-result-item:hover { transform: translateX(-4px); }
-                .drug-name { font-weight: 600; margin-bottom: 0.25rem; color: var(--text-primary); }
-                .drug-generic { font-size: 0.7rem; color: var(--text-tertiary); margin-left: 0.5rem; }
-                .drug-details { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.7rem; color: var(--text-tertiary); }
-                .points-section { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); border-radius: 20px; padding: 1.5rem; margin-bottom: 1.5rem; color: white; }
-                .points-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
-                .points-icon { font-size: 1.5rem; }
-                .points-header h3 { margin: 0; color: white; }
-                .points-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-                .point-card { background: rgba(255,255,255,0.15); backdrop-filter: blur(5px); border-radius: 12px; padding: 1rem; text-align: center; }
-                .point-value { font-size: 2rem; font-weight: bold; color: white; }
-                .point-label { font-size: 0.7rem; opacity: 0.9; }
-                .progress-section { background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%); border-radius: 20px; padding: 1.5rem; margin-bottom: 1.5rem; color: white; }
-                .progress-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
-                .progress-icon { font-size: 1.5rem; }
-                .progress-header h3 { margin: 0; color: white; }
-                .progress-stats { display: flex; flex-direction: column; gap: 0.5rem; }
-                .progress-count { font-size: 1rem; }
-                .progress-bar-wrapper { display: flex; align-items: center; gap: 1rem; }
-                .progress-bar-wrapper .progress-bar { flex: 1; background: rgba(255,255,255,0.3); height: 8px; border-radius: 10px; overflow: hidden; }
-                .progress-bar-wrapper .progress-fill { background: white; height: 100%; border-radius: 10px; transition: width 0.3s; }
-                .progress-percentage { font-size: 1rem; font-weight: bold; }
-                .add-habit-section { background: var(--card-bg); border-radius: 20px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--border-light); }
-                .add-habit-form { display: flex; flex-direction: column; gap: 1rem; }
-                .form-group { display: flex; flex-direction: column; gap: 0.25rem; }
-                .form-group label { font-weight: 500; color: var(--text-secondary); font-size: 0.85rem; }
-                .form-group input, .form-group textarea { padding: 0.75rem 1rem; border: 1px solid var(--border-light); border-radius: 12px; background: var(--secondary-bg); color: var(--text-primary); font-size: 0.9rem; }
-                .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); }
-                .submit-btn { padding: 0.875rem; background: var(--primary-gradient); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
-                .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-                .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-                .habits-list-section, .medications-section { background: var(--card-bg); border-radius: 20px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--border-light); }
-                .habits-count, .medications-count { padding: 0.25rem 0.75rem; background: var(--tertiary-bg); border-radius: 9999px; font-size: 0.75rem; color: var(--text-secondary); }
-                .habits-grid, .medications-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
-                .habit-card, .medication-card { background: var(--secondary-bg); border-radius: 12px; padding: 1rem; border: 1px solid var(--border-light); transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
-                .habit-card:hover, .medication-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-                .habit-card.completed, .medication-card.completed { background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.3); }
-                .habit-card-header, .medication-info { display: flex; gap: 0.75rem; flex: 1; align-items: center; }
-                .habit-icon, .medication-icon { font-size: 1.5rem; }
-                .habit-name, .medication-name { font-weight: 600; color: var(--text-primary); }
-                .habit-description, .medication-description { font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.25rem; }
-                .habit-actions, .medication-actions { display: flex; align-items: center; gap: 0.5rem; }
-                .type-toggle { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; background: var(--tertiary-bg); border: 1px solid var(--border-light); font-size: 0.9rem; }
-                .type-toggle.habit:hover { background: rgba(16, 185, 129, 0.2); transform: scale(1.05); }
-                .type-toggle.medication:hover { background: rgba(59, 130, 246, 0.2); transform: scale(1.05); }
-                .points-badge { background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: bold; }
-                .complete-btn, .take-btn { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 1rem; border-radius: 9999px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem; }
-                .complete-btn { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; }
-                .complete-btn:hover:not(:disabled) { background: #10b981; color: white; }
-                .complete-btn.undo { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
-                .complete-btn.undo:hover:not(:disabled) { background: #ef4444; color: white; }
-                .take-btn { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #3b82f6; }
-                .take-btn:hover:not(:disabled) { background: #3b82f6; color: white; }
-                .take-btn.undo { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
-                .take-btn.undo:hover:not(:disabled) { background: #ef4444; color: white; }
-                .type-toggle, .complete-btn, .take-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-                .scanner-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-                .scanner-modal-content { background: var(--card-bg); border-radius: 20px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; padding: 1.5rem; }
-                .scanner-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-light); }
-                .close-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary); }
-                .close-btn:hover { color: #ef4444; }
-                .scanner-footer { margin-top: 1rem; text-align: center; }
-                .cancel-btn { padding: 0.5rem 1.5rem; background: var(--secondary-bg); border: 1px solid var(--border-light); border-radius: 9999px; cursor: pointer; }
-                .notification-toast { position: fixed; bottom: 1rem; right: 1rem; padding: 0.75rem 1.5rem; border-radius: 12px; display: flex; align-items: center; gap: 1rem; animation: slideIn 0.3s ease; z-index: 1000; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-                [dir="rtl"] .notification-toast { right: auto; left: 1rem; }
-                .notification-toast.success { background: #10b981; color: white; }
-                .notification-toast.error { background: #ef4444; color: white; }
-                .notification-toast.info { background: #3b82f6; color: white; }
-                .notification-toast button { background: none; border: none; color: white; cursor: pointer; font-size: 1rem; }
-                .loading-state, .empty-state { text-align: center; padding: 2rem; }
-                .spinner { width: 40px; height: 40px; border: 3px solid var(--border-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
-                .spinner-small { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; }
-                .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
-                .analytics-wrapper { margin-top: 1.5rem; }
-                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
-                [dir="rtl"] @keyframes slideIn { from { opacity: 0; transform: translateX(-100%); } to { opacity: 1; transform: translateX(0); } }
-                @keyframes spin { to { transform: rotate(360deg); } }
-                @media (max-width: 768px) {
-                    .habits-header { flex-direction: column; align-items: flex-start; }
-                    .points-grid { grid-template-columns: 1fr; gap: 0.5rem; }
-                    .habits-grid, .medications-grid { grid-template-columns: 1fr; }
-                    .habit-card, .medication-card { flex-direction: column; text-align: center; }
-                    .habit-card-header, .medication-info { flex-direction: column; align-items: center; text-align: center; }
-                    .habit-actions, .medication-actions { justify-content: center; }
-                    .notification-toast { left: 1rem; right: 1rem; bottom: 1rem; }
-                    [dir="rtl"] .notification-toast { left: 1rem; right: 1rem; }
-                }
-                @media (max-width: 480px) {
-                    .search-actions { flex-direction: column; }
-                    .search-btn, .scan-btn { width: 100%; text-align: center; }
-                }
-                [dir="rtl"] .habit-card-header, [dir="rtl"] .medication-info { flex-direction: row-reverse; }
-                @media (max-width: 768px) {
-                    [dir="rtl"] .habit-card-header, [dir="rtl"] .medication-info { flex-direction: column; }
-                }
-                @media (prefers-reduced-motion: reduce) {
-                    .scanner-modal, .notification-toast { animation: none !important; }
-                    .habit-card:hover, .medication-card:hover, .drug-result-item:hover { transform: none !important; }
+             /* ===========================================
+   HabitTracker.css - الأنماط الداخلية فقط
+   ✅ إدارة العادات والأدوية - تصميم نظيف
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
+   =========================================== */
+
+/* ===== الحاوية الرئيسية ===== */
+.habit-tracker-container {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .habit-tracker-container {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+/* ===== رأس الصفحة ===== */
+.habits-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .habits-header {
+    border-bottom-color: #334155;
+}
+
+.habits-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dark-mode .habits-title {
+    color: #f1f5f9;
+}
+
+.habits-date {
+    padding: 0.25rem 0.75rem;
+    background: var(--tertiary-bg, #f1f5f9);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .habits-date {
+    background: #0f172a;
+    color: #94a3b8;
+}
+
+/* ===== الأقسام العامة ===== */
+.section-header-inline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-title-icon {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-title-icon .icon {
+    font-size: 1.3rem;
+}
+
+.section-title-icon h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .section-title-icon h3 {
+    color: #f1f5f9;
+}
+
+.section-desc {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== قسم البحث عن الأدوية ===== */
+.drug-search-section {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .drug-search-section {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.search-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 14px;
+    font-size: 0.9rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .search-input {
+    background: #1e293b;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.search-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.search-btn {
+    padding: 0.5rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .search-btn {
+    background: #1e293b;
+    border-color: #475569;
+    color: #94a3b8;
+}
+
+.search-btn.active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border-color: transparent;
+}
+
+.search-btn:hover:not(:disabled) {
+    background: var(--hover-bg, #f1f5f9);
+    transform: translateY(-2px);
+}
+
+.dark-mode .search-btn:hover:not(:disabled) {
+    background: #334155;
+}
+
+.scan-btn {
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.scan-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* ===== نتائج البحث ===== */
+.drug-results {
+    margin-top: 1.5rem;
+}
+
+.results-header {
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: var(--text-secondary, #64748b);
+    font-size: 0.85rem;
+}
+
+.results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.drug-result-item {
+    padding: 0.75rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .drug-result-item {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+.drug-result-item:hover {
+    background: var(--hover-bg, #f1f5f9);
+    transform: translateX(4px);
+}
+
+[dir="rtl"] .drug-result-item:hover {
+    transform: translateX(-4px);
+}
+
+.drug-name {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .drug-name {
+    color: #f1f5f9;
+}
+
+.drug-generic {
+    font-size: 0.65rem;
+    color: var(--text-tertiary, #94a3b8);
+    margin-left: 0.5rem;
+}
+
+[dir="rtl"] .drug-generic {
+    margin-left: 0;
+    margin-right: 0.5rem;
+}
+
+.drug-details {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== قسم النقاط ===== */
+.points-section {
+    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    border-radius: 24px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.points-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.points-icon {
+    font-size: 1.5rem;
+}
+
+.points-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: white;
+}
+
+.points-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.point-card {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(4px);
+    border-radius: 14px;
+    padding: 0.75rem;
+    text-align: center;
+}
+
+.point-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+}
+
+.point-label {
+    font-size: 0.7rem;
+    opacity: 0.9;
+}
+
+/* ===== قسم التقدم ===== */
+.progress-section {
+    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+    border-radius: 24px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.progress-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.progress-icon {
+    font-size: 1.5rem;
+}
+
+.progress-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: white;
+}
+
+.progress-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.progress-count {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.progress-bar-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.progress-bar {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.25);
+    height: 8px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    background: white;
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.progress-percentage {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+/* ===== قسم إضافة جديدة ===== */
+.add-habit-section {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .add-habit-section {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.add-habit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #64748b);
+}
+
+.form-group input,
+.form-group textarea {
+    padding: 0.75rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 14px;
+    font-size: 0.9rem;
+    color: var(--text-primary, #0f172a);
+    transition: all 0.2s;
+}
+
+.dark-mode .form-group input,
+.dark-mode .form-group textarea {
+    background: #1e293b;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    font-family: inherit;
+}
+
+.submit-btn {
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== قائمة العادات والأدوية ===== */
+.habits-list-section,
+.medications-section {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .habits-list-section,
+.dark-mode .medications-section {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.habits-count,
+.medications-count {
+    padding: 0.25rem 0.75rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .habits-count,
+.dark-mode .medications-count {
+    background: #1e293b;
+    color: #94a3b8;
+}
+
+.habits-grid,
+.medications-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 0.75rem;
+}
+
+/* ===== بطاقات العادات ===== */
+.habit-card,
+.medication-card {
+    background: var(--card-bg, #ffffff);
+    border-radius: 16px;
+    padding: 1rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.dark-mode .habit-card,
+.dark-mode .medication-card {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+.habit-card:hover,
+.medication-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.dark-mode .habit-card:hover,
+.dark-mode .medication-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.habit-card.completed,
+.medication-card.completed {
+    background: rgba(16, 185, 129, 0.05);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.dark-mode .habit-card.completed,
+.dark-mode .medication-card.completed {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.habit-card-header {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex: 1;
+}
+
+.medication-info {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex: 1;
+}
+
+.habit-icon,
+.medication-icon {
+    font-size: 1.5rem;
+}
+
+.habit-name,
+.medication-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .habit-name,
+.dark-mode .medication-name {
+    color: #f1f5f9;
+}
+
+.habit-description,
+.medication-description {
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+    margin-top: 0.25rem;
+    word-break: break-word;
+}
+
+/* ===== أزرار الإجراءات ===== */
+.habit-actions,
+.medication-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.type-toggle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--tertiary-bg, #f1f5f9);
+    border: 1px solid var(--border-light, #e2e8f0);
+    font-size: 0.9rem;
+}
+
+.dark-mode .type-toggle {
+    background: #0f172a;
+    border-color: #475569;
+}
+
+.type-toggle.habit:hover {
+    background: rgba(16, 185, 129, 0.15);
+    transform: scale(1.05);
+}
+
+.type-toggle.medication:hover {
+    background: rgba(59, 130, 246, 0.15);
+    transform: scale(1.05);
+}
+
+.points-badge {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.complete-btn,
+.take-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.complete-btn {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #10b981;
+}
+
+.complete-btn:hover:not(:disabled) {
+    background: #10b981;
+    color: white;
+}
+
+.complete-btn.undo {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.complete-btn.undo:hover:not(:disabled) {
+    background: #ef4444;
+    color: white;
+}
+
+.take-btn {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #3b82f6;
+}
+
+.take-btn:hover:not(:disabled) {
+    background: #3b82f6;
+    color: white;
+}
+
+.take-btn.undo {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.take-btn.undo:hover:not(:disabled) {
+    background: #ef4444;
+    color: white;
+}
+
+.type-toggle:disabled,
+.complete-btn:disabled,
+.take-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===== ماسح الباركود ===== */
+.scanner-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+}
+
+.scanner-modal-content {
+    background: var(--card-bg, #ffffff);
+    border-radius: 24px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+.dark-mode .scanner-modal-content {
+    background: #1e293b;
+}
+
+.scanner-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .scanner-header {
+    border-bottom-color: #334155;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--text-secondary, #64748b);
+}
+
+.close-btn:hover {
+    color: #ef4444;
+}
+
+.scanner-footer {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.cancel-btn {
+    padding: 0.5rem 1.5rem;
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.dark-mode .cancel-btn {
+    background: #0f172a;
+    border-color: #475569;
+}
+
+/* ===== إشعارات ===== */
+.notification-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: slideIn 0.3s ease;
+    z-index: 1000;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+[dir="rtl"] .notification-toast {
+    right: auto;
+    left: 1.5rem;
+}
+
+.notification-toast.success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.notification-toast.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.notification-toast.info {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+}
+
+.notification-toast button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    opacity: 0.7;
+}
+
+.notification-toast button:hover {
+    opacity: 1;
+}
+
+/* ===== حالات خاصة ===== */
+.loading-state,
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light, #e2e8f0);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+.spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+}
+
+.analytics-wrapper {
+    margin-top: 1.5rem;
+}
+
+/* ===== أنيميشن ===== */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(100%); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+[dir="rtl"] @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-100%); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .habit-card-header,
+[dir="rtl"] .medication-info {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .section-header-inline {
+    flex-direction: row-reverse;
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .scanner-modal,
+    .notification-toast {
+        animation: none !important;
+    }
+    
+    .habit-card:hover,
+    .medication-card:hover,
+    .drug-result-item:hover,
+    .submit-btn:hover:not(:disabled),
+    .scan-btn:hover,
+    .search-btn:hover:not(:disabled) {
+        transform: none !important;
+    }
+    
+    .spinner,
+    .spinner-small {
+        animation: none;
+    }
+}
                 }
             `}</style>
         </div>

@@ -1327,134 +1327,1017 @@ function ProfileManager({ isAuthReady }) {
             
             {/* Styles */}
             <style jsx>{`
-                .analytics-container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
-                .analytics-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-                .header-left { display: flex; align-items: center; gap: 1rem; }
-                .avatar-placeholder { width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: white; }
-                .editable-username { cursor: pointer; margin: 0; }
-                .editable-username:hover { opacity: 0.7; }
-                .username-edit { display: flex; gap: 0.5rem; align-items: center; }
-                .username-edit input { padding: 0.5rem; border: 1px solid #ddd; border-radius: 8px; }
-                .user-email { color: #666; font-size: 0.85rem; margin-top: 0.25rem; }
-                .header-actions { display: flex; gap: 0.5rem; }
-                .lang-btn { background: #f0f0f0; border: none; padding: 0.5rem 1rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
-                .lang-btn:hover { background: #e0e0e0; transform: translateY(-1px); }
-                .profile-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 1.5rem; border-radius: 16px; padding: 1.5rem; }
-                .insight-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-                .health-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem; }
-                .health-stat { background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 12px; text-align: center; }
-                .stat-value { font-size: 1.8rem; font-weight: bold; margin: 0.5rem 0; }
-                .stat-sub { font-size: 0.8rem; opacity: 0.9; }
-                .progress-bar { height: 6px; background: rgba(255,255,255,0.3); border-radius: 10px; overflow: hidden; margin: 0.5rem 0; }
-                .progress-fill { height: 100%; border-radius: 10px; transition: width 0.3s; background: #10b981; }
-                .recommendations-box { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem; margin-top: 1rem; }
-                .rec-header { font-weight: bold; margin-bottom: 0.75rem; }
-                .recommendations-list { display: flex; flex-direction: column; gap: 0.5rem; }
-                .rec-item { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 8px; }
-                .priority-high { border-right: 3px solid #ef4444; }
-                .priority-medium { border-right: 3px solid #f59e0b; }
-                .priority-low { border-right: 3px solid #10b981; }
-                .analytics-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.5rem; }
-                .type-btn { background: transparent; border: none; padding: 0.75rem 1.5rem; border-radius: 10px; cursor: pointer; font-size: 1rem; transition: all 0.2s; color: #666; }
-                .type-btn.active { background: #667eea; color: white; }
-                .type-btn:hover:not(.active) { background: #f0f0f0; }
-                .form-section { background: white; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-                .form-section h3 { margin-bottom: 1.25rem; color: #333; }
-                .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
-                .field-group { display: flex; flex-direction: column; gap: 0.5rem; }
-                .field-group.full-width { grid-column: span 2; }
-                .field-group label { font-weight: 500; color: #555; font-size: 0.85rem; }
-                .field-group input, .field-group select, .field-group textarea { padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; transition: all 0.2s; }
-                .field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
-                .password-input-wrapper { position: relative; display: flex; align-items: center; }
-                .password-input-wrapper input { flex: 1; padding-right: 45px; }
-                .password-toggle { position: absolute; right: 8px; background: transparent; border: none; cursor: pointer; font-size: 1.1rem; padding: 0.25rem; }
-                .input-with-unit { position: relative; display: flex; align-items: center; }
-                .input-with-unit input { flex: 1; padding-right: 70px; }
-                .input-with-unit .unit { position: absolute; right: 12px; color: #999; }
-                .unit-select { position: absolute; right: 5px; width: auto; background: transparent; border: none; font-size: 0.8rem; color: #666; cursor: pointer; }
-                .submit-btn { width: 100%; padding: 0.875rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.2s; }
-                .submit-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
-                .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-                .submit-btn.secondary { background: #f0f0f0; color: #333; }
-                .add-goal-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
-                .add-goal-card h3 { color: white; margin-bottom: 1rem; }
-                .add-goal-form .field-group label { color: rgba(255,255,255,0.9); }
-                .add-goal-form input, .add-goal-form select { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: white; }
-                .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-                .stat-card { background: white; padding: 1rem; border-radius: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-                .stat-card.success .stat-value { color: #10b981; }
-                .stat-card.warning .stat-value { color: #f59e0b; }
-                .stat-card.info .stat-value { color: #667eea; }
-                .stat-value { font-size: 1.5rem; font-weight: bold; }
-                .stat-label { font-size: 0.7rem; color: #666; }
-                .goals-list h3 { margin-bottom: 1rem; color: #333; }
-                .goals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
-                .goal-card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s; }
-                .goal-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-                .goal-card.completed { background: #f0fdf4; }
-                .goal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
-                .goal-title h4 { margin: 0; font-size: 0.95rem; }
-                .goal-type { font-size: 0.7rem; color: #666; }
-                .delete-goal-btn { background: transparent; border: none; font-size: 1rem; cursor: pointer; opacity: 0.6; }
-                .delete-goal-btn:hover { opacity: 1; }
-                .goal-progress { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
-                .goal-progress .progress-bar { flex: 1; background: #e0e0e0; height: 6px; border-radius: 10px; overflow: hidden; }
-                .goal-progress .progress-fill { height: 100%; border-radius: 10px; transition: width 0.3s; }
-                .goal-status { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.65rem; font-weight: 500; }
-                .goal-status.achieved { background: #d1fae5; color: #065f46; }
-                .goal-status.on-track { background: #dbeafe; color: #1e40af; }
-                .settings-section { background: white; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-                .settings-section h3 { margin-bottom: 1rem; color: #333; }
-                .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid #eee; }
-                .setting-item:last-child { border-bottom: none; }
-                .toggle-switch { position: relative; display: inline-block; width: 50px; height: 24px; }
-                .toggle-switch input { opacity: 0; width: 0; height: 0; }
-                .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.3s; border-radius: 24px; }
-                .toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: 0.3s; border-radius: 50%; }
-                input:checked + .toggle-slider { background-color: #667eea; }
-                input:checked + .toggle-slider:before { transform: translateX(26px); }
-                .backup-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
-                .backup-card { display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 12px; }
-                .backup-card.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-                .backup-card.secondary { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
-                .backup-icon { font-size: 1.8rem; }
-                .backup-content h4 { margin: 0; font-size: 0.9rem; }
-                .backup-btn { background: white; border: none; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem; cursor: pointer; }
-                .backup-card.primary .backup-btn { color: #667eea; }
-                .backup-card.secondary .backup-btn { color: #f5576c; }
-                .danger-zone { border: 2px solid #ef4444; background: rgba(239,68,68,0.05); margin-top: 1rem; }
-                .danger-zone h4 { color: #ef4444; margin-bottom: 0.5rem; }
-                .danger-btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
-                .danger-btn.error { background: #ef4444; color: white; }
-                .notification-message { position: fixed; top: 20px; right: 20px; padding: 0.75rem 1.25rem; border-radius: 10px; display: flex; align-items: center; gap: 1rem; z-index: 1000; animation: slideIn 0.3s ease; }
-                .notification-message.success { background: #10b981; color: white; }
-                .notification-message.error { background: #ef4444; color: white; }
-                .notification-message.info { background: #667eea; color: white; }
-                .notification-message button { background: transparent; border: none; color: white; cursor: pointer; }
-                @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-                .empty-state { text-align: center; padding: 2rem; background: white; border-radius: 12px; }
-                .empty-icon { font-size: 3rem; margin-bottom: 0.5rem; }
-                .analytics-loading { text-align: center; padding: 2rem; }
-                .spinner { width: 40px; height: 40px; border: 3px solid #f0f0f0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto; }
-                @keyframes spin { to { transform: rotate(360deg); } }
-                .dark-theme { background: #1a1a2e; }
-                .dark-theme .form-section, .dark-theme .stat-card, .dark-theme .goal-card, .dark-theme .settings-section, .dark-theme .empty-state { background: #16213e; color: #eee; }
-                .dark-theme .form-section h3, .dark-theme .goals-list h3, .dark-theme .settings-section h3 { color: #eee; }
-                .dark-theme .field-group input, .dark-theme .field-group select, .dark-theme .field-group textarea { background: #1a1a2e; border-color: #333; color: #eee; }
-                .dark-theme .type-btn:not(.active) { color: #aaa; }
-                @media (max-width: 768px) {
-                    .analytics-container { padding: 1rem; }
-                    .form-grid, .health-stats-grid, .stats-grid, .backup-grid { grid-template-columns: 1fr !important; }
-                    .field-group.full-width { grid-column: span 1; }
-                    .goals-grid { grid-template-columns: 1fr; }
-                    .analytics-tabs { flex-wrap: wrap; }
-                    .type-btn { flex: 1; text-align: center; padding: 0.5rem; }
-                }
-                [dir="rtl"] .input-with-unit input { padding-right: 12px; padding-left: 70px; }
-                [dir="rtl"] .input-with-unit .unit, [dir="rtl"] .unit-select { right: auto; left: 12px; }
-                [dir="rtl"] .priority-high, [dir="rtl"] .priority-medium, [dir="rtl"] .priority-low { border-right: none; border-left: 3px solid; }
-                [dir="rtl"] .password-toggle { right: auto; left: 8px; }
+            /* ===========================================
+   ProfileManager.css - الأنماط الداخلية فقط
+   ✅ إدارة الملف الشخصي - تصميم احترافي
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
+   =========================================== */
+
+/* ===== الحاوية الرئيسية ===== */
+.analytics-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    border: 1px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .analytics-container {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+/* ===== رأس الصفحة ===== */
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .analytics-header {
+    border-bottom-color: #334155;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.avatar-placeholder {
+    width: 55px;
+    height: 55px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.editable-username {
+    cursor: pointer;
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    transition: opacity 0.2s;
+}
+
+.dark-mode .editable-username {
+    color: #f1f5f9;
+}
+
+.editable-username:hover {
+    opacity: 0.7;
+}
+
+.username-edit {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.username-edit input {
+    padding: 0.5rem;
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .username-edit input {
+    background: #0f172a;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+.username-edit button {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0.25rem;
+}
+
+.user-email {
+    font-size: 0.8rem;
+    color: var(--text-tertiary, #94a3b8);
+    margin-top: 0.25rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.lang-btn {
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    padding: 0.5rem 1rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .lang-btn {
+    background: #0f172a;
+    border-color: #334155;
+    color: #94a3b8;
+}
+
+.lang-btn:hover {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    transform: translateY(-2px);
+}
+
+/* ===== بطاقة الملف الشخصي الذكي ===== */
+.profile-card {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.insight-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.insight-content h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.health-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.health-stat {
+    background: rgba(255, 255, 255, 0.12);
+    padding: 1rem;
+    border-radius: 16px;
+    text-align: center;
+    backdrop-filter: blur(4px);
+}
+
+.health-stat .stat-label {
+    font-size: 0.7rem;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.health-stat .stat-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin: 0.5rem 0;
+}
+
+.health-stat .stat-sub {
+    font-size: 0.7rem;
+    opacity: 0.9;
+}
+
+.progress-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0.5rem 0;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    background: #10b981;
+}
+
+/* ===== التوصيات ===== */
+.recommendations-box {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.rec-header {
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.recommendations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.rec-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+.rec-item.priority-high {
+    border-right: 3px solid #ef4444;
+}
+
+.rec-item.priority-medium {
+    border-right: 3px solid #f59e0b;
+}
+
+.rec-item.priority-low {
+    border-right: 3px solid #10b981;
+}
+
+[dir="rtl"] .rec-item {
+    border-right: none;
+    border-left: 3px solid;
+}
+
+[dir="rtl"] .rec-item.priority-high { border-left-color: #ef4444; }
+[dir="rtl"] .rec-item.priority-medium { border-left-color: #f59e0b; }
+[dir="rtl"] .rec-item.priority-low { border-left-color: #10b981; }
+
+.rec-icon {
+    font-size: 1rem;
+}
+
+.rec-text {
+    flex: 1;
+}
+
+/* ===== التبويبات ===== */
+.analytics-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+    padding-bottom: 0.5rem;
+}
+
+.dark-mode .analytics-tabs {
+    border-bottom-color: #334155;
+}
+
+.type-btn {
+    background: transparent;
+    border: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .type-btn {
+    color: #94a3b8;
+}
+
+.type-btn.active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.type-btn:hover:not(.active) {
+    background: var(--hover-bg, #f1f5f9);
+}
+
+.dark-mode .type-btn:hover:not(.active) {
+    background: #334155;
+}
+
+/* ===== رسائل الإشعارات ===== */
+.notification-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 0.75rem 1.25rem;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+[dir="rtl"] .notification-message {
+    right: auto;
+    left: 20px;
+}
+
+.notification-message.success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.notification-message.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.notification-message.info {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+}
+
+.notification-message button {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    opacity: 0.7;
+}
+
+.notification-message button:hover {
+    opacity: 1;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ===== أقسام النموذج ===== */
+.form-section {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .form-section {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.form-section h3 {
+    margin-bottom: 1.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .form-section h3 {
+    color: #f1f5f9;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.field-group.full-width {
+    grid-column: span 2;
+}
+
+.field-group label {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #64748b);
+}
+
+.field-group input,
+.field-group select,
+.field-group textarea {
+    padding: 0.75rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 14px;
+    font-size: 0.9rem;
+    color: var(--text-primary, #0f172a);
+    transition: all 0.2s;
+}
+
+.dark-mode .field-group input,
+.dark-mode .field-group select,
+.dark-mode .field-group textarea {
+    background: #1e293b;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+.field-group input:focus,
+.field-group select:focus,
+.field-group textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* ===== حقل كلمة المرور مع زر الإظهار ===== */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper input {
+    flex: 1;
+    padding-right: 45px;
+}
+
+[dir="rtl"] .password-input-wrapper input {
+    padding-right: 12px;
+    padding-left: 45px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0.25rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+[dir="rtl"] .password-toggle {
+    right: auto;
+    left: 12px;
+}
+
+.password-toggle:hover {
+    color: var(--primary, #6366f1);
+}
+
+/* ===== حقل مع وحدة ===== */
+.input-with-unit {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-unit input {
+    flex: 1;
+    padding-right: 70px;
+}
+
+[dir="rtl"] .input-with-unit input {
+    padding-right: 12px;
+    padding-left: 70px;
+}
+
+.input-with-unit .unit {
+    position: absolute;
+    right: 12px;
+    font-size: 0.8rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+[dir="rtl"] .input-with-unit .unit {
+    right: auto;
+    left: 12px;
+}
+
+.unit-select {
+    position: absolute;
+    right: 12px;
+    width: auto;
+    background: transparent;
+    border: none;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #64748b);
+    cursor: pointer;
+}
+
+[dir="rtl"] .unit-select {
+    right: auto;
+    left: 12px;
+}
+
+/* ===== أزرار الإجراء ===== */
+.submit-btn {
+    width: 100%;
+    padding: 0.875rem;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.submit-btn.secondary {
+    background: var(--secondary-bg, #f8fafc);
+    color: var(--text-primary, #0f172a);
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .submit-btn.secondary {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+/* ===== قسم الأهداف ===== */
+.add-goal-card {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.add-goal-card h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: white;
+}
+
+.add-goal-form .field-group label {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.add-goal-form input,
+.add-goal-form select {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: white;
+}
+
+.add-goal-form input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.add-goal-form .unit-select {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* إحصائيات الأهداف */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--secondary-bg, #f8fafc);
+    padding: 1rem;
+    border-radius: 18px;
+    text-align: center;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .stat-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.stat-card .stat-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+}
+
+.stat-card.success .stat-value { color: #10b981; }
+.stat-card.warning .stat-value { color: #f59e0b; }
+.stat-card.info .stat-value { color: #6366f1; }
+
+.stat-card .stat-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* قائمة الأهداف */
+.goals-list h3 {
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.goals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+}
+
+.goal-card {
+    background: var(--card-bg, #ffffff);
+    border-radius: 18px;
+    padding: 1rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+    transition: all 0.2s;
+}
+
+.dark-mode .goal-card {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+.goal-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.dark-mode .goal-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.goal-card.completed {
+    background: rgba(16, 185, 129, 0.05);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.goal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.goal-title h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.goal-type {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.delete-goal-btn {
+    background: transparent;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.delete-goal-btn:hover {
+    opacity: 1;
+}
+
+.goal-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.goal-progress .progress-bar {
+    flex: 1;
+    background: var(--border-light, #e2e8f0);
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.goal-progress .progress-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+}
+
+.goal-progress .progress-percent {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-secondary, #64748b);
+}
+
+.goal-status {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+
+.goal-status.achieved {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+}
+
+.goal-status.on-track {
+    background: rgba(99, 102, 241, 0.12);
+    color: #6366f1;
+}
+
+/* ===== قسم الإعدادات ===== */
+.settings-section {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .settings-section {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.settings-section h3 {
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-item label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-primary, #0f172a);
+}
+
+/* مفتاح التبديل */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: 0.3s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: #6366f1;
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+}
+
+/* ===== النسخ الاحتياطي ===== */
+.backup-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.backup-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 18px;
+}
+
+.backup-card.primary {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+}
+
+.backup-card.secondary {
+    background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+    color: white;
+}
+
+.backup-icon {
+    font-size: 1.8rem;
+}
+
+.backup-content h4 {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.backup-btn {
+    background: white;
+    border: none;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.backup-card.primary .backup-btn { color: #6366f1; }
+.backup-card.secondary .backup-btn { color: #ec4899; }
+
+.backup-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(0.95);
+}
+
+/* ===== منطقة الخطر ===== */
+.danger-zone {
+    border: 2px solid #ef4444;
+    background: rgba(239, 68, 68, 0.05);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.danger-zone h4 {
+    color: #ef4444;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.danger-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+
+.danger-btn.error {
+    background: #ef4444;
+    color: white;
+}
+
+.danger-btn.error:hover {
+    background: #dc2626;
+    transform: translateY(-2px);
+}
+
+/* ===== حالات التحميل والبيانات الفارغة ===== */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .empty-state {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+}
+
+.empty-state h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.analytics-loading {
+    text-align: center;
+    padding: 2rem;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border-light, #e2e8f0);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto;
+}
+
+.dark-mode .spinner {
+    border-color: #334155;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .header-left {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .avatar-placeholder {
+    margin-left: 0.5rem;
+}
+
+[dir="rtl"] .rec-item {
+    flex-direction: row-reverse;
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .spinner {
+        animation: none;
+    }
+    
+    .notification-message {
+        animation: none;
+    }
+    
+    .submit-btn:hover:not(:disabled),
+    .lang-btn:hover,
+    .goal-card:hover,
+    .backup-btn:hover {
+        transform: none;
+    }
+    
+    .progress-fill {
+        transition: none;
+    }
+}
             `}</style>
         </div>
     );
