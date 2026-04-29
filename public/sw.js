@@ -69,7 +69,7 @@ async function saveNotificationToDjango(notification) {
         console.log('📤 Saving notification to Django with token...');
         
             // في sw.js - استخدم هذا المسار
-            const response = await fetch('https://livocare.onrender.com/api/sw-notification/', {
+            const response = await fetch('https://livocare-backend.onrender.com/api/sw-notification/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
