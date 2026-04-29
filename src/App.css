@@ -469,3 +469,48 @@ a {
         transition-duration: 0.01ms !important;
     }
 }
+/* ===========================================
+   تصحيح الخروج من الشاشة للهواتف
+   =========================================== */
+
+/* لكل العناصر التي قد تخرج من الشاشة */
+@media (max-width: 768px) {
+    
+    /* 1. تحويل الصفوف إلى أعمدة */
+    .form-row,
+    .form-grid,
+    .stats-grid,
+    .dashboard-stats,
+    .metrics-grid,
+    .health-stats-grid {
+        flex-direction: column !important;
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* 2. منع overflow */
+    .main-content,
+    .content-wrapper,
+    .dashboard-container {
+        overflow-x: hidden !important;
+    }
+    
+    /* 3. تصحيح البطاقات */
+    .card,
+    .analytics-card,
+    .stat-card {
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    
+    /* 4. تصحيح الحقول في النماذج */
+    .form-field {
+        width: 100% !important;
+    }
+    
+    /* 5. منع أي عنصر من الخروج */
+    * {
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+    }
+}
