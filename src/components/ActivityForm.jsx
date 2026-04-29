@@ -1,4 +1,4 @@
-// src/components/ActivityForm.jsx - النسخة النهائية مع جميع التحليلات
+// src/components/ActivityForm.jsx - النسخة النهائية والمثالية
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axiosInstance from '../services/api';
 import esp32Service from '../services/esp32Service';
@@ -7,15 +7,10 @@ import HealthCharts from './HealthCharts';
 import ActivityAnalytics from './Analytics/ActivityAnalytics';
 
 const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
-    // ==================== القياسات الصحية (HealthForm) ====================
+    // ==================== القياسات الصحية ====================
     const [healthFormData, setHealthFormData] = useState({
-        weight: '',
-        systolic: '',
-        diastolic: '',
-        glucose: '',
-        heartRate: '',
-        spo2: '',
-        temperature: ''
+        weight: '', systolic: '', diastolic: '', glucose: '',
+        heartRate: '', spo2: '', temperature: ''
     });
     
     const [healthLoading, setHealthLoading] = useState(false);
@@ -43,17 +38,11 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     const [fetching, setFetching] = useState(true);
     const [showCharts, setShowCharts] = useState(true);
     const [activityFormData, setActivityFormData] = useState({
-        activity_type: '',
-        duration_minutes: '',
-        start_time: '',
-        calories_burned: ''
+        activity_type: '', duration_minutes: '', start_time: '', calories_burned: ''
     });
     
-    // ✅ حالة التحليلات
     const [analytics, setAnalytics] = useState(null);
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
-    
-    // ✅ وزن المستخدم
     const [userWeight, setUserWeight] = useState(null);
     const [showCaloriesEdit, setShowCaloriesEdit] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -67,7 +56,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         yoga: 2.5, weightlifting: 5.0, cardio: 6.5, other: 4.0
     };
     
-    // ✅ حدود التحقق من الصحة
     const VALIDATION_LIMITS = {
         weight: { min: 20, max: 300, normalMin: 50, normalMax: 100, unit: 'kg', icon: '⚖️' },
         systolic: { min: 50, max: 250, normalMin: 90, normalMax: 140, unit: 'mmHg', icon: '❤️' },
@@ -78,7 +66,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         temperature: { min: 35, max: 42, normalMin: 36.5, normalMax: 37.5, unit: '°C', icon: '🌡️' }
     };
     
-    // ==================== دوال مساعدة عامة ====================
+    // ==================== دوال مساعدة ====================
     const showMessage = useCallback((msg, type = 'success') => {
         setMessage(msg);
         setMessageType(type);
@@ -90,38 +78,35 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         }, 4000);
     }, []);
     
-    // ✅ تحديث البيانات (لـ History و Charts والتحليلات)
     const refreshData = useCallback(() => {
         setRefreshKey(prev => prev + 1);
     }, []);
     
-    // ✅ جلب وزن المستخدم
-    useEffect(() => {
-        fetchUserWeight();
-        fetchActivities();
-        fetchAnalytics();
-    }, []);
-    
-    const fetchUserWeight = async () => {
+    // ✅ جلب وزن المستخدم - تم إصلاحه
+    const fetchUserWeight = useCallback(async () => {
         try {
-            const response = await axiosInstance.get('/health_status/latest/');
-            if (response.data && response.data.weight_kg) {
-                setUserWeight(response.data.weight_kg);
-            } else {
-                setUserWeight(70);
-            }
+            const response = await axiosInstance.get('/health_status/');
+            let records = [];
+            if (response.data?.results) records = response.data.results;
+            else if (Array.isArray(response.data)) records = response.data;
+            
+            if (records.length > 0) {
+                const sorted = [...records].sort((a, b) => new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at));
+                const latest = sorted[0];
+                if (latest?.weight_kg) setUserWeight(latest.weight_kg);
+                else setUserWeight(70);
+            } else setUserWeight(70);
         } catch (err) {
             console.error('Error fetching user weight:', err);
             setUserWeight(70);
         }
-    };
+    }, []);
     
     // ✅ تسجيل مستمع ESP32
     useEffect(() => {
         console.log('🎯 Setting up ESP32 listener...');
         
         const handleESP32Event = (type, data) => {
-            console.log(`📡 ESP32 Event received: ${type} =`, data);
             if (!isMountedRef.current) return;
             
             if (type === 'heartRate') {
@@ -131,42 +116,33 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 setSensorSpO2(data);
                 setLastSensorReading(prev => ({ ...prev, spo2: data, timestamp: new Date() }));
             } else if (type === 'data') {
-                if (data && data.heartRate) {
-                    setSensorHeartRate(data.heartRate);
-                    setLastSensorReading(prev => ({ ...prev, heartRate: data.heartRate, timestamp: new Date() }));
-                }
-                if (data && data.spo2) {
-                    setSensorSpO2(data.spo2);
-                    setLastSensorReading(prev => ({ ...prev, spo2: data.spo2, timestamp: new Date() }));
-                }
+                if (data?.heartRate) setSensorHeartRate(data.heartRate);
+                if (data?.spo2) setSensorSpO2(data.spo2);
             } else if (type === 'error') {
                 console.error('ESP32 Error:', data);
                 showMessage(isArabic ? '⚠️ خطأ في جهاز ESP32' : '⚠️ ESP32 Error', 'error');
             }
         };
         
-        if (esp32Service && typeof esp32Service.on === 'function') {
+        if (esp32Service?.on) {
             unsubscribeESP32Ref.current = esp32Service.on(handleESP32Event);
             console.log('✅ ESP32 listener registered');
         }
         
         return () => {
-            if (unsubscribeESP32Ref.current) unsubscribeESP32Ref.current();
-            if (esp32Service && typeof esp32Service.stopPolling === 'function') {
-                esp32Service.stopPolling();
-            }
+            unsubscribeESP32Ref.current?.();
+            esp32Service?.stopPolling?.();
         };
     }, [isArabic, showMessage]);
     
+    // ==================== دوال ESP32 ====================
     const connectSensor = useCallback(async () => {
         setSensorConnecting(true);
         try {
-            if (esp32Service && typeof esp32Service.startPolling === 'function') {
+            if (esp32Service?.startPolling) {
                 esp32Service.startPolling();
                 setSensorActive(true);
-                if (typeof esp32Service.fetchLatestReading === 'function') {
-                    await esp32Service.fetchLatestReading();
-                }
+                await esp32Service.fetchLatestReading?.();
                 showMessage(isArabic ? '✅ تم الاتصال بجهاز ESP32' : '✅ ESP32 connected', 'success');
             } else {
                 showMessage(isArabic ? '❌ خدمة ESP32 غير متاحة' : '❌ ESP32 service not available', 'error');
@@ -180,9 +156,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     }, [isArabic, showMessage]);
     
     const disconnectSensor = useCallback(() => {
-        if (esp32Service && typeof esp32Service.stopPolling === 'function') {
-            esp32Service.stopPolling();
-        }
+        esp32Service?.stopPolling?.();
         setSensorActive(false);
         setSensorHeartRate(null);
         setSensorSpO2(null);
@@ -212,30 +186,27 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         
         try {
             await axiosInstance.post('/health_status/', data);
-            if (isMountedRef.current) {
-                showMessage(isArabic ? '✅ تم حفظ قراءة المستشعر كقياس صحي' : '✅ Sensor reading saved as health record', 'success');
-                if (onDataSubmitted) onDataSubmitted();
-                refreshData();
-            }
+            showMessage(isArabic ? '✅ تم حفظ قراءة المستشعر كقياس صحي' : '✅ Sensor reading saved as health record', 'success');
+            onDataSubmitted?.();
+            refreshData();
         } catch (err) {
-            console.error('❌ Failed to save sensor reading:', err);
+            console.error('Failed to save sensor reading:', err);
             showMessage(isArabic ? '❌ فشل حفظ قراءة المستشعر' : '❌ Failed to save sensor reading', 'error');
         } finally {
             setSavingSensorData(false);
         }
     }, [sensorHeartRate, sensorSpO2, isArabic, showMessage, onDataSubmitted, refreshData]);
     
-    // ✅ الحفظ التلقائي للقياسات الصحية
+    // ==================== الحفظ التلقائي ====================
     useEffect(() => {
         if (!autoSave) return;
-        const autoSaveForm = () => {
-            const hasData = Object.values(healthFormData).some(value => value && value.toString().trim() !== '');
+        const timeoutId = setTimeout(() => {
+            const hasData = Object.values(healthFormData).some(v => v?.trim?.());
             if (hasData && isMountedRef.current) {
                 localStorage.setItem('healthForm_autoSave', JSON.stringify(healthFormData));
                 setLastAutoSave(new Date());
             }
-        };
-        const timeoutId = setTimeout(autoSaveForm, 2000);
+        }, 2000);
         return () => clearTimeout(timeoutId);
     }, [healthFormData, autoSave]);
     
@@ -243,33 +214,13 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         const savedData = localStorage.getItem('healthForm_autoSave');
         if (savedData && isMountedRef.current) {
             try {
-                const parsedData = JSON.parse(savedData);
-                setHealthFormData(parsedData);
+                setHealthFormData(JSON.parse(savedData));
                 showMessage(isArabic ? '📂 تم استعادة البيانات المحفوظة تلقائياً' : '📂 Auto-saved data restored', 'info');
-            } catch (error) {
-                console.error('Error loading auto-saved data:', error);
-            }
+            } catch (error) { console.error(error); }
         }
     }, [isArabic, showMessage]);
     
-    const validateHealthForm = useCallback(() => {
-        let errors = {};
-        let hasAnyData = false;
-        
-        if (healthFormData.weight && healthFormData.weight.toString().trim() !== '') {
-            hasAnyData = true;
-            const weight = parseFloat(healthFormData.weight);
-            if (isNaN(weight)) {
-                errors.weight = isArabic ? '❌ رقم غير صالح' : '❌ Invalid number';
-            } else if (weight < VALIDATION_LIMITS.weight.min || weight > VALIDATION_LIMITS.weight.max) {
-                errors.weight = `${isArabic ? 'النطاق المسموح' : 'Allowed range'}: ${VALIDATION_LIMITS.weight.min} - ${VALIDATION_LIMITS.weight.max} ${VALIDATION_LIMITS.weight.unit}`;
-            }
-        }
-        
-        setValidationErrors(errors);
-        return Object.keys(errors).length === 0;
-    }, [healthFormData, isArabic, VALIDATION_LIMITS]);
-    
+    // ==================== دوال القياسات الصحية ====================
     const handleHealthInputChange = useCallback((field, value) => {
         setHealthFormData(prev => ({ ...prev, [field]: value }));
         if (validationErrors[field]) {
@@ -291,47 +242,32 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         e.preventDefault();
         if (isSubmittingRef.current || !isMountedRef.current) return;
         
-        if (!validateHealthForm()) {
-            showMessage(isArabic ? '⚠️ يرجى تصحيح الأخطاء في النموذج' : '⚠️ Please correct errors in the form', 'error');
-            return;
-        }
-        
         isSubmittingRef.current = true;
         setHealthLoading(true);
         
         const data = {};
-        if (healthFormData.weight && healthFormData.weight.toString().trim() !== '') data.weight_kg = parseFloat(healthFormData.weight);
-        if (healthFormData.systolic && healthFormData.systolic.toString().trim() !== '') data.systolic_pressure = parseInt(healthFormData.systolic);
-        if (healthFormData.diastolic && healthFormData.diastolic.toString().trim() !== '') data.diastolic_pressure = parseInt(healthFormData.diastolic);
-        if (healthFormData.glucose && healthFormData.glucose.toString().trim() !== '') data.blood_glucose = parseFloat(healthFormData.glucose);
-        if (healthFormData.heartRate && healthFormData.heartRate.toString().trim() !== '') data.heart_rate = parseInt(healthFormData.heartRate);
-        if (healthFormData.spo2 && healthFormData.spo2.toString().trim() !== '') data.spo2 = parseInt(healthFormData.spo2);
-        if (healthFormData.temperature && healthFormData.temperature.toString().trim() !== '') data.body_temperature = parseFloat(healthFormData.temperature);
+        if (healthFormData.weight?.trim()) data.weight_kg = parseFloat(healthFormData.weight);
+        if (healthFormData.systolic?.trim()) data.systolic_pressure = parseInt(healthFormData.systolic);
+        if (healthFormData.diastolic?.trim()) data.diastolic_pressure = parseInt(healthFormData.diastolic);
+        if (healthFormData.glucose?.trim()) data.blood_glucose = parseFloat(healthFormData.glucose);
+        if (healthFormData.heartRate?.trim()) data.heart_rate = parseInt(healthFormData.heartRate);
+        if (healthFormData.spo2?.trim()) data.spo2 = parseInt(healthFormData.spo2);
+        if (healthFormData.temperature?.trim()) data.body_temperature = parseFloat(healthFormData.temperature);
         
         try {
             await axiosInstance.post('/health_status/', data);
-            if (isMountedRef.current) {
-                showMessage(isArabic ? '✅ تم حفظ البيانات بنجاح' : '✅ Data saved successfully', 'success');
-                resetHealthForm();
-                if (onDataSubmitted) onDataSubmitted();
-                refreshData();
-            }
+            showMessage(isArabic ? '✅ تم حفظ البيانات بنجاح' : '✅ Data saved successfully', 'success');
+            resetHealthForm();
+            onDataSubmitted?.();
+            refreshData();
         } catch (err) {
-            console.error('❌ Submission failed:', err);
+            console.error('Submission failed:', err);
             showMessage(isArabic ? '❌ فشل حفظ البيانات' : '❌ Failed to save data', 'error');
         } finally {
-            if (isMountedRef.current) setHealthLoading(false);
+            setHealthLoading(false);
             isSubmittingRef.current = false;
         }
-    }, [healthFormData, onDataSubmitted, isArabic, validateHealthForm, resetHealthForm, showMessage, refreshData]);
-    
-    const calculateHealthIndicators = useCallback(() => {
-        const indicators = [];
-        return indicators;
-    }, [healthFormData, isArabic, VALIDATION_LIMITS]);
-    
-    const healthIndicators = calculateHealthIndicators();
-    const filledFieldsCount = Object.values(healthFormData).filter(v => v && v.toString().trim() !== '').length;
+    }, [healthFormData, onDataSubmitted, isArabic, resetHealthForm, showMessage, refreshData]);
     
     const getLastReadingTime = () => {
         if (!lastSensorReading?.timestamp) return '';
@@ -341,11 +277,17 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     };
     
     // ==================== دوال الأنشطة ====================
-    const calculateCalories = (activityType, durationMinutes, weight) => {
+    useEffect(() => {
+        fetchUserWeight();
+        fetchActivities();
+        fetchAnalytics();
+    }, [fetchUserWeight]);
+    
+    const calculateCalories = useCallback((activityType, durationMinutes, weight) => {
         if (!activityType || !durationMinutes || !weight) return 0;
         const met = MET_VALUES[activityType] || 4.0;
         return Math.round(met * weight * (durationMinutes / 60));
-    };
+    }, []);
     
     const updateCalories = useCallback((activityType, durationMinutes) => {
         if (activityType && durationMinutes && userWeight) {
@@ -353,7 +295,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             setActivityFormData(prev => ({ ...prev, calories_burned: calories.toString() }));
             setShowCaloriesEdit(false);
         }
-    }, [userWeight]);
+    }, [userWeight, calculateCalories]);
     
     const handleActivityChange = (e) => {
         const { name, value } = e.target;
@@ -362,9 +304,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         if (name === 'activity_type' || name === 'duration_minutes') {
             const activityType = name === 'activity_type' ? value : activityFormData.activity_type;
             const duration = name === 'duration_minutes' ? value : activityFormData.duration_minutes;
-            if (activityType && duration) {
-                updateCalories(activityType, duration);
-            }
+            if (activityType && duration) updateCalories(activityType, duration);
         }
     };
     
@@ -373,7 +313,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         setShowCaloriesEdit(true);
     };
     
-    const fetchAnalytics = async () => {
+    const fetchAnalytics = useCallback(async () => {
         if (analyticsFetchedRef.current) return;
         analyticsFetchedRef.current = true;
         setAnalyticsLoading(true);
@@ -387,18 +327,15 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                     total_activities: activities.length,
                     total_calories: totalCalories,
                     total_duration: activities.reduce((sum, act) => sum + (act.duration_minutes || 0), 0),
-                    avg_duration: activities.length > 0 ? Math.round(activities.reduce((sum, act) => sum + (act.duration_minutes || 0), 0) / activities.length) : 0,
-                    avg_calories_per_activity: activities.length > 0 ? Math.round(totalCalories / activities.length) : 0
+                    avg_duration: activities.length ? Math.round(activities.reduce((sum, act) => sum + (act.duration_minutes || 0), 0) / activities.length) : 0,
+                    avg_calories_per_activity: activities.length ? Math.round(totalCalories / activities.length) : 0
                 });
             }
-        } catch (err) {
-            console.error('Error fetching analytics:', err);
-        } finally {
-            if (isMountedRef.current) setAnalyticsLoading(false);
-        }
-    };
+        } catch (err) { console.error(err); }
+        finally { if (isMountedRef.current) setAnalyticsLoading(false); }
+    }, [activities]);
     
-    const fetchActivities = async () => {
+    const fetchActivities = useCallback(async () => {
         if (isFetchingRef.current) return;
         isFetchingRef.current = true;
         setFetching(true);
@@ -414,18 +351,14 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 total_activities: sortedData.length,
                 total_calories: totalCalories,
                 total_duration: sortedData.reduce((sum, act) => sum + (act.duration_minutes || 0), 0),
-                avg_duration: sortedData.length > 0 ? Math.round(sortedData.reduce((sum, act) => sum + (act.duration_minutes || 0), 0) / sortedData.length) : 0,
-                avg_calories_per_activity: sortedData.length > 0 ? Math.round(totalCalories / sortedData.length) : 0
+                avg_duration: sortedData.length ? Math.round(sortedData.reduce((sum, act) => sum + (act.duration_minutes || 0), 0) / sortedData.length) : 0,
+                avg_calories_per_activity: sortedData.length ? Math.round(totalCalories / sortedData.length) : 0
             }));
-        } catch (err) {
-            console.error('Error fetching activities:', err);
-        } finally {
-            setFetching(false);
-            isFetchingRef.current = false;
-        }
-    };
+        } catch (err) { console.error(err); }
+        finally { setFetching(false); isFetchingRef.current = false; }
+    }, []);
     
-    const handleActivitySubmit = async (e) => {
+    const handleActivitySubmit = useCallback(async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
@@ -437,20 +370,17 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             });
             await fetchActivities();
             await fetchAnalytics();
-            if (onDataSubmitted) onDataSubmitted();
-            if (onActivityChange) onActivityChange();
+            onDataSubmitted?.();
+            onActivityChange?.();
             refreshData();
             setActivityFormData({ activity_type: '', duration_minutes: '', start_time: '', calories_burned: '' });
             setShowCaloriesEdit(false);
-        } catch (err) {
-            console.error('Save error:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
+        } catch (err) { console.error(err); }
+        finally { setLoading(false); }
+    }, [activityFormData, onDataSubmitted, onActivityChange, fetchActivities, fetchAnalytics, refreshData]);
     
-    // ==================== دوال التنسيق والعرض ====================
-    const formatDateTime = (dateString) => {
+    // ==================== دوال التنسيق ====================
+    const formatDateTime = useCallback((dateString) => {
         if (!dateString) return '—';
         try {
             const date = new Date(dateString);
@@ -459,7 +389,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 hour: '2-digit', minute: '2-digit'
             });
         } catch { return dateString; }
-    };
+    }, [isArabic]);
     
     const getActivityIcon = (type) => {
         const icons = { walking: '🚶', running: '🏃', cycling: '🚴', swimming: '🏊', yoga: '🧘', weightlifting: '🏋️', cardio: '❤️', other: '🏅' };
@@ -512,21 +442,20 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     const chartData = getChartData();
     const maxDuration = Math.max(...Object.values(chartData.typeStats).map(s => s.duration), 0);
     const maxCalories = Math.max(...Object.values(chartData.typeStats).map(s => s.calories), 0);
+    const filledFieldsCount = Object.values(healthFormData).filter(v => v?.trim?.()).length;
     
     useEffect(() => {
         isMountedRef.current = true;
-        return () => {
-            isMountedRef.current = false;
-        };
+        return () => { isMountedRef.current = false; };
     }, []);
     
-    // ==================== التصيير (Render) ====================
+    // ==================== التصيير ====================
     return (
         <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
             
             {/* ==================== القسم 1: القياسات الصحية ==================== */}
             <div style={{ background: 'var(--card-bg)', borderRadius: '24px', padding: '1.5rem', border: '1px solid var(--border-light)', marginBottom: '24px' }}>
-                <div className="form-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid var(--border-light)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid var(--border-light)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <h2 style={{ margin: 0 }}><span style={{ fontSize: '1.5rem' }}>📝</span> {isArabic ? 'إضافة قياس صحي' : 'Add Health Reading'}</h2>
                         {filledFieldsCount > 0 && <span style={{ padding: '0.35rem 0.85rem', background: 'var(--tertiary-bg)', borderRadius: '50px', fontSize: '0.75rem' }}>📋 {filledFieldsCount}/7 {isArabic ? 'حقول مملوءة' : 'fields filled'}</span>}
@@ -534,7 +463,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                             <input type="checkbox" checked={autoSave} onChange={(e) => setAutoSave(e.target.checked)} style={{ position: 'absolute', opacity: 0 }} />
-                            <span style={{ width: '44px', height: '22px', background: 'var(--border-light)', borderRadius: '22px', position: 'relative', transition: 'all 0.15s' }}>
+                            <span style={{ width: '44px', height: '22px', background: 'var(--border-light)', borderRadius: '22px', position: 'relative' }}>
                                 <span style={{ position: 'absolute', width: '18px', height: '18px', background: 'white', borderRadius: '50%', top: '2px', left: autoSave ? '24px' : '2px', transition: 'all 0.15s' }}></span>
                             </span>
                             <span style={{ fontSize: '0.8rem' }}>💾 {isArabic ? 'حفظ تلقائي' : 'Auto Save'}</span>
@@ -553,14 +482,14 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                     
                     <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                         {!sensorActive ? (
-                            <button onClick={connectSensor} disabled={sensorConnecting} style={{ padding: '0.5rem 1rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <button onClick={connectSensor} disabled={sensorConnecting} style={{ padding: '0.5rem 1rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>
                                 {sensorConnecting ? '⏳ جاري الاتصال...' : '🔌 اتصال ESP32'}
                             </button>
                         ) : (
                             <>
-                                <button onClick={disconnectSensor} style={{ padding: '0.5rem 1rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>🔌 قطع الاتصال</button>
-                                <button onClick={fillFormWithSensorData} disabled={sensorHeartRate === null && sensorSpO2 === null} style={{ padding: '0.5rem 1rem', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>📋 {isArabic ? 'تعبئة النموذج' : 'Fill Form'}</button>
-                                <button onClick={saveSensorReadingAsHealthRecord} disabled={savingSensorData || (sensorHeartRate === null && sensorSpO2 === null)} style={{ padding: '0.5rem 1rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>
+                                <button onClick={disconnectSensor} style={{ padding: '0.5rem 1rem', background: '#ef4444', color: 'white', borderRadius: '10px', cursor: 'pointer' }}>🔌 قطع الاتصال</button>
+                                <button onClick={fillFormWithSensorData} disabled={sensorHeartRate === null && sensorSpO2 === null} style={{ padding: '0.5rem 1rem', background: '#f59e0b', color: 'white', borderRadius: '10px', cursor: 'pointer' }}>📋 {isArabic ? 'تعبئة النموذج' : 'Fill Form'}</button>
+                                <button onClick={saveSensorReadingAsHealthRecord} disabled={savingSensorData || (sensorHeartRate === null && sensorSpO2 === null)} style={{ padding: '0.5rem 1rem', background: '#8b5cf6', color: 'white', borderRadius: '10px', cursor: 'pointer' }}>
                                     {savingSensorData ? '⏳ جاري الحفظ...' : `💾 ${isArabic ? 'حفظ كقياس صحي' : 'Save as Record'}`}
                                 </button>
                             </>
@@ -572,20 +501,16 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
                                 <div style={{ flex: 1, minWidth: '150px', background: 'rgba(255,255,255,0.1)', borderRadius: '16px', padding: '0.85rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                     <span style={{ fontSize: '2rem' }}>❤️</span>
-                                    <div style={{ flex: 1 }}>
-                                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>{isArabic ? 'معدل ضربات القلب' : 'Heart Rate'}</span>
-                                        <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white' }}>{sensorHeartRate !== null ? sensorHeartRate : '---'} <span style={{ fontSize: '0.7rem', fontWeight: 'normal' }}>BPM</span></span>
-                                    </div>
+                                    <div><span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{isArabic ? 'معدل ضربات القلب' : 'Heart Rate'}</span>
+                                    <div><span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white' }}>{sensorHeartRate !== null ? sensorHeartRate : '---'} <span style={{ fontSize: '0.7rem' }}>BPM</span></span></div></div>
                                 </div>
                                 <div style={{ flex: 1, minWidth: '150px', background: 'rgba(255,255,255,0.1)', borderRadius: '16px', padding: '0.85rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                     <span style={{ fontSize: '2rem' }}>💨</span>
-                                    <div style={{ flex: 1 }}>
-                                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>{isArabic ? 'نسبة الأكسجين' : 'Oxygen Level'}</span>
-                                        <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white' }}>{sensorSpO2 !== null ? sensorSpO2 : '---'} <span style={{ fontSize: '0.7rem', fontWeight: 'normal' }}>SpO₂%</span></span>
-                                    </div>
+                                    <div><span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{isArabic ? 'نسبة الأكسجين' : 'Oxygen Level'}</span>
+                                    <div><span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white' }}>{sensorSpO2 !== null ? sensorSpO2 : '---'} <span style={{ fontSize: '0.7rem' }}>SpO₂%</span></span></div></div>
                                 </div>
                             </div>
-                            {lastSensorReading?.timestamp && <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.75rem' }}>🕐 {isArabic ? 'آخر تحديث:' : 'Last update:'} {getLastReadingTime()}</div>}
+                            {lastSensorReading?.timestamp && <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', fontSize: '0.7rem', color: '#94a3b8' }}>🕐 {isArabic ? 'آخر تحديث:' : 'Last update:'} {getLastReadingTime()}</div>}
                         </>
                     )}
                 </div>
@@ -593,70 +518,24 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 {/* نموذج القياسات الصحية */}
                 <form onSubmit={handleHealthSubmit}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
-                        {/* الوزن */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>⚖️</span> {isArabic ? 'الوزن' : 'Weight'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(kg)</span></label>
-                            <input type="number" step="0.1" value={healthFormData.weight} onChange={(e) => handleHealthInputChange('weight', e.target.value)} placeholder={isArabic ? 'مثال: 70.5' : 'Example: 70.5'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 50-100 kg</span></div>
-                        </div>
-                        
-                        {/* الضغط الانقباضي */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>❤️</span> {isArabic ? 'الضغط الانقباضي' : 'Systolic'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(mmHg)</span></label>
-                            <input type="number" value={healthFormData.systolic} onChange={(e) => handleHealthInputChange('systolic', e.target.value)} placeholder={isArabic ? 'مثال: 120' : 'Example: 120'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 90-140 mmHg</span></div>
-                        </div>
-                        
-                        {/* الضغط الانبساطي */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>💙</span> {isArabic ? 'الضغط الانبساطي' : 'Diastolic'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(mmHg)</span></label>
-                            <input type="number" value={healthFormData.diastolic} onChange={(e) => handleHealthInputChange('diastolic', e.target.value)} placeholder={isArabic ? 'مثال: 80' : 'Example: 80'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 60-90 mmHg</span></div>
-                        </div>
-                        
-                        {/* سكر الدم */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>🩸</span> {isArabic ? 'سكر الدم' : 'Blood Glucose'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(mg/dL)</span></label>
-                            <input type="number" step="0.1" value={healthFormData.glucose} onChange={(e) => handleHealthInputChange('glucose', e.target.value)} placeholder={isArabic ? 'مثال: 95' : 'Example: 95'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 70-140 mg/dL</span></div>
-                        </div>
-                        
-                        {/* نبضات القلب */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>💓</span> {isArabic ? 'نبضات القلب' : 'Heart Rate'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(BPM)</span></label>
-                            <input type="number" value={healthFormData.heartRate} onChange={(e) => handleHealthInputChange('heartRate', e.target.value)} placeholder={isArabic ? 'مثال: 75' : 'Example: 75'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 60-100 BPM</span></div>
-                        </div>
-                        
-                        {/* نسبة الأكسجين */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>💨</span> {isArabic ? 'نسبة الأكسجين' : 'Oxygen Level'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(%)</span></label>
-                            <input type="number" value={healthFormData.spo2} onChange={(e) => handleHealthInputChange('spo2', e.target.value)} placeholder={isArabic ? 'مثال: 98' : 'Example: 98'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 95-100%</span></div>
-                        </div>
-                        
-                        {/* درجة الحرارة */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}><span>🌡️</span> {isArabic ? 'درجة الحرارة' : 'Temperature'} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>(°C)</span></label>
-                            <input type="number" step="0.1" value={healthFormData.temperature} onChange={(e) => handleHealthInputChange('temperature', e.target.value)} placeholder={isArabic ? 'مثال: 37.0' : 'Example: 37.0'} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: 36.5-37.5 °C</span></div>
-                        </div>
+                        {[
+                            { field: 'weight', icon: '⚖️', label: isArabic ? 'الوزن' : 'Weight', unit: 'kg', placeholder: '70.5', normal: '50-100 kg' },
+                            { field: 'systolic', icon: '❤️', label: isArabic ? 'الضغط الانقباضي' : 'Systolic', unit: 'mmHg', placeholder: '120', normal: '90-140 mmHg' },
+                            { field: 'diastolic', icon: '💙', label: isArabic ? 'الضغط الانبساطي' : 'Diastolic', unit: 'mmHg', placeholder: '80', normal: '60-90 mmHg' },
+                            { field: 'glucose', icon: '🩸', label: isArabic ? 'سكر الدم' : 'Blood Glucose', unit: 'mg/dL', placeholder: '95', normal: '70-140 mg/dL' },
+                            { field: 'heartRate', icon: '💓', label: isArabic ? 'نبضات القلب' : 'Heart Rate', unit: 'BPM', placeholder: '75', normal: '60-100 BPM' },
+                            { field: 'spo2', icon: '💨', label: isArabic ? 'نسبة الأكسجين' : 'Oxygen Level', unit: '%', placeholder: '98', normal: '95-100%' },
+                            { field: 'temperature', icon: '🌡️', label: isArabic ? 'درجة الحرارة' : 'Temperature', unit: '°C', placeholder: '37.0', normal: '36.5-37.5 °C' }
+                        ].map(({ field, icon, label, unit, placeholder, normal }) => (
+                            <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>
+                                    <span>{icon}</span> {label} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>({unit})</span>
+                                </label>
+                                <input type="number" step={field === 'weight' || field === 'glucose' || field === 'temperature' ? '0.1' : '1'} value={healthFormData[field]} onChange={(e) => handleHealthInputChange(field, e.target.value)} placeholder={isArabic ? `مثال: ${placeholder}` : `Example: ${placeholder}`} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
+                                <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: {normal}</span></div>
+                            </div>
+                        ))}
                     </div>
-                    
-                    {healthIndicators.length > 0 && (
-                        <div style={{ marginBottom: '1rem' }}>
-                            {healthIndicators.map((indicator, index) => (
-                                <div key={index} style={{ padding: '0.5rem', marginBottom: '0.5rem', background: 'rgba(99,102,241,0.1)', borderRadius: '8px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <span>{indicator.icon}</span>
-                                        <span style={{ fontWeight: 600 }}>{indicator.message}</span>
-                                        {indicator.value && <span style={{ fontSize: '0.75rem', background: 'var(--card-bg)', padding: '0.15rem 0.5rem', borderRadius: '12px' }}>{indicator.value}</span>}
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem' }}>{indicator.advice}</div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                     
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                         <button type="button" onClick={resetHealthForm} disabled={healthLoading} style={{ flex: 1, padding: '0.75rem', background: 'var(--secondary-bg)', border: '1px solid var(--border-light)', borderRadius: '12px', cursor: 'pointer' }}>🗑️ {isArabic ? 'مسح النموذج' : 'Clear Form'}</button>
@@ -669,13 +548,10 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
                 <h3 style={{ margin: '0 0 15px 0' }}>🏃 {isArabic ? 'إضافة نشاط جديد' : 'Add New Activity'}</h3>
                 
-                {userWeight && (
-                    <div style={{ background: '#e0e7ff', padding: '8px 12px', borderRadius: '8px', marginBottom: '15px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>⚖️</span>
-                        <span>{isArabic ? `وزنك: ${userWeight} كجم` : `Your weight: ${userWeight} kg`}</span>
-                        <span style={{ fontSize: '11px', opacity: 0.7 }}>{isArabic ? '(يستخدم لحساب السعرات)' : '(used for calorie calculation)'}</span>
-                    </div>
-                )}
+                {userWeight && <div style={{ background: '#e0e7ff', padding: '8px 12px', borderRadius: '8px', marginBottom: '15px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>⚖️</span> <span>{isArabic ? `وزنك: ${userWeight} كجم` : `Your weight: ${userWeight} kg`}</span>
+                    <span style={{ fontSize: '11px', opacity: 0.7 }}>{isArabic ? '(يستخدم لحساب السعرات)' : '(used for calorie calculation)'}</span>
+                </div>}
                 
                 <form onSubmit={handleActivitySubmit}>
                     <select name="activity_type" value={activityFormData.activity_type} onChange={handleActivityChange} required style={{ width: '100%', padding: '12px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
@@ -699,16 +575,14 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                     
                     {!showCaloriesEdit && activityFormData.activity_type && activityFormData.duration_minutes && (
                         <div style={{ fontSize: '11px', color: '#10b981', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <span>🤖</span>
-                            <span>{isArabic ? 'تم حساب السعرات تلقائياً' : 'Calories calculated automatically'}</span>
+                            <span>🤖</span> <span>{isArabic ? 'تم حساب السعرات تلقائياً' : 'Calories calculated automatically'}</span>
                             <button type="button" onClick={() => setShowCaloriesEdit(true)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: '11px' }}>{isArabic ? 'تعديل يدوي' : 'Edit manually'}</button>
                         </div>
                     )}
                     
                     {showCaloriesEdit && (
                         <div style={{ fontSize: '11px', color: '#f59e0b', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <span>✏️</span>
-                            <span>{isArabic ? 'تم التعديل اليدوي - حساب تلقائي متوقف' : 'Manual edit - auto calculation paused'}</span>
+                            <span>✏️</span> <span>{isArabic ? 'تم التعديل اليدوي - حساب تلقائي متوقف' : 'Manual edit - auto calculation paused'}</span>
                             <button type="button" onClick={() => { updateCalories(activityFormData.activity_type, activityFormData.duration_minutes); setShowCaloriesEdit(false); }} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: '11px' }}>{isArabic ? 'إعادة الحساب التلقائي' : 'Recalculate'}</button>
                         </div>
                     )}
@@ -720,85 +594,60 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             </div>
             
             {/* ==================== القسم 3: السجل الصحي والمخططات ==================== */}
-            <div style={{ marginBottom: '20px' }}>
-                <HealthHistory 
-                    refreshKey={refreshKey} 
-                    onDataSubmitted={refreshData} 
-                    isArabic={isArabic} 
-                />
-            </div>
+            <div style={{ marginBottom: '20px' }}><HealthHistory refreshKey={refreshKey} onDataSubmitted={refreshData} isArabic={isArabic} /></div>
+            <div style={{ marginBottom: '20px' }}><HealthCharts refreshKey={refreshKey} isArabic={isArabic} /></div>
+            <div style={{ marginBottom: '20px' }}><ActivityAnalytics refreshTrigger={refreshKey} /></div>
             
-            <div style={{ marginBottom: '20px' }}>
-                <HealthCharts 
-                    refreshKey={refreshKey} 
-                    isArabic={isArabic} 
-                />
-            </div>
-            
-            {/* ✅ القسم 4: تحليلات النشاط الذكية */}
-            <div style={{ marginBottom: '20px' }}>
-                <ActivityAnalytics refreshTrigger={refreshKey} />
-            </div>
-
-            
-            {/* ==================== القسم 6: تحليل الأنشطة والمخططات ==================== */}
+            {/* ==================== تحليل الأنشطة ==================== */}
             {activities.length > 0 && (
                 <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e0e0e0', marginBottom: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                         <h3 style={{ margin: 0 }}>📈 {isArabic ? 'تحليل الأنشطة' : 'Activity Analytics'}</h3>
-                        <button onClick={() => setShowCharts(!showCharts)} style={{ padding: '5px 12px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>{showCharts ? '📋 إخفاء' : '📊 إظهار'}</button>
+                        <button onClick={() => setShowCharts(!showCharts)} style={{ padding: '5px 12px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{showCharts ? '📋 إخفاء' : '📊 إظهار'}</button>
                     </div>
                     
                     {showCharts && (
                         <>
                             <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
-                                <h4 style={{ margin: '0 0 15px 0' }}>📊 {isArabic ? 'تحليل الأنشطة' : 'Activity Analytics'}</h4>
-                                {analyticsLoading ? (
-                                    <p>{isArabic ? 'جاري التحليل...' : 'Loading...'}</p>
-                                ) : analytics ? (
+                                <h4>📊 {isArabic ? 'تحليل الأنشطة' : 'Activity Analytics'}</h4>
+                                {analyticsLoading ? <p>{isArabic ? 'جاري التحليل...' : 'Loading...'}</p> : analytics ? (
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '15px', textAlign: 'center' }}>
-                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_activities || 0}</div><div style={{ fontSize: '12px', opacity: 0.8 }}>{isArabic ? 'عدد الأنشطة' : 'Activities'}</div></div>
-                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_calories || 0}</div><div style={{ fontSize: '12px', opacity: 0.8 }}>{isArabic ? 'سعرات حرارية' : 'Calories'}</div></div>
-                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_duration || 0}</div><div style={{ fontSize: '12px', opacity: 0.8 }}>{isArabic ? 'دقائق' : 'Minutes'}</div></div>
-                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.avg_duration || 0}</div><div style={{ fontSize: '12px', opacity: 0.8 }}>{isArabic ? 'متوسط المدة' : 'Avg Duration'}</div></div>
-                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.avg_calories_per_activity || 0}</div><div style={{ fontSize: '12px', opacity: 0.8 }}>{isArabic ? 'سعرات/نشاط' : 'Cal/Activity'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_activities || 0}</div><div>{isArabic ? 'عدد الأنشطة' : 'Activities'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_calories || 0}</div><div>{isArabic ? 'سعرات حرارية' : 'Calories'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_duration || 0}</div><div>{isArabic ? 'دقائق' : 'Minutes'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.avg_duration || 0}</div><div>{isArabic ? 'متوسط المدة' : 'Avg Duration'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.avg_calories_per_activity || 0}</div><div>{isArabic ? 'سعرات/نشاط' : 'Cal/Activity'}</div></div>
                                     </div>
                                 ) : <p>{isArabic ? 'لا توجد بيانات كافية' : 'Insufficient data'}</p>}
                             </div>
                             
                             <div style={{ marginBottom: '30px' }}>
-                                <h4 style={{ margin: '0 0 15px 0', color: '#333' }}>📊 {isArabic ? 'توزيع الأنشطة حسب النوع' : 'Activities by Type'}</h4>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                    {Object.entries(chartData.typeStats).map(([type, stats]) => (
-                                        <div key={type}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '13px' }}>
-                                                <span>{getActivityIcon(type)} {getActivityName(type)} <span style={{ fontSize: '11px', marginLeft: '8px', color: '#f59e0b' }}>{getMetIcon(type)} {MET_VALUES[type]} MET</span></span>
-                                                <div style={{ display: 'flex', gap: '15px' }}>
-                                                    <span>⏱️ {stats.duration} {isArabic ? 'دقيقة' : 'min'}</span>
-                                                    <span style={{ color: '#f59e0b' }}>🔥 {stats.calories} {isArabic ? 'سعرة' : 'cal'}</span>
-                                                    <span>({stats.count} {isArabic ? 'نشاط' : 'act'})</span>
-                                                </div>
-                                            </div>
-                                            <div style={{ background: '#e0e0e0', borderRadius: '10px', overflow: 'hidden', marginBottom: '5px' }}>
-                                                <div style={{ width: `${maxDuration > 0 ? (stats.duration / maxDuration) * 100 : 0}%`, background: 'linear-gradient(90deg, #6366f1, #8b5cf6)', padding: '6px 10px', borderRadius: '10px', color: 'white', fontSize: '11px', textAlign: 'right' }}>{stats.duration} {isArabic ? 'دقيقة' : 'min'}</div>
-                                            </div>
-                                            <div style={{ background: '#e0e0e0', borderRadius: '10px', overflow: 'hidden' }}>
-                                                <div style={{ width: `${maxCalories > 0 ? (stats.calories / maxCalories) * 100 : 0}%`, background: 'linear-gradient(90deg, #f59e0b, #ef4444)', padding: '6px 10px', borderRadius: '10px', color: 'white', fontSize: '11px', textAlign: 'right' }}>🔥 {stats.calories} {isArabic ? 'سعرة' : 'cal'}</div>
-                                            </div>
+                                <h4>📊 {isArabic ? 'توزيع الأنشطة حسب النوع' : 'Activities by Type'}</h4>
+                                {Object.entries(chartData.typeStats).map(([type, stats]) => (
+                                    <div key={type} style={{ marginBottom: '15px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '13px' }}>
+                                            <span>{getActivityIcon(type)} {getActivityName(type)} <span style={{ fontSize: '11px', color: '#f59e0b' }}>{getMetIcon(type)} {MET_VALUES[type]} MET</span></span>
+                                            <span>⏱️ {stats.duration} {isArabic ? 'دقيقة' : 'min'} 🔥 {stats.calories} {isArabic ? 'سعرة' : 'cal'} ({stats.count} {isArabic ? 'نشاط' : 'act'})</span>
                                         </div>
-                                    ))}
-                                </div>
+                                        <div style={{ background: '#e0e0e0', borderRadius: '10px', overflow: 'hidden', marginBottom: '5px' }}>
+                                            <div style={{ width: `${maxDuration > 0 ? (stats.duration / maxDuration) * 100 : 0}%`, background: 'linear-gradient(90deg, #6366f1, #8b5cf6)', padding: '6px 10px', borderRadius: '10px', color: 'white', fontSize: '11px', textAlign: 'right' }}>{stats.duration} {isArabic ? 'دقيقة' : 'min'}</div>
+                                        </div>
+                                        <div style={{ background: '#e0e0e0', borderRadius: '10px', overflow: 'hidden' }}>
+                                            <div style={{ width: `${maxCalories > 0 ? (stats.calories / maxCalories) * 100 : 0}%`, background: 'linear-gradient(90deg, #f59e0b, #ef4444)', padding: '6px 10px', borderRadius: '10px', color: 'white', fontSize: '11px', textAlign: 'right' }}>🔥 {stats.calories} {isArabic ? 'سعرة' : 'cal'}</div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                             
                             <div>
-                                <h4 style={{ margin: '0 0 15px 0', color: '#333' }}>📅 {isArabic ? 'آخر 7 أيام' : 'Last 7 Days'}</h4>
+                                <h4>📅 {isArabic ? 'آخر 7 أيام' : 'Last 7 Days'}</h4>
                                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', justifyContent: 'center', minHeight: '220px', overflowX: 'auto' }}>
                                     {chartData.last7Days.map((day, idx) => {
-                                        const maxDayCalories = Math.max(...chartData.last7Days.map(d => d.calories), 1);
-                                        const heightCalories = (day.calories / maxDayCalories) * 150;
+                                        const maxCal = Math.max(...chartData.last7Days.map(d => d.calories), 1);
+                                        const height = (day.calories / maxCal) * 150;
                                         return (
                                             <div key={idx} style={{ textAlign: 'center', flex: 1, minWidth: '60px' }}>
-                                                <div style={{ height: `${heightCalories}px`, background: 'linear-gradient(180deg, #f59e0b, #ef4444)', borderRadius: '8px 8px 0 0', transition: 'height 0.5s ease', position: 'relative', marginBottom: '5px' }}>
+                                                <div style={{ height: `${height}px`, background: 'linear-gradient(180deg, #f59e0b, #ef4444)', borderRadius: '8px 8px 0 0', position: 'relative' }}>
                                                     <div style={{ position: 'absolute', top: '-20px', left: '50%', transform: 'translateX(-50%)', fontSize: '10px', whiteSpace: 'nowrap', color: '#f59e0b' }}>🔥{day.calories}</div>
                                                 </div>
                                                 <div style={{ fontSize: '10px' }}>{day.name}<br /><strong>{day.duration}{isArabic ? 'د' : 'm'}</strong><br /><span style={{ fontSize: '9px', color: '#666' }}>({day.count})</span></div>
@@ -812,13 +661,11 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 </div>
             )}
             
-            {/* ==================== القسم 7: السجل الزمني للأنشطة ==================== */}
+            {/* ==================== السجل الزمني للأنشطة ==================== */}
             <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e0e0e0' }}>
-                <h3 style={{ margin: '0 0 15px 0' }}>📋 {isArabic ? 'السجل الزمني للأنشطة' : 'Activity Timeline'}</h3>
-                
-                {fetching ? (
-                    <p style={{ textAlign: 'center', padding: '40px' }}>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p>
-                ) : activities.length === 0 ? (
+                <h3>📋 {isArabic ? 'السجل الزمني للأنشطة' : 'Activity Timeline'}</h3>
+                {fetching ? <p style={{ textAlign: 'center', padding: '40px' }}>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p> :
+                 activities.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
                         <div style={{ fontSize: '48px', marginBottom: '10px' }}>🏃‍♂️</div>
                         <p>{isArabic ? 'لا توجد أنشطة مسجلة' : 'No activities recorded'}</p>
@@ -827,28 +674,27 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 ) : (
                     <div style={{ position: 'relative', paddingLeft: '30px' }}>
                         <div style={{ position: 'absolute', left: '10px', top: '10px', bottom: '10px', width: '2px', background: 'linear-gradient(180deg, #6366f1, #8b5cf6, #a855f7)' }}></div>
-                        {activities.map((act, index) => (
+                        {activities.map((act, idx) => (
                             <div key={act.id} style={{ position: 'relative', marginBottom: '20px', paddingLeft: '20px' }}>
-                                <div style={{ position: 'absolute', left: '-26px', top: '5px', width: '12px', height: '12px', borderRadius: '50%', background: index === 0 ? '#f59e0b' : '#6366f1', border: '2px solid white', boxShadow: '0 0 0 2px #6366f1' }}></div>
-                                <div style={{ background: index === 0 ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : '#f8f9fa', padding: '15px', borderRadius: '10px', border: index === 0 ? '1px solid #f59e0b' : '1px solid #e0e0e0' }}>
+                                <div style={{ position: 'absolute', left: '-26px', top: '5px', width: '12px', height: '12px', borderRadius: '50%', background: idx === 0 ? '#f59e0b' : '#6366f1', border: '2px solid white', boxShadow: '0 0 0 2px #6366f1' }}></div>
+                                <div style={{ background: idx === 0 ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : '#f8f9fa', padding: '15px', borderRadius: '10px', border: idx === 0 ? '1px solid #f59e0b' : '1px solid #e0e0e0' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <span style={{ fontSize: '28px' }}>{getActivityIcon(act.activity_type)}</span>
                                             <div>
-                                                <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{getActivityName(act.activity_type)}</div>
+                                                <div style={{ fontWeight: 'bold' }}>{getActivityName(act.activity_type)}</div>
                                                 <div style={{ fontSize: '12px', color: '#666' }}>{act.duration_minutes} {isArabic ? 'دقيقة' : 'minutes'}{act.calories_burned > 0 && <span style={{ marginLeft: '10px', color: '#f59e0b' }}>🔥 {act.calories_burned} {isArabic ? 'سعرة' : 'cal'}</span>}</div>
                                             </div>
                                         </div>
-                                        <div style={{ fontSize: '12px', color: '#666', direction: isArabic ? 'ltr' : 'ltr' }}>📅 {formatDateTime(act.start_time || act.created_at)}</div>
+                                        <div style={{ fontSize: '12px', color: '#666' }}>📅 {formatDateTime(act.start_time || act.created_at)}</div>
                                     </div>
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
-                
                 {activities.length > 0 && (
-                    <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee', display: 'flex', gap: '20px', justifyContent: 'center', fontSize: '12px', color: '#666', flexWrap: 'wrap' }}>
+                    <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee', display: 'flex', gap: '20px', justifyContent: 'center', fontSize: '12px', color: '#666' }}>
                         <span>📊 {isArabic ? 'آخر نشاط' : 'Latest'}: {getActivityName(activities[0]?.activity_type)}</span>
                         <span>⏱️ {isArabic ? 'إجمالي' : 'Total'}: {activities.reduce((sum, a) => sum + (a.duration_minutes || 0), 0)} {isArabic ? 'دقيقة' : 'min'}</span>
                         <span style={{ color: '#f59e0b' }}>🔥 {isArabic ? 'إجمالي السعرات' : 'Total calories'}: {activities.reduce((sum, a) => sum + (a.calories_burned || 0), 0)}</span>
