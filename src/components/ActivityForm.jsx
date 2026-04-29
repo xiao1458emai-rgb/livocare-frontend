@@ -82,25 +82,37 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         setRefreshKey(prev => prev + 1);
     }, []);
     
-    // ✅ جلب وزن المستخدم - تم إصلاحه
-    const fetchUserWeight = useCallback(async () => {
-        try {
-            const response = await axiosInstance.get('/health_status/');
-            let records = [];
-            if (response.data?.results) records = response.data.results;
-            else if (Array.isArray(response.data)) records = response.data;
-            
-            if (records.length > 0) {
-                const sorted = [...records].sort((a, b) => new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at));
-                const latest = sorted[0];
-                if (latest?.weight_kg) setUserWeight(latest.weight_kg);
-                else setUserWeight(70);
-            } else setUserWeight(70);
-        } catch (err) {
-            console.error('Error fetching user weight:', err);
+// ✅ الكود الصحيح بدلاً من الحالي
+const fetchUserWeight = useCallback(async () => {
+    try {
+        const response = await axiosInstance.get('/health_status/');
+        
+        let records = [];
+        if (response.data?.results) {
+            records = response.data.results;
+        } else if (Array.isArray(response.data)) {
+            records = response.data;
+        }
+        
+        if (records.length > 0) {
+            // ترتيب تنازلي حسب التاريخ للحصول على آخر قراءة
+            const sortedRecords = [...records].sort((a, b) => 
+                new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at)
+            );
+            const latest = sortedRecords[0];
+            if (latest && latest.weight_kg) {
+                setUserWeight(latest.weight_kg);
+            } else {
+                setUserWeight(70);
+            }
+        } else {
             setUserWeight(70);
         }
-    }, []);
+    } catch (err) {
+        console.error('Error fetching user weight:', err);
+        setUserWeight(70);
+    }
+}, []);
     
     // ✅ تسجيل مستمع ESP32
     useEffect(() => {
