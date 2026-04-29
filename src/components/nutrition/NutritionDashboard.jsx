@@ -825,732 +825,800 @@ function NutritionDashboard({ meals: propMeals, loading: propLoading, onRefresh 
 
             {/* ✅ أنماط CSS المضمنة */}
             <style jsx>{`
-                .nutrition-dashboard {
-                    background: var(--card-bg);
-                    border-radius: 24px;
-                    padding: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                /* ===== رأس الصفحة ===== */
-                .dashboard-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 1rem;
-                    margin-bottom: 1.5rem;
-                    padding-bottom: 1rem;
-                    border-bottom: 2px solid var(--border-light);
-                }
-
-                .header-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
-
-                .header-title h2 {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1.3rem;
-                }
-
-                .title-icon {
-                    font-size: 1.5rem;
-                }
-
-                .header-stats {
-                    display: flex;
-                    gap: 0.5rem;
-                }
-
-                .stat-badge {
-                    padding: 0.35rem 0.85rem;
-                    background: var(--tertiary-bg);
-                    border-radius: 50px;
-                    font-size: 0.75rem;
-                    color: var(--text-secondary);
-                }
-
-                .header-controls {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
-
-                .last-update {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                    padding: 0.25rem 0.5rem;
-                    background: var(--tertiary-bg);
-                    border-radius: 12px;
-                }
-
-                .refresh-btn {
-                    background: var(--secondary-bg);
-                    border: 1px solid var(--border-light);
-                    border-radius: 10px;
-                    padding: 0.5rem;
-                    cursor: pointer;
-                    transition: all var(--transition-fast);
-                }
-
-                .refresh-btn:hover {
-                    background: var(--hover-bg);
-                    transform: rotate(180deg);
-                }
-
-                .auto-refresh-label {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    cursor: pointer;
-                    padding: 0.25rem 0.5rem;
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
-                    border: 1px solid var(--border-light);
-                }
-
-                .auto-refresh-label input {
-                    position: absolute;
-                    opacity: 0;
-                    width: 0;
-                    height: 0;
-                }
-
-                .toggle-slider {
-                    width: 36px;
-                    height: 18px;
-                    background: var(--border-light);
-                    border-radius: 18px;
-                    position: relative;
-                    transition: all var(--transition-fast);
-                }
-
-                .toggle-slider::before {
-                    content: '';
-                    position: absolute;
-                    width: 14px;
-                    height: 14px;
-                    background: white;
-                    border-radius: 50%;
-                    top: 2px;
-                    left: 2px;
-                    transition: all var(--transition-fast);
-                }
-
-                input:checked + .toggle-slider {
-                    background: var(--primary);
-                }
-
-                input:checked + .toggle-slider::before {
-                    transform: translateX(18px);
-                }
-
-                [dir="rtl"] input:checked + .toggle-slider::before {
-                    transform: translateX(-18px);
-                }
-
-                .toggle-text {
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                /* ===== التوصيات ===== */
-                .recommendations-section {
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
-                    padding: 1rem;
-                    margin-bottom: 1.5rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                .section-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin-bottom: 1rem;
-                }
-
-                .section-icon {
-                    font-size: 1.2rem;
-                }
-
-                .section-header h3 {
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 0.9rem;
-                }
-
-                .recommendations-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.75rem;
-                }
-
-                .recommendation-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    padding: 0.75rem;
-                    border-radius: 12px;
-                }
-
-                .recommendation-item.priority-high {
-                    background: rgba(239, 68, 68, 0.1);
-                    border-left: 3px solid #ef4444;
-                }
-
-                .recommendation-item.priority-medium {
-                    background: rgba(245, 158, 11, 0.1);
-                    border-left: 3px solid #f59e0b;
-                }
-
-                .recommendation-item.priority-low {
-                    background: rgba(16, 185, 129, 0.1);
-                    border-left: 3px solid #10b981;
-                }
-
-                [dir="rtl"] .recommendation-item.priority-high { border-left: none; border-right: 3px solid #ef4444; }
-                [dir="rtl"] .recommendation-item.priority-medium { border-left: none; border-right: 3px solid #f59e0b; }
-                [dir="rtl"] .recommendation-item.priority-low { border-left: none; border-right: 3px solid #10b981; }
-
-                .rec-icon {
-                    font-size: 1.5rem;
-                }
-
-                .rec-content {
-                    flex: 1;
-                }
-
-                .rec-title {
-                    font-weight: 600;
-                    color: var(--text-primary);
-                    font-size: 0.85rem;
-                    margin-bottom: 0.25rem;
-                }
-
-                .rec-text {
-                    font-size: 0.75rem;
-                    color: var(--text-secondary);
-                }
-
-                /* ===== توقع الوزن ===== */
-                .prediction-card {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    padding: 1rem;
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    margin-bottom: 1.5rem;
-                    border-left: 4px solid;
-                }
-
-                [dir="rtl"] .prediction-card {
-                    border-left: none;
-                    border-right: 4px solid;
-                }
-
-                .prediction-icon {
-                    font-size: 2rem;
-                }
-
-                .prediction-content {
-                    flex: 1;
-                }
-
-                .prediction-title {
-                    font-weight: 600;
-                    color: var(--text-primary);
-                    font-size: 0.85rem;
-                    margin-bottom: 0.25rem;
-                }
-
-                .prediction-text {
-                    font-size: 0.8rem;
-                    color: var(--text-secondary);
-                }
-
-                /* ===== بطاقات الإحصائيات ===== */
-                .stats-grid {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 1rem;
-                    margin-bottom: 1.5rem;
-                }
-
-                .stat-card {
-                    background: var(--secondary-bg);
-                    border-radius: 16px;
-                    padding: 1rem;
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                .stat-icon {
-                    font-size: 1.8rem;
-                    width: 45px;
-                    height: 45px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: var(--hover-bg);
-                    border-radius: 12px;
-                }
-
-                .stat-info {
-                    flex: 1;
-                }
-
-                .stat-value {
-                    font-size: 1.3rem;
-                    font-weight: bold;
-                    color: var(--text-primary);
-                    line-height: 1.2;
-                }
-
-                .stat-label {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-
-                /* ===== تبويبات ===== */
-                .dashboard-tabs {
-                    display: flex;
-                    gap: 0.5rem;
-                    flex-wrap: wrap;
-                    margin-bottom: 1.5rem;
-                    border-bottom: 1px solid var(--border-light);
-                    padding-bottom: 0.5rem;
-                }
-
-                .tab-btn {
-                    padding: 0.5rem 1rem;
-                    background: var(--secondary-bg);
-                    border: 1px solid var(--border-light);
-                    border-radius: 10px;
-                    cursor: pointer;
-                    transition: all var(--transition-fast);
-                    font-size: 0.85rem;
-                }
-
-                .tab-btn:hover {
-                    background: var(--hover-bg);
-                    transform: translateY(-2px);
-                }
-
-                .tab-btn.active {
-                    background: var(--primary);
-                    color: white;
-                    border-color: var(--primary);
-                }
-
-                /* ===== محتوى التبويبات ===== */
-                .summary-tab,
-                .progress-tab,
-                .meals-tab,
-                .analytics-tab {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 1.5rem;
-                }
-
-                .distribution-section h4,
-                .recent-meals-section h4,
-                .goals-section h4,
-                .all-meals-section h4 {
-                    margin: 0 0 1rem;
-                    color: var(--text-primary);
-                    font-size: 0.9rem;
-                }
-
-                .distribution-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.75rem;
-                }
-
-                .distribution-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
-
-                .distribution-label {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    min-width: 100px;
-                }
-
-                .meal-icon {
-                    font-size: 1rem;
-                }
-
-                .meal-name {
-                    font-weight: 500;
-                    color: var(--text-primary);
-                    font-size: 0.85rem;
-                }
-
-                .meal-count {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-
-                .progress-bar-wrapper {
-                    flex: 1;
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                }
-
-                .progress-bar {
-                    flex: 1;
-                    height: 8px;
-                    background: var(--border-light);
-                    border-radius: 4px;
-                    overflow: hidden;
-                }
-
-                .progress-fill {
-                    height: 100%;
-                    border-radius: 4px;
-                    transition: width var(--transition-medium);
-                }
-
-                .progress-fill.good { background: #10b981; }
-                .progress-fill.medium { background: #f59e0b; }
-                .progress-fill.low { background: #ef4444; }
-                .progress-fill.over { background: #ef4444; }
-
-                .distribution-percent {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                    min-width: 45px;
-                }
-
-                /* ===== الوجبات ===== */
-                .meals-list,
-                .all-meals-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.75rem;
-                }
-
-                .meal-item,
-                .meal-card {
-                    background: var(--card-bg);
-                    border-radius: 14px;
-                    padding: 1rem;
-                    border: 1px solid var(--border-light);
-                }
-
-                .meal-header,
-                .meal-card-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 0.5rem;
-                }
-
-                .meal-type,
-                .meal-type-badge {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    font-weight: 600;
-                    color: var(--text-primary);
-                }
-
-                .meal-type-badge {
-                    background: rgba(0,0,0,0.1);
-                    padding: 0.25rem 0.75rem;
-                    border-radius: 20px;
-                    font-size: 0.8rem;
-                }
-
-                .meal-calories,
-                .meal-card-calories {
-                    font-weight: 600;
-                    color: #f59e0b;
-                }
-
-                .meal-date,
-                .meal-card-date {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                    margin-bottom: 0.5rem;
-                }
-
-                .meal-ingredients,
-                .meal-card-ingredients {
-                    margin-top: 0.5rem;
-                }
-
-                .ingredients-title {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                    margin-bottom: 0.25rem;
-                }
-
-                .ingredients-list {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 0.5rem;
-                }
-
-                .ingredient-tag,
-                .ingredient-badge {
-                    background: var(--tertiary-bg);
-                    padding: 0.2rem 0.6rem;
-                    border-radius: 20px;
-                    font-size: 0.7rem;
-                    color: var(--text-secondary);
-                }
-
-                .ingredient-more {
-                    background: var(--tertiary-bg);
-                    padding: 0.2rem 0.6rem;
-                    border-radius: 20px;
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-
-                /* ===== الأهداف ===== */
-                .goal-item {
-                    margin-bottom: 1rem;
-                }
-
-                .goal-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 0.5rem;
-                    flex-wrap: wrap;
-                    gap: 0.5rem;
-                }
-
-                .goal-info {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                }
-
-                .goal-icon {
-                    font-size: 1rem;
-                }
-
-                .goal-name {
-                    font-weight: 500;
-                    color: var(--text-primary);
-                }
-
-                .goal-values {
-                    display: flex;
-                    align-items: baseline;
-                    gap: 0.25rem;
-                }
-
-                .goal-current {
-                    font-weight: bold;
-                    color: var(--text-primary);
-                }
-
-                .goal-separator {
-                    color: var(--text-tertiary);
-                }
-
-                .goal-target {
-                    color: var(--text-secondary);
-                }
-
-                .goal-unit {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-
-                .goal-percent {
-                    font-weight: bold;
-                    color: var(--primary);
-                    font-size: 0.85rem;
-                }
-
-                .goals-note {
-                    margin-top: 1rem;
-                    padding: 0.75rem;
-                    background: rgba(59, 130, 246, 0.1);
-                    border-radius: 12px;
-                    font-size: 0.75rem;
-                    color: #3b82f6;
-                }
-
-                /* ===== حالات خاصة ===== */
-                .empty-state {
-                    text-align: center;
-                    padding: 2rem;
-                }
-
-                .empty-icon {
-                    font-size: 3rem;
-                    margin-bottom: 0.5rem;
-                    opacity: 0.5;
-                }
-
-                .empty-hint {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                    margin-top: 0.5rem;
-                }
-
-                .dashboard-footer {
-                    margin-top: 1rem;
-                    padding-top: 1rem;
-                    border-top: 1px solid var(--border-light);
-                    text-align: center;
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                }
-
-                .nutrition-loading {
-                    background: var(--card-bg);
-                    border-radius: 24px;
-                    padding: 3rem;
-                    text-align: center;
-                }
-
-                .spinner {
-                    width: 48px;
-                    height: 48px;
-                    border: 3px solid var(--border-light);
-                    border-top-color: var(--primary);
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                    margin: 0 auto 1rem;
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-
-                /* ===== استجابة الشاشات ===== */
-                @media (max-width: 1024px) {
-                    .stats-grid {
-                        grid-template-columns: repeat(2, 1fr);
-                    }
-                }
-
-                @media (max-width: 768px) {
-                    .nutrition-dashboard {
-                        padding: 1rem;
-                    }
-
-                    .dashboard-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-
-                    .header-controls {
-                        width: 100%;
-                        justify-content: space-between;
-                    }
-
-                    .stats-grid {
-                        grid-template-columns: repeat(2, 1fr);
-                        gap: 0.75rem;
-                    }
-
-                    .stat-card {
-                        padding: 0.75rem;
-                    }
-
-                    .stat-icon {
-                        width: 35px;
-                        height: 35px;
-                        font-size: 1.3rem;
-                    }
-
-                    .stat-value {
-                        font-size: 1.1rem;
-                    }
-
-                    .dashboard-tabs {
-                        justify-content: center;
-                    }
-
-                    .tab-btn {
-                        font-size: 0.75rem;
-                        padding: 0.4rem 0.8rem;
-                    }
-
-                    .distribution-item {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-
-                    .progress-bar-wrapper {
-                        width: 100%;
-                    }
-
-                    .goal-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-
-                    .meal-header,
-                    .meal-card-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                        gap: 0.5rem;
-                    }
-                }
-
-                @media (max-width: 480px) {
-                    .stats-grid {
-                        grid-template-columns: 1fr;
-                    }
-
-                    .header-stats {
-                        width: 100%;
-                        justify-content: space-between;
-                    }
-                }
-
-                /* ===== RTL دعم ===== */
-                [dir="rtl"] .stat-card {
-                    flex-direction: row-reverse;
-                }
-
-                [dir="rtl"] .distribution-label {
-                    flex-direction: row-reverse;
-                }
-
-                [dir="rtl"] .goal-info {
-                    flex-direction: row-reverse;
-                }
-
-                [dir="rtl"] .meal-header,
-                [dir="rtl"] .meal-card-header {
-                    flex-direction: row-reverse;
-                }
-
-                @media (max-width: 768px) {
-                    [dir="rtl"] .meal-header,
-                    [dir="rtl"] .meal-card-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-                }
+   /* ===========================================
+   NutritionDashboard.css - الأنماط الداخلية فقط
+   ✅ لوحة التغذية - ألوان طعام مميزة
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
+   =========================================== */
+
+/* ===== الحاوية الرئيسية ===== */
+.nutrition-dashboard {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-light, #eef2f6);
+    transition: all 0.2s ease;
+}
+
+.nutrition-dashboard.dark-mode {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+/* ===== رأس الصفحة ===== */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .dashboard-header {
+    border-bottom-color: #334155;
+}
+
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.header-title h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #ef4444, #f59e0b);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.dark-mode .header-title h2 {
+    background: linear-gradient(135deg, #f87171, #fbbf24);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.title-icon {
+    font-size: 1.5rem;
+}
+
+.header-stats {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.stat-badge {
+    padding: 0.35rem 0.85rem;
+    background: var(--tertiary-bg, #f1f5f9);
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .stat-badge {
+    background: #0f172a;
+    color: #94a3b8;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.last-update {
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+    padding: 0.25rem 0.5rem;
+    background: var(--tertiary-bg, #f1f5f9);
+    border-radius: 12px;
+}
+
+.dark-mode .last-update {
+    background: #0f172a;
+    color: #64748b;
+}
+
+.refresh-btn {
+    background: var(--secondary-bg, #f1f5f9);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 12px;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .refresh-btn {
+    background: #334155;
+    border-color: #475569;
+    color: #94a3b8;
+}
+
+.refresh-btn:hover {
+    background: linear-gradient(135deg, #ef4444, #f59e0b);
+    color: white;
+    transform: rotate(180deg);
+    border-color: transparent;
+}
+
+/* ===== التوصيات الذكية ===== */
+.recommendations-section {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .recommendations-section {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.section-icon {
+    font-size: 1.2rem;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .section-header h3 {
+    color: #f1f5f9;
+}
+
+.recommendations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.recommendation-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 14px;
+}
+
+.recommendation-item.priority-high {
+    background: rgba(239, 68, 68, 0.08);
+    border-left: 3px solid #ef4444;
+}
+
+.recommendation-item.priority-medium {
+    background: rgba(245, 158, 11, 0.08);
+    border-left: 3px solid #f59e0b;
+}
+
+.recommendation-item.priority-low {
+    background: rgba(16, 185, 129, 0.08);
+    border-left: 3px solid #10b981;
+}
+
+[dir="rtl"] .recommendation-item.priority-high { border-left: none; border-right: 3px solid #ef4444; }
+[dir="rtl"] .recommendation-item.priority-medium { border-left: none; border-right: 3px solid #f59e0b; }
+[dir="rtl"] .recommendation-item.priority-low { border-left: none; border-right: 3px solid #10b981; }
+
+.rec-icon {
+    font-size: 1.5rem;
+}
+
+.rec-content {
+    flex: 1;
+}
+
+.rec-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .rec-title {
+    color: #f1f5f9;
+}
+
+.rec-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #64748b);
+    line-height: 1.4;
+}
+
+/* ===== توقع الوزن ===== */
+.prediction-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 18px;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid;
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-left-width: 4px;
+}
+
+.dark-mode .prediction-card {
+    background: #0f172a;
+    border-color: #334155;
+    border-left-width: 4px;
+}
+
+[dir="rtl"] .prediction-card {
+    border-left-width: 1px;
+    border-right-width: 4px;
+}
+
+.prediction-icon {
+    font-size: 2rem;
+}
+
+.prediction-content {
+    flex: 1;
+}
+
+.prediction-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .prediction-title {
+    color: #f1f5f9;
+}
+
+.prediction-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #64748b);
+}
+
+/* ===== بطاقات الإحصائيات ===== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+    transition: all 0.2s;
+}
+
+.dark-mode .stat-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+.dark-mode .stat-card:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.stat-icon {
+    font-size: 1.8rem;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ef4444, #f59e0b);
+    border-radius: 16px;
+    color: white;
+}
+
+.stat-info {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .stat-value {
+    color: #f1f5f9;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== تبويبات ===== */
+.dashboard-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+    padding-bottom: 0.5rem;
+}
+
+.dark-mode .dashboard-tabs {
+    border-bottom-color: #334155;
+}
+
+.tab-btn {
+    padding: 0.5rem 1.25rem;
+    background: var(--secondary-bg, #f1f5f9);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 40px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .tab-btn {
+    background: #334155;
+    border-color: #475569;
+    color: #94a3b8;
+}
+
+.tab-btn:hover {
+    background: linear-gradient(135deg, #ef4444, #f59e0b);
+    color: white;
+    transform: translateY(-2px);
+    border-color: transparent;
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, #ef4444, #f59e0b);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* ===== توزيع الوجبات ===== */
+.distribution-section h4,
+.recent-meals-section h4,
+.goals-section h4,
+.all-meals-section h4 {
+    margin: 0 0 1rem 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dark-mode .distribution-section h4,
+.dark-mode .recent-meals-section h4,
+.dark-mode .goals-section h4,
+.dark-mode .all-meals-section h4 {
+    color: #f1f5f9;
+}
+
+.distribution-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.distribution-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.distribution-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 110px;
+}
+
+.meal-icon {
+    font-size: 1rem;
+}
+
+.meal-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .meal-name {
+    color: #f1f5f9;
+}
+
+.meal-count {
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.progress-bar-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--border-light, #e2e8f0);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.dark-mode .progress-bar {
+    background: #334155;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    background: linear-gradient(90deg, #ef4444, #f59e0b);
+}
+
+.progress-fill.good { background: #10b981; }
+.progress-fill.medium { background: #f59e0b; }
+.progress-fill.low { background: #ef4444; }
+.progress-fill.over { background: #ef4444; }
+
+.distribution-percent {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary, #64748b);
+    min-width: 45px;
+}
+
+/* ===== الوجبات ===== */
+.meals-list,
+.all-meals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.meal-item,
+.meal-card {
+    background: var(--card-bg, #ffffff);
+    border-radius: 16px;
+    padding: 1rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+    transition: all 0.2s;
+}
+
+.dark-mode .meal-item,
+.dark-mode .meal-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.meal-item:hover,
+.meal-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.dark-mode .meal-item:hover,
+.dark-mode .meal-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.meal-header,
+.meal-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.meal-type,
+.meal-type-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .meal-type,
+.dark-mode .meal-type-badge {
+    color: #f1f5f9;
+}
+
+.meal-type-badge {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+}
+
+.dark-mode .meal-type-badge {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.meal-calories,
+.meal-card-calories {
+    font-weight: 700;
+    color: #f59e0b;
+    font-size: 0.85rem;
+}
+
+.meal-date,
+.meal-card-date {
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+    margin-bottom: 0.5rem;
+}
+
+.meal-ingredients,
+.meal-card-ingredients {
+    margin-top: 0.5rem;
+}
+
+.ingredients-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-tertiary, #94a3b8);
+    margin-bottom: 0.25rem;
+}
+
+.ingredients-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ingredient-tag,
+.ingredient-badge {
+    background: var(--tertiary-bg, #f1f5f9);
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .ingredient-tag,
+.dark-mode .ingredient-badge {
+    background: #0f172a;
+    color: #94a3b8;
+}
+
+.ingredient-more {
+    background: var(--tertiary-bg, #f1f5f9);
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== الأهداف ===== */
+.goal-item {
+    margin-bottom: 1rem;
+}
+
+.goal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.goal-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.goal-icon {
+    font-size: 1rem;
+}
+
+.goal-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .goal-name {
+    color: #f1f5f9;
+}
+
+.goal-values {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+}
+
+.goal-current {
+    font-weight: 800;
+    font-size: 0.9rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .goal-current {
+    color: #f1f5f9;
+}
+
+.goal-separator {
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.goal-target {
+    color: var(--text-secondary, #64748b);
+    font-size: 0.85rem;
+}
+
+.goal-unit {
+    font-size: 0.65rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.goal-percent {
+    font-weight: 800;
+    font-size: 0.85rem;
+    color: #f59e0b;
+}
+
+.goals-note {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(16, 185, 129, 0.08);
+    border-radius: 14px;
+    font-size: 0.75rem;
+    color: #10b981;
+    border-left: 3px solid #10b981;
+}
+
+[dir="rtl"] .goals-note {
+    border-left: none;
+    border-right: 3px solid #10b981;
+}
+
+/* ===== حالات خاصة ===== */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    color: var(--text-secondary, #64748b);
+    font-size: 0.85rem;
+}
+
+.empty-hint {
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+    margin-top: 0.5rem;
+}
+
+.dashboard-footer {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light, #e2e8f0);
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.dark-mode .dashboard-footer {
+    border-top-color: #334155;
+}
+
+/* ===== حالة التحميل ===== */
+.nutrition-loading {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 3rem;
+    text-align: center;
+}
+
+.dark-mode .nutrition-loading {
+    background: #1e293b;
+}
+
+.loading-spinner .spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border-light, #e2e8f0);
+    border-top-color: #ef4444;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-spinner p {
+    color: var(--text-secondary, #64748b);
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .stat-card {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .distribution-label {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .goal-info {
+    flex-direction: row-reverse;
+}
+
+/* ===== تقليل الحركة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .refresh-btn:hover,
+    .stat-card:hover,
+    .meal-item:hover,
+    .meal-card:hover,
+    .tab-btn:hover {
+        transform: none;
+    }
+    
+    .progress-fill {
+        transition: none;
+    }
+    
+    .spinner {
+        animation: none;
+    }
+}
             `}</style>
         </div>
     );

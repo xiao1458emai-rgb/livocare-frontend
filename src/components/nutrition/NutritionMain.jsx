@@ -271,370 +271,439 @@ function NutritionMain({ isAuthReady }) {
 
             {/* ✅ أنماط CSS المضمنة */}
             <style jsx>{`
-                .nutrition-main-container {
-                    background: var(--primary-bg);
-                    border-radius: 0;
-                    min-height: 100vh;
-                }
+  /* ===========================================
+   NutritionMain.css - الأنماط الداخلية فقط
+   ✅ الصفحة الرئيسية للتغذية - تصميم نظيف
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
+   =========================================== */
 
-                /* ===== شريط التحميل ===== */
-                .loading-bar {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: 3px;
-                    background: rgba(16, 185, 129, 0.2);
-                    z-index: 9999;
-                    overflow: hidden;
-                }
+/* ===== الحاوية الرئيسية ===== */
+.nutrition-main-container {
+    background: var(--primary-bg, #f5f5f5);
+    min-height: 100vh;
+}
 
-                .loading-progress {
-                    width: 0%;
-                    height: 100%;
-                    background: var(--primary-gradient);
-                    animation: loading 1.5s ease-in-out infinite;
-                }
+.dark-mode .nutrition-main-container {
+    background: #0f172a;
+}
 
-                @keyframes loading {
-                    0% { width: 0%; }
-                    50% { width: 70%; }
-                    100% { width: 100%; }
-                }
+/* ===== شريط التحميل ===== */
+.loading-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(16, 185, 129, 0.15);
+    z-index: 9999;
+    overflow: hidden;
+}
 
-                /* ===== رأس الصفحة ===== */
-                .nutrition-header {
-                    background: var(--card-bg);
-                    border-bottom: 1px solid var(--border-light);
-                    padding: 1rem 1.5rem;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 1rem;
-                    margin-bottom: 1.5rem;
-                }
+.loading-progress {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #f59e0b);
+    animation: loading 1.5s ease-in-out infinite;
+}
 
-                .header-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
+@keyframes loading {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
+}
 
-                .header-title h1 {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin: 0;
-                    color: var(--text-primary);
-                    font-size: 1.5rem;
-                    font-weight: 700;
-                }
+/* ===== رأس الصفحة ===== */
+.nutrition-header {
+    background: var(--card-bg, #ffffff);
+    border-bottom: 1px solid var(--border-light, #eef2f6);
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
 
-                .title-icon {
-                    font-size: 1.8rem;
-                }
+.dark-mode .nutrition-header {
+    background: #1e293b;
+    border-bottom-color: #334155;
+}
 
-                .header-badge {
-                    padding: 0.35rem 0.85rem;
-                    background: var(--tertiary-bg);
-                    border-radius: 50px;
-                    font-size: 0.75rem;
-                    color: var(--text-secondary);
-                }
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
 
-                .header-controls {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
+.header-title h1 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #ef4444, #f59e0b);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
 
-                .last-update {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary);
-                    padding: 0.25rem 0.75rem;
-                    background: var(--tertiary-bg);
-                    border-radius: 20px;
-                }
+.dark-mode .header-title h1 {
+    background: linear-gradient(135deg, #f87171, #fbbf24);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
 
-                .auto-refresh-label {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    cursor: pointer;
-                    padding: 0.25rem 0.75rem;
-                    background: var(--secondary-bg);
-                    border-radius: 20px;
-                    border: 1px solid var(--border-light);
-                    font-size: 0.75rem;
-                }
+.title-icon {
+    font-size: 1.8rem;
+}
 
-                .auto-refresh-label input {
-                    position: absolute;
-                    opacity: 0;
-                    width: 0;
-                    height: 0;
-                }
+.header-badge {
+    padding: 0.35rem 0.85rem;
+    background: var(--tertiary-bg, #f1f5f9);
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary, #64748b);
+}
 
-                .toggle-slider {
-                    width: 36px;
-                    height: 18px;
-                    background: var(--border-light);
-                    border-radius: 18px;
-                    position: relative;
-                    transition: all var(--transition-fast);
-                }
+.dark-mode .header-badge {
+    background: #0f172a;
+    color: #94a3b8;
+}
 
-                .toggle-slider::before {
-                    content: '';
-                    position: absolute;
-                    width: 14px;
-                    height: 14px;
-                    background: white;
-                    border-radius: 50%;
-                    top: 2px;
-                    left: 2px;
-                    transition: all var(--transition-fast);
-                }
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
 
-                input:checked + .toggle-slider {
-                    background: var(--primary);
-                }
+.last-update {
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+    padding: 0.25rem 0.75rem;
+    background: var(--tertiary-bg, #f1f5f9);
+    border-radius: 20px;
+}
 
-                input:checked + .toggle-slider::before {
-                    transform: translateX(18px);
-                }
+.dark-mode .last-update {
+    background: #0f172a;
+    color: #64748b;
+}
 
-                [dir="rtl"] input:checked + .toggle-slider::before {
-                    transform: translateX(-18px);
-                }
+/* ===== مفتاح التحديث التلقائي ===== */
+.auto-refresh-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.25rem 0.75rem;
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    border: 1px solid var(--border-light, #e2e8f0);
+    font-size: 0.75rem;
+    transition: all 0.2s;
+}
 
-                .toggle-text {
-                    color: var(--text-secondary);
-                }
+.dark-mode .auto-refresh-label {
+    background: #0f172a;
+    border-color: #334155;
+}
 
-                .refresh-btn {
-                    width: 32px;
-                    height: 32px;
-                    background: var(--secondary-bg);
-                    border: 1px solid var(--border-light);
-                    border-radius: 10px;
-                    cursor: pointer;
-                    transition: all var(--transition-fast);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 1rem;
-                }
+.auto-refresh-label:hover {
+    border-color: #10b981;
+}
 
-                .refresh-btn:hover:not(:disabled) {
-                    background: var(--hover-bg);
-                    transform: rotate(180deg);
-                }
+.auto-refresh-label input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
 
-                .refresh-btn:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
+.toggle-slider {
+    width: 36px;
+    height: 18px;
+    background: var(--border-light, #e2e8f0);
+    border-radius: 18px;
+    position: relative;
+    transition: all 0.2s;
+}
 
-                /* ===== رسالة الخطأ ===== */
-                .error-message {
-                    background: rgba(239, 68, 68, 0.1);
-                    border: 1px solid #ef4444;
-                    border-radius: 12px;
-                    padding: 0.75rem 1rem;
-                    margin: 0 1rem 1.5rem 1rem;
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                }
+.dark-mode .toggle-slider {
+    background: #475569;
+}
 
-                .error-icon {
-                    font-size: 1rem;
-                }
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: all 0.2s;
+}
 
-                .error-text {
-                    flex: 1;
-                    font-size: 0.85rem;
-                    color: #ef4444;
-                }
+input:checked + .toggle-slider {
+    background: #10b981;
+}
 
-                .error-close {
-                    background: none;
-                    border: none;
-                    color: #ef4444;
-                    cursor: pointer;
-                    font-size: 1rem;
-                }
+input:checked + .toggle-slider::before {
+    transform: translateX(18px);
+}
 
-                /* ===== التبويبات ===== */
-                .nutrition-tabs {
-                    display: flex;
-                    gap: 0.5rem;
-                    margin: 0 1rem 1.5rem 1rem;
-                    padding: 0.25rem;
-                    background: var(--secondary-bg);
-                    border-radius: 50px;
-                    border: 1px solid var(--border-light);
-                }
+[dir="rtl"] input:checked + .toggle-slider::before {
+    transform: translateX(-18px);
+}
 
-                .tab-btn {
-                    flex: 1;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 0.5rem;
-                    padding: 0.6rem 1rem;
-                    background: transparent;
-                    border: none;
-                    border-radius: 40px;
-                    cursor: pointer;
-                    transition: all var(--transition-fast);
-                    font-size: 0.85rem;
-                    font-weight: 500;
-                    color: var(--text-secondary);
-                }
+.toggle-text {
+    color: var(--text-secondary, #64748b);
+    font-weight: 500;
+}
 
-                .tab-icon {
-                    font-size: 1rem;
-                }
+.dark-mode .toggle-text {
+    color: #94a3b8;
+}
 
-                .tab-btn:hover {
-                    background: var(--hover-bg);
-                }
+/* ===== زر التحديث ===== */
+.refresh-btn {
+    width: 32px;
+    height: 32px;
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: var(--text-secondary, #64748b);
+}
 
-                .tab-btn.active {
-                    background: var(--primary-gradient);
-                    color: white;
-                    box-shadow: var(--shadow-sm);
-                }
+.dark-mode .refresh-btn {
+    background: #0f172a;
+    border-color: #334155;
+    color: #94a3b8;
+}
 
-                /* ===== محتوى التبويب ===== */
-                .tab-content {
-                    animation: fadeInUp 0.3s ease;
-                }
+.refresh-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    transform: rotate(180deg);
+    border-color: transparent;
+}
 
-                @keyframes fadeInUp {
-                    from {
-                        opacity: 0;
-                        transform: translateY(10px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
+.refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
-                /* ===== استجابة الشاشات ===== */
-                @media (max-width: 1024px) {
-                    .nutrition-header {
-                        padding: 1rem;
-                    }
-                    
-                    .header-title h1 {
-                        font-size: 1.3rem;
-                    }
-                    
-                    .title-icon {
-                        font-size: 1.5rem;
-                    }
-                }
+/* ===== رسالة الخطأ ===== */
+.error-message {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 14px;
+    padding: 0.75rem 1rem;
+    margin: 0 1rem 1.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: shake 0.3s ease;
+}
 
-                @media (max-width: 768px) {
-                    .nutrition-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-                    
-                    .header-controls {
-                        width: 100%;
-                        justify-content: space-between;
-                    }
-                    
-                    .auto-refresh-label {
-                        flex: 1;
-                        justify-content: center;
-                    }
-                    
-                    .refresh-btn {
-                        width: 36px;
-                        height: 36px;
-                    }
-                    
-                    .nutrition-tabs {
-                        margin: 0 1rem 1rem 1rem;
-                    }
-                    
-                    .tab-btn {
-                        padding: 0.5rem 0.75rem;
-                        font-size: 0.8rem;
-                    }
-                    
-                    .error-message {
-                        margin: 0 1rem 1rem 1rem;
-                    }
-                }
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
 
-                @media (max-width: 480px) {
-                    .header-title {
-                        width: 100%;
-                        justify-content: space-between;
-                    }
-                    
-                    .header-badge {
-                        font-size: 0.65rem;
-                    }
-                    
-                    .last-update {
-                        font-size: 0.65rem;
-                    }
-                    
-                    .toggle-text {
-                        font-size: 0.7rem;
-                    }
-                    
-                    .tab-btn {
-                        font-size: 0.75rem;
-                    }
-                }
+.error-icon {
+    font-size: 1rem;
+}
 
-                /* ===== RTL دعم ===== */
-                [dir="rtl"] .header-title {
-                    flex-direction: row-reverse;
-                }
+.error-text {
+    flex: 1;
+    font-size: 0.85rem;
+    color: #ef4444;
+    font-weight: 500;
+}
 
-                [dir="rtl"] .header-controls {
-                    flex-direction: row-reverse;
-                }
+.error-close {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0.25rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
 
-                [dir="rtl"] .auto-refresh-label {
-                    flex-direction: row-reverse;
-                }
+.error-close:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
 
-                [dir="rtl"] .error-message {
-                    flex-direction: row-reverse;
-                }
+/* ===== التبويبات ===== */
+.nutrition-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0 1rem 1.5rem 1rem;
+    padding: 0.25rem;
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 50px;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
 
-                [dir="rtl"] .tab-btn {
-                    flex-direction: row-reverse;
-                }
+.dark-mode .nutrition-tabs {
+    background: #0f172a;
+    border-color: #334155;
+}
 
-                /* ===== دعم الحركة المخفضة ===== */
-                @media (prefers-reduced-motion: reduce) {
-                    .loading-progress {
-                        animation: none;
-                    }
-                    
-                    .tab-content {
-                        animation: none;
-                    }
-                    
-                    .refresh-btn:hover:not(:disabled) {
-                        transform: none;
-                    }
-                }
+.tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .tab-btn {
+    color: #94a3b8;
+}
+
+.tab-icon {
+    font-size: 1rem;
+}
+
+.tab-btn:hover {
+    background: var(--hover-bg, #f1f5f9);
+    transform: translateY(-1px);
+}
+
+.dark-mode .tab-btn:hover {
+    background: #334155;
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, #ef4444, #f59e0b);
+    color: white;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.tab-btn.active:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+/* ===== محتوى التبويب ===== */
+.tab-content {
+    animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .header-title {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .header-controls {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .auto-refresh-label {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .error-message {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .tab-btn {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .error-message {
+    animation: shakeRTL 0.3s ease;
+}
+
+@keyframes shakeRTL {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+}
+
+/* ===== دعم الحركة المخفضة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .loading-progress {
+        animation: none;
+    }
+    
+    .tab-content {
+        animation: none;
+    }
+    
+    .error-message {
+        animation: none;
+    }
+    
+    .refresh-btn:hover:not(:disabled) {
+        transform: none;
+    }
+    
+    .tab-btn:hover {
+        transform: none;
+    }
+    
+    .tab-btn.active:hover {
+        transform: none;
+    }
+}
+
+/* ===== دعم التباين العالي ===== */
+@media (prefers-contrast: high) {
+    .nutrition-header {
+        border-bottom-width: 2px;
+    }
+    
+    .tab-btn.active {
+        border: 2px solid currentColor;
+    }
+    
+    .error-message {
+        border-width: 2px;
+    }
+    
+    .auto-refresh-label {
+        border-width: 2px;
+    }
+}
             `}</style>
         </div>
     );

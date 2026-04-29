@@ -1,7 +1,7 @@
 // src/components/Analytics/MoodAnalytics.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axiosInstance from '../../services/api';
-import './Analytics.css';
+import '../../index.css';
 
 // دالة لتقريب الأرقام
 const roundNumber = (num, decimals = 1) => {
@@ -710,6 +710,604 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                     )}
                 </div>
             )}
+
+                               <style jsx>{`
+/* ===========================================
+   MoodAnalytics.css - الأنماط الداخلية فقط
+   ✅ تحليل المزاج - ألوان وأشكال مميزة
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام
+   =========================================== */
+
+/* ===== الحاوية الرئيسية ===== */
+.mood-analytics {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+.mood-analytics.dark-mode {
+    background: #1e293b;
+}
+
+/* ===== الرأس ===== */
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.analytics-header h2 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.dark-mode .analytics-header h2 {
+    background: linear-gradient(135deg, #fbbf24, #f87171);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.refresh-btn {
+    background: var(--secondary-bg, #f1f5f9);
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .refresh-btn {
+    background: #334155;
+    color: #94a3b8;
+}
+
+.refresh-btn:hover {
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    color: white;
+    transform: rotate(180deg);
+}
+
+/* ===== الإحصائيات السريعة ===== */
+.quick-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-box {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(239, 68, 68, 0.1));
+    border-radius: 20px;
+    padding: 1rem;
+    text-align: center;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    transition: all 0.2s;
+}
+
+.dark-mode .stat-box {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(239, 68, 68, 0.05));
+    border-color: rgba(245, 158, 11, 0.15);
+}
+
+.stat-box:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(245, 158, 11, 0.15);
+}
+
+.stat-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .stat-value {
+    color: #f1f5f9;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    margin-top: 0.25rem;
+}
+
+/* ===== التنبؤ ===== */
+.prediction-box {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 20px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    color: white;
+}
+
+.dark-mode .prediction-box {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+}
+
+.prediction-icon {
+    font-size: 1.5rem;
+}
+
+.prediction-text {
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.prediction-text strong {
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin: 0 0.25rem;
+}
+
+.prediction-trend {
+    font-size: 1.2rem;
+    margin-left: 0.5rem;
+}
+
+/* ===== بطاقة التنبيه ===== */
+.alert-card {
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid;
+}
+
+.alert-card.high {
+    background: rgba(239, 68, 68, 0.1);
+    border-left-color: #ef4444;
+}
+
+.alert-card.medium {
+    background: rgba(245, 158, 11, 0.1);
+    border-left-color: #f59e0b;
+}
+
+.dark-mode .alert-card.high {
+    background: rgba(239, 68, 68, 0.15);
+}
+
+.dark-mode .alert-card.medium {
+    background: rgba(245, 158, 11, 0.15);
+}
+
+[dir="rtl"] .alert-card {
+    border-left: none;
+    border-right: 4px solid;
+}
+
+.alert-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.alert-icon {
+    font-size: 1.3rem;
+}
+
+.alert-title {
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .alert-title {
+    color: #f1f5f9;
+}
+
+.alert-message {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #64748b);
+    margin: 0;
+}
+
+/* ===== بطاقة الاتجاه ===== */
+.trend-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .trend-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.trend-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.trend-icon {
+    font-size: 1.3rem;
+}
+
+.trend-title {
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .trend-title {
+    color: #f1f5f9;
+}
+
+.trend-message {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #64748b);
+    margin: 0;
+}
+
+/* ===== بطاقات الأنماط ===== */
+.pattern-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .pattern-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.pattern-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.pattern-icon {
+    font-size: 1.3rem;
+}
+
+.pattern-title {
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .pattern-title {
+    color: #f1f5f9;
+}
+
+.pattern-content {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #64748b);
+    margin: 0;
+}
+
+.pattern-content .good {
+    color: #10b981;
+    font-weight: 600;
+}
+
+.pattern-content .bad {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.pattern-content .separator {
+    color: var(--text-tertiary, #94a3b8);
+    margin: 0 0.5rem;
+}
+
+/* ===== بطاقات التأثير ===== */
+.impact-card {
+    background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.dark-mode .impact-card {
+    background: linear-gradient(135deg, #059669, #0d9488);
+}
+
+.impact-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.impact-icon {
+    font-size: 1.3rem;
+}
+
+.impact-title {
+    font-weight: 700;
+    opacity: 0.9;
+}
+
+.impact-message {
+    font-size: 0.85rem;
+    margin: 0;
+    opacity: 0.85;
+}
+
+/* ===== التوصيات ===== */
+.recommendations-section {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-top: 0.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .recommendations-section {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.recommendations-section h3 {
+    margin: 0 0 1rem 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dark-mode .recommendations-section h3 {
+    color: #f1f5f9;
+}
+
+.recommendation-card {
+    background: var(--card-bg, #ffffff);
+    border-radius: 16px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s;
+    border-left: 3px solid #f59e0b;
+}
+
+.dark-mode .recommendation-card {
+    background: #1e293b;
+}
+
+.recommendation-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.dark-mode .recommendation-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[dir="rtl"] .recommendation-card {
+    border-left: none;
+    border-right: 3px solid #f59e0b;
+}
+
+[dir="rtl"] .recommendation-card:hover {
+    transform: translateX(-4px);
+}
+
+.rec-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.rec-icon {
+    font-size: 1.2rem;
+}
+
+.rec-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .rec-title {
+    color: #f1f5f9;
+}
+
+.rec-advice {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #64748b);
+    margin: 0 0 0.5rem 0;
+}
+
+.rec-tips {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.25rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #64748b);
+}
+
+[dir="rtl"] .rec-tips {
+    padding-left: 0;
+    padding-right: 1.25rem;
+}
+
+.rec-tips li {
+    margin-bottom: 0.25rem;
+}
+
+/* ===== حالة عدم وجود بيانات ===== */
+.no-data-message {
+    text-align: center;
+    padding: 2rem;
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .no-data-message {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.message-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.no-data-message p {
+    color: var(--text-primary, #0f172a);
+    margin-bottom: 1.5rem;
+}
+
+.start-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 14px;
+    margin-top: 0.75rem;
+    text-align: left;
+}
+
+.dark-mode .start-tip {
+    background: #1e293b;
+}
+
+.start-tip span:first-child {
+    font-size: 1.2rem;
+}
+
+.start-tip strong {
+    font-size: 0.85rem;
+    color: var(--text-primary, #0f172a);
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.start-tip p {
+    font-size: 0.75rem;
+    margin: 0;
+    color: var(--text-secondary, #64748b);
+}
+
+[dir="rtl"] .start-tip {
+    text-align: right;
+}
+
+/* ===== حالات التحميل والخطأ ===== */
+.analytics-loading,
+.analytics-error {
+    text-align: center;
+    padding: 2rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 20px;
+}
+
+.dark-mode .analytics-loading,
+.dark-mode .analytics-error {
+    background: #1e293b;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light, #e2e8f0);
+    border-top-color: #f59e0b;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.retry-btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1.25rem;
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.retry-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+/* ===== حاوية التحليلات ===== */
+.insights-container {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .rec-tips {
+    padding-right: 1.25rem;
+}
+
+[dir="rtl"] .prediction-trend {
+    margin-left: 0;
+    margin-right: 0.5rem;
+}
+
+/* ===== تقليل الحركة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .refresh-btn:hover,
+    .stat-box:hover,
+    .recommendation-card:hover {
+        transform: none;
+    }
+    
+    .spinner {
+        animation: none;
+    }
+}
+
+/* ===== دعم التباين العالي ===== */
+@media (prefers-contrast: high) {
+    .stat-box,
+    .trend-card,
+    .pattern-card,
+    .recommendation-card {
+        border-width: 2px;
+    }
+    
+    .alert-card {
+        border-left-width: 6px;
+    }
+    
+    [dir="rtl"] .alert-card {
+        border-right-width: 6px;
+    }
+}
+            `}</style>
+
         </div>
     );
 };

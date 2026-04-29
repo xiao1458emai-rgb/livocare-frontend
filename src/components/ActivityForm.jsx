@@ -5,6 +5,7 @@ import esp32Service from '../services/esp32Service';
 import HealthHistory from './HealthHistory';
 import HealthCharts from './HealthCharts';
 import ActivityAnalytics from './Analytics/ActivityAnalytics';
+import '../../index.css';
 
 const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     // ==================== القياسات الصحية ====================

@@ -548,8 +548,606 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                     {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(data.lastUpdated).toLocaleString(isArabic ? 'ar-EG' : 'en-US')}
                 </small>
             </div>
+
+                    <style jsx>{`
+ /* ===========================================
+   HabitAnalytics.css - الأنماط الداخلية فقط
+   ✅ الألوان والأشكال والبطاقات
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
+   =========================================== */
+
+/* ===== حاوية التحليلات الداخلية ===== */
+.analytics-container {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 1.5rem;
+    margin: 0;
+    transition: all 0.2s ease;
+}
+
+.analytics-container.dark-mode {
+    background: #1e293b;
+}
+
+/* ===== الرأس ===== */
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.analytics-header h2 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.3px;
+}
+
+.dark-mode .analytics-header h2 {
+    background: linear-gradient(135deg, #818cf8, #a78bfa);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.refresh-btn {
+    background: var(--secondary-bg, #f1f5f9);
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .refresh-btn {
+    background: #334155;
+    color: #94a3b8;
+}
+
+.refresh-btn:hover {
+    background: #6366f1;
+    color: white;
+    transform: rotate(180deg);
+}
+
+/* ===== شبكة الإحصائيات ===== */
+.analytics-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.analytics-stat-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.2s;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .analytics-stat-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.analytics-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.dark-mode .analytics-stat-card:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.stat-icon {
+    font-size: 1.8rem;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 16px;
+    color: white;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+    line-height: 1.2;
+}
+
+.dark-mode .stat-value {
+    color: #f1f5f9;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+/* ===== التبويبات ===== */
+.analytics-tabs {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border-light, #e2e8f0);
+    padding-bottom: 0.5rem;
+}
+
+.dark-mode .analytics-tabs {
+    border-bottom-color: #334155;
+}
+
+.analytics-tabs button {
+    padding: 0.6rem 1.25rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #64748b);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 40px;
+}
+
+.analytics-tabs button.active {
+    background: #6366f1;
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.analytics-tabs button:hover:not(.active) {
+    background: var(--hover-bg, #f1f5f9);
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .analytics-tabs button:hover:not(.active) {
+    background: #334155;
+    color: #f1f5f9;
+}
+
+/* ===== بطاقات الإحصاءات والتحليلات ===== */
+.insight-card {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: white;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.insight-icon {
+    font-size: 2.5rem;
+}
+
+.insight-content h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+.insight-content .stat-value {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 800;
+}
+
+.insight-content p {
+    margin: 0;
+    font-size: 0.8rem;
+    opacity: 0.9;
+}
+
+/* ===== قسم التوصيات ===== */
+.recommendations-section {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .recommendations-section {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.recommendations-section h3,
+.recommendations-section h4 {
+    margin: 0 0 1rem 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dark-mode .recommendations-section h3,
+.dark-mode .recommendations-section h4 {
+    color: #f1f5f9;
+}
+
+.recommendations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.recommendation-card {
+    background: var(--card-bg, #ffffff);
+    border-radius: 16px;
+    padding: 1rem;
+    transition: all 0.2s;
+    border-left: 3px solid #6366f1;
+}
+
+.dark-mode .recommendation-card {
+    background: #1e293b;
+}
+
+.recommendation-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.dark-mode .recommendation-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[dir="rtl"] .recommendation-card {
+    border-left: none;
+    border-right: 3px solid #6366f1;
+}
+
+[dir="rtl"] .recommendation-card:hover {
+    transform: translateX(-4px);
+}
+
+.rec-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.rec-icon {
+    font-size: 1.2rem;
+}
+
+.rec-category {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #6366f1;
+    letter-spacing: 0.5px;
+}
+
+.rec-message {
+    font-size: 0.85rem;
+    margin: 0.5rem 0;
+    color: var(--text-primary, #0f172a);
+    font-weight: 500;
+}
+
+.rec-advice {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #64748b);
+    background: var(--tertiary-bg, #f1f5f9);
+    padding: 0.5rem 0.75rem;
+    border-radius: 12px;
+    margin-top: 0.5rem;
+}
+
+.dark-mode .rec-advice {
+    background: #0f172a;
+    color: #94a3b8;
+}
+
+/* ===== قائمة الأدوية والعادات ===== */
+.habits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.habit-card {
+    background: var(--card-bg, #ffffff);
+    border-radius: 18px;
+    padding: 1rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+    transition: all 0.2s;
+}
+
+.dark-mode .habit-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.habit-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.dark-mode .habit-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.habit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.habit-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .habit-name {
+    color: #f1f5f9;
+}
+
+.habit-rate {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 40px;
+}
+
+.habit-rate.high {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.habit-rate.medium {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.habit-rate.low {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.habit-stats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.7rem;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .habit-stats {
+    color: #94a3b8;
+}
+
+.progress-bar {
+    background: var(--border-light, #e2e8f0);
+    border-radius: 10px;
+    height: 6px;
+    overflow: hidden;
+}
+
+.dark-mode .progress-bar {
+    background: #334155;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+/* ===== نصائح سريعة ===== */
+.habit-tips {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .habit-tips {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.habit-tips h4 {
+    margin: 0 0 1rem 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.tips-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.tip-item {
+    background: var(--card-bg, #ffffff);
+    border-radius: 14px;
+    padding: 0.75rem;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.dark-mode .tip-item {
+    background: #1e293b;
+}
+
+.tip-item:hover {
+    transform: translateY(-2px);
+}
+
+.tip-icon {
+    font-size: 1.5rem;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.tip-item p {
+    font-size: 0.7rem;
+    margin: 0;
+    color: var(--text-secondary, #64748b);
+}
+
+/* ===== حالات فارغة ===== */
+.analytics-empty {
+    text-align: center;
+    padding: 2rem;
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .analytics-empty {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.analytics-empty p {
+    margin: 0.25rem 0;
+    color: var(--text-primary, #0f172a);
+}
+
+.empty-hint {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #64748b);
+}
+
+/* ===== حالات التحميل والخطأ ===== */
+.analytics-loading,
+.analytics-error {
+    text-align: center;
+    padding: 2rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 20px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light, #e2e8f0);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.retry-btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1.25rem;
+    background: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.retry-btn:hover {
+    background: #4f46e5;
+    transform: translateY(-1px);
+}
+
+/* ===== التذييل ===== */
+.analytics-footer {
+    text-align: center;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light, #e2e8f0);
+    margin-top: 0.5rem;
+}
+
+.dark-mode .analytics-footer {
+    border-top-color: #334155;
+}
+
+.analytics-footer small {
+    font-size: 0.65rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== أنماط إضافية للثيم الداكن ===== */
+.dark-mode .insight-card {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .habit-stats {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .tips-grid {
+    direction: rtl;
+}
+
+/* ===== تقليل الحركة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .refresh-btn:hover,
+    .recommendation-card:hover,
+    .habit-card:hover,
+    .tip-item:hover,
+    .analytics-stat-card:hover {
+        transform: none;
+    }
+    
+    .progress-fill {
+        transition: none;
+    }
+    
+    .spinner {
+        animation: none;
+    }
+}
+            `}</style>
         </div>
     );
 };
+
 
 export default HabitAnalytics;

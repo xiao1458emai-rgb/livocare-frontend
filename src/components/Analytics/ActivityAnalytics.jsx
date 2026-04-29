@@ -770,6 +770,651 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                     </small>
                 </div>
             </div>
+                        <style jsx>{`
+ /* ===========================================
+   ActivityAnalytics.css - تصميم بسيط وجميل
+   متوافق مع الثيمين (فاتح/داكن)
+   =========================================== */
+
+/* ===== الحاوية الرئيسية ===== */
+.activity-analytics {
+    background: var(--card-bg, #ffffff);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    border: 1px solid var(--border-light, #eef2f6);
+}
+
+.activity-analytics.dark-mode {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== الرأس ===== */
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .analytics-header {
+    border-bottom-color: #334155;
+}
+
+.analytics-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary, #1f2937);
+}
+
+.dark-mode .analytics-header h2 {
+    color: #f1f5f9;
+}
+
+.refresh-btn {
+    background: var(--secondary-bg, #f3f4f6);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary, #6b7280);
+}
+
+.dark-mode .refresh-btn {
+    background: #334155;
+    color: #cbd5e1;
+}
+
+.refresh-btn:hover {
+    transform: rotate(180deg);
+    background: var(--primary, #6366f1);
+    color: white;
+}
+
+/* ===== حاوية التحليلات ===== */
+.insights-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* ===== بطاقة الحالة الصحية ===== */
+.global-health-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    padding: 1.25rem;
+    color: white;
+}
+
+.dark-mode .global-health-card {
+    background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%);
+}
+
+.global-health-card h3 {
+    margin: 0 0 1rem 0;
+    font-size: 0.95rem;
+    font-weight: 500;
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.health-score-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.health-score-circle {
+    position: relative;
+    width: 100px;
+    height: 100px;
+}
+
+.health-score-circle svg {
+    width: 100%;
+    height: 100%;
+}
+
+.health-score-circle text {
+    fill: white;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.35rem 0.85rem;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.health-analysis {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 0.75rem;
+}
+
+.positives-list,
+.warnings-list {
+    margin-bottom: 0.75rem;
+}
+
+.positives-list strong,
+.warnings-list strong {
+    font-size: 0.7rem;
+    display: block;
+    margin-bottom: 0.5rem;
+    opacity: 0.8;
+}
+
+.positive-item,
+.warning-item {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 10px;
+    margin-bottom: 0.35rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.positive-item {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.warning-item span,
+.positive-item span {
+    font-family: monospace;
+    font-size: 0.7rem;
+    opacity: 0.8;
+}
+
+.warning-item.severity-danger {
+    background: rgba(239, 68, 68, 0.3);
+}
+
+.warning-item.severity-warning {
+    background: rgba(245, 158, 11, 0.3);
+}
+
+/* ===== بطاقة الاتجاهات ===== */
+.trends-card,
+.correlations-card,
+.risks-card,
+.summary-card {
+    background: var(--secondary-bg, #f9fafb);
+    border-radius: 18px;
+    padding: 1.25rem;
+    border: 1px solid var(--border-light, #eef2f6);
+    transition: all 0.2s ease;
+}
+
+.dark-mode .trends-card,
+.dark-mode .correlations-card,
+.dark-mode .risks-card,
+.dark-mode .summary-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.trends-card h3,
+.correlations-card h3,
+.risks-card h3,
+.summary-card h3 {
+    margin: 0 0 1rem 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dark-mode .trends-card h3,
+.dark-mode .correlations-card h3,
+.dark-mode .risks-card h3,
+.dark-mode .summary-card h3 {
+    color: #f1f5f9;
+}
+
+/* ===== قائمة الاتجاهات ===== */
+.trends-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.trend-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 12px;
+    background: var(--card-bg, #ffffff);
+}
+
+.dark-mode .trend-item {
+    background: #1e293b;
+}
+
+.trend-item.direction-up {
+    border-left: 3px solid #ef4444;
+}
+
+.trend-item.direction-down {
+    border-left: 3px solid #10b981;
+}
+
+[dir="rtl"] .trend-item.direction-up {
+    border-left: none;
+    border-right: 3px solid #ef4444;
+}
+
+[dir="rtl"] .trend-item.direction-down {
+    border-left: none;
+    border-right: 3px solid #10b981;
+}
+
+.trend-message {
+    font-size: 0.85rem;
+    color: var(--text-primary, #1f2937);
+}
+
+.trend-change {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+}
+
+.trend-item.direction-up .trend-change {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.trend-item.direction-down .trend-change {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+/* ===== بطاقة الملاحظات الذكية ===== */
+.correlations-list,
+.risks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.correlation-item,
+.risk-item {
+    padding: 0.75rem;
+    border-radius: 14px;
+    background: var(--card-bg, #ffffff);
+}
+
+.dark-mode .correlation-item,
+.dark-mode .risk-item {
+    background: #1e293b;
+}
+
+.correlation-item.severity-danger,
+.risk-item.severity-high {
+    border-left: 3px solid #dc2626;
+}
+
+.correlation-item.severity-warning,
+.risk-item.severity-medium {
+    border-left: 3px solid #f59e0b;
+}
+
+[dir="rtl"] .correlation-item,
+[dir="rtl"] .risk-item {
+    border-left: none;
+}
+
+[dir="rtl"] .correlation-item.severity-danger,
+[dir="rtl"] .risk-item.severity-high {
+    border-right: 3px solid #dc2626;
+}
+
+[dir="rtl"] .correlation-item.severity-warning,
+[dir="rtl"] .risk-item.severity-medium {
+    border-right: 3px solid #f59e0b;
+}
+
+.correlation-message,
+.risk-message {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 0 0 0.35rem 0;
+    color: var(--text-primary, #1f2937);
+}
+
+.correlation-advice,
+.risk-details,
+.risk-action {
+    font-size: 0.75rem;
+    margin: 0.25rem 0 0 0;
+    color: var(--text-secondary, #6b7280);
+}
+
+.risk-action {
+    color: #ef4444;
+    font-weight: 500;
+}
+
+.risk-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+.risk-badge.severity-high {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.risk-badge.severity-medium {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+/* ===== بطاقة الملخص ===== */
+.summary-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.summary-stats .stat {
+    text-align: center;
+    padding: 0.75rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 14px;
+}
+
+.dark-mode .summary-stats .stat {
+    background: #1e293b;
+}
+
+.summary-stats .stat-value {
+    display: block;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--primary, #6366f1);
+}
+
+.summary-stats .stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+/* ===== شريط التقدم ===== */
+.progress-container {
+    margin: 1rem 0;
+}
+
+.progress-bar-bg {
+    background: var(--border-light, #eef2f6);
+    border-radius: 10px;
+    height: 32px;
+    overflow: hidden;
+    position: relative;
+}
+
+.dark-mode .progress-bar-bg {
+    background: #334155;
+}
+
+.progress-bar-fill {
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    height: 100%;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 0.75rem;
+    transition: width 0.5s ease;
+}
+
+.progress-text {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: white;
+}
+
+/* ===== أفضل نشاط ووقت مفضل ===== */
+.best-activity,
+.preferred-time {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 12px;
+    margin-top: 0.75rem;
+}
+
+.dark-mode .best-activity,
+.dark-mode .preferred-time {
+    background: #1e293b;
+}
+
+.best-icon,
+.time-icon {
+    font-size: 1.2rem;
+}
+
+.best-text,
+.time-text {
+    font-size: 0.8rem;
+    color: var(--text-primary, #1f2937);
+}
+
+/* ===== التذييل ===== */
+.analytics-footer {
+    text-align: center;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-light, #eef2f6);
+    margin-top: 0.5rem;
+}
+
+.dark-mode .analytics-footer {
+    border-top-color: #334155;
+}
+
+.analytics-footer small {
+    font-size: 0.65rem;
+    color: var(--text-tertiary, #9ca3af);
+}
+
+/* ===== حالات التحميل والخطأ وعدم وجود بيانات ===== */
+.analytics-loading,
+.analytics-error,
+.no-data {
+    text-align: center;
+    padding: 2rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 20px;
+    border: 1px solid var(--border-light, #eef2f6);
+}
+
+.dark-mode .analytics-loading,
+.dark-mode .analytics-error,
+.dark-mode .no-data {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light, #eef2f6);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.no-data-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.5;
+}
+
+.no-data p {
+    color: var(--text-primary, #1f2937);
+    margin: 0.5rem 0;
+}
+
+.hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.add-data-btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.add-data-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.retry-btn {
+    margin-top: 0.75rem;
+    padding: 0.4rem 1rem;
+    background: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.75rem;
+}
+
+/* ===== استجابة الجوال ===== */
+@media (max-width: 768px) {
+    .activity-analytics {
+        padding: 1rem;
+    }
+    
+    .summary-stats {
+        gap: 0.5rem;
+    }
+    
+    .summary-stats .stat {
+        padding: 0.5rem;
+    }
+    
+    .summary-stats .stat-value {
+        font-size: 1.1rem;
+    }
+    
+    .health-score-container {
+        justify-content: center;
+    }
+    
+    .positive-item,
+    .warning-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .trend-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .risk-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .summary-stats {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .health-score-circle {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .analytics-header h2 {
+        font-size: 1rem;
+    }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .progress-bar-fill {
+    justify-content: flex-start;
+    padding-left: 0.75rem;
+    padding-right: 0;
+}
+
+[dir="rtl"] .risk-badge {
+    margin-left: 0;
+    margin-right: 0.5rem;
+}
+
+/* ===== تقليل الحركة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .refresh-btn:hover {
+        transform: none;
+    }
+    
+    .progress-bar-fill {
+        transition: none;
+    }
+    
+    .spinner {
+        animation: none;
+    }
+}
+            `}</style>
         </div>
     );
 };

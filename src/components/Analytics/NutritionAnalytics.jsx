@@ -14,7 +14,7 @@ import {
     Filler,
 } from 'chart.js';
 import axiosInstance from '../../services/api';
-import './Analytics.css';
+import '../../index.css';
 
 ChartJS.register(
     CategoryScale,
@@ -723,6 +723,686 @@ const NutritionAnalytics = ({ refreshTrigger }) => {
                     {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date().toLocaleString(isArabic ? 'ar-EG' : 'en-US')}
                 </small>
             </div>
+                                         <style jsx>{`
+/* ===========================================
+   NutritionAnalytics.css - الأنماط الداخلية فقط
+   ✅ تحليل التغذية - ألوان طعام مميزة
+   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ بدون أي تأثير على التخطيط العام
+   =========================================== */
+
+/* ===== الحاوية الرئيسية ===== */
+.analytics-container {
+    background: var(--card-bg, #ffffff);
+    border-radius: 28px;
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+.analytics-container.dark-mode {
+    background: #1e293b;
+}
+
+/* ===== الرأس ===== */
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.analytics-header h2 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, #ef4444, #f59e0b);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.dark-mode .analytics-header h2 {
+    background: linear-gradient(135deg, #f87171, #fbbf24);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.refresh-btn {
+    background: var(--secondary-bg, #f1f5f9);
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .refresh-btn {
+    background: #334155;
+    color: #94a3b8;
+}
+
+.refresh-btn:hover {
+    background: linear-gradient(135deg, #ef4444, #f59e0b);
+    color: white;
+    transform: rotate(180deg);
+}
+
+/* ===== بطاقة التقييم الصحي ===== */
+.global-health-card {
+    background: linear-gradient(135deg, #ef4444 0%, #f59e0b 100%);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.dark-mode .global-health-card {
+    background: linear-gradient(135deg, #dc2626, #d97706);
+}
+
+.global-health-card h3 {
+    margin: 0 0 1rem 0;
+    font-size: 0.95rem;
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+.health-score-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.health-score-circle {
+    position: relative;
+    width: 100px;
+    height: 100px;
+}
+
+.health-score-circle svg {
+    width: 100%;
+    height: 100%;
+}
+
+.health-score-circle text {
+    fill: white;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.35rem 0.85rem;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.health-analysis {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 0.75rem;
+}
+
+.positives-list {
+    margin-bottom: 0.75rem;
+}
+
+.positives-list strong {
+    font-size: 0.7rem;
+    display: block;
+    margin-bottom: 0.5rem;
+    opacity: 0.8;
+}
+
+.positive-item {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 10px;
+    margin-bottom: 0.35rem;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.positive-item.warning {
+    background: rgba(245, 158, 11, 0.3);
+}
+
+.positive-item.info {
+    background: rgba(59, 130, 246, 0.3);
+}
+
+/* ===== بطاقة الملاحظات الذكية ===== */
+.correlations-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .correlations-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.correlations-card h3 {
+    margin: 0 0 1rem 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .correlations-card h3 {
+    color: #f1f5f9;
+}
+
+.correlations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.correlation-item {
+    padding: 0.75rem;
+    border-radius: 14px;
+    background: var(--card-bg, #ffffff);
+    border-left: 3px solid;
+}
+
+.dark-mode .correlation-item {
+    background: #1e293b;
+}
+
+.correlation-item.severity-danger {
+    border-left-color: #ef4444;
+}
+
+.correlation-item.severity-warning {
+    border-left-color: #f59e0b;
+}
+
+.correlation-item.severity-medium {
+    border-left-color: #3b82f6;
+}
+
+[dir="rtl"] .correlation-item {
+    border-left: none;
+    border-right: 3px solid;
+}
+
+[dir="rtl"] .correlation-item.severity-danger {
+    border-right-color: #ef4444;
+}
+
+[dir="rtl"] .correlation-item.severity-warning {
+    border-right-color: #f59e0b;
+}
+
+[dir="rtl"] .correlation-item.severity-medium {
+    border-right-color: #3b82f6;
+}
+
+.correlation-message {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 0 0 0.35rem 0;
+    color: var(--text-primary, #0f172a);
+}
+
+.correlation-advice {
+    font-size: 0.75rem;
+    margin: 0;
+    color: var(--text-secondary, #64748b);
+}
+
+/* ===== شبكة الإحصائيات ===== */
+.analytics-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.analytics-stat-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.2s;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .analytics-stat-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.analytics-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.dark-mode .analytics-stat-card:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.stat-icon {
+    font-size: 1.8rem;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ef4444, #f59e0b);
+    border-radius: 16px;
+    color: white;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+    line-height: 1.2;
+}
+
+.dark-mode .stat-value {
+    color: #f1f5f9;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+/* ===== شريط التقدم ===== */
+.progress-container {
+    margin-bottom: 1.5rem;
+}
+
+.progress-bar-bg {
+    background: var(--border-light, #e2e8f0);
+    border-radius: 10px;
+    height: 32px;
+    overflow: hidden;
+    position: relative;
+}
+
+.dark-mode .progress-bar-bg {
+    background: #334155;
+}
+
+.progress-bar-fill {
+    background: linear-gradient(90deg, #ef4444, #f59e0b);
+    height: 100%;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 0.75rem;
+    transition: width 0.5s ease;
+}
+
+.progress-bar-fill[style*="background: #10b981"] {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.progress-text {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: white;
+}
+
+[dir="rtl"] .progress-bar-fill {
+    justify-content: flex-start;
+    padding-right: 0;
+    padding-left: 0.75rem;
+}
+
+/* ===== أقسام الرسوم البيانية ===== */
+.strengths-weaknesses {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.strengths, .weaknesses {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+    transition: all 0.2s;
+}
+
+.dark-mode .strengths,
+.dark-mode .weaknesses {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.strengths:hover, .weaknesses:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.dark-mode .strengths:hover,
+.dark-mode .weaknesses:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.strengths h4, .weaknesses h4 {
+    margin: 0 0 1rem 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dark-mode .strengths h4,
+.dark-mode .weaknesses h4 {
+    color: #f1f5f9;
+}
+
+/* ===== بطاقة التوصيات ===== */
+.recommendations-card {
+    background: var(--secondary-bg, #f8fafc);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .recommendations-card {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.recommendations-card h3 {
+    margin: 0 0 1rem 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dark-mode .recommendations-card h3 {
+    color: #f1f5f9;
+}
+
+.recommendations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.recommendation {
+    background: var(--card-bg, #ffffff);
+    border-radius: 16px;
+    padding: 1rem;
+    transition: all 0.2s;
+    border-left: 3px solid;
+}
+
+.dark-mode .recommendation {
+    background: #1e293b;
+}
+
+.recommendation:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.dark-mode .recommendation:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[dir="rtl"] .recommendation {
+    border-left: none;
+    border-right: 3px solid;
+}
+
+[dir="rtl"] .recommendation:hover {
+    transform: translateX(-4px);
+}
+
+.recommendation.timing-now {
+    border-left-color: #ef4444;
+    background: rgba(239, 68, 68, 0.03);
+}
+
+.recommendation.timing-today {
+    border-left-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.03);
+}
+
+.recommendation.timing-tomorrow {
+    border-left-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.03);
+}
+
+.recommendation.priority-high {
+    border-left-color: #ef4444;
+}
+
+[dir="rtl"] .recommendation.timing-now {
+    border-right-color: #ef4444;
+}
+
+[dir="rtl"] .recommendation.timing-today {
+    border-right-color: #f59e0b;
+}
+
+[dir="rtl"] .recommendation.timing-tomorrow {
+    border-right-color: #3b82f6;
+}
+
+.rec-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.rec-icon {
+    font-size: 1.2rem;
+}
+
+.rec-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .rec-title {
+    color: #f1f5f9;
+}
+
+.rec-timing {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.rec-timing.timing-now {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.rec-timing.timing-today {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.rec-timing.timing-tomorrow {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.rec-advice {
+    font-size: 0.8rem;
+    margin: 0.5rem 0;
+    color: var(--text-primary, #0f172a);
+    font-weight: 500;
+}
+
+.rec-action {
+    font-size: 0.75rem;
+    margin: 0.25rem 0;
+    color: var(--text-secondary, #64748b);
+}
+
+.rec-details {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1rem;
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+[dir="rtl"] .rec-details {
+    padding-left: 0;
+    padding-right: 1rem;
+}
+
+.rec-details li {
+    margin-bottom: 0.2rem;
+}
+
+/* ===== التذييل ===== */
+.analytics-footer {
+    text-align: center;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .analytics-footer {
+    border-top-color: #334155;
+}
+
+.analytics-footer small {
+    font-size: 0.65rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+/* ===== حالات التحميل والخطأ ===== */
+.analytics-loading,
+.analytics-error {
+    text-align: center;
+    padding: 2rem;
+    background: var(--card-bg, #ffffff);
+    border-radius: 20px;
+}
+
+.dark-mode .analytics-loading,
+.dark-mode .analytics-error {
+    background: #1e293b;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light, #e2e8f0);
+    border-top-color: #ef4444;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.retry-btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1.25rem;
+    background: linear-gradient(135deg, #ef4444, #f59e0b);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.retry-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .rec-details {
+    padding-right: 1rem;
+}
+
+[dir="rtl"] .progress-text {
+    padding-left: 0.75rem;
+    padding-right: 0;
+}
+
+/* ===== تقليل الحركة ===== */
+@media (prefers-reduced-motion: reduce) {
+    .refresh-btn:hover,
+    .analytics-stat-card:hover,
+    .recommendation:hover,
+    .strengths:hover,
+    .weaknesses:hover {
+        transform: none;
+    }
+    
+    .spinner {
+        animation: none;
+    }
+    
+    .progress-bar-fill {
+        transition: none;
+    }
+}
+
+/* ===== دعم التباين العالي ===== */
+@media (prefers-contrast: high) {
+    .analytics-stat-card,
+    .correlations-card,
+    .recommendations-card,
+    .strengths,
+    .weaknesses {
+        border-width: 2px;
+    }
+    
+    .recommendation {
+        border-left-width: 4px;
+    }
+    
+    [dir="rtl"] .recommendation {
+        border-right-width: 4px;
+    }
+}
+            `}</style>
+
         </div>
     );
 };
