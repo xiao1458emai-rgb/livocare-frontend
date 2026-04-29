@@ -300,7 +300,7 @@ function Sidebar({ activeSection, onSectionChange, isArabic: propIsArabic, isVis
     top: 0;
     left: 0;
     bottom: 0;
-    width: 240px;
+    width: 100px;
     background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
     color: white;
     display: flex;
