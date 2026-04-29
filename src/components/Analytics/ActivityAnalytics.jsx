@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as stats from 'simple-statistics';
 import * as math from 'mathjs';
 import axiosInstance from '../../services/api';
-import './Analytics.css';
+import '../../index.css';
 
 const ActivityAnalytics = ({ refreshTrigger }) => {
     // ✅ إعدادات اللغة
