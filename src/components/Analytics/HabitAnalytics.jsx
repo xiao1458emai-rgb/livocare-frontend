@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axiosInstance from '../../services/api';
-import './Analytics.css';
+import '../../index.css';
 
 // ✅ نفس دوال التصنيف المستخدمة في HabitTracker
 const getStoredHabitType = (habitId) => {
