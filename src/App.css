@@ -218,7 +218,7 @@ body {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 500px !important;
+    width: 300px !;
     background: var(--sidebar-bg);
     color: white;
     z-index: 1000;
