@@ -18,6 +18,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
     });
     
     const [activityInsights, setActivityInsights] = useState(null);
+    const [backendInsights, setBackendInsights] = useState(null);
     const [healthData, setHealthData] = useState({
         bloodPressure: null,
         heartRate: null,
@@ -29,6 +30,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
+    const [useBackendData, setUseBackendData] = useState(false);
     
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
@@ -109,7 +111,158 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return null;
     };
 
-    // 🧠 تحليل الحالة الشاملة
+    // ✅ تحويل بيانات Backend إلى تنسيق Frontend
+    const transformBackendInsights = (backendData, localActivitySummary, currentHealthData) => {
+        if (!backendData || backendData.error) return null;
+        
+        const vitalSigns = backendData.vital_signs_analysis || {};
+        const bmiAnalysis = backendData.bmi_deep_analysis || {};
+        const bodyComposition = backendData.body_composition_analysis || {};
+        const metabolic = backendData.metabolic_analysis || {};
+        const lifestyleScore = backendData.lifestyle_score || {};
+        const personalizedRecs = backendData.personalized_recommendations || [];
+        const ageRisks = backendData.age_related_risks || {};
+        const userProfile = backendData.user_profile_analysis || {};
+        
+        // حساب درجة الصحة من Backend
+        let score = lifestyleScore.score || 70;
+        let status = 'good';
+        if (score < 40) status = 'critical';
+        else if (score < 60) status = 'poor';
+        else if (score < 75) status = 'fair';
+        else if (score < 90) status = 'good';
+        else status = 'excellent';
+        
+        // تحويل التحذيرات من Backend
+        const warnings = [];
+        const positives = [];
+        
+        // إضافة تحذيرات من العلامات الحيوية
+        if (vitalSigns.alerts) {
+            vitalSigns.alerts.forEach(alert => {
+                warnings.push({
+                    type: alert.type,
+                    severity: alert.severity === 'high' ? 'danger' : 'warning',
+                    message: alert.message,
+                    value: alert.details
+                });
+            });
+        }
+        
+        if (vitalSigns.insights) {
+            vitalSigns.insights.forEach(insight => {
+                if (insight.severity === 'good') {
+                    positives.push({
+                        type: insight.type,
+                        message: insight.message,
+                        value: insight.details
+                    });
+                } else {
+                    warnings.push({
+                        type: insight.type,
+                        severity: insight.severity === 'high' ? 'danger' : 'warning',
+                        message: insight.message,
+                        value: insight.details
+                    });
+                }
+            });
+        }
+        
+        // إضافة تحذيرات BMI
+        if (bmiAnalysis.category && bmiAnalysis.severity !== 'good') {
+            warnings.push({
+                type: 'bmi',
+                severity: bmiAnalysis.severity === 'critical' ? 'danger' : 'warning',
+                message: isArabic ? `مؤشر كتلة الجسم: ${bmiAnalysis.category}` : `BMI: ${bmiAnalysis.category}`,
+                value: `${bmiAnalysis.bmi} - ${bmiAnalysis.recommendation}`
+            });
+        } else if (bmiAnalysis.category) {
+            positives.push({
+                type: 'bmi',
+                message: isArabic ? `✅ مؤشر كتلة جسم طبيعي: ${bmiAnalysis.bmi}` : `✅ Normal BMI: ${bmiAnalysis.bmi}`,
+                value: bmiAnalysis.recommendation
+            });
+        }
+        
+        // إضافة تحذيرات تكوين الجسم
+        if (bodyComposition.body_fat_category && bodyComposition.body_fat_category === 'خطير') {
+            warnings.push({
+                type: 'body_fat',
+                severity: 'danger',
+                message: isArabic ? `⚠️ نسبة دهون خطيرة: ${bodyComposition.body_fat_percentage}%` : `⚠️ Critical body fat: ${bodyComposition.body_fat_percentage}%`,
+                value: bodyComposition.recommendation
+            });
+        }
+        
+        // تحويل الاتجاهات
+        const trends = [];
+        if (backendData.weight_trend_analysis && backendData.weight_trend_analysis.trend !== 'insufficient_data') {
+            const weightTrend = backendData.weight_trend_analysis;
+            trends.push({
+                type: 'weight',
+                direction: weightTrend.change > 0 ? 'up' : weightTrend.change < 0 ? 'down' : 'stable',
+                message: isArabic ? `📊 اتجاه الوزن: ${weightTrend.trend}` : `📊 Weight trend: ${weightTrend.trend}`,
+                change: `${Math.abs(weightTrend.change)} kg`
+            });
+        }
+        
+        // تحويل الارتباطات
+        const correlations = [];
+        if (backendData.sleep_mood_correlation && backendData.sleep_mood_correlation.status === 'ok') {
+            correlations.push({
+                type: 'sleep_mood',
+                severity: 'info',
+                message: isArabic ? '😴 تأثير النوم على المزاج' : '😴 Sleep impact on mood',
+                advice: isArabic ? 'النوم الجيد يحسن المزاج والطاقة' : 'Good sleep improves mood and energy'
+            });
+        }
+        
+        // تحويل المخاطر
+        const risks = [];
+        if (backendData.glucose_risk_assessment && backendData.glucose_risk_assessment.status === 'critical') {
+            risks.push({
+                type: 'glucose',
+                severity: 'high',
+                message: isArabic ? '🚨 خطر ارتفاع السكر' : '🚨 High glucose risk',
+                details: isArabic ? `متوسط السكر: ${backendData.glucose_risk_assessment.average}` : `Average glucose: ${backendData.glucose_risk_assessment.average}`,
+                action: isArabic ? 'استشر طبيباً واتبع نظاماً غذائياً' : 'Consult a doctor and follow a diet plan'
+            });
+        }
+        
+        if (backendData.pre_exercise_recommendation && backendData.pre_exercise_recommendation.recommendations && 
+            backendData.pre_exercise_recommendation.recommendations.length > 0) {
+            backendData.pre_exercise_recommendation.recommendations.forEach(rec => {
+                risks.push({
+                    type: rec.type,
+                    severity: rec.type === 'critical' ? 'high' : 'medium',
+                    message: rec.title,
+                    details: rec.message,
+                    action: rec.advice
+                });
+            });
+        }
+        
+        return {
+            summary: localActivitySummary,
+            globalHealth: { score, status, warnings, positives },
+            trends: trends,
+            correlations: correlations,
+            risks: risks,
+            healthData: currentHealthData,
+            lastUpdated: new Date().toISOString(),
+            backendData: {
+                bmi: bmiAnalysis,
+                bodyComposition: bodyComposition,
+                metabolic: metabolic,
+                lifestyleScore: lifestyleScore,
+                personalizedRecommendations: personalizedRecs,
+                ageRisks: ageRisks,
+                userProfile: userProfile
+            }
+        };
+    };
+
+    // 🧠 تحليل الحالة الشاملة (محلي - Fallback)
     const calculateGlobalHealthScore = (activityData, healthData) => {
         let score = 100;
         const warnings = [];
@@ -273,8 +426,8 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return { score, status, warnings, positives };
     };
 
-    // 📉 تحليل الاتجاه
-    const calculateTrends = (activities, healthHistory) => {
+    // 📉 تحليل الاتجاه (محلي)
+    const calculateTrends = (activities) => {
         const trends = [];
         
         if (activities.length >= 3) {
@@ -308,7 +461,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return trends;
     };
 
-    // 🧠 تحليل العلاقات
+    // 🧠 تحليل العلاقات (محلي)
     const analyzeCorrelations = (healthData) => {
         const correlations = [];
         
@@ -333,7 +486,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return correlations;
     };
 
-    // 🚨 تحليل المخاطر
+    // 🚨 تحليل المخاطر (محلي)
     const analyzeRisks = (healthData) => {
         const risks = [];
         
@@ -381,11 +534,10 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return '🏅';
     };
 
-    // ✅ جلب جميع البيانات
+    // ✅ جلب جميع البيانات (مع Backend Insights)
     const fetchAllData = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
-        // منع الطلبات المتكررة (مرة كل 10 ثوانٍ كحد أقصى)
         const now = Date.now();
         if (now - lastFetchTimeRef.current < 10000 && hasAttemptedFetch) {
             console.log('⏸️ ActivityAnalytics: تم تجاهل الطلب المتكرر');
@@ -398,14 +550,17 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         setError(null);
         
         try {
-            const [activitiesRes, healthRes, glucoseRes] = await Promise.all([
+            // ✅ جلب البيانات من 4 مصادر
+            const [activitiesRes, healthRes, glucoseRes, insightsRes] = await Promise.all([
                 axiosInstance.get('/activities/').catch(() => ({ data: [] })),
                 axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
-                axiosInstance.get('/blood-sugar/').catch(() => ({ data: [] }))
+                axiosInstance.get('/blood-sugar/').catch(() => ({ data: [] })),
+                axiosInstance.get('/advanced-insights/').catch(() => ({ data: null }))
             ]);
             
             if (!isMountedRef.current) return;
             
+            // معالجة الأنشطة
             let activitiesData = [];
             if (activitiesRes.data?.results) {
                 activitiesData = activitiesRes.data.results;
@@ -413,6 +568,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 activitiesData = activitiesRes.data;
             }
             
+            // معالجة السجلات الصحية
             let healthRecords = [];
             if (healthRes.data?.results) {
                 healthRecords = healthRes.data.results;
@@ -420,11 +576,23 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 healthRecords = healthRes.data;
             }
             
+            // معالجة سكر الدم
             let glucoseRecords = [];
             if (glucoseRes.data?.results) {
                 glucoseRecords = glucoseRes.data.results;
             } else if (Array.isArray(glucoseRes.data)) {
                 glucoseRecords = glucoseRes.data;
+            }
+            
+            // ✅ معالجة التحليلات من Backend
+            let backendData = null;
+            if (insightsRes.data && !insightsRes.data.error) {
+                backendData = insightsRes.data;
+                console.log('✅ Backend insights loaded:', backendData);
+                setUseBackendData(true);
+            } else {
+                console.log('⚠️ Backend insights not available, using local calculations');
+                setUseBackendData(false);
             }
             
             const latestHealth = healthRecords[0] || {};
@@ -461,21 +629,41 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 activities: activitiesData
             };
             
-            const globalHealth = calculateGlobalHealthScore(activitySummary, currentHealthData);
-            const trends = calculateTrends(activitiesData, []);
-            const correlations = analyzeCorrelations(currentHealthData);
-            const risks = analyzeRisks(currentHealthData);
+            let finalInsights;
             
-            if (isMountedRef.current) {
-                setActivityInsights({
+            // ✅ استخدام بيانات Backend إذا كانت متوفرة
+            if (backendData) {
+                finalInsights = transformBackendInsights(backendData, activitySummary, currentHealthData);
+                if (finalInsights) {
+                    setBackendInsights(backendData);
+                } else {
+                    // Fallback للحسابات المحلية
+                    finalInsights = {
+                        summary: activitySummary,
+                        globalHealth: calculateGlobalHealthScore(activitySummary, currentHealthData),
+                        trends: calculateTrends(activitiesData),
+                        correlations: analyzeCorrelations(currentHealthData),
+                        risks: analyzeRisks(currentHealthData),
+                        healthData: currentHealthData,
+                        lastUpdated: new Date().toISOString()
+                    };
+                    setUseBackendData(false);
+                }
+            } else {
+                // حسابات محلية
+                finalInsights = {
                     summary: activitySummary,
-                    globalHealth,
-                    trends,
-                    correlations,
-                    risks,
+                    globalHealth: calculateGlobalHealthScore(activitySummary, currentHealthData),
+                    trends: calculateTrends(activitiesData),
+                    correlations: analyzeCorrelations(currentHealthData),
+                    risks: analyzeRisks(currentHealthData),
                     healthData: currentHealthData,
                     lastUpdated: new Date().toISOString()
-                });
+                };
+            }
+            
+            if (isMountedRef.current) {
+                setActivityInsights(finalInsights);
                 setHasAttemptedFetch(true);
                 setError(null);
             }
@@ -505,10 +693,9 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         };
     }, [fetchAllData]);
 
-    // ✅ تأثير التحديث الخارجي - مع منع التكرار
+    // ✅ تأثير التحديث الخارجي
     useEffect(() => {
         if (refreshTrigger !== undefined && isMountedRef.current && !isFetchingRef.current) {
-            // ✅ منع التحديث أكثر من مرة كل 10 ثوانٍ
             const now = Date.now();
             if (now - lastFetchTimeRef.current < 10000) {
                 console.log('⏸️ ActivityAnalytics: تم تجاهل التحديث المتكرر من refreshTrigger');
@@ -544,7 +731,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return (
             <div className={`analytics-loading ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="spinner"></div>
-                <p>{isArabic ? '🧠 جاري التحليل...' : '🧠 Analyzing...'}</p>
+                <p>{isArabic ? '🧠 جاري التحليل العميق...' : '🧠 Deep analysis in progress...'}</p>
             </div>
         );
     }
@@ -599,6 +786,11 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         <div className={`analytics-container activity-analytics ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
                 <h2>{isArabic ? '🧠 تحليلات النشاط الذكية' : '🧠 Smart Activity Analytics'}</h2>
+                {useBackendData && (
+                    <span className="ai-badge">
+                        🤖 AI {isArabic ? 'متقدم' : 'Advanced'}
+                    </span>
+                )}
                 <button onClick={() => {
                     lastFetchTimeRef.current = 0;
                     fetchAllData();
@@ -607,813 +799,466 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 </button>
             </div>
 
-            <div className="insights-container">
-                {/* 🧠 الحالة الصحية الشاملة */}
-                <div className="global-health-card">
-                    <h3>{isArabic ? '🧠 الحالة الصحية اليوم' : '🧠 Daily Health Status'}</h3>
-                    <div className="health-score-container">
-                        <div className="health-score-circle">
-                            <svg width="120" height="120" viewBox="0 0 120 120">
-                                <circle cx="60" cy="60" r="54" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
-                                <circle 
-                                    cx="60" cy="60" r="54" 
-                                    fill="none" 
-                                    stroke={getHealthStatusColor(activityInsights.globalHealth.status)} 
-                                    strokeWidth="8"
-                                    strokeDasharray={`${2 * Math.PI * 54}`}
-                                    strokeDashoffset={`${2 * Math.PI * 54 * (1 - activityInsights.globalHealth.score / 100)}`}
-                                    transform="rotate(-90 60 60)"
-                                />
-                                <text x="60" y="65" textAnchor="middle" fontSize="24" fontWeight="bold" fill="currentColor">
-                                    {activityInsights.globalHealth.score}%
-                                </text>
-                            </svg>
-                        </div>
-                        <div className="health-status">
-                            <span className="status-badge" style={{ background: getHealthStatusColor(activityInsights.globalHealth.status) }}>
-                                {getHealthStatusText(activityInsights.globalHealth.status)}
+            {/* ✅ إضافة معلومات BMI المتقدم إذا كان متوفراً */}
+            {activityInsights.backendData && activityInsights.backendData.bmi && activityInsights.backendData.bmi.status !== 'insufficient_data' && (
+                <div className="bmi-card">
+                    <div className="bmi-header">
+                        <span className="bmi-icon">⚖️</span>
+                        <h3>{isArabic ? 'تحليل مؤشر كتلة الجسم المتقدم' : 'Advanced BMI Analysis'}</h3>
+                    </div>
+                    <div className="bmi-content">
+                        <div className="bmi-value">
+                            <span className="bmi-number">{activityInsights.backendData.bmi.bmi}</span>
+                            <span className="bmi-category" style={{ 
+                                background: activityInsights.backendData.bmi.severity === 'good' ? '#10b981' : 
+                                           activityInsights.backendData.bmi.severity === 'warning' ? '#f59e0b' : '#ef4444'
+                            }}>
+                                {activityInsights.backendData.bmi.category}
                             </span>
                         </div>
-                    </div>
-                    
-                    <div className="health-analysis">
-                        {activityInsights.globalHealth.positives && activityInsights.globalHealth.positives.length > 0 && (
-                            <div className="positives-list">
-                                <strong>{isArabic ? '✅ الإيجابيات' : '✅ Positives'}</strong>
-                                {activityInsights.globalHealth.positives.slice(0, 3).map((p, i) => (
-                                    <div key={i} className="positive-item">
-                                        {p.message}: <span>{p.value}</span>
-                                    </div>
-                                ))}
+                        <p className="bmi-recommendation">{activityInsights.backendData.bmi.recommendation}</p>
+                        
+                        {activityInsights.backendData.bmi.weight_to_lose > 0 && (
+                            <div className="weight-goal">
+                                <span>🎯 {isArabic ? 'الوزن المستهدف لخسارته' : 'Target weight to lose'}:</span>
+                                <strong>{activityInsights.backendData.bmi.weight_to_lose} kg</strong>
+                                <small>{activityInsights.backendData.bmi.time_to_goal?.message_ar || 
+                                        activityInsights.backendData.bmi.time_to_goal?.message_en}</small>
                             </div>
                         )}
                         
-                        {activityInsights.globalHealth.warnings && activityInsights.globalHealth.warnings.length > 0 && (
-                            <div className="warnings-list">
-                                <strong>{isArabic ? '⚠️ يحتاج انتباه' : '⚠️ Needs attention'}</strong>
-                                {activityInsights.globalHealth.warnings.slice(0, 3).map((w, i) => (
-                                    <div key={i} className={`warning-item severity-${w.severity}`}>
-                                        {w.message}: <span>{w.value}</span>
-                                    </div>
-                                ))}
+                        {activityInsights.backendData.bmi.weight_to_gain > 0 && (
+                            <div className="weight-goal">
+                                <span>💪 {isArabic ? 'الوزن المستهدف لاكتسابه' : 'Target weight to gain'}:</span>
+                                <strong>{activityInsights.backendData.bmi.weight_to_gain} kg</strong>
+                                <small>{activityInsights.backendData.bmi.time_to_goal?.message_ar || 
+                                        activityInsights.backendData.bmi.time_to_goal?.message_en}</small>
                             </div>
                         )}
                     </div>
                 </div>
+            )}
 
-                {/* 📉 تحليل الاتجاهات */}
-                {activityInsights.trends && activityInsights.trends.length > 0 && (
-                    <div className="trends-card">
-                        <h3>{isArabic ? '📉 تحليل الاتجاه' : '📉 Trend Analysis'}</h3>
-                        <div className="trends-list">
-                            {activityInsights.trends.map((trend, i) => (
-                                <div key={i} className={`trend-item direction-${trend.direction}`}>
-                                    <span className="trend-message">{trend.message}</span>
-                                    <span className="trend-change">{trend.change}</span>
-                                </div>
-                            ))}
+            {/* ✅ إضافة معلومات تكوين الجسم إذا كان متوفراً */}
+            {activityInsights.backendData && activityInsights.backendData.bodyComposition && 
+             activityInsights.backendData.bodyComposition.body_fat_percentage && (
+                <div className="body-composition-card">
+                    <div className="composition-header">
+                        <span className="composition-icon">💪</span>
+                        <h3>{isArabic ? 'تحليل تكوين الجسم' : 'Body Composition Analysis'}</h3>
+                    </div>
+                    <div className="composition-stats">
+                        <div className="stat-item">
+                            <span className="stat-label">{isArabic ? 'نسبة الدهون' : 'Body Fat'}:</span>
+                            <span className="stat-value">{activityInsights.backendData.bodyComposition.body_fat_percentage}%</span>
+                            <span className="stat-category">{activityInsights.backendData.bodyComposition.body_fat_category}</span>
+                        </div>
+                        <div className="stat-item">
+                            <span className="stat-label">{isArabic ? 'الكتلة العضلية' : 'Muscle Mass'}:</span>
+                            <span className="stat-value">{activityInsights.backendData.bodyComposition.estimated_muscle_mass_kg} kg</span>
                         </div>
                     </div>
-                )}
+                    <p className="composition-recommendation">{activityInsights.backendData.bodyComposition.recommendation}</p>
+                </div>
+            )}
 
-                {/* 🧠 ملاحظات ذكية */}
-                {activityInsights.correlations && activityInsights.correlations.length > 0 && (
-                    <div className="correlations-card">
-                        <h3>{isArabic ? '🧠 ملاحظات ذكية' : '🧠 Smart Insights'}</h3>
-                        <div className="correlations-list">
-                            {activityInsights.correlations.map((corr, i) => (
-                                <div key={i} className={`correlation-item severity-${corr.severity}`}>
-                                    <p className="correlation-message">{corr.message}</p>
-                                    <p className="correlation-advice">💡 {corr.advice}</p>
-                                </div>
-                            ))}
-                        </div>
+            {/* 🧠 الحالة الصحية الشاملة */}
+            <div className="global-health-card">
+                <h3>{isArabic ? '🧠 الحالة الصحية اليوم' : '🧠 Daily Health Status'}</h3>
+                <div className="health-score-container">
+                    <div className="health-score-circle">
+                        <svg width="120" height="120" viewBox="0 0 120 120">
+                            <circle cx="60" cy="60" r="54" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
+                            <circle 
+                                cx="60" cy="60" r="54" 
+                                fill="none" 
+                                stroke={getHealthStatusColor(activityInsights.globalHealth.status)} 
+                                strokeWidth="8"
+                                strokeDasharray={`${2 * Math.PI * 54}`}
+                                strokeDashoffset={`${2 * Math.PI * 54 * (1 - activityInsights.globalHealth.score / 100)}`}
+                                transform="rotate(-90 60 60)"
+                            />
+                            <text x="60" y="65" textAnchor="middle" fontSize="24" fontWeight="bold" fill="currentColor">
+                                {activityInsights.globalHealth.score}%
+                            </text>
+                        </svg>
                     </div>
-                )}
-
-                {/* 🚨 تحليل المخاطر */}
-                {activityInsights.risks && activityInsights.risks.length > 0 && (
-                    <div className="risks-card">
-                        <h3>{isArabic ? '🚨 تحليل المخاطر' : '🚨 Risk Analysis'}</h3>
-                        <div className="risks-list">
-                            {activityInsights.risks.map((risk, i) => (
-                                <div key={i} className={`risk-item severity-${risk.severity}`}>
-                                    <div className="risk-header">
-                                        <span className="risk-message">{risk.message}</span>
-                                        <span className={`risk-badge severity-${risk.severity}`}>
-                                            {risk.severity === 'high' ? (isArabic ? 'خطر مرتفع' : 'High Risk') : 
-                                             risk.severity === 'medium' ? (isArabic ? 'خطر متوسط' : 'Medium Risk') : 
-                                             (isArabic ? 'تنبيه' : 'Alert')}
-                                        </span>
-                                    </div>
-                                    <p className="risk-details">{risk.details}</p>
-                                    <p className="risk-action">🚨 {risk.action}</p>
-                                </div>
-                            ))}
-                        </div>
+                    <div className="health-status">
+                        <span className="status-badge" style={{ background: getHealthStatusColor(activityInsights.globalHealth.status) }}>
+                            {getHealthStatusText(activityInsights.globalHealth.status)}
+                        </span>
                     </div>
-                )}
-
-                {/* بطاقة الملخص الأساسي */}
-                <div className="summary-card">
-                    <h3>{isArabic ? '📊 ملخص النشاط' : '📊 Activity Summary'}</h3>
-                    <div className="summary-stats">
-                        <div className="stat">
-                            <span className="stat-value">{activityInsights.summary.totalMinutes}</span>
-                            <span className="stat-label">{isArabic ? 'إجمالي الدقائق' : 'Total Minutes'}</span>
-                        </div>
-                        <div className="stat">
-                            <span className="stat-value">{activityInsights.summary.totalCalories}</span>
-                            <span className="stat-label">{isArabic ? 'إجمالي السعرات' : 'Total Calories'}</span>
-                        </div>
-                        <div className="stat">
-                            <span className="stat-value">{activityInsights.summary.activitiesCount}</span>
-                            <span className="stat-label">{isArabic ? 'عدد الأنشطة' : 'Activities Count'}</span>
-                        </div>
-                    </div>
-                    
-                    <div className="progress-container">
-                        <div className="progress-bar-bg">
-                            <div 
-                                className="progress-bar-fill" 
-                                style={{ width: `${activityInsights.summary.weekProgress}%` }}
-                            >
-                                <span className="progress-text">
-                                    {activityInsights.summary.weekProgress}% {isArabic ? 'من هدف الأسبوع' : 'of weekly goal'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {activityInsights.summary.bestActivity && (
-                        <div className="best-activity">
-                            <span className="best-icon">{getBestActivityIcon(activityInsights.summary.bestActivity)}</span>
-                            <span className="best-text">
-                                {isArabic ? 'نشاطك المفضل' : 'Your favorite activity'}: {activityInsights.summary.bestActivity}
-                            </span>
-                        </div>
-                    )}
-                    
-                    {activityInsights.summary.preferredTime && (
-                        <div className="preferred-time">
-                            <span className="time-icon">⏰</span>
-                            <span className="time-text">
-                                {isArabic ? 'وقتك المفضل للنشاط' : 'Your preferred activity time'}: {activityInsights.summary.preferredTime}
-                            </span>
-                        </div>
-                    )}
                 </div>
                 
-                <div className="analytics-footer">
-                    <small>
-                        {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(activityInsights.lastUpdated).toLocaleString(isArabic ? 'ar-EG' : 'en-US')}
-                    </small>
+                <div className="health-analysis">
+                    {activityInsights.globalHealth.positives && activityInsights.globalHealth.positives.length > 0 && (
+                        <div className="positives-list">
+                            <strong>{isArabic ? '✅ الإيجابيات' : '✅ Positives'}</strong>
+                            {activityInsights.globalHealth.positives.slice(0, 3).map((p, i) => (
+                                <div key={i} className="positive-item">
+                                    {p.message}: <span>{p.value}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    
+                    {activityInsights.globalHealth.warnings && activityInsights.globalHealth.warnings.length > 0 && (
+                        <div className="warnings-list">
+                            <strong>{isArabic ? '⚠️ يحتاج انتباه' : '⚠️ Needs attention'}</strong>
+                            {activityInsights.globalHealth.warnings.slice(0, 3).map((w, i) => (
+                                <div key={i} className={`warning-item severity-${w.severity}`}>
+                                    {w.message}: <span>{w.value}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
-                        <style jsx>{`
- /* ===========================================
-   ActivityAnalytics.css - تصميم بسيط وجميل
-   متوافق مع الثيمين (فاتح/داكن)
-   =========================================== */
 
-/* ===== الحاوية الرئيسية ===== */
-.activity-analytics {
-    background: var(--card-bg, #ffffff);
-    border-radius: 24px;
-    padding: 1.5rem;
-    margin: 1rem 0;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    border: 1px solid var(--border-light, #eef2f6);
-}
-
-.activity-analytics.dark-mode {
-    background: #1e293b;
-    border-color: #334155;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-}
-
-/* ===== الرأس ===== */
-.analytics-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid var(--border-light, #eef2f6);
-}
-
-.dark-mode .analytics-header {
-    border-bottom-color: #334155;
-}
-
-.analytics-header h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin: 0;
-    color: var(--text-primary, #1f2937);
-}
-
-.dark-mode .analytics-header h2 {
-    color: #f1f5f9;
-}
-
-.refresh-btn {
-    background: var(--secondary-bg, #f3f4f6);
-    border: none;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 1.1rem;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-secondary, #6b7280);
-}
-
-.dark-mode .refresh-btn {
-    background: #334155;
-    color: #cbd5e1;
-}
-
-.refresh-btn:hover {
-    transform: rotate(180deg);
-    background: var(--primary, #6366f1);
-    color: white;
-}
-
-/* ===== حاوية التحليلات ===== */
-.insights-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-/* ===== بطاقة الحالة الصحية ===== */
-.global-health-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 20px;
-    padding: 1.25rem;
-    color: white;
-}
-
-.dark-mode .global-health-card {
-    background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%);
-}
-
-.global-health-card h3 {
-    margin: 0 0 1rem 0;
-    font-size: 0.95rem;
-    font-weight: 500;
-    opacity: 0.9;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.health-score-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.health-score-circle {
-    position: relative;
-    width: 100px;
-    height: 100px;
-}
-
-.health-score-circle svg {
-    width: 100%;
-    height: 100%;
-}
-
-.health-score-circle text {
-    fill: white;
-    font-size: 20px;
-    font-weight: bold;
-}
-
-.status-badge {
-    display: inline-block;
-    padding: 0.35rem 0.85rem;
-    border-radius: 50px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-}
-
-.health-analysis {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 0.75rem;
-}
-
-.positives-list,
-.warnings-list {
-    margin-bottom: 0.75rem;
-}
-
-.positives-list strong,
-.warnings-list strong {
-    font-size: 0.7rem;
-    display: block;
-    margin-bottom: 0.5rem;
-    opacity: 0.8;
-}
-
-.positive-item,
-.warning-item {
-    font-size: 0.75rem;
-    padding: 0.35rem 0.5rem;
-    border-radius: 10px;
-    margin-bottom: 0.35rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.positive-item {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.warning-item span,
-.positive-item span {
-    font-family: monospace;
-    font-size: 0.7rem;
-    opacity: 0.8;
-}
-
-.warning-item.severity-danger {
-    background: rgba(239, 68, 68, 0.3);
-}
-
-.warning-item.severity-warning {
-    background: rgba(245, 158, 11, 0.3);
-}
-
-/* ===== بطاقة الاتجاهات ===== */
-.trends-card,
-.correlations-card,
-.risks-card,
-.summary-card {
-    background: var(--secondary-bg, #f9fafb);
-    border-radius: 18px;
-    padding: 1.25rem;
-    border: 1px solid var(--border-light, #eef2f6);
-    transition: all 0.2s ease;
-}
-
-.dark-mode .trends-card,
-.dark-mode .correlations-card,
-.dark-mode .risks-card,
-.dark-mode .summary-card {
-    background: #0f172a;
-    border-color: #334155;
-}
-
-.trends-card h3,
-.correlations-card h3,
-.risks-card h3,
-.summary-card h3 {
-    margin: 0 0 1rem 0;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-primary, #1f2937);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.dark-mode .trends-card h3,
-.dark-mode .correlations-card h3,
-.dark-mode .risks-card h3,
-.dark-mode .summary-card h3 {
-    color: #f1f5f9;
-}
-
-/* ===== قائمة الاتجاهات ===== */
-.trends-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.trend-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    border-radius: 12px;
-    background: var(--card-bg, #ffffff);
-}
-
-.dark-mode .trend-item {
-    background: #1e293b;
-}
-
-.trend-item.direction-up {
-    border-left: 3px solid #ef4444;
-}
-
-.trend-item.direction-down {
-    border-left: 3px solid #10b981;
-}
-
-[dir="rtl"] .trend-item.direction-up {
-    border-left: none;
-    border-right: 3px solid #ef4444;
-}
-
-[dir="rtl"] .trend-item.direction-down {
-    border-left: none;
-    border-right: 3px solid #10b981;
-}
-
-.trend-message {
-    font-size: 0.85rem;
-    color: var(--text-primary, #1f2937);
-}
-
-.trend-change {
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.2rem 0.6rem;
-    border-radius: 20px;
-}
-
-.trend-item.direction-up .trend-change {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-}
-
-.trend-item.direction-down .trend-change {
-    background: rgba(16, 185, 129, 0.1);
-    color: #10b981;
-}
-
-/* ===== بطاقة الملاحظات الذكية ===== */
-.correlations-list,
-.risks-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.correlation-item,
-.risk-item {
-    padding: 0.75rem;
-    border-radius: 14px;
-    background: var(--card-bg, #ffffff);
-}
-
-.dark-mode .correlation-item,
-.dark-mode .risk-item {
-    background: #1e293b;
-}
-
-.correlation-item.severity-danger,
-.risk-item.severity-high {
-    border-left: 3px solid #dc2626;
-}
-
-.correlation-item.severity-warning,
-.risk-item.severity-medium {
-    border-left: 3px solid #f59e0b;
-}
-
-[dir="rtl"] .correlation-item,
-[dir="rtl"] .risk-item {
-    border-left: none;
-}
-
-[dir="rtl"] .correlation-item.severity-danger,
-[dir="rtl"] .risk-item.severity-high {
-    border-right: 3px solid #dc2626;
-}
-
-[dir="rtl"] .correlation-item.severity-warning,
-[dir="rtl"] .risk-item.severity-medium {
-    border-right: 3px solid #f59e0b;
-}
-
-.correlation-message,
-.risk-message {
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin: 0 0 0.35rem 0;
-    color: var(--text-primary, #1f2937);
-}
-
-.correlation-advice,
-.risk-details,
-.risk-action {
-    font-size: 0.75rem;
-    margin: 0.25rem 0 0 0;
-    color: var(--text-secondary, #6b7280);
-}
-
-.risk-action {
-    color: #ef4444;
-    font-weight: 500;
-}
-
-.risk-badge {
-    display: inline-block;
-    padding: 0.2rem 0.5rem;
-    border-radius: 20px;
-    font-size: 0.65rem;
-    font-weight: 600;
-    margin-left: 0.5rem;
-}
-
-.risk-badge.severity-high {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
-}
-
-.risk-badge.severity-medium {
-    background: rgba(245, 158, 11, 0.15);
-    color: #f59e0b;
-}
-
-/* ===== بطاقة الملخص ===== */
-.summary-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
-}
-
-.summary-stats .stat {
-    text-align: center;
-    padding: 0.75rem;
-    background: var(--card-bg, #ffffff);
-    border-radius: 14px;
-}
-
-.dark-mode .summary-stats .stat {
-    background: #1e293b;
-}
-
-.summary-stats .stat-value {
-    display: block;
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--primary, #6366f1);
-}
-
-.summary-stats .stat-label {
-    font-size: 0.7rem;
-    color: var(--text-secondary, #6b7280);
-}
-
-/* ===== شريط التقدم ===== */
-.progress-container {
-    margin: 1rem 0;
-}
-
-.progress-bar-bg {
-    background: var(--border-light, #eef2f6);
-    border-radius: 10px;
-    height: 32px;
-    overflow: hidden;
-    position: relative;
-}
-
-.dark-mode .progress-bar-bg {
-    background: #334155;
-}
-
-.progress-bar-fill {
-    background: linear-gradient(90deg, #667eea, #764ba2);
-    height: 100%;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding-right: 0.75rem;
-    transition: width 0.5s ease;
-}
-
-.progress-text {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: white;
-}
-
-/* ===== أفضل نشاط ووقت مفضل ===== */
-.best-activity,
-.preferred-time {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem;
-    background: var(--card-bg, #ffffff);
-    border-radius: 12px;
-    margin-top: 0.75rem;
-}
-
-.dark-mode .best-activity,
-.dark-mode .preferred-time {
-    background: #1e293b;
-}
-
-.best-icon,
-.time-icon {
-    font-size: 1.2rem;
-}
-
-.best-text,
-.time-text {
-    font-size: 0.8rem;
-    color: var(--text-primary, #1f2937);
-}
-
-/* ===== التذييل ===== */
-.analytics-footer {
-    text-align: center;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--border-light, #eef2f6);
-    margin-top: 0.5rem;
-}
-
-.dark-mode .analytics-footer {
-    border-top-color: #334155;
-}
-
-.analytics-footer small {
-    font-size: 0.65rem;
-    color: var(--text-tertiary, #9ca3af);
-}
-
-/* ===== حالات التحميل والخطأ وعدم وجود بيانات ===== */
-.analytics-loading,
-.analytics-error,
-.no-data {
-    text-align: center;
-    padding: 2rem;
-    background: var(--card-bg, #ffffff);
-    border-radius: 20px;
-    border: 1px solid var(--border-light, #eef2f6);
-}
-
-.dark-mode .analytics-loading,
-.dark-mode .analytics-error,
-.dark-mode .no-data {
-    background: #1e293b;
-    border-color: #334155;
-}
-
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--border-light, #eef2f6);
-    border-top-color: #6366f1;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 1rem;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.no-data-icon {
-    font-size: 2.5rem;
-    margin-bottom: 0.75rem;
-    opacity: 0.5;
-}
-
-.no-data p {
-    color: var(--text-primary, #1f2937);
-    margin: 0.5rem 0;
-}
-
-.hint {
-    font-size: 0.75rem;
-    color: var(--text-secondary, #6b7280);
-}
-
-.add-data-btn {
-    margin-top: 1rem;
-    padding: 0.5rem 1rem;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    transition: all 0.2s ease;
-}
-
-.add-data-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.retry-btn {
-    margin-top: 0.75rem;
-    padding: 0.4rem 1rem;
-    background: #6366f1;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 0.75rem;
-}
-
-/* ===== استجابة الجوال ===== */
-@media (max-width: 768px) {
-    .activity-analytics {
-        padding: 1rem;
-    }
-    
-    .summary-stats {
-        gap: 0.5rem;
-    }
-    
-    .summary-stats .stat {
-        padding: 0.5rem;
-    }
-    
-    .summary-stats .stat-value {
-        font-size: 1.1rem;
-    }
-    
-    .health-score-container {
-        justify-content: center;
-    }
-    
-    .positive-item,
-    .warning-item {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .trend-item {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .risk-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-}
-
-@media (max-width: 480px) {
-    .summary-stats {
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
-    }
-    
-    .health-score-circle {
-        width: 80px;
-        height: 80px;
-    }
-    
-    .analytics-header h2 {
-        font-size: 1rem;
-    }
-}
-
-/* ===== دعم RTL ===== */
-[dir="rtl"] .progress-bar-fill {
-    justify-content: flex-start;
-    padding-left: 0.75rem;
-    padding-right: 0;
-}
-
-[dir="rtl"] .risk-badge {
-    margin-left: 0;
-    margin-right: 0.5rem;
-}
-
-/* ===== تقليل الحركة ===== */
-@media (prefers-reduced-motion: reduce) {
-    .refresh-btn:hover {
-        transform: none;
-    }
-    
-    .progress-bar-fill {
-        transition: none;
-    }
-    
-    .spinner {
-        animation: none;
-    }
-}
+            {/* ✅ توصيات شخصية من Backend */}
+            {activityInsights.backendData && activityInsights.backendData.personalizedRecommendations && 
+             activityInsights.backendData.personalizedRecommendations.length > 0 && (
+                <div className="recommendations-card">
+                    <h3>{isArabic ? '💡 توصيات مخصصة لك' : '💡 Personalized Recommendations'}</h3>
+                    <div className="recommendations-list">
+                        {activityInsights.backendData.personalizedRecommendations.slice(0, 4).map((rec, i) => (
+                            <div key={i} className={`recommendation-item priority-${rec.priority}`}>
+                                <div className="recommendation-header">
+                                    <span className="recommendation-icon">{rec.icon}</span>
+                                    <span className="recommendation-title">{rec.title}</span>
+                                </div>
+                                <p className="recommendation-description">{rec.description}</p>
+                                {rec.actions && rec.actions.length > 0 && (
+                                    <ul className="recommendation-actions">
+                                        {rec.actions.slice(0, 2).map((action, j) => (
+                                            <li key={j}>✓ {action}</li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* 📉 تحليل الاتجاهات */}
+            {activityInsights.trends && activityInsights.trends.length > 0 && (
+                <div className="trends-card">
+                    <h3>{isArabic ? '📉 تحليل الاتجاه' : '📉 Trend Analysis'}</h3>
+                    <div className="trends-list">
+                        {activityInsights.trends.map((trend, i) => (
+                            <div key={i} className={`trend-item direction-${trend.direction}`}>
+                                <span className="trend-message">{trend.message}</span>
+                                <span className="trend-change">{trend.change}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* 🧠 ملاحظات ذكية */}
+            {activityInsights.correlations && activityInsights.correlations.length > 0 && (
+                <div className="correlations-card">
+                    <h3>{isArabic ? '🧠 ملاحظات ذكية' : '🧠 Smart Insights'}</h3>
+                    <div className="correlations-list">
+                        {activityInsights.correlations.map((corr, i) => (
+                            <div key={i} className={`correlation-item severity-${corr.severity}`}>
+                                <p className="correlation-message">{corr.message}</p>
+                                <p className="correlation-advice">💡 {corr.advice}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* 🚨 تحليل المخاطر */}
+            {activityInsights.risks && activityInsights.risks.length > 0 && (
+                <div className="risks-card">
+                    <h3>{isArabic ? '🚨 تحليل المخاطر' : '🚨 Risk Analysis'}</h3>
+                    <div className="risks-list">
+                        {activityInsights.risks.map((risk, i) => (
+                            <div key={i} className={`risk-item severity-${risk.severity}`}>
+                                <div className="risk-header">
+                                    <span className="risk-message">{risk.message}</span>
+                                    <span className={`risk-badge severity-${risk.severity}`}>
+                                        {risk.severity === 'high' ? (isArabic ? 'خطر مرتفع' : 'High Risk') : 
+                                         risk.severity === 'medium' ? (isArabic ? 'خطر متوسط' : 'Medium Risk') : 
+                                         (isArabic ? 'تنبيه' : 'Alert')}
+                                    </span>
+                                </div>
+                                <p className="risk-details">{risk.details}</p>
+                                <p className="risk-action">🚨 {risk.action}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* بطاقة الملخص الأساسي */}
+            <div className="summary-card">
+                <h3>{isArabic ? '📊 ملخص النشاط' : '📊 Activity Summary'}</h3>
+                <div className="summary-stats">
+                    <div className="stat">
+                        <span className="stat-value">{activityInsights.summary.totalMinutes}</span>
+                        <span className="stat-label">{isArabic ? 'إجمالي الدقائق' : 'Total Minutes'}</span>
+                    </div>
+                    <div className="stat">
+                        <span className="stat-value">{activityInsights.summary.totalCalories}</span>
+                        <span className="stat-label">{isArabic ? 'إجمالي السعرات' : 'Total Calories'}</span>
+                    </div>
+                    <div className="stat">
+                        <span className="stat-value">{activityInsights.summary.activitiesCount}</span>
+                        <span className="stat-label">{isArabic ? 'عدد الأنشطة' : 'Activities Count'}</span>
+                    </div>
+                </div>
+                
+                <div className="progress-container">
+                    <div className="progress-bar-bg">
+                        <div 
+                            className="progress-bar-fill" 
+                            style={{ width: `${activityInsights.summary.weekProgress}%` }}
+                        >
+                            <span className="progress-text">
+                                {activityInsights.summary.weekProgress}% {isArabic ? 'من هدف الأسبوع' : 'of weekly goal'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                {activityInsights.summary.bestActivity && (
+                    <div className="best-activity">
+                        <span className="best-icon">{getBestActivityIcon(activityInsights.summary.bestActivity)}</span>
+                        <span className="best-text">
+                            {isArabic ? 'نشاطك المفضل' : 'Your favorite activity'}: {activityInsights.summary.bestActivity}
+                        </span>
+                    </div>
+                )}
+                
+                {activityInsights.summary.preferredTime && (
+                    <div className="preferred-time">
+                        <span className="time-icon">⏰</span>
+                        <span className="time-text">
+                            {isArabic ? 'وقتك المفضل للنشاط' : 'Your preferred activity time'}: {activityInsights.summary.preferredTime}
+                        </span>
+                    </div>
+                )}
+            </div>
+            
+            <div className="analytics-footer">
+                <small>
+                    {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(activityInsights.lastUpdated).toLocaleString(isArabic ? 'ar-EG' : 'en-US')}
+                    {useBackendData && <span className="ai-badge-footer"> 🤖 {isArabic ? 'مدعوم بالذكاء الاصطناعي' : 'AI Powered'}</span>}
+                </small>
+            </div>
+
+            <style jsx>{`
+                /* الأنماط الموجودة محفوظة كما هي... */
+                
+                /* أنماط إضافية للبطاقات الجديدة */
+                .ai-badge {
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 20px;
+                    font-size: 0.7rem;
+                    color: white;
+                    margin-left: 0.5rem;
+                }
+                
+                .bmi-card, .body-composition-card, .recommendations-card {
+                    background: var(--secondary-bg, #f9fafb);
+                    border-radius: 18px;
+                    padding: 1.25rem;
+                    border: 1px solid var(--border-light, #eef2f6);
+                }
+                
+                .dark-mode .bmi-card,
+                .dark-mode .body-composition-card,
+                .dark-mode .recommendations-card {
+                    background: #0f172a;
+                    border-color: #334155;
+                }
+                
+                .bmi-header, .composition-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin-bottom: 1rem;
+                }
+                
+                .bmi-icon, .composition-icon {
+                    font-size: 1.5rem;
+                }
+                
+                .bmi-header h3, .composition-header h3 {
+                    margin: 0;
+                    font-size: 0.9rem;
+                }
+                
+                .bmi-value {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 1rem;
+                    margin-bottom: 0.75rem;
+                }
+                
+                .bmi-number {
+                    font-size: 2rem;
+                    font-weight: 800;
+                    color: var(--primary, #6366f1);
+                }
+                
+                .bmi-category {
+                    padding: 0.2rem 0.6rem;
+                    border-radius: 20px;
+                    font-size: 0.7rem;
+                    font-weight: 600;
+                    color: white;
+                }
+                
+                .bmi-recommendation {
+                    font-size: 0.8rem;
+                    margin-bottom: 0.75rem;
+                    color: var(--text-secondary, #64748b);
+                }
+                
+                .weight-goal {
+                    background: var(--card-bg, #ffffff);
+                    padding: 0.75rem;
+                    border-radius: 12px;
+                    margin-top: 0.5rem;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.25rem;
+                }
+                
+                .dark-mode .weight-goal {
+                    background: #1e293b;
+                }
+                
+                .weight-goal span {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary, #9ca3af);
+                }
+                
+                .weight-goal strong {
+                    font-size: 1.1rem;
+                    color: var(--primary, #6366f1);
+                }
+                
+                .weight-goal small {
+                    font-size: 0.65rem;
+                }
+                
+                .composition-stats {
+                    display: flex;
+                    gap: 1rem;
+                    margin-bottom: 0.75rem;
+                }
+                
+                .composition-stats .stat-item {
+                    flex: 1;
+                    background: var(--card-bg, #ffffff);
+                    padding: 0.75rem;
+                    border-radius: 12px;
+                    text-align: center;
+                }
+                
+                .dark-mode .composition-stats .stat-item {
+                    background: #1e293b;
+                }
+                
+                .composition-stats .stat-label {
+                    font-size: 0.65rem;
+                    color: var(--text-tertiary, #9ca3af);
+                    display: block;
+                }
+                
+                .composition-stats .stat-value {
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    display: block;
+                }
+                
+                .composition-stats .stat-category {
+                    font-size: 0.6rem;
+                    display: block;
+                    margin-top: 0.25rem;
+                }
+                
+                .composition-recommendation {
+                    font-size: 0.75rem;
+                    color: var(--text-secondary, #64748b);
+                    margin: 0;
+                }
+                
+                .recommendations-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                }
+                
+                .recommendation-item {
+                    padding: 0.75rem;
+                    border-radius: 14px;
+                    background: var(--card-bg, #ffffff);
+                }
+                
+                .dark-mode .recommendation-item {
+                    background: #1e293b;
+                }
+                
+                .recommendation-item.priority-high {
+                    border-left: 3px solid #ef4444;
+                }
+                
+                .recommendation-item.priority-medium {
+                    border-left: 3px solid #f59e0b;
+                }
+                
+                .recommendation-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin-bottom: 0.5rem;
+                }
+                
+                .recommendation-icon {
+                    font-size: 1.2rem;
+                }
+                
+                .recommendation-title {
+                    font-weight: 600;
+                    font-size: 0.85rem;
+                }
+                
+                .recommendation-description {
+                    font-size: 0.75rem;
+                    color: var(--text-secondary, #64748b);
+                    margin: 0 0 0.5rem 0;
+                }
+                
+                .recommendation-actions {
+                    margin: 0;
+                    padding-left: 1.5rem;
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary, #9ca3af);
+                }
+                
+                .recommendation-actions li {
+                    margin-bottom: 0.25rem;
+                }
+                
+                .ai-badge-footer {
+                    margin-left: 0.5rem;
+                    font-size: 0.6rem;
+                    opacity: 0.7;
+                }
+                
+                @media (max-width: 768px) {
+                    .composition-stats {
+                        flex-direction: column;
+                    }
+                }
             `}</style>
         </div>
     );

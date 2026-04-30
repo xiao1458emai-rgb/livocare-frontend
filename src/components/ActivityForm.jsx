@@ -1,4 +1,4 @@
-// src/components/ActivityForm.jsx - النسخة النهائية والمثالية
+// src/components/ActivityForm.jsx - النسخة المحسنة
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axiosInstance from '../services/api';
 import esp32Service from '../services/esp32Service';
@@ -45,6 +45,10 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     const [analytics, setAnalytics] = useState(null);
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
     const [userWeight, setUserWeight] = useState(null);
+    const [userHeight, setUserHeight] = useState(null);
+    const [userAge, setUserAge] = useState(null);
+    const [userGender, setUserGender] = useState(null);
+    const [recommendedCalories, setRecommendedCalories] = useState(null);
     const [showCaloriesEdit, setShowCaloriesEdit] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
     
@@ -83,37 +87,225 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         setRefreshKey(prev => prev + 1);
     }, []);
     
-// ✅ الكود الصحيح بدلاً من الحالي
-const fetchUserWeight = useCallback(async () => {
-    try {
-        const response = await axiosInstance.get('/health_status/');
+    // ✅ تحسين دالة fetchUserWeight (إضافة تخزين محلي وجلب بيانات إضافية)
+    const fetchUserWeight = useCallback(async () => {
+        // محاولة读取 من localStorage أولاً
+        const cachedWeight = localStorage.getItem('user_weight');
+        const cachedHeight = localStorage.getItem('user_height');
+        const cachedAge = localStorage.getItem('user_age');
+        const cachedGender = localStorage.getItem('user_gender');
+        const cachedTime = localStorage.getItem('user_data_timestamp');
         
-        let records = [];
-        if (response.data?.results) {
-            records = response.data.results;
-        } else if (Array.isArray(response.data)) {
-            records = response.data;
+        // إذا كانت البيانات مخزنة منذ أقل من ساعة، استخدمها
+        if (cachedWeight && cachedTime && (Date.now() - parseInt(cachedTime)) < 3600000) {
+            setUserWeight(parseFloat(cachedWeight));
+            if (cachedHeight) setUserHeight(parseFloat(cachedHeight));
+            if (cachedAge) setUserAge(parseInt(cachedAge));
+            if (cachedGender) setUserGender(cachedGender);
+            calculateRecommendedCalories(parseFloat(cachedWeight), parseFloat(cachedHeight), parseInt(cachedAge), cachedGender);
+            return;
         }
         
-        if (records.length > 0) {
-            // ترتيب تنازلي حسب التاريخ للحصول على آخر قراءة
-            const sortedRecords = [...records].sort((a, b) => 
-                new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at)
-            );
-            const latest = sortedRecords[0];
-            if (latest && latest.weight_kg) {
-                setUserWeight(latest.weight_kg);
+        try {
+            // جلب البيانات الصحية
+            const healthResponse = await axiosInstance.get('/health_status/');
+            let records = [];
+            if (healthResponse.data?.results) {
+                records = healthResponse.data.results;
+            } else if (Array.isArray(healthResponse.data)) {
+                records = healthResponse.data;
+            }
+            
+            if (records.length > 0) {
+                const sortedRecords = [...records].sort((a, b) => 
+                    new Date(b.recorded_at || b.created_at) - new Date(a.recorded_at || a.created_at)
+                );
+                const latest = sortedRecords[0];
+                if (latest && latest.weight_kg) {
+                    const weight = parseFloat(latest.weight_kg);
+                    setUserWeight(weight);
+                    localStorage.setItem('user_weight', weight);
+                    
+                    // تخزين وقت التخزين المؤقت
+                    localStorage.setItem('user_data_timestamp', Date.now().toString());
+                } else {
+                    setUserWeight(70);
+                    localStorage.setItem('user_weight', '70');
+                }
             } else {
                 setUserWeight(70);
+                localStorage.setItem('user_weight', '70');
             }
-        } else {
-            setUserWeight(70);
+            
+            // جلب بيانات الملف الشخصي (الطول، العمر، الجنس)
+            try {
+                const profileResponse = await axiosInstance.get('/profile/');
+                if (profileResponse.data) {
+                    if (profileResponse.data.height_cm) {
+                        const height = parseFloat(profileResponse.data.height_cm);
+                        setUserHeight(height);
+                        localStorage.setItem('user_height', height);
+                    }
+                    if (profileResponse.data.birth_date) {
+                        const age = new Date().getFullYear() - new Date(profileResponse.data.birth_date).getFullYear();
+                        setUserAge(age);
+                        localStorage.setItem('user_age', age);
+                    }
+                    if (profileResponse.data.gender) {
+                        setUserGender(profileResponse.data.gender);
+                        localStorage.setItem('user_gender', profileResponse.data.gender);
+                    }
+                }
+            } catch (profileErr) {
+                console.log('Profile data not available:', profileErr);
+            }
+            
+            // حساب السعرات الموصى بها
+            calculateRecommendedCalories(
+                userWeight || 70, 
+                userHeight || 170, 
+                userAge || 30, 
+                userGender || 'male'
+            );
+            
+        } catch (err) {
+            console.error('Error fetching user weight:', err);
+            const fallbackWeight = 70;
+            setUserWeight(fallbackWeight);
+            localStorage.setItem('user_weight', fallbackWeight);
         }
-    } catch (err) {
-        console.error('Error fetching user weight:', err);
-        setUserWeight(70);
-    }
-}, []);
+    }, [userWeight, userHeight, userAge, userGender]);
+    
+    // ✅ دالة حساب السعرات اليومية الموصى بها (Mifflin-St Jeor Formula)
+    const calculateRecommendedCalories = useCallback((weight, height, age, gender) => {
+        if (!weight || !height || !age) {
+            setRecommendedCalories(2000);
+            return;
+        }
+        
+        let bmr;
+        if (gender === 'female') {
+            bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+        } else {
+            bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+        }
+        
+        // معامل النشاط (افتراضي: نشاط خفيف)
+        const activityFactor = 1.375;
+        const tdee = Math.round(bmr * activityFactor);
+        
+        // سعرات للحفاظ على الوزن
+        const maintenance = tdee;
+        // سعرات لخسارة الوزن (نقص 500 سعرة)
+        const weightLoss = Math.max(1200, maintenance - 500);
+        // سعرات لزيادة الوزن (زيادة 300 سعرة)
+        const weightGain = maintenance + 300;
+        
+        setRecommendedCalories({
+            maintenance,
+            weightLoss,
+            weightGain,
+            bmr: Math.round(bmr)
+        });
+        
+        return { maintenance, weightLoss, weightGain, bmr: Math.round(bmr) };
+    }, []);
+    
+    // ✅ دالة التحقق من صحة البيانات
+    const validateHealthData = useCallback((data) => {
+        const errors = {};
+        
+        if (data.weight && data.weight.trim()) {
+            const weight = parseFloat(data.weight);
+            if (isNaN(weight)) {
+                errors.weight = isArabic ? 'الوزن يجب أن يكون رقماً' : 'Weight must be a number';
+            } else if (weight < VALIDATION_LIMITS.weight.min) {
+                errors.weight = isArabic ? `الوزن لا يمكن أن يكون أقل من ${VALIDATION_LIMITS.weight.min} كجم` : `Weight cannot be less than ${VALIDATION_LIMITS.weight.min} kg`;
+            } else if (weight > VALIDATION_LIMITS.weight.max) {
+                errors.weight = isArabic ? `الوزن لا يمكن أن يكون أكبر من ${VALIDATION_LIMITS.weight.max} كجم` : `Weight cannot be greater than ${VALIDATION_LIMITS.weight.max} kg`;
+            }
+        }
+        
+        if (data.systolic && data.systolic.trim()) {
+            const systolic = parseInt(data.systolic);
+            if (isNaN(systolic)) {
+                errors.systolic = isArabic ? 'الضغط الانقباضي يجب أن يكون رقماً' : 'Systolic pressure must be a number';
+            } else if (systolic < VALIDATION_LIMITS.systolic.min) {
+                errors.systolic = isArabic ? `الضغط منخفض جداً (أقل من ${VALIDATION_LIMITS.systolic.min})` : `Pressure too low (below ${VALIDATION_LIMITS.systolic.min})`;
+            } else if (systolic > VALIDATION_LIMITS.systolic.max) {
+                errors.systolic = isArabic ? `الضغط مرتفع جداً (أكبر من ${VALIDATION_LIMITS.systolic.max})` : `Pressure too high (above ${VALIDATION_LIMITS.systolic.max})`;
+            }
+        }
+        
+        if (data.diastolic && data.diastolic.trim()) {
+            const diastolic = parseInt(data.diastolic);
+            if (isNaN(diastolic)) {
+                errors.diastolic = isArabic ? 'الضغط الانبساطي يجب أن يكون رقماً' : 'Diastolic pressure must be a number';
+            } else if (diastolic < VALIDATION_LIMITS.diastolic.min) {
+                errors.diastolic = isArabic ? `الضغط منخفض جداً (أقل من ${VALIDATION_LIMITS.diastolic.min})` : `Pressure too low (below ${VALIDATION_LIMITS.diastolic.min})`;
+            } else if (diastolic > VALIDATION_LIMITS.diastolic.max) {
+                errors.diastolic = isArabic ? `الضغط مرتفع جداً (أكبر من ${VALIDATION_LIMITS.diastolic.max})` : `Pressure too high (above ${VALIDATION_LIMITS.diastolic.max})`;
+            }
+        }
+        
+        if (data.glucose && data.glucose.trim()) {
+            const glucose = parseFloat(data.glucose);
+            if (isNaN(glucose)) {
+                errors.glucose = isArabic ? 'سكر الدم يجب أن يكون رقماً' : 'Blood glucose must be a number';
+            } else if (glucose < VALIDATION_LIMITS.glucose.min) {
+                errors.glucose = isArabic ? `⚠️ تحذير: سكر الدم منخفض جداً (أقل من ${VALIDATION_LIMITS.glucose.min} mg/dL)` : `⚠️ Warning: Blood glucose too low (below ${VALIDATION_LIMITS.glucose.min} mg/dL)`;
+            } else if (glucose > VALIDATION_LIMITS.glucose.max) {
+                errors.glucose = isArabic ? `⚠️ تحذير: سكر الدم مرتفع جداً (أكبر من ${VALIDATION_LIMITS.glucose.max} mg/dL)` : `⚠️ Warning: Blood glucose too high (above ${VALIDATION_LIMITS.glucose.max} mg/dL)`;
+            } else if (glucose > 140) {
+                errors.glucose = isArabic ? `⚠️ تنبيه: سكر الدم مرتفع (${glucose} mg/dL). استشر طبيبك` : `⚠️ Alert: High blood glucose (${glucose} mg/dL). Consult your doctor`;
+            } else if (glucose < 70) {
+                errors.glucose = isArabic ? `⚠️ تنبيه: سكر الدم منخفض (${glucose} mg/dL). تناول مصدر سكر سريع` : `⚠️ Alert: Low blood glucose (${glucose} mg/dL). Eat fast-acting sugar`;
+            }
+        }
+        
+        if (data.heartRate && data.heartRate.trim()) {
+            const hr = parseInt(data.heartRate);
+            if (isNaN(hr)) {
+                errors.heartRate = isArabic ? 'معدل ضربات القلب يجب أن يكون رقماً' : 'Heart rate must be a number';
+            } else if (hr < VALIDATION_LIMITS.heartRate.min) {
+                errors.heartRate = isArabic ? `نبض منخفض جداً (أقل من ${VALIDATION_LIMITS.heartRate.min} BPM)` : `Heart rate too low (below ${VALIDATION_LIMITS.heartRate.min} BPM)`;
+            } else if (hr > VALIDATION_LIMITS.heartRate.max) {
+                errors.heartRate = isArabic ? `⚠️ خطير: نبض مرتفع جداً (أكبر من ${VALIDATION_LIMITS.heartRate.max} BPM). استشر طبيباً فوراً` : `⚠️ Dangerous: Heart rate too high (above ${VALIDATION_LIMITS.heartRate.max} BPM). Consult a doctor immediately`;
+            } else if (hr > 100) {
+                errors.heartRate = isArabic ? `⚠️ تنبيه: نبض مرتفع (${hr} BPM). هل أنت متوتر أو مارست رياضة مؤخراً؟` : `⚠️ Alert: High heart rate (${hr} BPM). Are you stressed or did you exercise recently?`;
+            } else if (hr < 60 && hr >= 50) {
+                errors.heartRate = isArabic ? `ℹ️ نبض منخفض (${hr} BPM). إذا كنت رياضياً فهذا طبيعي، وإلا استشر طبيبك` : `ℹ️ Low heart rate (${hr} BPM). If you're an athlete this is normal, otherwise consult your doctor`;
+            }
+        }
+        
+        if (data.spo2 && data.spo2.trim()) {
+            const spo2 = parseInt(data.spo2);
+            if (isNaN(spo2)) {
+                errors.spo2 = isArabic ? 'نسبة الأكسجين يجب أن تكون رقماً' : 'Oxygen level must be a number';
+            } else if (spo2 < VALIDATION_LIMITS.spo2.min) {
+                errors.spo2 = isArabic ? `⚠️ خطير: نقص أكسجين شديد (أقل من ${VALIDATION_LIMITS.spo2.min}%). استشر طبيباً فوراً` : `⚠️ Critical: Severe hypoxia (below ${VALIDATION_LIMITS.spo2.min}%). Seek medical attention immediately`;
+            } else if (spo2 < 95) {
+                errors.spo2 = isArabic ? `⚠️ تنبيه: نسبة الأكسجين منخفضة (${spo2}%). حاول التنفس بعمق` : `⚠️ Alert: Low oxygen level (${spo2}%). Try deep breathing`;
+            }
+        }
+        
+        if (data.temperature && data.temperature.trim()) {
+            const temp = parseFloat(data.temperature);
+            if (isNaN(temp)) {
+                errors.temperature = isArabic ? 'درجة الحرارة يجب أن تكون رقماً' : 'Temperature must be a number';
+            } else if (temp < VALIDATION_LIMITS.temperature.min) {
+                errors.temperature = isArabic ? `⚠️ تحذير: حرارة منخفضة جداً (أقل من ${VALIDATION_LIMITS.temperature.min}°C)` : `⚠️ Warning: Temperature too low (below ${VALIDATION_LIMITS.temperature.min}°C)`;
+            } else if (temp > VALIDATION_LIMITS.temperature.max) {
+                errors.temperature = isArabic ? `⚠️ تحذير: حرارة مرتفعة جداً (أكبر من ${VALIDATION_LIMITS.temperature.max}°C) - قد تشير إلى حمى` : `⚠️ Warning: Temperature too high (above ${VALIDATION_LIMITS.temperature.max}°C) - may indicate fever`;
+            } else if (temp > 37.5) {
+                errors.temperature = isArabic ? `⚠️ تنبيه: حرارة مرتفعة (${temp}°C). اشرب سوائل دافئة وراقب الأعراض` : `⚠️ Alert: Elevated temperature (${temp}°C). Drink warm fluids and monitor symptoms`;
+            } else if (temp < 36.0) {
+                errors.temperature = isArabic ? `ℹ️ حرارة منخفضة (${temp}°C). تأكد من ارتداء ملابس دافئة` : `ℹ️ Low temperature (${temp}°C). Make sure to wear warm clothes`;
+            }
+        }
+        
+        return errors;
+    }, [isArabic]);
     
     // ✅ تسجيل مستمع ESP32
     useEffect(() => {
@@ -125,9 +317,21 @@ const fetchUserWeight = useCallback(async () => {
             if (type === 'heartRate') {
                 setSensorHeartRate(data);
                 setLastSensorReading(prev => ({ ...prev, heartRate: data, timestamp: new Date() }));
+                
+                // تحقق من وجود تحذير للنبض
+                const hr = data;
+                if (hr > 120) {
+                    showMessage(isArabic ? `⚠️ تنبيه: نبض مرتفع (${hr} BPM) من جهاز ESP32` : `⚠️ Alert: High heart rate (${hr} BPM) from ESP32`, 'warning');
+                } else if (hr < 55 && hr > 0) {
+                    showMessage(isArabic ? `ℹ️ نبض منخفض (${hr} BPM) من جهاز ESP32. إذا كنت مرتاحاً فهذا طبيعي` : `ℹ️ Low heart rate (${hr} BPM) from ESP32. If you're resting this is normal`, 'info');
+                }
             } else if (type === 'spo2') {
                 setSensorSpO2(data);
                 setLastSensorReading(prev => ({ ...prev, spo2: data, timestamp: new Date() }));
+                
+                if (data < 94) {
+                    showMessage(isArabic ? `⚠️ تنبيه: نسبة الأكسجين منخفضة (${data}%) من جهاز ESP32` : `⚠️ Alert: Low oxygen level (${data}%) from ESP32`, 'warning');
+                }
             } else if (type === 'data') {
                 if (data?.heartRate) setSensorHeartRate(data.heartRate);
                 if (data?.spo2) setSensorSpO2(data.spo2);
@@ -251,36 +455,127 @@ const fetchUserWeight = useCallback(async () => {
         showMessage(isArabic ? '🗑️ تم مسح النموذج' : '🗑️ Form cleared', 'info');
     }, [isArabic, showMessage]);
     
+    // ✅ تحسين دالة handleHealthSubmit بإضافة تحقق أفضل
     const handleHealthSubmit = useCallback(async (e) => {
         e.preventDefault();
         if (isSubmittingRef.current || !isMountedRef.current) return;
+        
+        // التحقق من صحة البيانات قبل الإرسال
+        const errors = validateHealthData(healthFormData);
+        if (Object.keys(errors).length > 0) {
+            setValidationErrors(errors);
+            // عرض أول خطأ كرسالة منبثقة
+            const firstError = Object.values(errors)[0];
+            showMessage(firstError, 'error');
+            return;
+        }
         
         isSubmittingRef.current = true;
         setHealthLoading(true);
         
         const data = {};
-        if (healthFormData.weight?.trim()) data.weight_kg = parseFloat(healthFormData.weight);
-        if (healthFormData.systolic?.trim()) data.systolic_pressure = parseInt(healthFormData.systolic);
-        if (healthFormData.diastolic?.trim()) data.diastolic_pressure = parseInt(healthFormData.diastolic);
-        if (healthFormData.glucose?.trim()) data.blood_glucose = parseFloat(healthFormData.glucose);
-        if (healthFormData.heartRate?.trim()) data.heart_rate = parseInt(healthFormData.heartRate);
-        if (healthFormData.spo2?.trim()) data.spo2 = parseInt(healthFormData.spo2);
-        if (healthFormData.temperature?.trim()) data.body_temperature = parseFloat(healthFormData.temperature);
+        const warnings = [];
+        
+        if (healthFormData.weight?.trim()) {
+            const weight = parseFloat(healthFormData.weight);
+            data.weight_kg = weight;
+            
+            // تحذير للوزن خارج النطاق الطبيعي
+            if (weight < 50) {
+                warnings.push(isArabic ? '⚠️ وزنك منخفض قد يؤثر على صحتك' : '⚠️ Your weight is low and may affect your health');
+            } else if (weight > 100) {
+                warnings.push(isArabic ? '⚠️ وزنك مرتفع قد يسبب مشاكل صحية' : '⚠️ Your weight is high and may cause health issues');
+            }
+        }
+        
+        if (healthFormData.systolic?.trim()) {
+            data.systolic_pressure = parseInt(healthFormData.systolic);
+        }
+        if (healthFormData.diastolic?.trim()) {
+            data.diastolic_pressure = parseInt(healthFormData.diastolic);
+        }
+        
+        // تحذير لضغط الدم
+        if (data.systolic_pressure && data.diastolic_pressure) {
+            if (data.systolic_pressure > 140 || data.diastolic_pressure > 90) {
+                warnings.push(isArabic ? '⚠️ ضغط دم مرتفع. يوصى بمتابعة الطبيب' : '⚠️ High blood pressure. Medical follow-up recommended');
+            } else if (data.systolic_pressure < 90 || data.diastolic_pressure < 60) {
+                warnings.push(isArabic ? '⚠️ ضغط دم منخفض. تأكد من شرب كمية كافية من السوائل' : '⚠️ Low blood pressure. Ensure adequate fluid intake');
+            }
+        }
+        
+        if (healthFormData.glucose?.trim()) {
+            const glucose = parseFloat(healthFormData.glucose);
+            data.blood_glucose = glucose;
+            
+            if (glucose > 140) {
+                warnings.push(isArabic ? `⚠️ سكر الدم مرتفع (${glucose} mg/dL). تجنب السكريات البسيطة` : `⚠️ High blood sugar (${glucose} mg/dL). Avoid simple sugars`);
+            } else if (glucose < 70) {
+                warnings.push(isArabic ? `🚨 سكر الدم منخفض (${glucose} mg/dL). تناول مصدر سكر فوراً!` : `🚨 Low blood sugar (${glucose} mg/dL). Eat sugar immediately!`);
+            }
+        }
+        
+        if (healthFormData.heartRate?.trim()) {
+            const hr = parseInt(healthFormData.heartRate);
+            data.heart_rate = hr;
+            
+            if (hr > 100) {
+                warnings.push(isArabic ? `⚠️ نبض مرتفع (${hr} BPM). هل أنت متوتر أو مارست رياضة؟` : `⚠️ High heart rate (${hr} BPM). Are you stressed or exercised?`);
+            } else if (hr < 60 && hr >= 50) {
+                warnings.push(isArabic ? `ℹ️ نبض منخفض (${hr} BPM). إذا لم تكن رياضياً، استشر طبيبك` : `ℹ️ Low heart rate (${hr} BPM). If you're not an athlete, consult your doctor`);
+            } else if (hr < 50 && hr > 0) {
+                warnings.push(isArabic ? `⚠️ نبض منخفض جداً (${hr} BPM). يوصى باستشارة طبيب` : `⚠️ Very low heart rate (${hr} BPM). Medical consultation recommended`);
+            }
+        }
+        
+        if (healthFormData.spo2?.trim()) {
+            const spo2 = parseInt(healthFormData.spo2);
+            data.spo2 = spo2;
+            
+            if (spo2 < 95) {
+                warnings.push(isArabic ? `⚠️ نسبة الأكسجين منخفضة (${spo2}%). تمارين التنفس قد تساعد` : `⚠️ Low oxygen level (${spo2}%). Breathing exercises may help`);
+            }
+        }
+        
+        if (healthFormData.temperature?.trim()) {
+            const temp = parseFloat(healthFormData.temperature);
+            data.body_temperature = temp;
+            
+            if (temp > 37.5) {
+                warnings.push(isArabic ? `⚠️ حرارة مرتفعة (${temp}°C). قد تشير إلى التهاب أو عدوى` : `⚠️ Elevated temperature (${temp}°C). May indicate infection or inflammation`);
+            }
+        }
         
         try {
             await axiosInstance.post('/health_status/', data);
-            showMessage(isArabic ? '✅ تم حفظ البيانات بنجاح' : '✅ Data saved successfully', 'success');
+            
+            // عرض التحذيرات إذا وجدت
+            if (warnings.length > 0) {
+                warnings.forEach(warning => showMessage(warning, 'warning'));
+            } else {
+                showMessage(isArabic ? '✅ تم حفظ البيانات بنجاح' : '✅ Data saved successfully', 'success');
+            }
+            
             resetHealthForm();
             onDataSubmitted?.();
             refreshData();
+            
+            // تحديث الوزن المخبأ إذا تم تحديثه
+            if (data.weight_kg) {
+                localStorage.setItem('user_weight', data.weight_kg.toString());
+                localStorage.setItem('user_data_timestamp', Date.now().toString());
+                fetchUserWeight(); // إعادة جلب البيانات المحدثة
+            }
+            
         } catch (err) {
             console.error('Submission failed:', err);
-            showMessage(isArabic ? '❌ فشل حفظ البيانات' : '❌ Failed to save data', 'error');
+            const errorMsg = err.response?.data?.error || (isArabic ? '❌ فشل حفظ البيانات' : '❌ Failed to save data');
+            showMessage(errorMsg, 'error');
         } finally {
             setHealthLoading(false);
             isSubmittingRef.current = false;
         }
-    }, [healthFormData, onDataSubmitted, isArabic, resetHealthForm, showMessage, refreshData]);
+    }, [healthFormData, onDataSubmitted, isArabic, resetHealthForm, showMessage, refreshData, validateHealthData, fetchUserWeight]);
     
     const getLastReadingTime = () => {
         if (!lastSensorReading?.timestamp) return '';
@@ -341,8 +636,7 @@ const fetchUserWeight = useCallback(async () => {
                     total_calories: totalCalories,
                     total_duration: activities.reduce((sum, act) => sum + (act.duration_minutes || 0), 0),
                     avg_duration: activities.length ? Math.round(activities.reduce((sum, act) => sum + (act.duration_minutes || 0), 0) / activities.length) : 0,
-                    avg_calories_per_activity: activities.length ? Math.round(totalCalories / activities.length) : 0
-                });
+                    avg_calories_per_activity: activities.length ? Math.round(totalCalories / activities.length) : 0                });
             }
         } catch (err) { console.error(err); }
         finally { if (isMountedRef.current) setAnalyticsLoading(false); }
@@ -485,6 +779,22 @@ const fetchUserWeight = useCallback(async () => {
                     </div>
                 </div>
                 
+                {/* عرض السعرات الموصى بها */}
+                {recommendedCalories && (
+                    <div style={{ background: 'linear-gradient(135deg, #10b98120, #05966920)', borderRadius: '16px', padding: '0.75rem 1rem', marginBottom: '1rem', border: '1px solid #10b98140' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <span>🔥</span>
+                            <strong>{isArabic ? 'السعرات اليومية الموصى بها' : 'Recommended Daily Calories'}</strong>
+                        </div>
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.8rem' }}>
+                            <span>⚖️ {isArabic ? 'للمحافظة' : 'Maintain'}: <strong>{recommendedCalories.maintenance}</strong> kcal</span>
+                            <span>📉 {isArabic ? 'لخسارة الوزن' : 'Weight Loss'}: <strong>{recommendedCalories.weightLoss}</strong> kcal</span>
+                            <span>📈 {isArabic ? 'لزيادة الوزن' : 'Weight Gain'}: <strong>{recommendedCalories.weightGain}</strong> kcal</span>
+                            <span>💤 BMR: <strong>{recommendedCalories.bmr}</strong> kcal</span>
+                        </div>
+                    </div>
+                )}
+                  
                 {/* قسم ESP32 */}
                 <div style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)', borderRadius: '20px', padding: '1.25rem', marginBottom: '1.5rem', border: '1px solid rgba(99,102,241,0.3)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -528,7 +838,6 @@ const fetchUserWeight = useCallback(async () => {
                     )}
                 </div>
                 
-                {/* نموذج القياسات الصحية */}
                 <form onSubmit={handleHealthSubmit}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                         {[
@@ -544,8 +853,28 @@ const fetchUserWeight = useCallback(async () => {
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>
                                     <span>{icon}</span> {label} <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem' }}>({unit})</span>
                                 </label>
-                                <input type="number" step={field === 'weight' || field === 'glucose' || field === 'temperature' ? '0.1' : '1'} value={healthFormData[field]} onChange={(e) => handleHealthInputChange(field, e.target.value)} placeholder={isArabic ? `مثال: ${placeholder}` : `Example: ${placeholder}`} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'var(--secondary-bg)' }} />
-                                <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}><span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: {normal}</span></div>
+                                <input 
+                                    type="number" 
+                                    step={field === 'weight' || field === 'glucose' || field === 'temperature' ? '0.1' : '1'} 
+                                    value={healthFormData[field]} 
+                                    onChange={(e) => handleHealthInputChange(field, e.target.value)} 
+                                    placeholder={isArabic ? `مثال: ${placeholder}` : `Example: ${placeholder}`} 
+                                    style={{ 
+                                        width: '100%', 
+                                        padding: '0.75rem 1rem', 
+                                        border: validationErrors[field] ? '2px solid #ef4444' : '1px solid var(--border-light)', 
+                                        borderRadius: '12px', 
+                                        background: 'var(--secondary-bg)' 
+                                    }} 
+                                />
+                                {validationErrors[field] && (
+                                    <div style={{ fontSize: '0.65rem', color: '#ef4444' }}>
+                                        ⚠️ {validationErrors[field]}
+                                    </div>
+                                )}
+                                <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}>
+                                    <span>✅ {isArabic ? 'الطبيعي' : 'Normal'}: {normal}</span>
+                                </div>
                             </div>
                         ))}
                     </div>
