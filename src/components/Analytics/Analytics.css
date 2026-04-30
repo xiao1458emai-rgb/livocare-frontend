@@ -1,0 +1,672 @@
+/* ===========================================
+   Analytics.css - النسخة النهائية المتكاملة v5.0
+   =========================================== */
+/* ✅ متوافق مع الثيمات (فاتح/داكن)
+   ✅ متجاوب مع جميع الشاشات - بدون تداخلات أو خروج
+   ✅ يدعم RTL (العربية) و LTR (الإنجليزية)
+   ✅ تخطيط دقيق ومتقن 100%
+   ✅ دعم الوضع الأفقي والعمودي
+   ✅ متوافق مع جميع الأجهزة (هواتف - تابات - كمبيوترات)
+   =========================================== */
+
+/* ===== إعادة تعيين الحاويات لمنع أي خروج ===== */
+.analytics-container,
+.analytics-container * {
+    box-sizing: border-box;
+}
+
+.analytics-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* ===== متغيرات إضافية للتحليلات ===== */
+:root {
+    --analytics-card-hover: 0 8px 25px rgba(0, 0, 0, 0.1);
+    --analytics-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --analytics-border-radius: 20px;
+    --analytics-glow: 0 0 15px rgba(59, 130, 246, 0.3);
+}
+
+.dark-mode {
+    --analytics-card-hover: 0 8px 25px rgba(0, 0, 0, 0.3);
+    --analytics-glow: 0 0 15px rgba(59, 130, 246, 0.2);
+}
+
+/* ===== الحاوية الرئيسية - متقنة وخالية من التداخل ===== */
+.analytics-container {
+    background: var(--card-bg);
+    border-radius: var(--analytics-border-radius);
+    padding: clamp(1rem, 4vw, 1.5rem);
+    margin: 1rem 0;
+    box-shadow: var(--shadow-md);
+    transition: var(--analytics-transition);
+    border: 1px solid var(--border-light);
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    position: relative;
+}
+
+.analytics-container:hover {
+    box-shadow: var(--shadow-xl);
+}
+
+/* ===== رأس التحليلات ===== */
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-light);
+}
+
+.analytics-header h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: clamp(1.25rem, 5vw, 1.5rem);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.header-icon {
+    font-size: 1.5rem;
+}
+
+/* ===== زر التحديث ===== */
+.refresh-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+}
+
+.refresh-btn:hover {
+    background: var(--hover-bg);
+    transform: rotate(180deg);
+    color: var(--primary);
+}
+
+/* ===== التبويبات - متجاوبة بالكامل ===== */
+.analytics-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 0.75rem;
+}
+
+.analytics-tabs button {
+    padding: 0.5rem 1.25rem;
+    border: 1px solid var(--border-light);
+    border-radius: 9999px;
+    background: var(--secondary-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.analytics-tabs button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+    background: var(--hover-bg);
+    color: var(--primary);
+}
+
+.analytics-tabs button.active {
+    background: var(--primary-gradient);
+    color: white;
+    border-color: transparent;
+    box-shadow: var(--shadow-md);
+}
+
+/* ===== شبكة الإحصائيات - مرنة ونظيفة ===== */
+.analytics-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.analytics-stat-card {
+    background: var(--secondary-bg);
+    border-radius: 16px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: var(--analytics-transition);
+    border: 1px solid var(--border-light);
+    position: relative;
+    overflow: hidden;
+    min-width: 0; /* يمنع الخروج */
+}
+
+.analytics-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-gradient);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.analytics-stat-card:hover::before {
+    transform: scaleX(1);
+}
+
+.analytics-stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-icon {
+    font-size: 1.5rem;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--hover-bg);
+    border-radius: 12px;
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.analytics-stat-card:hover .stat-icon {
+    transform: scale(1.05);
+}
+
+.stat-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: clamp(1.3rem, 4vw, 1.6rem);
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.stat-trend {
+    font-size: 0.65rem;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+/* ===== التوصيات الذكية ===== */
+.recommendations-section {
+    background: var(--tertiary-bg);
+    border-radius: 18px;
+    padding: 1.25rem;
+    margin: 1.25rem 0;
+    transition: var(--analytics-transition);
+    overflow-x: hidden;
+}
+
+.recommendations-section:hover {
+    box-shadow: var(--shadow-sm);
+}
+
+.recommendations-section h3,
+.recommendations-section h4 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+}
+
+.recommendations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.recommendation-card {
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 1rem;
+    transition: var(--analytics-transition);
+    position: relative;
+    border: 1px solid var(--border-light);
+    overflow-x: hidden;
+}
+
+/* ===== نقاط القوة والضعف - متجاوبة ===== */
+.strengths-weaknesses {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin: 1.25rem 0;
+}
+
+.strengths, .weaknesses {
+    padding: 1rem;
+    border-radius: 16px;
+    background: var(--tertiary-bg);
+    border: 1px solid var(--border-light);
+    transition: var(--analytics-transition);
+    overflow-x: hidden;
+}
+
+/* ===== التنبؤات - شريط مرن ===== */
+.prediction-chart {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: clamp(0.5rem, 2vw, 1.25rem);
+    padding: 1.25rem;
+    background: var(--tertiary-bg);
+    border-radius: 18px;
+    min-height: 220px;
+    flex-wrap: wrap;
+    overflow-x: auto;
+}
+
+.prediction-bar {
+    flex: 0 1 auto;
+    width: clamp(50px, 8vw, 80px);
+    min-width: 50px;
+    background: var(--primary-gradient);
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    position: relative;
+    transition: var(--analytics-transition);
+    cursor: pointer;
+}
+
+/* ===== الشارات ===== */
+.priority-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.7rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ===== حاويات الرسوم البيانية ===== */
+.chart-container {
+    position: relative;
+    margin: 1rem 0;
+    width: 100%;
+    overflow-x: auto;
+}
+
+.chart-wrapper {
+    background: var(--secondary-bg);
+    border-radius: 16px;
+    padding: 1rem;
+    border: 1px solid var(--border-light);
+    min-width: 280px;
+}
+
+/* ===========================================
+   استجابة كاملة لجميع الأجهزة
+   =========================================== */
+
+/* الهواتف (عمودي) - أقل من 768px */
+@media (max-width: 768px) {
+    .analytics-container {
+        padding: 0.875rem;
+        margin: 0.75rem 0;
+    }
+    
+    .analytics-tabs {
+        gap: 0.35rem;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 0.75rem;
+        scrollbar-width: thin;
+    }
+    
+    .analytics-tabs button {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.75rem;
+        flex-shrink: 0;
+    }
+    
+    .analytics-stats-grid {
+        gap: 0.75rem;
+    }
+    
+    .analytics-stat-card {
+        padding: 0.85rem;
+    }
+    
+    .stat-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 1.2rem;
+    }
+    
+    .insight-card {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .rec-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .strengths-weaknesses {
+        gap: 0.75rem;
+    }
+    
+    .prediction-bar {
+        width: clamp(45px, 10vw, 65px);
+        min-width: 45px;
+    }
+}
+
+/* الهواتف (أفقي) */
+@media (max-width: 896px) and (orientation: landscape) {
+    .analytics-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .strengths-weaknesses {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .prediction-chart {
+        gap: 0.75rem;
+    }
+}
+
+/* الهواتف الصغيرة جداً (أقل من 480px) */
+@media (max-width: 480px) {
+    .analytics-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .analytics-stats-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .strengths-weaknesses {
+        grid-template-columns: 1fr;
+    }
+    
+    .prediction-value {
+        font-size: 0.65rem;
+    }
+    
+    .prediction-day {
+        font-size: 0.6rem;
+    }
+    
+    .recommendation-card {
+        padding: 0.85rem;
+    }
+    
+    .rec-message {
+        font-size: 0.85rem;
+    }
+    
+    .analytics-tabs button {
+        padding: 0.35rem 0.7rem;
+        font-size: 0.7rem;
+    }
+}
+
+/* التابات (عمودي) */
+@media (min-width: 769px) and (max-width: 1024px) and (orientation: portrait) {
+    .analytics-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .strengths-weaknesses {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* التابات (أفقي) */
+@media (min-width: 769px) and (max-width: 1024px) and (orientation: landscape) {
+    .analytics-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .strengths-weaknesses {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* الشاشات المتوسطة (لابتوب صغير) */
+@media (min-width: 1025px) and (max-width: 1280px) {
+    .analytics-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* الشاشات الكبيرة (لابتوب/كمبيوتر) */
+@media (min-width: 1281px) {
+    .analytics-stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
+    .strengths-weaknesses {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .analytics-container:hover {
+        transform: translateY(-2px);
+    }
+}
+
+/* شاشات عريضة جداً */
+@media (min-width: 1920px) {
+    .analytics-container {
+        max-width: 1800px;
+        margin: 1.5rem auto;
+    }
+    
+    .analytics-stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* ===========================================
+   دعم RTL (العربية)
+   =========================================== */
+[dir="rtl"] .analytics-header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .analytics-tabs {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .stat-card {
+    text-align: right;
+}
+
+[dir="rtl"] .insight-card {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .recommendation-card {
+    border-left: none;
+    border-right: 4px solid;
+}
+
+[dir="rtl"] .recommendation-card.priority-high {
+    border-left: none;
+    border-right-color: #ef4444;
+}
+
+@media (max-width: 768px) {
+    [dir="rtl"] .insight-card {
+        flex-direction: column;
+    }
+}
+
+/* ===========================================
+   ضمانات إضافية لمنع أي خروج
+   =========================================== */
+img, svg, video, iframe,
+.chart-container canvas,
+.chart-container svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* منع التمرير الأفقي على أي عنصر */
+html:has(.analytics-container),
+body:has(.analytics-container),
+.analytics-container {
+    overflow-x: hidden !important;
+}
+
+/* شريط التمرير المخصص */
+.analytics-container::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.analytics-container::-webkit-scrollbar-track {
+    background: var(--border-light);
+    border-radius: 10px;
+}
+
+.analytics-container::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+}
+
+/* ===========================================
+   حالات التحميل والخطأ
+   =========================================== */
+.analytics-loading, 
+.analytics-error, 
+.analytics-empty {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    background: var(--card-bg);
+    border-radius: 20px;
+    border: 1px solid var(--border-light);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===========================================
+   دعم التباين والحركة المخفضة
+   =========================================== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .analytics-stat-card:hover,
+    .recommendation-card:hover,
+    .insight-card:hover {
+        transform: none !important;
+    }
+    
+    .loading-spinner {
+        animation: none;
+    }
+}
+
+@media (prefers-contrast: high) {
+    .analytics-stat-card,
+    .recommendation-card,
+    .insight-card {
+        border-width: 2px;
+    }
+    
+    .priority-badge {
+        border: 1px solid currentColor;
+    }
+    
+    .analytics-tabs button.active {
+        border: 2px solid currentColor;
+    }
+}
+
+/* ===========================================
+   أنيميشن خفيف
+   =========================================== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.analytics-stat-card {
+    animation: fadeInUp 0.4s ease forwards;
+}
+
+.analytics-stat-card:nth-child(1) { animation-delay: 0s; }
+.analytics-stat-card:nth-child(2) { animation-delay: 0.05s; }
+.analytics-stat-card:nth-child(3) { animation-delay: 0.1s; }
+.analytics-stat-card:nth-child(4) { animation-delay: 0.15s; }

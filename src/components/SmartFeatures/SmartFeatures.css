@@ -1,0 +1,1376 @@
+/* ===========================================
+   SmartFeatures.css - النسخة النهائية المتكاملة v3.0
+   نظام ميزات ذكية متكامل مع دعم كامل للثيمات والاستجابة
+   =========================================== */
+
+/* ===========================================
+   I. Smart Dashboard - الرئيسي
+   =========================================== */
+.smart-dashboard {
+    padding: var(--spacing-xl);
+    min-height: 100vh;
+    background: var(--primary-bg);
+    position: relative;
+    overflow-x: hidden;
+    transition: all var(--transition-slow);
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* خلفية متحركة */
+.smart-dashboard::before {
+    content: '🤖✨';
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    font-size: 200px;
+    opacity: 0.03;
+    transform: rotate(15deg);
+    pointer-events: none;
+    animation: floatBackground 20s infinite;
+}
+
+.smart-dashboard::after {
+    content: '⚡💡';
+    position: absolute;
+    bottom: -50px;
+    left: -50px;
+    font-size: 200px;
+    opacity: 0.03;
+    transform: rotate(-15deg);
+    pointer-events: none;
+    animation: floatBackground 20s infinite reverse;
+}
+
+@keyframes floatBackground {
+    0%, 100% { transform: rotate(15deg) translateY(0); }
+    50% { transform: rotate(15deg) translateY(-20px); }
+}
+
+/* رأس الصفحة */
+.smart-header {
+    margin-bottom: var(--spacing-xl);
+    text-align: center;
+}
+
+.smart-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: var(--spacing-sm);
+}
+
+.smart-header p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* ===========================================
+   II. الشبكة الذكية
+   =========================================== */
+.smart-grid {
+    display: grid;
+    grid-template-columns: minmax(320px, 380px) 1fr;
+    gap: var(--spacing-xl);
+    margin-top: var(--spacing-xl);
+    position: relative;
+    z-index: 2;
+}
+
+.smart-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+}
+
+/* ===========================================
+   III. البطاقات الذكية
+   =========================================== */
+.smart-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-lg);
+    transition: all var(--transition-medium);
+    border: 1px solid var(--border-light);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+.smart-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary-gradient);
+    transform: translateX(-100%);
+    transition: transform var(--transition-medium);
+}
+
+.smart-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+}
+
+.smart-card:hover::before {
+    transform: translateX(0);
+}
+
+.smart-card h3 {
+    margin: 0 0 var(--spacing-lg) 0;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    border-bottom: 2px solid var(--border-light);
+    padding-bottom: var(--spacing-md);
+}
+
+.smart-card .card-icon {
+    font-size: 1.4rem;
+}
+
+/* ===========================================
+   IV. درجة الصحة الشخصية
+   =========================================== */
+.health-score-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+    color: white;
+    box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+    transition: all var(--transition-medium);
+}
+
+.health-score-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 25px 50px rgba(102, 126, 234, 0.4);
+}
+
+/* الثيم المظلم لبطاقة الصحة */
+.dark-mode .health-score-card {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.score-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
+
+.score-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: white;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.score-main {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    flex-wrap: wrap;
+}
+
+.score-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    position: relative;
+    box-shadow: var(--shadow-lg);
+    animation: pulse 2s infinite;
+}
+
+.score-circle span {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #333;
+}
+
+.score-grade {
+    font-size: 2.5rem;
+    font-weight: 800;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.score-factors {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    backdrop-filter: blur(10px);
+}
+
+.factor {
+    margin-bottom: var(--spacing-md);
+}
+
+.factor-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-xs);
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.factor-name {
+    font-weight: 600;
+}
+
+.factor-value {
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+.factor-bar {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: var(--spacing-xs);
+}
+
+.factor-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width var(--transition-medium) ease;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.8), white);
+}
+
+.factor-score {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    text-align: right;
+}
+
+.score-footer {
+    text-align: center;
+    margin-top: var(--spacing-md);
+    opacity: 0.9;
+    font-size: 0.85rem;
+}
+
+/* ===========================================
+   V. العلاقات مع قوة التأثير
+   =========================================== */
+.correlations-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+}
+
+.correlations-section:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.correlations-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.correlation-item {
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-xl);
+    border-left: 4px solid;
+    transition: all var(--transition-medium);
+    position: relative;
+    overflow: hidden;
+    background: var(--secondary-bg);
+}
+
+[dir="rtl"] .correlation-item {
+    border-left: none;
+    border-right: 4px solid;
+}
+
+[dir="ltr"] .correlation-item:hover {
+    transform: translateX(5px);
+}
+
+[dir="rtl"] .correlation-item:hover {
+    transform: translateX(-5px);
+}
+
+.correlation-item:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.correlation-item.strength-high {
+    border-left-color: #10b981;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+}
+
+[dir="rtl"] .correlation-item.strength-high {
+    border-left-color: transparent;
+    border-right-color: #10b981;
+}
+
+.correlation-item.strength-medium {
+    border-left-color: #f59e0b;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, transparent 100%);
+}
+
+[dir="rtl"] .correlation-item.strength-medium {
+    border-left-color: transparent;
+    border-right-color: #f59e0b;
+}
+
+.correlation-item.strength-low {
+    border-left-color: #3b82f6;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, transparent 100%);
+}
+
+[dir="rtl"] .correlation-item.strength-low {
+    border-left-color: transparent;
+    border-right-color: #3b82f6;
+}
+
+.correlation-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.corr-icon {
+    font-size: 1.8rem;
+}
+
+.correlation-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.strength-badge {
+    background: var(--primary-gradient);
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.correlation-insight {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-md);
+    font-size: 0.85rem;
+}
+
+.insight-highlight {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.correlation-visual {
+    margin: var(--spacing-md) 0;
+}
+
+.bar-chart {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.bar {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.bar-label {
+    width: 80px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+[dir="rtl"] .bar-label {
+    text-align: right;
+}
+
+.bar-fill {
+    flex: 1;
+    height: 28px;
+    background: #10b981;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 var(--spacing-md);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    transition: width var(--transition-medium);
+}
+
+[dir="rtl"] .bar-fill {
+    justify-content: flex-start;
+}
+
+.bar-fill.low {
+    background: #f59e0b;
+}
+
+.bar-fill.very-low {
+    background: #ef4444;
+}
+
+.correlation-stats {
+    display: flex;
+    gap: var(--spacing-lg);
+    margin: var(--spacing-md) 0;
+    flex-wrap: wrap;
+}
+
+.stat {
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-value {
+    display: inline-block;
+    padding: 0.2rem 0.8rem;
+    border-radius: var(--radius-full);
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.stat-value.good {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.stat-value.bad {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.correlation-note {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background: var(--tertiary-bg);
+    border-radius: var(--radius-md);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+/* ===========================================
+   VI. بطاقة الطقس
+   =========================================== */
+.weather-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+}
+
+.weather-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.weather-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--secondary-bg);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-light);
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.weather-location {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.weather-update {
+    color: var(--text-tertiary);
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.weather-main {
+    text-align: center;
+    padding: var(--spacing-xl);
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border-radius: var(--radius-xl);
+    margin-bottom: var(--spacing-lg);
+    position: relative;
+    overflow: hidden;
+}
+
+.weather-main::before {
+    content: '☀️';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 100px;
+    opacity: 0.1;
+    pointer-events: none;
+}
+
+.weather-temp {
+    font-size: 3.5rem;
+    font-weight: 800;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    margin-bottom: var(--spacing-xs);
+    position: relative;
+    z-index: 2;
+}
+
+.weather-desc {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin: var(--spacing-sm) 0;
+    text-transform: capitalize;
+    position: relative;
+    z-index: 2;
+}
+
+.weather-details {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-lg);
+    margin: var(--spacing-md) 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    position: relative;
+    z-index: 2;
+    flex-wrap: wrap;
+}
+
+.weather-details span {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: var(--card-bg);
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-sm);
+}
+
+.weather-recommendation {
+    background: var(--secondary-bg);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    margin-top: var(--spacing-lg);
+    border-left: 4px solid var(--primary-color);
+    position: relative;
+    overflow: hidden;
+    transition: all var(--transition-medium);
+}
+
+[dir="rtl"] .weather-recommendation {
+    border-left: none;
+    border-right: 4px solid var(--primary-color);
+}
+
+.weather-recommendation:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow-md);
+}
+
+[dir="rtl"] .weather-recommendation:hover {
+    transform: translateX(-4px);
+}
+
+.weather-recommendation p {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+/* ===========================================
+   VII. بطاقة البحث عن الطعام
+   =========================================== */
+.food-search-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+}
+
+.food-search-section:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.search-box {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+}
+
+.search-input {
+    flex: 1;
+    padding: 0.85rem 1.2rem;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-full);
+    font-size: 0.9rem;
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    transition: all var(--transition-medium);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.search-btn {
+    padding: 0.85rem 1.5rem;
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-medium);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.search-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.search-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.spinner-small {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+.error-message {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid #ef4444;
+}
+
+.error-dismiss {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+.results-header {
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 2px solid var(--border-light);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: var(--spacing-sm);
+}
+
+.results-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.results-grid::-webkit-scrollbar-track {
+    background: var(--border-light);
+    border-radius: 3px;
+}
+
+.results-grid::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 3px;
+}
+
+.food-card {
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    display: flex;
+    gap: var(--spacing-md);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    border: 1px solid var(--border-light);
+}
+
+.food-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-color);
+}
+
+.food-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+}
+
+.food-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.food-info h4 {
+    margin: 0 0 4px 0;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.food-brand {
+    font-size: 0.65rem;
+    color: var(--text-tertiary);
+    margin: 0 0 6px 0;
+}
+
+.food-nutrients {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.nutrient {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: var(--card-bg);
+}
+
+.nutrient.calories {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.nutrient.protein {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.nutrient.carbs {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.nutrient.fat {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.food-fiber {
+    font-size: 0.6rem;
+    color: var(--text-tertiary);
+}
+
+.select-hint {
+    font-size: 0.6rem;
+    color: var(--primary-color);
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+.no-results {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--text-secondary);
+}
+
+.no-results-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+.no-results-hint {
+    font-size: 0.8rem;
+    margin-top: var(--spacing-sm);
+    color: var(--text-tertiary);
+}
+
+/* ===========================================
+   VIII. بطاقة التوصيات
+   =========================================== */
+.recommendations-section {
+    background: var(--card-bg);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-medium);
+}
+
+.recommendations-section:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.recommendations-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: var(--spacing-sm);
+}
+
+.recommendations-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.recommendations-list::-webkit-scrollbar-track {
+    background: var(--border-light);
+    border-radius: 3px;
+}
+
+.recommendations-list::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 3px;
+}
+
+.recommendation-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--secondary-bg);
+    border-radius: var(--radius-lg);
+    border-left: 4px solid var(--primary-color);
+    transition: all var(--transition-medium);
+}
+
+[dir="rtl"] .recommendation-card {
+    border-left: none;
+    border-right: 4px solid var(--primary-color);
+}
+
+[dir="ltr"] .recommendation-card:hover {
+    transform: translateX(4px);
+}
+
+[dir="rtl"] .recommendation-card:hover {
+    transform: translateX(-4px);
+}
+
+.recommendation-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.recommendation-card.priority-high {
+    border-left-color: #ef4444;
+}
+
+[dir="rtl"] .recommendation-card.priority-high {
+    border-left-color: transparent;
+    border-right-color: #ef4444;
+}
+
+.recommendation-card.priority-medium {
+    border-left-color: #f59e0b;
+}
+
+[dir="rtl"] .recommendation-card.priority-medium {
+    border-left-color: transparent;
+    border-right-color: #f59e0b;
+}
+
+.recommendation-card.priority-low {
+    border-left-color: #10b981;
+}
+
+[dir="rtl"] .recommendation-card.priority-low {
+    border-left-color: transparent;
+    border-right-color: #10b981;
+}
+
+.recommendation-icon {
+    font-size: 1.8rem;
+    min-width: 50px;
+    text-align: center;
+}
+
+.recommendation-content {
+    flex: 1;
+}
+
+.recommendation-title {
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
+
+.recommendation-desc {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+/* ===========================================
+   IX. زر التحديث
+   =========================================== */
+.refresh-btn {
+    width: 100%;
+    padding: var(--spacing-md);
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    margin-top: var(--spacing-lg);
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all var(--transition-medium);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.refresh-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.refresh-btn:active {
+    transform: translateY(0);
+}
+
+.refresh-btn i {
+    transition: transform var(--transition-medium);
+}
+
+.refresh-btn:hover i {
+    transform: rotate(180deg);
+}
+
+/* ===========================================
+   X. حالات التحميل والخطأ
+   =========================================== */
+.loading-state {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-secondary);
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-light);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto var(--spacing-md);
+}
+
+.error-state {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: var(--radius-xl);
+    border: 1px solid #ef4444;
+}
+
+.retry-btn {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 0.5rem 1.25rem;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    margin-top: var(--spacing-md);
+    font-weight: 600;
+    transition: all var(--transition-medium);
+}
+
+.retry-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* ===========================================
+   XI. أنيميشن
+   =========================================== */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.smart-card {
+    animation: slideIn 0.4s ease forwards;
+}
+
+.smart-card:nth-child(1) { animation-delay: 0s; }
+.smart-card:nth-child(2) { animation-delay: 0.1s; }
+.smart-card:nth-child(3) { animation-delay: 0.2s; }
+
+/* ===========================================
+   XII. استجابة الشاشات
+   =========================================== */
+@media (max-width: 1024px) {
+    .smart-dashboard {
+        padding: var(--spacing-lg);
+    }
+    
+    .smart-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-lg);
+    }
+    
+    .smart-card {
+        padding: var(--spacing-lg);
+    }
+}
+
+@media (max-width: 768px) {
+    .smart-dashboard {
+        padding: var(--spacing-md);
+    }
+    
+    .smart-header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .smart-card h3 {
+        font-size: 1rem;
+    }
+    
+    .health-score-card {
+        padding: var(--spacing-lg);
+    }
+    
+    .score-circle {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .score-circle span {
+        font-size: 1.8rem;
+    }
+    
+    .score-grade {
+        font-size: 1.8rem;
+    }
+    
+    .weather-temp {
+        font-size: 2.5rem;
+    }
+    
+    .weather-desc {
+        font-size: 1rem;
+    }
+    
+    .weather-details {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+        align-items: center;
+    }
+    
+    .search-box {
+        flex-direction: column;
+    }
+    
+    .search-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .results-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .food-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .food-image {
+        margin: 0 auto;
+    }
+    
+    .food-nutrients {
+        justify-content: center;
+    }
+    
+    .recommendation-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .recommendation-icon {
+        margin: 0 auto;
+    }
+    
+    .correlation-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .correlation-stats {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    
+    .bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+    }
+    
+    .bar-label {
+        width: 100%;
+    }
+    
+    .bar-fill {
+        width: 100% !important;
+        justify-content: center;
+    }
+    
+    .smart-dashboard::before,
+    .smart-dashboard::after {
+        font-size: 100px;
+        opacity: 0.02;
+    }
+}
+
+@media (max-width: 480px) {
+    .smart-dashboard {
+        padding: var(--spacing-sm);
+    }
+    
+    .smart-card {
+        padding: var(--spacing-md);
+    }
+    
+    .weather-main {
+        padding: var(--spacing-md);
+    }
+    
+    .weather-temp {
+        font-size: 2rem;
+    }
+    
+    .score-main {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .score-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .factor-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* ===========================================
+   XIII. دعم الثيم المظلم
+   =========================================== */
+.dark-mode .health-score-card {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.dark-mode .weather-main::before {
+    opacity: 0.05;
+}
+
+.dark-mode .correlation-item.strength-high {
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.dark-mode .correlation-item.strength-medium {
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.dark-mode .correlation-item.strength-low {
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.dark-mode .search-input {
+    background: var(--secondary-bg);
+}
+
+.dark-mode .food-card {
+    background: var(--secondary-bg);
+}
+
+.dark-mode .recommendation-card {
+    background: var(--secondary-bg);
+}
+
+/* ===========================================
+   XIV. RTL دعم كامل
+   =========================================== */
+[dir="rtl"] .score-footer {
+    text-align: center;
+}
+
+[dir="rtl"] .factor-score {
+    text-align: left;
+}
+
+[dir="rtl"] .weather-recommendation p {
+    text-align: right;
+}
+
+[dir="rtl"] .recommendation-content {
+    text-align: right;
+}
+
+[dir="rtl"] .recommendation-title {
+    text-align: right;
+}
+
+[dir="rtl"] .recommendation-desc {
+    text-align: right;
+}
+
+/* ===========================================
+   XV. دعم الحركة المخفضة
+   =========================================== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .smart-card:hover,
+    .food-card:hover,
+    .recommendation-card:hover,
+    .correlation-item:hover {
+        transform: none !important;
+    }
+    
+    .score-circle {
+        animation: none !important;
+    }
+}
+
+/* ===========================================
+   XVI. دعم التباين العالي
+   =========================================== */
+@media (prefers-contrast: high) {
+    .smart-card {
+        border-width: 2px;
+    }
+    
+    .health-score-card {
+        border: 2px solid white;
+    }
+    
+    .correlation-item {
+        border-width: 2px;
+    }
+    
+    .recommendation-card {
+        border-width: 2px;
+    }
+    
+    .food-card {
+        border-width: 2px;
+    }
+    
+    .search-input {
+        border-width: 2px;
+    }
+}
