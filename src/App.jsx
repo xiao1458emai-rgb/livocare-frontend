@@ -70,48 +70,66 @@ function App() {
     }, [i18n]);
 
     // ✅ طلب إذن الإشعارات وإرسال التوكين إلى Service Worker بعد تسجيل الدخول
-    useEffect(() => {
-        if (isAuthenticated) {
-            // طلب إذن الإشعارات
-            requestNotificationPermission();
-            
-            // ✅ إعداد الرد على طلبات التوكين من Service Worker
-            if ('serviceWorker' in navigator) {
-                const messageHandler = (event) => {
-                    console.log('📨 Page received message from SW:', event.data);
-                    
-                    if (event.data && event.data.type === 'GET_TOKEN') {
-                        const token = localStorage.getItem('access_token');
-                        if (event.ports && event.ports[0]) {
-                            event.ports[0].postMessage({ token: token });
-                            console.log('✅ Token sent back to Service Worker via MessageChannel');
-                        }
-                    }
-                };
-                
-                navigator.serviceWorker.addEventListener('message', messageHandler);
-                
-                // إرسال التوكين مباشرة أيضاً
-                const sendTokenToSW = async () => {
-                    const registration = await navigator.serviceWorker.ready;
-                    if (registration.active) {
-                        const token = localStorage.getItem('access_token');
+  // src/App.jsx - الجزء المعدل (استبدل useEffect الخاص بالإشعارات)
+
+// ✅ طلب إذن الإشعارات وإرسال التوكين إلى Service Worker بعد تسجيل الدخول
+useEffect(() => {
+    if (isAuthenticated) {
+        requestNotificationPermission();
+        
+        // ✅ دالة لإرسال كلا التوكينين
+        const sendBothTokensToSW = async () => {
+            if (!('serviceWorker' in navigator)) return;
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                if (registration.active) {
+                    const accessToken = localStorage.getItem('access_token');
+                    const refreshToken = localStorage.getItem('refresh_token');
+                    if (accessToken && refreshToken) {
                         registration.active.postMessage({
-                            type: 'TOKEN',
-                            token: token
+                            type: 'AUTH_TOKENS',
+                            accessToken: accessToken,
+                            refreshToken: refreshToken
                         });
-                        console.log('✅ Token sent to Service Worker directly');
+                        console.log('✅ Both tokens sent to SW');
                     }
-                };
-                
-                setTimeout(sendTokenToSW, 2000);
-                
-                return () => {
-                    navigator.serviceWorker.removeEventListener('message', messageHandler);
-                };
+                }
+            } catch (error) {
+                console.error('Failed to send tokens:', error);
             }
-        }
-    }, [isAuthenticated]);
+        };
+        
+        // ✅ معالج الرسائل من Service Worker
+        const messageHandler = (event) => {
+            console.log('📨 Message from SW:', event.data);
+            
+            // الرد على طلب التوكين
+            if (event.data && event.data.type === 'GET_TOKEN') {
+                const token = localStorage.getItem('access_token');
+                if (event.ports && event.ports[0]) {
+                    event.ports[0].postMessage({ token: token });
+                }
+            }
+            
+            // معالجة انتهاء الجلسة
+            if (event.data && event.data.type === 'SESSION_EXPIRED') {
+                console.log('⚠️ Session expired');
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                setIsAuthenticated(false);
+            }
+        };
+        
+        navigator.serviceWorker.addEventListener('message', messageHandler);
+        
+        // إرسال التوكينات بعد 2 ثانية
+        setTimeout(sendBothTokensToSW, 2000);
+        
+        return () => {
+            navigator.serviceWorker.removeEventListener('message', messageHandler);
+        };
+    }
+}, [isAuthenticated]);
 
     // ✅ دالة نجاح تسجيل الدخول
     const handleLoginSuccess = () => {
