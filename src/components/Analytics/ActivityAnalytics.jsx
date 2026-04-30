@@ -1118,7 +1118,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 .bmi-recommendation {
                     font-size: 0.8rem;
                     margin-bottom: 0.75rem;
-                    color: var(--text-secondary, #64748b);
+                    color: var(--text-secondary, #95a9c6);
                 }
                 
                 .weight-goal {
@@ -1169,7 +1169,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 
                 .composition-stats .stat-label {
                     font-size: 0.65rem;
-                    color: var(--text-tertiary, #9ca3af);
+                    color: var(--text-tertiary, #b9c2d2);
                     display: block;
                 }
                 
@@ -1187,7 +1187,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 
                 .composition-recommendation {
                     font-size: 0.75rem;
-                    color: var(--text-secondary, #64748b);
+                    color: var(--text-secondary, #90a4c0);
                     margin: 0;
                 }
                 
@@ -1241,7 +1241,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                     margin: 0;
                     padding-left: 1.5rem;
                     font-size: 0.7rem;
-                    color: var(--text-tertiary, #9ca3af);
+                    color: var(--text-tertiary, #bcc4d3);
                 }
                 
                 .recommendation-actions li {

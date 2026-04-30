@@ -85,41 +85,125 @@ const SmartRecommendations = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const fetchAllData = async () => {
-        setLoading(true);
-        try {
-            const [
-                healthRes,
-                mealsRes,
-                sleepRes,
-                moodRes,
-                habitsRes,
-                activitiesRes,
-                habitDefRes,
-                weatherRes
-            ] = await Promise.all([
-                axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
-                axiosInstance.get('/meals/').catch(() => ({ data: [] })),
-                axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
-                axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
-                axiosInstance.get('/habit-logs/').catch(() => ({ data: [] })),
-                axiosInstance.get('/activities/').catch(() => ({ data: [] })),
-                axiosInstance.get('/habit-definitions/').catch(() => ({ data: [] })),
-                axiosInstance.get('/weather/').catch(() => ({ data: null }))
-            ]);
 
-            const allData = {
-                health: healthRes.data || [],
-                meals: mealsRes.data || [],
-                sleep: sleepRes.data || [],
-                mood: moodRes.data || [],
-                habits: habitsRes.data || [],
-                activities: activitiesRes.data || [],
-                habitDefinitions: habitDefRes.data || [],
-                weather: weatherRes.data?.success ? weatherRes.data.data : null,
-                language: isArabic ? 'ar' : 'en'
+const fetchAllData = async () => {
+    setLoading(true);
+    try {
+        const [
+            healthRes,
+            mealsRes,
+            sleepRes,
+            moodRes,
+            habitsRes,
+            activitiesRes,
+            habitDefRes,
+            weatherRes,
+            advancedInsightsRes  // ✅ جديد: جلب التحليلات المتقدمة
+        ] = await Promise.all([
+            axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
+            axiosInstance.get('/meals/').catch(() => ({ data: [] })),
+            axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
+            axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
+            axiosInstance.get('/habit-logs/').catch(() => ({ data: [] })),
+            axiosInstance.get('/activities/').catch(() => ({ data: [] })),
+            axiosInstance.get('/habit-definitions/').catch(() => ({ data: [] })),
+            axiosInstance.get('/weather/').catch(() => ({ data: null })),
+            axiosInstance.get('/advanced-insights/').catch(() => ({ data: null }))  // ✅ API جديد
+        ]);
+
+        const allData = {
+            health: healthRes.data || [],
+            meals: mealsRes.data || [],
+            sleep: sleepRes.data || [],
+            mood: moodRes.data || [],
+            habits: habitsRes.data || [],
+            activities: activitiesRes.data || [],
+            habitDefinitions: habitDefRes.data || [],
+            weather: weatherRes.data?.success ? weatherRes.data.data : null,
+            advancedInsights: advancedInsightsRes.data,  // ✅ إضافة التحليلات المتقدمة
+            language: isArabic ? 'ar' : 'en'
+        };
+
+        // ✅ استخدام التحليلات من Backend إذا كانت متوفرة
+        if (allData.advancedInsights && !allData.advancedInsights.error) {
+            // استخدام البيانات من Backend
+            const backendData = allData.advancedInsights;
+            
+            // تحويل بيانات Backend إلى تنسيق الواجهة
+            const healthScoreFromBackend = {
+                score: backendData.health_score?.total_score || 70,
+                status: backendData.health_score?.category_text || (isArabic ? 'جيدة' : 'Good'),
+                statusIcon: backendData.health_score?.category === 'excellent' ? '🌟' : 
+                           backendData.health_score?.category === 'good' ? '👍' : 
+                           backendData.health_score?.category === 'fair' ? '📈' : '⚠️',
+                factors: backendData.strengths_weaknesses?.strengths?.slice(0, 3).map(s => ({ 
+                    message: s, 
+                    points: 10 
+                })) || [],
+                maxScore: 100
             };
-
+            
+            setHealthScore(healthScoreFromBackend);
+            
+            // تحويل الارتباطات من Backend
+            const correlationsFromBackend = [];
+            if (backendData.correlations?.values) {
+                const corrValues = backendData.correlations.values;
+                if (corrValues.sleep_mood && Math.abs(corrValues.sleep_mood) > 0.2) {
+                    correlationsFromBackend.push({
+                        type: 'sleep_mood',
+                        icon: '😴 ↔️ 😊',
+                        title: isArabic ? 'النوم والمزاج' : 'Sleep & Mood',
+                        insight: backendData.correlations.interpretations?.[0] || 
+                            (corrValues.sleep_mood > 0 ? 
+                                (isArabic ? 'النوم الجيد يحسن المزاج' : 'Good sleep improves mood') :
+                                (isArabic ? 'قلة النوم تؤثر سلباً على المزاج' : 'Lack of sleep negatively affects mood')),
+                        strengthValue: corrValues.sleep_mood,
+                        strengthText: Math.abs(corrValues.sleep_mood) > 0.7 ? (isArabic ? 'قوية جداً' : 'Very strong') :
+                                     Math.abs(corrValues.sleep_mood) > 0.5 ? (isArabic ? 'قوية' : 'Strong') :
+                                     Math.abs(corrValues.sleep_mood) > 0.3 ? (isArabic ? 'متوسطة' : 'Moderate') : (isArabic ? 'ضعيفة' : 'Weak'),
+                        strengthPercent: Math.min(95, Math.max(5, Math.abs(corrValues.sleep_mood) * 100)),
+                        sampleSize: 30
+                    });
+                }
+            }
+            setCorrelations(correlationsFromBackend);
+            
+            // تحويل التوصيات من Backend
+            const recommendationsFromBackend = [];
+            if (backendData.recommendations && backendData.recommendations.length > 0) {
+                backendData.recommendations.forEach((rec, idx) => {
+                    recommendationsFromBackend.push({
+                        id: `backend-rec-${idx}`,
+                        icon: rec.icon || '💡',
+                        category: rec.category,
+                        priority: rec.priority === 'high' ? 'high' : 
+                                 rec.priority === 'medium' ? 'medium' : 'low',
+                        title: rec.title,
+                        message: rec.action || rec.message,
+                        advice: rec.daily_tip || rec.advice,
+                        actions: [rec.action].filter(Boolean),
+                        basedOn: isArabic ? 'تحليل ذكي متقدم' : 'Advanced smart analysis'
+                    });
+                });
+            }
+            setRecommendations(recommendationsFromBackend);
+            
+            // تحويل التوقعات من Backend
+            const predictionsFromBackend = [];
+            if (backendData.trends_predictions?.weight_predictions_7d) {
+                predictionsFromBackend.push({
+                    icon: '⚖️',
+                    label: isArabic ? 'الوزن المتوقع بعد أسبوع' : 'Estimated weight in 1 week',
+                    value: `${backendData.trends_predictions.weight_predictions_7d[6]?.toFixed(1) || '--'} kg`,
+                    trend: 'stable',
+                    note: isArabic ? 'تقدير يعتمد على تحليل اتجاهات وزنك' : 'Estimate based on your weight trends'
+                });
+            }
+            setPredictions(predictionsFromBackend);
+            
+        } else {
+            // ✅ Fallback: استخدام الحسابات المحلية (الموجودة بالفعل)
             const analyzedData = analyzeAllData(allData);
             const score = calculateHealthScore(analyzedData);
             setHealthScore(score);
@@ -132,21 +216,23 @@ const SmartRecommendations = () => {
             
             const preds = generatePredictions(analyzedData);
             setPredictions(preds);
-            
-            if (allData.weather) {
-                setWeather(allData.weather);
-            }
-            
-            setLastUpdate(new Date());
-            setError(null);
-
-        } catch (err) {
-            console.error('Error fetching data:', err);
-            setError(isArabic ? 'حدث خطأ في جلب البيانات' : 'Error fetching data');
-        } finally {
-            setLoading(false);
         }
-    };
+        
+        if (allData.weather) {
+            setWeather(allData.weather);
+        }
+        
+        setLastUpdate(new Date());
+        setError(null);
+
+    } catch (err) {
+        console.error('Error fetching data:', err);
+        setError(isArabic ? 'حدث خطأ في جلب البيانات' : 'Error fetching data');
+    } finally {
+        setLoading(false);
+    }
+};
+
 
     const analyzeAllData = (rawData) => {
         const sleep = analyzeSleepData(rawData.sleep);
