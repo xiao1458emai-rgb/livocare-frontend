@@ -1132,7 +1132,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 }
                 
                 .dark-mode .weight-goal {
-                    background: #1e293b;
+                    background: #597eba;
                 }
                 
                 .weight-goal span {
