@@ -1,4 +1,4 @@
-// src/components/ProfileManager.jsx
+// src/components/ProfileManager.jsx - النسخة المعدلة
 'use client'
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axiosInstance from '../services/api';
@@ -26,18 +26,25 @@ const calculateBMI = (weight, height) => {
     return roundNumber(weight / (heightInMeters * heightInMeters), 1);
 };
 
-// ✅ حساب الوزن المثالي (صيغة ديفاين المعدلة)
+// ✅ حساب الوزن المثالي (صيغة روبنسون المعدلة - أكثر دقة)
 const calculateIdealWeight = (height, age, gender) => {
     if (!height) return null;
     const heightInCm = parseFloat(height);
-    let idealWeight = gender === 'M' ? 50 : 45.5;
-    if (heightInCm > 152.4) {
-        idealWeight += (heightInCm - 152.4) * 0.9;
+    
+    let idealWeight = 0;
+    if (gender === 'M') {
+        idealWeight = 52 + 1.9 * (heightInCm - 152.4);
+    } else if (gender === 'F') {
+        idealWeight = 49 + 1.7 * (heightInCm - 152.4);
+    } else {
+        // افتراضي
+        idealWeight = 50.5 + 1.8 * (heightInCm - 152.4);
     }
     
+    // تعديل حسب العمر (بعد 30 سنة يزيد الوزن المثالي قليلاً)
     if (age && age > 30) {
-        const ageReduction = Math.floor((age - 30) / 10) * 0.05;
-        idealWeight = idealWeight * (1 - Math.min(ageReduction, 0.2));
+        const ageFactor = 1 + Math.min(0.15, (age - 30) / 200);
+        idealWeight = idealWeight * ageFactor;
     }
     
     return roundNumber(idealWeight, 1);
@@ -78,7 +85,6 @@ function ProfileManager({ isAuthReady }) {
         date_of_birth: '',
         gender: '',
         phone_number: '',
-        initial_weight: '',
         height: '',
         occupation_status: '',
         health_goal: '',
@@ -86,6 +92,8 @@ function ProfileManager({ isAuthReady }) {
         chronic_conditions: '',
         current_medications: ''
     });
+    
+    // ✅ إزالة initial_weight من editable fields - الوزن يُقرأ فقط من health_status
     
     // ✅ حالة تغيير اسم المستخدم
     const [isEditingUsername, setIsEditingUsername] = useState(false);
@@ -114,7 +122,7 @@ function ProfileManager({ isAuthReady }) {
         return saved === 'true';
     });
     
-    // --- بيانات صحية حالية ---
+    // --- بيانات صحية حالية (مقروءة فقط من API) ---
     const [healthData, setHealthData] = useState({
         weight: null,
         sleep: null,
@@ -147,7 +155,7 @@ function ProfileManager({ isAuthReady }) {
     const [reducedMotion, setReducedMotion] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
     
-    // --- حساب العمر ---
+    // --- حساب العمر من تاريخ الميلاد ---
     const calculateAge = useCallback((birthDate) => {
         if (!birthDate) return null;
         const today = new Date();
@@ -162,21 +170,32 @@ function ProfileManager({ isAuthReady }) {
     
     const userAge = useMemo(() => calculateAge(userData.date_of_birth), [userData.date_of_birth, calculateAge]);
     
-    // --- حساب الوزن المثالي ---
+    // ✅ الوزن المثالي يعتمد على الطول + الجنس + العمر
     const idealWeight = useMemo(() => {
         if (!userData.height) return null;
         return calculateIdealWeight(userData.height, userAge, userData.gender);
     }, [userData.height, userAge, userData.gender]);
     
-    // --- حساب BMI المحسن ---
+    // ✅ الوزن الحالي من health_status (مقروء فقط)
+    const currentWeight = healthData.weight;
+    
+    // ✅ حساب الفرق بين الوزن الحالي والمثالي
+    const weightDifference = useMemo(() => {
+        if (currentWeight && idealWeight) {
+            return roundNumber(currentWeight - idealWeight, 1);
+        }
+        return null;
+    }, [currentWeight, idealWeight]);
+    
+    // ✅ حساب BMI المحسن
     const bmiData = useMemo(() => {
-        const weight = parseFloat(userData.initial_weight) || healthData.weight;
+        const weight = currentWeight;
         const height = parseFloat(userData.height);
         if (!weight || !height) return null;
         const bmi = calculateBMI(weight, height);
         const category = bmi ? getBMICategory(bmi, isArabic) : null;
         return { bmi, category, weight, height };
-    }, [userData.initial_weight, userData.height, healthData.weight, isArabic]);
+    }, [currentWeight, userData.height, isArabic]);
     
     // --- Smart Profile المحسن ---
     const smartProfile = useMemo(() => {
@@ -235,23 +254,57 @@ function ProfileManager({ isAuthReady }) {
             age: userAge,
             healthScore,
             healthScoreDetails,
-            weight: bmiData.weight,
+            weight: currentWeight,
             height: bmiData.height,
-            idealWeight
+            idealWeight,
+            weightDifference,
+            gender: userData.gender
         };
-    }, [bmiData, healthData, userAge, idealWeight, isArabic]);
+    }, [bmiData, healthData, userAge, idealWeight, currentWeight, weightDifference, userData.gender, isArabic]);
     
-    // --- التوصيات الذكية ---
+    // --- التوصيات الذكية بناءً على الملف الشخصي والوزن المثالي ---
     const getPersonalizedRecommendations = useMemo(() => {
         const recommendations = [];
         const occupation = userData.occupation_status;
         const bmi = smartProfile?.bmi;
         const age = smartProfile?.age;
         const idealWt = smartProfile?.idealWeight;
-        const currentWeight = smartProfile?.weight;
+        const currentWt = smartProfile?.weight;
+        const weightDiff = smartProfile?.weightDifference;
         const activityLevel = userData.activity_level;
         const healthGoal = userData.health_goal;
+        const gender = userData.gender;
         
+        // ✅ توصيات الوزن بناءً على الوزن المثالي
+        if (idealWt && currentWt) {
+            if (weightDiff > 5) {
+                recommendations.push({ 
+                    icon: '⚖️', 
+                    priority: 'high',
+                    text: isArabic 
+                        ? `وزنك الحالي ${currentWt} كجم، الوزن المثالي ${idealWt} كجم. تحتاج لخسارة ${weightDiff} كجم`
+                        : `Current weight: ${currentWt}kg, ideal: ${idealWt}kg. Need to lose ${weightDiff}kg`
+                });
+            } else if (weightDiff < -5) {
+                recommendations.push({ 
+                    icon: '⚖️', 
+                    priority: 'high',
+                    text: isArabic 
+                        ? `وزنك الحالي ${currentWt} كجم، الوزن المثالي ${idealWt} كجم. تحتاج لزيادة ${Math.abs(weightDiff)} كجم`
+                        : `Current weight: ${currentWt}kg, ideal: ${idealWt}kg. Need to gain ${Math.abs(weightDiff)}kg`
+                });
+            } else if (Math.abs(weightDiff) <= 3) {
+                recommendations.push({ 
+                    icon: '🎯', 
+                    priority: 'medium',
+                    text: isArabic 
+                        ? `وزنك قريب من المثالي! الفرق ${Math.abs(weightDiff)} كجم فقط. حافظ على نمط حياتك`
+                        : `Your weight is close to ideal! Only ${Math.abs(weightDiff)}kg difference. Maintain your lifestyle`
+                });
+            }
+        }
+        
+        // توصيات حسب المهنة
         if (occupation === 'Student') {
             recommendations.push({ icon: '📚', text: isArabic ? 'حاول النوم 7-8 ساعات لتحسين التركيز' : 'Try to sleep 7-8 hours to improve focus', priority: 'high' });
         } else if (occupation === 'Full-Time') {
@@ -260,19 +313,7 @@ function ProfileManager({ isAuthReady }) {
             recommendations.push({ icon: '⏰', text: isArabic ? 'حدد روتيناً ثابتاً للنوم والاستيقاظ' : 'Set a consistent sleep/wake routine', priority: 'high' });
         }
         
-        if (idealWt && currentWeight) {
-            const weightDiff = currentWeight - idealWt;
-            if (Math.abs(weightDiff) > 5) {
-                recommendations.push({ 
-                    icon: '⚖️', 
-                    text: isArabic 
-                        ? `وزنك الحالي ${currentWeight} كجم، الوزن المثالي ${idealWt} كجم. يمكنك ${weightDiff > 0 ? 'خسارة' : 'زيادة'} ${Math.abs(weightDiff)} كجم`
-                        : `Current weight: ${currentWeight}kg, ideal: ${idealWt}kg. ${weightDiff > 0 ? 'Lose' : 'Gain'} ${Math.abs(weightDiff)}kg`, 
-                    priority: 'high' 
-                });
-            }
-        }
-        
+        // توصيات BMI
         if (bmi) {
             if (bmi < 18.5) {
                 recommendations.push({ icon: '🥑', text: isArabic ? 'أضف مصادر صحية للدهون لزيادة الوزن' : 'Add healthy fats for weight gain', priority: 'high' });
@@ -281,10 +322,12 @@ function ProfileManager({ isAuthReady }) {
             }
         }
         
+        // توصيات النشاط
         if (activityLevel === 'low') {
             recommendations.push({ icon: '🚶', text: isArabic ? 'ابدأ بالمشي 10 دقائق يومياً' : 'Start with 10 minutes of walking daily', priority: 'high' });
         }
         
+        // توصيات النوم
         if (healthData.sleep && healthData.sleep < 7) {
             recommendations.push({ icon: '😴', text: isArabic ? `متوسط نومك ${healthData.sleep} ساعات، حاول النوم مبكراً` : `Average sleep ${healthData.sleep} hours, try sleeping earlier`, priority: 'high' });
         }
@@ -324,6 +367,7 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
+    // ✅ جلب البيانات الصحية الحالية (الوزن فقط للعرض، غير قابل للتعديل هنا)
     const fetchCurrentHealthData = async () => {
         try {
             const [sleepRes, activitiesRes, mealsRes, moodRes, healthRes, habitsRes] = await Promise.all([
@@ -382,6 +426,7 @@ function ProfileManager({ isAuthReady }) {
                 habitCompletion = Math.round((completed / habitsData.length) * 100);
             }
             
+            // ✅ جلب أحدث وزن من health_status (للقراءة فقط)
             let latestWeight = null;
             if (healthDataRes.length > 0) {
                 const sortedHealth = [...healthDataRes].sort((a, b) => {
@@ -390,11 +435,6 @@ function ProfileManager({ isAuthReady }) {
                     return dateB - dateA;
                 });
                 latestWeight = sortedHealth[0]?.weight_kg || sortedHealth[0]?.weight || null;
-                
-                // ✅ تحديث userData.initial_weight بأحدث وزن تلقائياً
-                if (latestWeight && latestWeight !== parseFloat(userData.initial_weight)) {
-                    setUserData(prev => ({ ...prev, initial_weight: latestWeight.toString() }));
-                }
             }
             
             setHealthData({ 
@@ -426,7 +466,6 @@ function ProfileManager({ isAuthReady }) {
                 date_of_birth: userDataFromApi.date_of_birth || '',
                 gender: userDataFromApi.gender || '',
                 phone_number: userDataFromApi.phone_number || '',
-                initial_weight: userDataFromApi.initial_weight?.toString() || '',
                 height: userDataFromApi.height?.toString() || '',
                 occupation_status: userDataFromApi.occupation || userDataFromApi.occupation_status || '',
                 health_goal: userDataFromApi.health_goal || '',
@@ -531,7 +570,7 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    // ✅ تحديث الملف الشخصي
+    // ✅ تحديث الملف الشخصي (بدون وزن - الوزن يُعدل فقط في شاشة القياسات)
     const handleUserUpdate = async (e) => {
         e.preventDefault();
         setSaving(true);
@@ -545,7 +584,6 @@ function ProfileManager({ isAuthReady }) {
                 date_of_birth: userData.date_of_birth || null,
                 gender: userData.gender || null,
                 phone_number: userData.phone_number || null,
-                initial_weight: userData.initial_weight ? parseFloat(userData.initial_weight) : null,
                 height: userData.height ? parseFloat(userData.height) : null,
                 occupation: userData.occupation_status || null,
                 health_goal: userData.health_goal || null,
@@ -563,7 +601,7 @@ function ProfileManager({ isAuthReady }) {
             setMessageType('success');
             await fetchUserData();
             await fetchCurrentHealthData();
-            setRefreshKey(prev => prev + 1); // تحديث الأهداف
+            setRefreshKey(prev => prev + 1);
         } catch (error) {
             console.error('Error updating profile:', error);
             setMessage(isArabic ? '❌ خطأ في تحديث الملف الشخصي' : '❌ Error updating profile');
@@ -608,7 +646,8 @@ function ProfileManager({ isAuthReady }) {
             switch (newGoal.type) {
                 case 'weight_loss':
                 case 'weight_gain':
-                    startValue = parseFloat(userData.initial_weight) || healthData.weight || targetValue + (newGoal.type === 'weight_loss' ? 5 : -5);
+                    // ✅ استخدام الوزن الحالي من health_status كنقطة بداية
+                    startValue = currentWeight || idealWeight || targetValue + (newGoal.type === 'weight_loss' ? 5 : -5);
                     break;
                 case 'sleep': startValue = healthData.sleep || 0; break;
                 case 'activity': startValue = healthData.activity || 0; break;
@@ -665,11 +704,10 @@ function ProfileManager({ isAuthReady }) {
         let currentValue = 0;
         let targetValue = parseFloat(goal.target_value) || 0;
         
-        // استخدام أحدث البيانات المتاحة
         switch (goal.type) {
             case 'weight_loss':
             case 'weight_gain':
-                currentValue = currentData.weight || parseFloat(userData.initial_weight) || 0;
+                currentValue = currentData.weight || currentWeight || 0;
                 break;
             case 'sleep':
                 currentValue = currentData.sleep || 0;
@@ -704,10 +742,8 @@ function ProfileManager({ isAuthReady }) {
                 if (totalToLose > 0 && currentValue < startValue) {
                     const lostSoFar = startValue - currentValue;
                     progress = Math.min(99, Math.max(0, Math.round((lostSoFar / totalToLose) * 100)));
-                } else if (currentValue >= startValue) {
-                    progress = 0;
                 } else {
-                    progress = Math.min(99, Math.max(0, Math.round(((startValue - currentValue) / Math.abs(targetValue - startValue)) * 100)));
+                    progress = 0;
                 }
             }
         } else if (goal.type === 'weight_gain') {
@@ -739,7 +775,7 @@ function ProfileManager({ isAuthReady }) {
             currentValue: roundNumber(currentValue, 1), 
             targetValue: roundNumber(targetValue, 1) 
         };
-    }, [userData.initial_weight]);
+    }, [currentWeight]);
     
     const goalsStats = useMemo(() => {
         const total = healthGoals.length;
@@ -987,9 +1023,19 @@ function ProfileManager({ isAuthReady }) {
                                 <div className="stat-sub">{isArabic ? 'سنة' : 'years'}</div>
                             </div>
                             <div className="health-stat">
+                                <div className="stat-label">{isArabic ? 'الجنس' : 'Gender'}</div>
+                                <div className="stat-value">{smartProfile.gender === 'M' ? (isArabic ? 'ذكر' : 'Male') : smartProfile.gender === 'F' ? (isArabic ? 'أنثى' : 'Female') : '—'}</div>
+                                <div className="stat-sub"></div>
+                            </div>
+                            <div className="health-stat">
                                 <div className="stat-label">{isArabic ? 'الوزن المثالي' : 'Ideal Weight'}</div>
                                 <div className="stat-value">{smartProfile.idealWeight || '—'}</div>
                                 <div className="stat-sub">{isArabic ? 'كجم' : 'kg'}</div>
+                            </div>
+                            <div className="health-stat">
+                                <div className="stat-label">{isArabic ? 'الوزن الحالي' : 'Current Weight'}</div>
+                                <div className="stat-value">{smartProfile.weight || '—'}</div>
+                                <div className="stat-sub">{isArabic ? 'كجم (من القياسات)' : 'kg (from measurements)'}</div>
                             </div>
                             <div className="health-stat">
                                 <div className="stat-label">{isArabic ? 'درجة الصحة' : 'Health Score'}</div>
@@ -999,6 +1045,17 @@ function ProfileManager({ isAuthReady }) {
                                 </div>
                             </div>
                         </div>
+                        
+                        {smartProfile.weightDifference !== null && Math.abs(smartProfile.weightDifference) > 1 && (
+                            <div className="weight-diff-notice">
+                                <span>{smartProfile.weightDifference > 0 ? '📈' : '📉'}</span>
+                                <span>
+                                    {isArabic 
+                                        ? `الفرق بين وزنك الحالي والمثالي: ${Math.abs(smartProfile.weightDifference)} كجم`
+                                        : `Difference between current and ideal weight: ${Math.abs(smartProfile.weightDifference)} kg`}
+                                </span>
+                            </div>
+                        )}
                         
                         {getPersonalizedRecommendations.length > 0 && (
                             <div className="recommendations-box">
@@ -1063,7 +1120,7 @@ function ProfileManager({ isAuthReady }) {
                                     <input type="date" value={userData.date_of_birth} onChange={(e) => setUserData({...userData, date_of_birth: e.target.value})} />
                                 </div>
                                 <div className="field-group">
-                                    <label>{isArabic ? 'النوع' : 'Gender'}</label>
+                                    <label>{isArabic ? 'النوع (الجنس)' : 'Gender'}</label>
                                     <select value={userData.gender} onChange={(e) => setUserData({...userData, gender: e.target.value})}>
                                         <option value="">{isArabic ? 'اختر النوع' : 'Select gender'}</option>
                                         <option value="M">{isArabic ? 'ذكر' : 'Male'}</option>
@@ -1073,6 +1130,13 @@ function ProfileManager({ isAuthReady }) {
                                 <div className="field-group">
                                     <label>{isArabic ? 'رقم الهاتف' : 'Phone Number'}</label>
                                     <input type="tel" value={userData.phone_number} onChange={(e) => setUserData({...userData, phone_number: e.target.value})} />
+                                </div>
+                                <div className="field-group">
+                                    <label>{isArabic ? 'الطول' : 'Height'}</label>
+                                    <div className="input-with-unit">
+                                        <input type="number" step="0.1" value={userData.height} onChange={(e) => setUserData({...userData, height: e.target.value})} />
+                                        <span className="unit">cm</span>
+                                    </div>
                                 </div>
                                 <div className="field-group">
                                     <label>{isArabic ? 'الوظيفة' : 'Occupation'}</label>
@@ -1087,24 +1151,10 @@ function ProfileManager({ isAuthReady }) {
                             </div>
                         </div>
                         
-                        {/* Health Information */}
+                        {/* Health Information - بدون وزن (يُقرأ فقط) */}
                         <div className="form-section">
                             <h3>❤️ {isArabic ? 'المعلومات الصحية' : 'Health Information'}</h3>
                             <div className="form-grid">
-                                <div className="field-group">
-                                    <label>{isArabic ? 'الوزن الحالي' : 'Current Weight'}</label>
-                                    <div className="input-with-unit">
-                                        <input type="number" step="0.1" value={userData.initial_weight} onChange={(e) => setUserData({...userData, initial_weight: e.target.value})} />
-                                        <span className="unit">kg</span>
-                                    </div>
-                                </div>
-                                <div className="field-group">
-                                    <label>{isArabic ? 'الطول' : 'Height'}</label>
-                                    <div className="input-with-unit">
-                                        <input type="number" step="0.1" value={userData.height} onChange={(e) => setUserData({...userData, height: e.target.value})} />
-                                        <span className="unit">cm</span>
-                                    </div>
-                                </div>
                                 <div className="field-group">
                                     <label>🎯 {isArabic ? 'الهدف الصحي' : 'Health Goal'}</label>
                                     <select value={userData.health_goal} onChange={(e) => setUserData({...userData, health_goal: e.target.value})}>
@@ -1131,6 +1181,28 @@ function ProfileManager({ isAuthReady }) {
                                     <label>💊 {isArabic ? 'أدوية حالية' : 'Current Medications'}</label>
                                     <textarea value={userData.current_medications} onChange={(e) => setUserData({...userData, current_medications: e.target.value})} rows="2" />
                                 </div>
+                            </div>
+                            
+                            {/* ✅ عرض الوزن الحالي (للقراءة فقط) */}
+                            <div className="current-weight-display">
+                                <div className="weight-info-box">
+                                    <span className="weight-icon">⚖️</span>
+                                    <div className="weight-info-content">
+                                        <div className="weight-label">{isArabic ? 'الوزن الحالي' : 'Current Weight'}</div>
+                                        <div className="weight-value">{currentWeight || '—'} <span className="weight-unit">kg</span></div>
+                                        <div className="weight-note">{isArabic ? 'يتم تحديث الوزن تلقائياً من القياسات الصحية' : 'Weight is automatically updated from health measurements'}</div>
+                                    </div>
+                                </div>
+                                {idealWeight && (
+                                    <div className="weight-info-box ideal">
+                                        <span className="weight-icon">🎯</span>
+                                        <div className="weight-info-content">
+                                            <div className="weight-label">{isArabic ? 'الوزن المثالي' : 'Ideal Weight'}</div>
+                                            <div className="weight-value">{idealWeight} <span className="weight-unit">kg</span></div>
+                                            <div className="weight-note">{isArabic ? 'محسوب بناءً على طولك وجنسك وعمرك' : 'Calculated based on your height, gender and age'}</div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         
@@ -1225,6 +1297,7 @@ function ProfileManager({ isAuthReady }) {
                                                 <option value="percent">%</option>
                                             </select>
                                         </div>
+                                   
                                     </div>
                                     <div className="field-group">
                                         <label>{isArabic ? 'تاريخ الانتهاء' : 'Target Date'}</label>
