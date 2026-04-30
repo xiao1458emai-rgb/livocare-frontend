@@ -450,31 +450,31 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    const fetchUserData = async () => {
-        setLoading(true);
-        try {
-            const response = await axiosInstance.get('/profile/');
-            let userDataFromApi = {};
-            if (response.data?.data) userDataFromApi = response.data.data;
-            else if (response.data && typeof response.data === 'object') userDataFromApi = response.data;
-            
-            setUserData({
-                username: userDataFromApi.username || '',
-                email: userDataFromApi.email || '',
-                first_name: userDataFromApi.first_name || '',
-                last_name: userDataFromApi.last_name || '',
-                date_of_birth: userDataFromApi.date_of_birth || '',
-                gender: userDataFromApi.gender || '',
-                phone_number: userDataFromApi.phone_number || '',
-                height: userDataFromApi.height?.toString() || '',
-                occupation_status: userDataFromApi.occupation || userDataFromApi.occupation_status || '',
-                health_goal: userDataFromApi.health_goal || '',
-                activity_level: userDataFromApi.activity_level || '',
-                chronic_conditions: userDataFromApi.chronic_conditions || '',
-                current_medications: userDataFromApi.current_medications || ''
-            });
-        } catch (error) {
-            console.error('Error fetching user data:', error);
+  const fetchUserData = async () => {
+    setLoading(true);
+    try {
+        const response = await axiosInstance.get('/profile/');
+        let userDataFromApi = {};
+        if (response.data?.data) userDataFromApi = response.data.data;
+        else if (response.data && typeof response.data === 'object') userDataFromApi = response.data;
+        
+        setUserData({
+            username: userDataFromApi.username || '',
+            email: userDataFromApi.email || '',
+            first_name: userDataFromApi.first_name || '',
+            last_name: userDataFromApi.last_name || '',
+            date_of_birth: userDataFromApi.date_of_birth || '',
+            gender: userDataFromApi.gender || '',
+            phone_number: userDataFromApi.phone_number || '',
+            height: userDataFromApi.height?.toString() || '',
+            occupation_status: userDataFromApi.occupation_status || userDataFromApi.occupation || '',  // ✅ قراءة من كلا الحقلين
+            health_goal: userDataFromApi.health_goal || '',
+            activity_level: userDataFromApi.activity_level || '',
+            chronic_conditions: userDataFromApi.chronic_conditions || '',
+            current_medications: userDataFromApi.current_medications || ''
+        });
+    } catch (error) {
+        console.error('Error fetching user data:', error);
             setMessage(isArabic ? 'خطأ في تحميل بيانات المستخدم' : 'Error loading user data');
             setMessageType('error');
         } finally {
@@ -571,26 +571,26 @@ function ProfileManager({ isAuthReady }) {
     };
     
     // ✅ تحديث الملف الشخصي (بدون وزن - الوزن يُعدل فقط في شاشة القياسات)
-    const handleUserUpdate = async (e) => {
-        e.preventDefault();
-        setSaving(true);
-        setMessage('');
-        
-        try {
-            const updateData = {
-                first_name: userData.first_name,
-                last_name: userData.last_name,
-                email: userData.email || null,
-                date_of_birth: userData.date_of_birth || null,
-                gender: userData.gender || null,
-                phone_number: userData.phone_number || null,
-                height: userData.height ? parseFloat(userData.height) : null,
-                occupation: userData.occupation_status || null,
-                health_goal: userData.health_goal || null,
-                activity_level: userData.activity_level || null,
-                chronic_conditions: userData.chronic_conditions || null,
-                current_medications: userData.current_medications || null
-            };
+ const handleUserUpdate = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setMessage('');
+    
+    try {
+        const updateData = {
+            first_name: userData.first_name,
+            last_name: userData.last_name,
+            email: userData.email || null,
+            date_of_birth: userData.date_of_birth || null,
+            gender: userData.gender || null,
+            phone_number: userData.phone_number || null,
+            height: userData.height ? parseFloat(userData.height) : null,
+            occupation_status: userData.occupation_status || null,  // ✅ التصحيح هنا
+            health_goal: userData.health_goal || null,
+            activity_level: userData.activity_level || null,
+            chronic_conditions: userData.chronic_conditions || null,
+            current_medications: userData.current_medications || null
+        };
             
             Object.keys(updateData).forEach(key => {
                 if (updateData[key] === '' || updateData[key] === null) delete updateData[key];
@@ -1140,7 +1140,10 @@ function ProfileManager({ isAuthReady }) {
                                 </div>
                                 <div className="field-group">
                                     <label>{isArabic ? 'الوظيفة' : 'Occupation'}</label>
-                                    <select value={userData.occupation_status} onChange={(e) => setUserData({...userData, occupation_status: e.target.value})}>
+                                    <select 
+                                        value={userData.occupation_status}  // ✅ تأكد من هذا
+                                        onChange={(e) => setUserData({...userData, occupation_status: e.target.value})}
+                                    >
                                         <option value="">{isArabic ? 'اختر الوظيفة' : 'Select occupation'}</option>
                                         <option value="Student">{isArabic ? 'طالب' : 'Student'}</option>
                                         <option value="Full-Time">{isArabic ? 'موظف' : 'Full-Time'}</option>
