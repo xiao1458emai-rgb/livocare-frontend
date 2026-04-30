@@ -1273,7 +1273,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
 
 .card-header h3 {
     font-size: 1rem;
-    color: var(--text-primary, #0f172a);
+    color: var(--text-primary, #395492);
 }
 
 .dark-mode .card-header h3 {
@@ -1619,7 +1619,7 @@ input:checked + .toggle-track .toggle-thumb {
     border: 1px solid var(--border-light, #e2e8f0);
     border-radius: 14px;
     font-size: 0.9rem;
-    color: var(--text-primary, #0f172a);
+    color: var(--text-primary, #1b294a);
 }
 
 .calories-input.manual {
@@ -1882,12 +1882,12 @@ input:checked + .toggle-track .toggle-thumb {
 
 .timeline-title {
     font-weight: bold;
-    color: var(--text-primary, #0f172a);
+    color: var(--text-primary, #6989d4);
 }
 
 .timeline-detail {
     font-size: 0.7rem;
-    color: var(--text-secondary, #64748b);
+    color: var(--text-secondary, #99aecc);
 }
 
 .timeline-calories {
