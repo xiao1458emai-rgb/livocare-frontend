@@ -6,14 +6,13 @@ import HabitAnalytics from './Analytics/HabitAnalytics';
 import BarcodeScanner from '../components/Camera/BarcodeScanner';
 import '../index.css';
 
-// ==================== دوال مساعدة ====================
+// ==================== دوال مساعدة (بدون تغيير) ====================
 
 const roundNumber = (num, decimals = 1) => {
     if (isNaN(num)) return 0;
     return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 };
 
-// ✅ حساب النقاط للعادات فقط (بدون أدوية)
 const calculatePoints = (habitName, isCompleted, habitType) => {
     if (!isCompleted) return 0;
     if (habitType === 'medication') return 0;
@@ -35,30 +34,24 @@ const calculatePoints = (habitName, isCompleted, habitType) => {
     return 5;
 };
 
-// ✅ الحصول على النوع المخزن محلياً
 const getStoredHabitType = (habitId) => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(`habit_type_${habitId}`);
 };
 
-// ✅ حفظ النوع محلياً
 const setStoredHabitType = (habitId, type) => {
     if (typeof window === 'undefined') return;
     localStorage.setItem(`habit_type_${habitId}`, type);
-    // إرسال حدث للتحديث
     window.dispatchEvent(new CustomEvent('habitTypeChanged', { detail: { habitId, type } }));
 };
 
-// ✅ تحديد نوع العادة (محسّن)
 const detectHabitType = (habitName, habitDescription = '', habitId = null) => {
-    // ✅ أولاً: التحقق من التخزين المحلي
     const storedType = habitId ? getStoredHabitType(habitId) : null;
     if (storedType === 'medication') return 'medication';
     if (storedType === 'habit') return 'habit';
     
     const text = (habitName + ' ' + habitDescription).toLowerCase();
     
-    // كلمات تدل على دواء بشكل قوي
     const strongMedicationKeywords = [
         'دواء', 'medication', 'حبة', 'pill', 'علاج', 'treatment',
         'مضاد حيوي', 'antibiotic', 'مسكن', 'painkiller', 'ibuprofen',
@@ -66,10 +59,8 @@ const detectHabitType = (habitName, habitDescription = '', habitId = null) => {
         'lisinopril', 'amlodipine', 'atorvastatin', 'simvastatin'
     ];
     
-    // وحدات الجرعات (غالباً دواء)
     const doseUnits = ['mg', 'ملجم', 'mcg', 'ميكروجرام', 'g', 'جرام', 'ml', 'مل'];
     
-    // كلمات تدل على عادة
     const habitKeywords = [
         'تمرين', 'exercise', 'رياضة', 'sport', 'مشي', 'walk', 'جري', 'run',
         'يوجا', 'yoga', 'تأمل', 'meditation', 'قراءة', 'reading',
@@ -77,22 +68,18 @@ const detectHabitType = (habitName, habitDescription = '', habitId = null) => {
         'فطور', 'breakfast', 'غداء', 'lunch', 'عشاء', 'dinner'
     ];
     
-    // ✅ فحص قوي للأدوية
     for (const keyword of strongMedicationKeywords) {
         if (text.includes(keyword)) return 'medication';
     }
     
-    // ✅ فحص وحدات الجرعات
     for (const unit of doseUnits) {
         if (text.includes(unit)) return 'medication';
     }
     
-    // ✅ فحص العادات
     for (const keyword of habitKeywords) {
         if (text.includes(keyword)) return 'habit';
     }
     
-    // ✅ إذا كان الوصف يحتوي على معلومات دوائية
     if (habitDescription && (
         habitDescription.includes('mg') || 
         habitDescription.includes('ملجم') ||
@@ -101,7 +88,6 @@ const detectHabitType = (habitName, habitDescription = '', habitId = null) => {
         return 'medication';
     }
     
-    // ✅ افتراض أن العناصر المضافة من البحث عن دواء هي أدوية
     if (habitDescription.includes('💊') || habitDescription.includes('🏭')) {
         return 'medication';
     }
@@ -109,7 +95,6 @@ const detectHabitType = (habitName, habitDescription = '', habitId = null) => {
     return 'habit';
 };
 
-// ✅ تبديل نوع العادة
 const toggleHabitType = (habitId, currentType, habitName, showMessage, isArabic) => {
     const newType = currentType === 'medication' ? 'habit' : 'medication';
     setStoredHabitType(habitId, newType);
@@ -122,7 +107,6 @@ const toggleHabitType = (habitId, currentType, habitName, showMessage, isArabic)
     return newType;
 };
 
-// ✅ الحصول على أيقونة ونوع العادة
 const getHabitIcon = (habitType) => {
     switch (habitType) {
         case 'medication': return '💊';
@@ -133,6 +117,8 @@ const getHabitIcon = (habitType) => {
         default: return '✅';
     }
 };
+
+// ==================== المكون الرئيسي ====================
 
 function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
     // ✅ إعدادات اللغة
@@ -174,7 +160,6 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                 setLang(event.detail.lang);
             }
         };
-        
         window.addEventListener('languageChange', handleLanguageChange);
         return () => window.removeEventListener('languageChange', handleLanguageChange);
     }, [lang]);
@@ -185,7 +170,6 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
             setRefreshKey(prev => prev + 1);
             fetchHabitDefinitions();
         };
-        
         window.addEventListener('habitTypeChanged', handleTypeChange);
         return () => window.removeEventListener('habitTypeChanged', handleTypeChange);
     }, []);
@@ -199,7 +183,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }, 3000);
     }, []);
 
-    // ✅ جلب تعريفات العادات
+    // ✅ دالة جلب تعريفات العادات (أساسية)
     const fetchHabitDefinitions = useCallback(async () => {
         if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
         
@@ -247,9 +231,54 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [isAuthReady, isArabic, showMessage, refreshKey]);
 
+    // ✅ دالة جلب التحليلات من الـ API الجديد
+    const fetchHealthAnalytics = useCallback(async () => {
+        try {
+            const response = await axiosInstance.get('/analytics/comprehensive/api/?lang=' + (isArabic ? 'ar' : 'en'));
+            
+            if (response.data?.success && response.data?.data) {
+                const data = response.data.data;
+                
+                if (data.personalized_recommendations && data.personalized_recommendations.length > 0) {
+                    const habitRecommendations = data.personalized_recommendations.filter(
+                        rec => rec.category === 'habits' || rec.category === 'medication'
+                    );
+                    if (habitRecommendations.length > 0) {
+                        showMessage(habitRecommendations[0].advice || habitRecommendations[0].description, 'info');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching analytics:', error);
+        }
+    }, [isArabic, showMessage]);
+
+    // ✅ دالة جلب توصيات العادات فقط
+    const fetchHabitRecommendations = useCallback(async () => {
+        try {
+            const response = await axiosInstance.get('/analytics/recommendations/?limit=3&lang=' + (isArabic ? 'ar' : 'en'));
+            
+            if (response.data?.success && response.data?.recommendations) {
+                const habitRecs = response.data.recommendations.filter(
+                    rec => rec.category === 'habits' || rec.category === 'medication'
+                );
+                if (habitRecs.length > 0) {
+                    console.log('Habit recommendations:', habitRecs);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching habit recommendations:', error);
+        }
+    }, [isArabic]);
+
+    // ✅ useEffect الرئيسي لجلب جميع البيانات
     useEffect(() => {
-        if (isAuthReady) fetchHabitDefinitions();
-    }, [isAuthReady, fetchHabitDefinitions]);
+        if (isAuthReady) {
+            fetchHabitDefinitions();
+            fetchHealthAnalytics();
+            fetchHabitRecommendations();
+        }
+    }, [isAuthReady, fetchHabitDefinitions, fetchHealthAnalytics, fetchHabitRecommendations]);
 
     // ✅ حساب النقاط
     useEffect(() => {
@@ -284,7 +313,6 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         setUserPoints(todayPoints);
         setWeeklyPoints(weekPoints);
         
-        // حساب streak للأيام
         let streak = 0;
         const checkDate = new Date();
         checkDate.setHours(0, 0, 0, 0);
@@ -399,7 +427,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         setDrugSearchQuery('');
     }, [isArabic, showMessage]);
 
-    // ✅ إضافة عادة/دواء جديد
+    // ✅ إضافة عادة/دواء جديد (نسخة واحدة فقط)
     const handleAddDefinition = useCallback(async (e) => {
         e.preventDefault();
         
@@ -431,7 +459,6 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                 frequency: 'Daily'
             });
             
-            // ✅ إذا كان دواء، احفظ النوع
             const isDrug = newHabitDescription.includes('💊') || 
                           newHabitDescription.includes('mg') || 
                           newHabitDescription.includes('ملجم');
@@ -444,6 +471,11 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
             setNewHabitName('');
             setNewHabitDescription('');
             await fetchHabitDefinitions();
+            
+            // ✅ تحديث التحليلات بعد الإضافة
+            fetchHealthAnalytics();
+            fetchHabitRecommendations();
+            
             setRefreshAnalytics(prev => prev + 1);
             setRefreshKey(prev => prev + 1);
             
@@ -453,9 +485,9 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         } finally {
             setLoading(false);
         }
-    }, [isAuthReady, definitions, newHabitName, newHabitDescription, isArabic, showMessage, fetchHabitDefinitions]);
+    }, [isAuthReady, definitions, newHabitName, newHabitDescription, isArabic, showMessage, fetchHabitDefinitions, fetchHealthAnalytics, fetchHabitRecommendations]);
 
-    // ✅ تبديل حالة إنجاز العادة/الدواء
+    // ✅ تبديل حالة إنجاز العادة/الدواء (نسخة واحدة فقط)
     const handleToggleLog = useCallback(async (habitId) => {
         if (!isAuthReady) {
             showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
@@ -482,6 +514,11 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                 }
             }
             await fetchHabitDefinitions();
+            
+            // ✅ تحديث التحليلات بعد التبديل
+            fetchHealthAnalytics();
+            fetchHabitRecommendations();
+            
             setRefreshAnalytics(prev => prev + 1);
             setRefreshKey(prev => prev + 1);
             
@@ -491,7 +528,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         } finally {
             setLoading(false);
         }
-    }, [isAuthReady, todayLogs, definitions, isArabic, showMessage, fetchHabitDefinitions]);
+    }, [isAuthReady, todayLogs, definitions, isArabic, showMessage, fetchHabitDefinitions, fetchHealthAnalytics, fetchHabitRecommendations]);
 
     // ✅ مسح الباركود
     const handleScanComplete = useCallback((result) => {
@@ -501,7 +538,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [searchDrugInFDA]);
 
-    // ✅ تصفية البيانات باستخدام التخزين المحلي
+    // ✅ تصفية البيانات
     const safeDefinitions = Array.isArray(definitions) ? definitions : [];
     
     const getItemType = (item) => {
