@@ -1,4 +1,4 @@
-// src/components/ActivityForm.jsx - النسخة المحسنة
+// src/components/ActivityForm.jsx - النسخة المدمجة مع التحليلات الذكية
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axiosInstance from '../services/api';
 import esp32Service from '../services/esp32Service';
@@ -29,6 +29,15 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     const [sensorConnecting, setSensorConnecting] = useState(false);
     const [lastSensorReading, setLastSensorReading] = useState(null);
     
+    // ✅ حالة التحليلات الذكية من الـ API الجديد
+    const [healthAnalytics, setHealthAnalytics] = useState(null);
+    const [analyticsLoading, setAnalyticsLoading] = useState(false);
+    const [showAdvancedAnalytics, setShowAdvancedAnalytics] = useState(false);
+    const [weightPrediction, setWeightPrediction] = useState(null);
+    const [vitalAlerts, setVitalAlerts] = useState([]);
+    const [personalizedRecommendations, setPersonalizedRecommendations] = useState([]);
+    const [userProfile, setUserProfile] = useState(null);
+    
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
     const unsubscribeESP32Ref = useRef(null);
@@ -42,8 +51,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         activity_type: '', duration_minutes: '', start_time: '', calories_burned: ''
     });
     
-    const [analytics, setAnalytics] = useState(null);
-    const [analyticsLoading, setAnalyticsLoading] = useState(false);
+    const [activityAnalytics, setActivityAnalytics] = useState(null);
+    const [activityAnalyticsLoading, setActivityAnalyticsLoading] = useState(false);
     const [userWeight, setUserWeight] = useState(null);
     const [userHeight, setUserHeight] = useState(null);
     const [userAge, setUserAge] = useState(null);
@@ -85,18 +94,104 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     
     const refreshData = useCallback(() => {
         setRefreshKey(prev => prev + 1);
+        fetchHealthAnalytics(); // تحديث التحليلات أيضاً
     }, []);
     
-    // ✅ تحسين دالة fetchUserWeight (إضافة تخزين محلي وجلب بيانات إضافية)
+    // ✅ دالة جلب التحليلات الصحية من الـ API الجديد
+    const fetchHealthAnalytics = useCallback(async () => {
+        setAnalyticsLoading(true);
+        try {
+            const response = await axiosInstance.get('/health/analysis/api/?lang=' + (isArabic ? 'ar' : 'en'));
+            
+            if (response.data?.success && response.data?.data) {
+                const data = response.data.data;
+                
+                // تحديث جميع حالات التحليلات
+                setHealthAnalytics(data);
+                
+                // استخراج التنبؤ بالوزن
+                if (data.weight_prediction && data.weight_prediction.status === 'success') {
+                    setWeightPrediction(data.weight_prediction);
+                } else {
+                    setWeightPrediction(null);
+                }
+                
+                // استخراج التنبيهات من العلامات الحيوية
+                if (data.vital_signs_analysis && data.vital_signs_analysis.alerts) {
+                    setVitalAlerts(data.vital_signs_analysis.alerts);
+                } else {
+                    setVitalAlerts([]);
+                }
+                
+                // استخراج التوصيات الشخصية
+                if (data.user_profile_analysis && data.user_profile_analysis.personalized_recommendations) {
+                    setPersonalizedRecommendations(data.user_profile_analysis.personalized_recommendations);
+                } else {
+                    setPersonalizedRecommendations([]);
+                }
+                
+                // استخراج معلومات الملف الشخصي
+                if (data.user_profile_analysis && data.user_profile_analysis.basic_info) {
+                    setUserProfile(data.user_profile_analysis.basic_info);
+                    
+                    // تحديث الوزن من التحليلات إذا كان متاحاً
+                    if (data.user_profile_analysis.basic_info.weight) {
+                        setUserWeight(data.user_profile_analysis.basic_info.weight);
+                    }
+                }
+                
+                // عرض ملخص ذكي كرسالة
+                if (data.personalized_summary && data.personalized_summary.bullet_points) {
+                    const firstTip = data.personalized_summary.bullet_points[0];
+                    if (firstTip) {
+                        showMessage(firstTip, 'info');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching health analytics:', error);
+            // لا نعرض رسالة خطأ للمستخدم حتى لا نزعجه
+        } finally {
+            setAnalyticsLoading(false);
+        }
+    }, [isArabic, showMessage]);
+    
+    // ✅ دالة تحديث التحليلات يدوياً
+    const refreshAnalytics = useCallback(async () => {
+        setAnalyticsLoading(true);
+        try {
+            const response = await axiosInstance.get('/health/analysis/refresh/?lang=' + (isArabic ? 'ar' : 'en'));
+            
+            if (response.data?.success && response.data?.data) {
+                const data = response.data.data;
+                setHealthAnalytics(data);
+                
+                if (data.weight_prediction && data.weight_prediction.status === 'success') {
+                    setWeightPrediction(data.weight_prediction);
+                }
+                
+                if (data.vital_signs_analysis && data.vital_signs_analysis.alerts) {
+                    setVitalAlerts(data.vital_signs_analysis.alerts);
+                }
+                
+                showMessage(isArabic ? '✅ تم تحديث التحليلات الذكية' : '✅ Smart analytics updated', 'success');
+            }
+        } catch (error) {
+            console.error('Error refreshing analytics:', error);
+            showMessage(isArabic ? '❌ فشل تحديث التحليلات' : '❌ Failed to refresh analytics', 'error');
+        } finally {
+            setAnalyticsLoading(false);
+        }
+    }, [isArabic, showMessage]);
+    
+    // ✅ دالة جلب الوزن والبيانات الشخصية
     const fetchUserWeight = useCallback(async () => {
-        // محاولة读取 من localStorage أولاً
         const cachedWeight = localStorage.getItem('user_weight');
         const cachedHeight = localStorage.getItem('user_height');
         const cachedAge = localStorage.getItem('user_age');
         const cachedGender = localStorage.getItem('user_gender');
         const cachedTime = localStorage.getItem('user_data_timestamp');
         
-        // إذا كانت البيانات مخزنة منذ أقل من ساعة، استخدمها
         if (cachedWeight && cachedTime && (Date.now() - parseInt(cachedTime)) < 3600000) {
             setUserWeight(parseFloat(cachedWeight));
             if (cachedHeight) setUserHeight(parseFloat(cachedHeight));
@@ -107,7 +202,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         }
         
         try {
-            // جلب البيانات الصحية
             const healthResponse = await axiosInstance.get('/health_status/');
             let records = [];
             if (healthResponse.data?.results) {
@@ -125,8 +219,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                     const weight = parseFloat(latest.weight_kg);
                     setUserWeight(weight);
                     localStorage.setItem('user_weight', weight);
-                    
-                    // تخزين وقت التخزين المؤقت
                     localStorage.setItem('user_data_timestamp', Date.now().toString());
                 } else {
                     setUserWeight(70);
@@ -137,7 +229,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 localStorage.setItem('user_weight', '70');
             }
             
-            // جلب بيانات الملف الشخصي (الطول، العمر، الجنس)
             try {
                 const profileResponse = await axiosInstance.get('/profile/');
                 if (profileResponse.data) {
@@ -160,7 +251,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 console.log('Profile data not available:', profileErr);
             }
             
-            // حساب السعرات الموصى بها
             calculateRecommendedCalories(
                 userWeight || 70, 
                 userHeight || 170, 
@@ -170,13 +260,11 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             
         } catch (err) {
             console.error('Error fetching user weight:', err);
-            const fallbackWeight = 70;
-            setUserWeight(fallbackWeight);
-            localStorage.setItem('user_weight', fallbackWeight);
+            setUserWeight(70);
+            localStorage.setItem('user_weight', '70');
         }
     }, [userWeight, userHeight, userAge, userGender]);
     
-    // ✅ دالة حساب السعرات اليومية الموصى بها (Mifflin-St Jeor Formula)
     const calculateRecommendedCalories = useCallback((weight, height, age, gender) => {
         if (!weight || !height || !age) {
             setRecommendedCalories(2000);
@@ -190,15 +278,10 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
         }
         
-        // معامل النشاط (افتراضي: نشاط خفيف)
         const activityFactor = 1.375;
         const tdee = Math.round(bmr * activityFactor);
-        
-        // سعرات للحفاظ على الوزن
         const maintenance = tdee;
-        // سعرات لخسارة الوزن (نقص 500 سعرة)
         const weightLoss = Math.max(1200, maintenance - 500);
-        // سعرات لزيادة الوزن (زيادة 300 سعرة)
         const weightGain = maintenance + 300;
         
         setRecommendedCalories({
@@ -207,11 +290,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             weightGain,
             bmr: Math.round(bmr)
         });
-        
-        return { maintenance, weightLoss, weightGain, bmr: Math.round(bmr) };
     }, []);
     
-    // ✅ دالة التحقق من صحة البيانات
     const validateHealthData = useCallback((data) => {
         const errors = {};
         
@@ -273,8 +353,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 errors.heartRate = isArabic ? `⚠️ خطير: نبض مرتفع جداً (أكبر من ${VALIDATION_LIMITS.heartRate.max} BPM). استشر طبيباً فوراً` : `⚠️ Dangerous: Heart rate too high (above ${VALIDATION_LIMITS.heartRate.max} BPM). Consult a doctor immediately`;
             } else if (hr > 100) {
                 errors.heartRate = isArabic ? `⚠️ تنبيه: نبض مرتفع (${hr} BPM). هل أنت متوتر أو مارست رياضة مؤخراً؟` : `⚠️ Alert: High heart rate (${hr} BPM). Are you stressed or did you exercise recently?`;
-            } else if (hr < 60 && hr >= 50) {
-                errors.heartRate = isArabic ? `ℹ️ نبض منخفض (${hr} BPM). إذا كنت رياضياً فهذا طبيعي، وإلا استشر طبيبك` : `ℹ️ Low heart rate (${hr} BPM). If you're an athlete this is normal, otherwise consult your doctor`;
             }
         }
         
@@ -297,10 +375,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 errors.temperature = isArabic ? `⚠️ تحذير: حرارة منخفضة جداً (أقل من ${VALIDATION_LIMITS.temperature.min}°C)` : `⚠️ Warning: Temperature too low (below ${VALIDATION_LIMITS.temperature.min}°C)`;
             } else if (temp > VALIDATION_LIMITS.temperature.max) {
                 errors.temperature = isArabic ? `⚠️ تحذير: حرارة مرتفعة جداً (أكبر من ${VALIDATION_LIMITS.temperature.max}°C) - قد تشير إلى حمى` : `⚠️ Warning: Temperature too high (above ${VALIDATION_LIMITS.temperature.max}°C) - may indicate fever`;
-            } else if (temp > 37.5) {
-                errors.temperature = isArabic ? `⚠️ تنبيه: حرارة مرتفعة (${temp}°C). اشرب سوائل دافئة وراقب الأعراض` : `⚠️ Alert: Elevated temperature (${temp}°C). Drink warm fluids and monitor symptoms`;
-            } else if (temp < 36.0) {
-                errors.temperature = isArabic ? `ℹ️ حرارة منخفضة (${temp}°C). تأكد من ارتداء ملابس دافئة` : `ℹ️ Low temperature (${temp}°C). Make sure to wear warm clothes`;
             }
         }
         
@@ -318,12 +392,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 setSensorHeartRate(data);
                 setLastSensorReading(prev => ({ ...prev, heartRate: data, timestamp: new Date() }));
                 
-                // تحقق من وجود تحذير للنبض
                 const hr = data;
                 if (hr > 120) {
                     showMessage(isArabic ? `⚠️ تنبيه: نبض مرتفع (${hr} BPM) من جهاز ESP32` : `⚠️ Alert: High heart rate (${hr} BPM) from ESP32`, 'warning');
-                } else if (hr < 55 && hr > 0) {
-                    showMessage(isArabic ? `ℹ️ نبض منخفض (${hr} BPM) من جهاز ESP32. إذا كنت مرتاحاً فهذا طبيعي` : `ℹ️ Low heart rate (${hr} BPM) from ESP32. If you're resting this is normal`, 'info');
                 }
             } else if (type === 'spo2') {
                 setSensorSpO2(data);
@@ -455,16 +526,13 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         showMessage(isArabic ? '🗑️ تم مسح النموذج' : '🗑️ Form cleared', 'info');
     }, [isArabic, showMessage]);
     
-    // ✅ تحسين دالة handleHealthSubmit بإضافة تحقق أفضل
     const handleHealthSubmit = useCallback(async (e) => {
         e.preventDefault();
         if (isSubmittingRef.current || !isMountedRef.current) return;
         
-        // التحقق من صحة البيانات قبل الإرسال
         const errors = validateHealthData(healthFormData);
         if (Object.keys(errors).length > 0) {
             setValidationErrors(errors);
-            // عرض أول خطأ كرسالة منبثقة
             const firstError = Object.values(errors)[0];
             showMessage(firstError, 'error');
             return;
@@ -480,7 +548,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             const weight = parseFloat(healthFormData.weight);
             data.weight_kg = weight;
             
-            // تحذير للوزن خارج النطاق الطبيعي
             if (weight < 50) {
                 warnings.push(isArabic ? '⚠️ وزنك منخفض قد يؤثر على صحتك' : '⚠️ Your weight is low and may affect your health');
             } else if (weight > 100) {
@@ -488,14 +555,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             }
         }
         
-        if (healthFormData.systolic?.trim()) {
-            data.systolic_pressure = parseInt(healthFormData.systolic);
-        }
-        if (healthFormData.diastolic?.trim()) {
-            data.diastolic_pressure = parseInt(healthFormData.diastolic);
-        }
+        if (healthFormData.systolic?.trim()) data.systolic_pressure = parseInt(healthFormData.systolic);
+        if (healthFormData.diastolic?.trim()) data.diastolic_pressure = parseInt(healthFormData.diastolic);
         
-        // تحذير لضغط الدم
         if (data.systolic_pressure && data.diastolic_pressure) {
             if (data.systolic_pressure > 140 || data.diastolic_pressure > 90) {
                 warnings.push(isArabic ? '⚠️ ضغط دم مرتفع. يوصى بمتابعة الطبيب' : '⚠️ High blood pressure. Medical follow-up recommended');
@@ -521,10 +583,8 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             
             if (hr > 100) {
                 warnings.push(isArabic ? `⚠️ نبض مرتفع (${hr} BPM). هل أنت متوتر أو مارست رياضة؟` : `⚠️ High heart rate (${hr} BPM). Are you stressed or exercised?`);
-            } else if (hr < 60 && hr >= 50) {
+            } else if (hr < 60 && hr > 0) {
                 warnings.push(isArabic ? `ℹ️ نبض منخفض (${hr} BPM). إذا لم تكن رياضياً، استشر طبيبك` : `ℹ️ Low heart rate (${hr} BPM). If you're not an athlete, consult your doctor`);
-            } else if (hr < 50 && hr > 0) {
-                warnings.push(isArabic ? `⚠️ نبض منخفض جداً (${hr} BPM). يوصى باستشارة طبيب` : `⚠️ Very low heart rate (${hr} BPM). Medical consultation recommended`);
             }
         }
         
@@ -549,7 +609,6 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         try {
             await axiosInstance.post('/health_status/', data);
             
-            // عرض التحذيرات إذا وجدت
             if (warnings.length > 0) {
                 warnings.forEach(warning => showMessage(warning, 'warning'));
             } else {
@@ -560,11 +619,10 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             onDataSubmitted?.();
             refreshData();
             
-            // تحديث الوزن المخبأ إذا تم تحديثه
             if (data.weight_kg) {
                 localStorage.setItem('user_weight', data.weight_kg.toString());
                 localStorage.setItem('user_data_timestamp', Date.now().toString());
-                fetchUserWeight(); // إعادة جلب البيانات المحدثة
+                fetchUserWeight();
             }
             
         } catch (err) {
@@ -588,8 +646,9 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     useEffect(() => {
         fetchUserWeight();
         fetchActivities();
-        fetchAnalytics();
-    }, [fetchUserWeight]);
+        fetchActivityAnalytics();
+        fetchHealthAnalytics(); // جلب التحليلات الذكية عند تحميل المكون
+    }, [fetchUserWeight, fetchHealthAnalytics]);
     
     const calculateCalories = useCallback((activityType, durationMinutes, weight) => {
         if (!activityType || !durationMinutes || !weight) return 0;
@@ -621,25 +680,26 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
         setShowCaloriesEdit(true);
     };
     
-    const fetchAnalytics = useCallback(async () => {
+    const fetchActivityAnalytics = useCallback(async () => {
         if (analyticsFetchedRef.current) return;
         analyticsFetchedRef.current = true;
-        setAnalyticsLoading(true);
+        setActivityAnalyticsLoading(true);
         try {
             const response = await axiosInstance.get('/analytics/activity-insights/').catch(() => null);
             if (response?.data && isMountedRef.current) {
-                setAnalytics(response.data);
+                setActivityAnalytics(response.data);
             } else if (isMountedRef.current) {
                 const totalCalories = activities.reduce((sum, act) => sum + (act.calories_burned || 0), 0);
-                setAnalytics({
+                setActivityAnalytics({
                     total_activities: activities.length,
                     total_calories: totalCalories,
                     total_duration: activities.reduce((sum, act) => sum + (act.duration_minutes || 0), 0),
                     avg_duration: activities.length ? Math.round(activities.reduce((sum, act) => sum + (act.duration_minutes || 0), 0) / activities.length) : 0,
-                    avg_calories_per_activity: activities.length ? Math.round(totalCalories / activities.length) : 0                });
+                    avg_calories_per_activity: activities.length ? Math.round(totalCalories / activities.length) : 0
+                });
             }
         } catch (err) { console.error(err); }
-        finally { if (isMountedRef.current) setAnalyticsLoading(false); }
+        finally { if (isMountedRef.current) setActivityAnalyticsLoading(false); }
     }, [activities]);
     
     const fetchActivities = useCallback(async () => {
@@ -653,7 +713,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             setActivities(sortedData);
             
             const totalCalories = sortedData.reduce((sum, act) => sum + (act.calories_burned || 0), 0);
-            setAnalytics(prev => ({
+            setActivityAnalytics(prev => ({
                 ...prev,
                 total_activities: sortedData.length,
                 total_calories: totalCalories,
@@ -676,7 +736,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 calories_burned: parseInt(activityFormData.calories_burned) || 0
             });
             await fetchActivities();
-            await fetchAnalytics();
+            await fetchActivityAnalytics();
             onDataSubmitted?.();
             onActivityChange?.();
             refreshData();
@@ -684,7 +744,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             setShowCaloriesEdit(false);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
-    }, [activityFormData, onDataSubmitted, onActivityChange, fetchActivities, fetchAnalytics, refreshData]);
+    }, [activityFormData, onDataSubmitted, onActivityChange, fetchActivities, fetchActivityAnalytics, refreshData]);
     
     // ==================== دوال التنسيق ====================
     const formatDateTime = useCallback((dateString) => {
@@ -760,6 +820,118 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     return (
         <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
             
+            {/* ✅ قسم التحليلات الذكية الجديد */}
+            <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: '24px', padding: '1.5rem', marginBottom: '24px', color: 'white' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+                    <div>
+                        <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span>🧠</span> {isArabic ? 'تحليلات صحية ذكية' : 'Smart Health Analytics'}
+                        </h2>
+                        <p style={{ margin: '0.5rem 0 0', opacity: 0.9, fontSize: '0.85rem' }}>
+                            {isArabic ? 'مدعوم بالذكاء الاصطناعي - تحليل عميق لبياناتك الصحية' : 'AI-powered - Deep analysis of your health data'}
+                        </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button 
+                            onClick={() => setShowAdvancedAnalytics(!showAdvancedAnalytics)}
+                            style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer' }}
+                        >
+                            {showAdvancedAnalytics ? '📋 إخفاء' : '📊 عرض التفاصيل'}
+                        </button>
+                        <button 
+                            onClick={refreshAnalytics} 
+                            disabled={analyticsLoading}
+                            style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer' }}
+                        >
+                            {analyticsLoading ? '⏳' : '🔄'} {isArabic ? 'تحديث' : 'Refresh'}
+                        </button>
+                    </div>
+                </div>
+                
+                {/* الملخص السريع */}
+                {healthAnalytics?.personalized_summary && (
+                    <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '16px', padding: '1rem', marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <span>📋</span>
+                            <strong>{healthAnalytics.personalized_summary.title}</strong>
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                            {healthAnalytics.personalized_summary.bullet_points?.slice(0, 3).map((point, idx) => (
+                                <li key={idx} style={{ marginBottom: '0.25rem', fontSize: '0.85rem' }}>{point}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                
+                {/* التنبؤ بالوزن */}
+                {weightPrediction && weightPrediction.status === 'success' && (
+                    <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '16px', padding: '1rem', marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <span>📈</span>
+                            <strong>{isArabic ? 'التنبؤ بالوزن' : 'Weight Prediction'}</strong>
+                            <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>({isArabic ? 'دقة' : 'accuracy'}: {weightPrediction.confidence || 75}%)</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.9rem' }}>
+                            <span>{isArabic ? 'الوزن الحالي' : 'Current'}: <strong>{weightPrediction.current_weight}</strong> kg</span>
+                            <span>→</span>
+                            <span>{isArabic ? 'متوقع بعد أسبوعين' : 'Predicted in 2 weeks'}: <strong>{weightPrediction.predicted_weight_2weeks}</strong> kg</span>
+                            <span style={{ color: weightPrediction.expected_change > 0 ? '#fbbf24' : '#34d399' }}>
+                                ({weightPrediction.expected_change > 0 ? '+' : ''}{weightPrediction.expected_change} kg)
+                            </span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', marginTop: '0.5rem', opacity: 0.9 }}>
+                            💡 {weightPrediction.recommendation}
+                        </div>
+                    </div>
+                )}
+                
+                {/* التنبيهات */}
+                {vitalAlerts.length > 0 && (
+                    <div style={{ background: 'rgba(239, 68, 68, 0.2)', borderRadius: '16px', padding: '1rem', marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <span>⚠️</span>
+                            <strong>{isArabic ? 'تنبيهات صحية' : 'Health Alerts'}</strong>
+                        </div>
+                        {vitalAlerts.slice(0, 2).map((alert, idx) => (
+                            <div key={idx} style={{ fontSize: '0.8rem', marginBottom: '0.25rem', padding: '0.25rem 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                {alert.icon} {alert.message}
+                            </div>
+                        ))}
+                    </div>
+                )}
+                
+                {/* التوصيات الشخصية - قسم موسع */}
+                {showAdvancedAnalytics && personalizedRecommendations.length > 0 && (
+                    <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '16px', padding: '1rem', marginTop: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                            <span>💡</span>
+                            <strong>{isArabic ? 'توصيات مخصصة لك' : 'Personalized Recommendations'}</strong>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.75rem' }}>
+                            {personalizedRecommendations.map((rec, idx) => (
+                                <div key={idx} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '0.75rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                        <span>{rec.icon || '💪'}</span>
+                                        <strong style={{ fontSize: '0.85rem' }}>{rec.title}</strong>
+                                    </div>
+                                    <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.9 }}>{rec.advice}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                {/* معلومات الملف الشخصي */}
+                {showAdvancedAnalytics && userProfile && (
+                    <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '16px', padding: '0.75rem 1rem', marginTop: '0.5rem', fontSize: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                        {userProfile.age && <span>🎂 {isArabic ? 'العمر' : 'Age'}: {userProfile.age}</span>}
+                        {userProfile.gender && <span>👤 {isArabic ? 'الجنس' : 'Gender'}: {userProfile.gender}</span>}
+                        {userProfile.height_cm && <span>📏 {isArabic ? 'الطول' : 'Height'}: {userProfile.height_cm} cm</span>}
+                        {userProfile.health_goal && <span>🎯 {isArabic ? 'الهدف' : 'Goal'}: {userProfile.health_goal}</span>}
+                    </div>
+                )}
+            </div>
+            
             {/* ==================== القسم 1: القياسات الصحية ==================== */}
             <div style={{ background: 'var(--card-bg)', borderRadius: '24px', padding: '1.5rem', border: '1px solid var(--border-light)', marginBottom: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid var(--border-light)' }}>
@@ -780,7 +952,7 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                 </div>
                 
                 {/* عرض السعرات الموصى بها */}
-                {recommendedCalories && (
+                {recommendedCalories && typeof recommendedCalories === 'object' && (
                     <div style={{ background: 'linear-gradient(135deg, #10b98120, #05966920)', borderRadius: '16px', padding: '0.75rem 1rem', marginBottom: '1rem', border: '1px solid #10b98140' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                             <span>🔥</span>
@@ -952,13 +1124,13 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
                         <>
                             <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
                                 <h4>📊 {isArabic ? 'تحليل الأنشطة' : 'Activity Analytics'}</h4>
-                                {analyticsLoading ? <p>{isArabic ? 'جاري التحليل...' : 'Loading...'}</p> : analytics ? (
+                                {activityAnalyticsLoading ? <p>{isArabic ? 'جاري التحليل...' : 'Loading...'}</p> : activityAnalytics ? (
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '15px', textAlign: 'center' }}>
-                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_activities || 0}</div><div>{isArabic ? 'عدد الأنشطة' : 'Activities'}</div></div>
-                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_calories || 0}</div><div>{isArabic ? 'سعرات حرارية' : 'Calories'}</div></div>
-                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.total_duration || 0}</div><div>{isArabic ? 'دقائق' : 'Minutes'}</div></div>
-                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.avg_duration || 0}</div><div>{isArabic ? 'متوسط المدة' : 'Avg Duration'}</div></div>
-                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{analytics.avg_calories_per_activity || 0}</div><div>{isArabic ? 'سعرات/نشاط' : 'Cal/Activity'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{activityAnalytics.total_activities || 0}</div><div>{isArabic ? 'عدد الأنشطة' : 'Activities'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{activityAnalytics.total_calories || 0}</div><div>{isArabic ? 'سعرات حرارية' : 'Calories'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{activityAnalytics.total_duration || 0}</div><div>{isArabic ? 'دقائق' : 'Minutes'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{activityAnalytics.avg_duration || 0}</div><div>{isArabic ? 'متوسط المدة' : 'Avg Duration'}</div></div>
+                                        <div><div style={{ fontSize: '28px', fontWeight: 'bold' }}>{activityAnalytics.avg_calories_per_activity || 0}</div><div>{isArabic ? 'سعرات/نشاط' : 'Cal/Activity'}</div></div>
                                     </div>
                                 ) : <p>{isArabic ? 'لا توجد بيانات كافية' : 'Insufficient data'}</p>}
                             </div>
@@ -1046,13 +1218,32 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
             
             {/* رسالة الإشعار */}
             {message && (
-                <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', padding: '0.75rem 1.25rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.75rem', zIndex: 1000, background: messageType === 'success' ? '#10b981' : messageType === 'error' ? '#ef4444' : '#3b82f6', color: 'white' }}>
-                    <span>{messageType === 'success' && '✅'}{messageType === 'error' && '❌'}{messageType === 'info' && 'ℹ️'}</span>
+                <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', padding: '0.75rem 1.25rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.75rem', zIndex: 1000, background: messageType === 'success' ? '#10b981' : messageType === 'error' ? '#ef4444' : messageType === 'warning' ? '#f59e0b' : '#3b82f6', color: 'white', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+                    <span>{messageType === 'success' && '✅'}{messageType === 'error' && '❌'}{messageType === 'warning' && '⚠️'}{messageType === 'info' && 'ℹ️'}</span>
                     <span>{message}</span>
                     <button onClick={() => { setMessage(''); setMessageType(''); }} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>✕</button>
                 </div>
             )}
-             <style jsx>{`
+            
+            <style jsx>{`
+                .activity-form-container {
+                    padding: 1.5rem;
+                    max-width: 1200px;
+                    margin: 0 auto;
+                }
+                .dark-mode .card {
+                    background: #1e293b;
+                    border-color: #334155;
+                }
+                @keyframes slideIn {
+                    from { opacity: 0; transform: translateX(100%); }
+                    to { opacity: 1; transform: translateX(0); }
+                }
+                [dir="rtl"] @keyframes slideIn {
+                    from { opacity: 0; transform: translateX(-100%); }
+                    to { opacity: 1; transform: translateX(0); }
+                }
+  
 /* ===========================================
    ActivityForm.css - الأنماط الداخلية فقط
    ✅ نموذج الأنشطة والقياسات الصحية
