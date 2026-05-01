@@ -98,63 +98,116 @@ const ActivityForm = ({ onDataSubmitted, onActivityChange, isArabic }) => {
     }, []);
     
     // ✅ دالة جلب التحليلات الصحية من الـ API الجديد
-    const fetchHealthAnalytics = useCallback(async () => {
-        setAnalyticsLoading(true);
-        try {
-            const response = await axiosInstance.get('/health/analysis/api/?lang=' + (isArabic ? 'ar' : 'en'));
+// src/components/ActivityForm.jsx - التعديلات المطلوبة
+
+// ✅ دالة جلب التحليلات الصحية من الـ API الجديد (تم التعديل)
+const fetchHealthAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true);
+    try {
+        // ✅ تغيير المسار من القديم إلى الجديد
+        const response = await axiosInstance.get('/analytics/comprehensive/api/?lang=' + (isArabic ? 'ar' : 'en'));
+        
+        if (response.data?.success && response.data?.data) {
+            const data = response.data.data;
             
-            if (response.data?.success && response.data?.data) {
-                const data = response.data.data;
+            // تحديث جميع حالات التحليلات
+            setHealthAnalytics(data);
+            
+            // ✅ استخراج التنبؤ بالوزن من الموقع الجديد
+            if (data.predictions?.weight) {
+                setWeightPrediction({
+                    status: 'success',
+                    current_weight: data.predictions.weight.current,
+                    predicted_weight_2weeks: data.predictions.weight.predictions?.[6] || data.predictions.weight.current,
+                    expected_change: (data.predictions.weight.predictions?.[6] || data.predictions.weight.current) - data.predictions.weight.current,
+                    confidence: data.predictions.weight.confidence || 75,
+                    recommendation: data.personalized_recommendations?.[0]?.advice || ''
+                });
+            } else {
+                setWeightPrediction(null);
+            }
+            
+            // ✅ استخراج التنبيهات من العلامات الحيوية
+            if (data.vital_signs && data.vital_signs.alerts) {
+                setVitalAlerts(data.vital_signs.alerts);
+            } else {
+                setVitalAlerts([]);
+            }
+            
+            // ✅ استخراج التوصيات الشخصية
+            if (data.personalized_recommendations && data.personalized_recommendations.length > 0) {
+                setPersonalizedRecommendations(data.personalized_recommendations);
+            } else {
+                setPersonalizedRecommendations([]);
+            }
+            
+            // ✅ استخراج معلومات الملف الشخصي
+            if (data.profile) {
+                setUserProfile({
+                    age: data.profile.age,
+                    gender: data.profile.gender,
+                    height_cm: data.profile.height_cm,
+                    health_goal: data.profile.health_goal,
+                    weight: data.weight_bmi?.current_weight
+                });
                 
-                // تحديث جميع حالات التحليلات
-                setHealthAnalytics(data);
-                
-                // استخراج التنبؤ بالوزن
-                if (data.weight_prediction && data.weight_prediction.status === 'success') {
-                    setWeightPrediction(data.weight_prediction);
-                } else {
-                    setWeightPrediction(null);
-                }
-                
-                // استخراج التنبيهات من العلامات الحيوية
-                if (data.vital_signs_analysis && data.vital_signs_analysis.alerts) {
-                    setVitalAlerts(data.vital_signs_analysis.alerts);
-                } else {
-                    setVitalAlerts([]);
-                }
-                
-                // استخراج التوصيات الشخصية
-                if (data.user_profile_analysis && data.user_profile_analysis.personalized_recommendations) {
-                    setPersonalizedRecommendations(data.user_profile_analysis.personalized_recommendations);
-                } else {
-                    setPersonalizedRecommendations([]);
-                }
-                
-                // استخراج معلومات الملف الشخصي
-                if (data.user_profile_analysis && data.user_profile_analysis.basic_info) {
-                    setUserProfile(data.user_profile_analysis.basic_info);
-                    
-                    // تحديث الوزن من التحليلات إذا كان متاحاً
-                    if (data.user_profile_analysis.basic_info.weight) {
-                        setUserWeight(data.user_profile_analysis.basic_info.weight);
-                    }
-                }
-                
-                // عرض ملخص ذكي كرسالة
-                if (data.personalized_summary && data.personalized_summary.bullet_points) {
-                    const firstTip = data.personalized_summary.bullet_points[0];
-                    if (firstTip) {
-                        showMessage(firstTip, 'info');
-                    }
+                // تحديث الوزن من التحليلات إذا كان متاحاً
+                if (data.weight_bmi?.current_weight) {
+                    setUserWeight(data.weight_bmi.current_weight);
                 }
             }
-        } catch (error) {
-            console.error('Error fetching health analytics:', error);
-            // لا نعرض رسالة خطأ للمستخدم حتى لا نزعجه
-        } finally {
-            setAnalyticsLoading(false);
+            
+            // عرض ملخص ذكي كرسالة
+            if (data.executive_summary) {
+                // عرض أول سطر من الملخص كرسالة
+                const firstLine = data.executive_summary.split('\n')[1];
+                if (firstLine) {
+                    showMessage(firstLine, 'info');
+                }
+            }
         }
-    }, [isArabic, showMessage]);
+    } catch (error) {
+        console.error('Error fetching health analytics:', error);
+        // لا نعرض رسالة خطأ للمستخدم حتى لا نزعجه
+    } finally {
+        setAnalyticsLoading(false);
+    }
+}, [isArabic, showMessage]);
+
+// ✅ دالة تحديث التحليلات يدوياً (تم التعديل)
+const refreshAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true);
+    try {
+        // ✅ تغيير المسار من القديم إلى الجديد
+        const response = await axiosInstance.get('/analytics/refresh/?lang=' + (isArabic ? 'ar' : 'en'));
+        
+        if (response.data?.success && response.data?.data) {
+            const data = response.data.data;
+            setHealthAnalytics(data);
+            
+            if (data.predictions?.weight) {
+                setWeightPrediction({
+                    status: 'success',
+                    current_weight: data.predictions.weight.current,
+                    predicted_weight_2weeks: data.predictions.weight.predictions?.[6] || data.predictions.weight.current,
+                    expected_change: (data.predictions.weight.predictions?.[6] || data.predictions.weight.current) - data.predictions.weight.current,
+                    confidence: data.predictions.weight.confidence || 75
+                });
+            }
+            
+            if (data.vital_signs && data.vital_signs.alerts) {
+                setVitalAlerts(data.vital_signs.alerts);
+            }
+            
+            showMessage(isArabic ? '✅ تم تحديث التحليلات الذكية' : '✅ Smart analytics updated', 'success');
+        }
+    } catch (error) {
+        console.error('Error refreshing analytics:', error);
+        showMessage(isArabic ? '❌ فشل تحديث التحليلات' : '❌ Failed to refresh analytics', 'error');
+    } finally {
+        setAnalyticsLoading(false);
+    }
+}, [isArabic, showMessage]);
     
     // ✅ دالة تحديث التحليلات يدوياً
     const refreshAnalytics = useCallback(async () => {
