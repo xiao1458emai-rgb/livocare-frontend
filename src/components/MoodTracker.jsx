@@ -126,29 +126,47 @@ const getActivitySuggestion = (mood, isArabic) => {
     };
 };
 
-// ✅ كشف خطر الاكتئاب
-const detectDepressionRisk = (moodData, isArabic) => {
+// ✅ كشف خطر الاكتئاب (محسن باستخدام API)
+const detectDepressionRisk = (moodData, isArabic, sentimentInsights = null) => {
     if (moodData.length < 5) return null;
     
+    // ✅ استخدام رؤى API إذا كانت متوفرة
+    if (sentimentInsights && sentimentInsights.has_data && sentimentInsights.overall_sentiment) {
+        const overall = sentimentInsights.overall_sentiment;
+        const trend = sentimentInsights.trend_analysis;
+        
+        if (overall.negative > overall.positive * 2 && overall.total >= 10) {
+            return {
+                risk: 'critical',
+                level: 'danger',
+                message: isArabic ? '⚠️ حالة حرجة - انخفاض مستمر في المزاج' : '⚠️ Critical - Continuous mood decline',
+                suggestion: isArabic ? 'نوصي بالتواصل مع مختص نفسي للحصول على الدعم المناسب' : 'We recommend consulting a mental health professional',
+                action: 'consult',
+                sentiment_data: true
+            };
+        }
+        
+        if (trend && trend.trend === 'declining' && trend.recent_positive_rate < 30) {
+            return {
+                risk: 'high',
+                level: 'warning',
+                message: isArabic ? '⚠️ خطر مرتفع - مزاج متدنٍ مستمر' : '⚠️ High risk - Persistent low mood',
+                suggestion: isArabic ? 'تحدث مع شخص تثق به أو مارس أنشطة تحبها' : 'Talk to someone you trust or do activities you enjoy',
+                action: 'talk',
+                sentiment_data: true
+            };
+        }
+    }
+    
+    // ✅ Fallback للحسابات المحلية
     const badMoods = ['Stressed', 'Anxious', 'Sad'];
     let consecutiveBadDays = 0;
     let lastBadMood = null;
-    let trends = [];
     
     const sortedData = [...moodData].sort((a, b) => 
         new Date(a.entry_time) - new Date(b.entry_time)
     );
     
-    // تحليل الاتجاه العام
-    for (let i = 0; i < sortedData.length; i++) {
-        if (badMoods.includes(sortedData[i].mood)) {
-            trends.push('bad');
-        } else {
-            trends.push('good');
-        }
-    }
-    
-    // حساب الأيام المتتالية السيئة
     for (let i = sortedData.length - 1; i >= 0; i--) {
         if (badMoods.includes(sortedData[i].mood)) {
             consecutiveBadDays++;
@@ -158,7 +176,6 @@ const detectDepressionRisk = (moodData, isArabic) => {
         }
     }
     
-    // حساب النسبة المئوية للأيام السيئة في آخر 7 أيام
     const last7Days = sortedData.slice(-7);
     const badDaysInLast7 = last7Days.filter(day => badMoods.includes(day.mood)).length;
     const badPercentage = (badDaysInLast7 / last7Days.length) * 100;
@@ -265,6 +282,13 @@ function MoodTracker({ isAuthReady }) {
         text_entry: ''
     });
     const [reducedMotion, setReducedMotion] = useState(false);
+    
+    // ✅ حالات جديدة لتحليل المشاعر من API
+    const [sentimentInsights, setSentimentInsights] = useState(null);
+    const [loadingInsights, setLoadingInsights] = useState(false);
+    const [analyzingText, setAnalyzingText] = useState(false);
+    const [currentAnalysis, setCurrentAnalysis] = useState(null);
+    const [showAnalysis, setShowAnalysis] = useState(false);
 
     // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
@@ -293,6 +317,68 @@ function MoodTracker({ isAuthReady }) {
         
         return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
     }, []);
+
+    // ✅ جلب رؤى المشاعر من API الجديد
+    const fetchSentimentInsights = useCallback(async () => {
+        if (!isAuthReady || moodData.length < 5) return;
+        
+        setLoadingInsights(true);
+        try {
+            const response = await axiosInstance.get('/sentiment/mood-insights/?lang=' + (isArabic ? 'ar' : 'en'));
+            
+            if (response.data?.success && response.data?.data) {
+                setSentimentInsights(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching sentiment insights:', error);
+        } finally {
+            setLoadingInsights(false);
+        }
+    }, [isAuthReady, moodData.length, isArabic]);
+
+    // ✅ تحليل نص معين باستخدام API
+    const analyzeTextSentiment = useCallback(async (text) => {
+        if (!text || text.trim().length < 3) return null;
+        
+        setAnalyzingText(true);
+        try {
+            const response = await axiosInstance.post('/sentiment/analyze/', {
+                text: text,
+                advanced: true
+            }, {
+                params: { lang: isArabic ? 'ar' : 'en' }
+            });
+            
+            if (response.data?.success && response.data?.data) {
+                return response.data.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error analyzing text:', error);
+            return null;
+        } finally {
+            setAnalyzingText(false);
+        }
+    }, [isArabic]);
+
+    // ✅ تحليل سريع باستخدام GET
+    const quickAnalyze = useCallback(async (text) => {
+        if (!text || text.trim().length < 3) return null;
+        
+        try {
+            const response = await axiosInstance.get('/sentiment/quick/', {
+                params: { text: text, lang: isArabic ? 'ar' : 'en' }
+            });
+            
+            if (response.data?.success && response.data?.data) {
+                return response.data.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error in quick analyze:', error);
+            return null;
+        }
+    }, [isArabic]);
 
     // ✅ جلب بيانات المزاج
     const fetchMoodData = useCallback(async () => {
@@ -336,6 +422,11 @@ function MoodTracker({ isAuthReady }) {
             );
             setTodayMood(todayEntry || null);
             
+            // ✅ جلب رؤى المشاعر بعد تحديث البيانات
+            if (moodDataArray.length >= 5) {
+                setTimeout(() => fetchSentimentInsights(), 500);
+            }
+            
         } catch (error) {
             console.error('Error fetching mood data:', error);
             if (isMountedRef.current) {
@@ -347,10 +438,16 @@ function MoodTracker({ isAuthReady }) {
             }
             isFetchingRef.current = false;
         }
-    }, [isAuthReady, isArabic]);
+    }, [isAuthReady, isArabic, fetchSentimentInsights]);
 
     useEffect(() => {
         fetchMoodData();
+    }, [fetchMoodData]);
+
+    // ✅ تحديث البيانات بعد إضافة/حذف
+    const refreshMoodData = useCallback(() => {
+        fetchMoodData();
+        setRefreshAnalytics(prev => prev + 1);
     }, [fetchMoodData]);
 
     // ✅ التحديث التلقائي
@@ -424,16 +521,34 @@ function MoodTracker({ isAuthReady }) {
         };
     }, [moodData]);
 
-    // ✅ كشف خطر الاكتئاب
+    // ✅ كشف خطر الاكتئاب (باستخدام API إذا أمكن)
     const depressionRisk = useMemo(() => {
-        return detectDepressionRisk(moodData, isArabic);
-    }, [moodData, isArabic]);
+        return detectDepressionRisk(moodData, isArabic, sentimentInsights);
+    }, [moodData, isArabic, sentimentInsights]);
+
+    // ✅ تحليل النص عند إضافة ملاحظات
+    const handleTextBlur = useCallback(async () => {
+        if (newMood.text_entry && newMood.text_entry.trim().length >= 3) {
+            const analysis = await quickAnalyze(newMood.text_entry);
+            if (analysis) {
+                setCurrentAnalysis(analysis);
+                setShowAnalysis(true);
+                setTimeout(() => setShowAnalysis(false), 5000);
+            }
+        }
+    }, [newMood.text_entry, quickAnalyze]);
 
     // ✅ إضافة مزاج جديد
     const handleAddMood = useCallback(async (e) => {
         e.preventDefault();
         
         if (isSubmittingRef.current || !isMountedRef.current) return;
+        
+        // ✅ تحليل النص قبل الإضافة إذا كان موجوداً
+        let sentimentResult = null;
+        if (newMood.text_entry && newMood.text_entry.trim().length >= 3) {
+            sentimentResult = await analyzeTextSentiment(newMood.text_entry);
+        }
         
         isSubmittingRef.current = true;
         setLoading(true);
@@ -446,8 +561,9 @@ function MoodTracker({ isAuthReady }) {
                 setTodayMood(response.data);
                 setShowForm(false);
                 setNewMood({ mood: 'Good', factors: '', text_entry: '' });
-                setRefreshAnalytics(prev => prev + 1);
-                setTimeout(() => fetchMoodData(), 1000);
+                setCurrentAnalysis(null);
+                setShowAnalysis(false);
+                refreshMoodData();
             }
         } catch (error) {
             console.error('Error adding mood:', error);
@@ -463,7 +579,7 @@ function MoodTracker({ isAuthReady }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [newMood, isArabic, fetchMoodData]);
+    }, [newMood, isArabic, analyzeTextSentiment, refreshMoodData]);
 
     // ✅ حذف سجل مزاج
     const handleDeleteMood = useCallback(async (id) => {
@@ -479,8 +595,7 @@ function MoodTracker({ isAuthReady }) {
                     setTodayMood(null);
                 }
                 
-                setRefreshAnalytics(prev => prev + 1);
-                fetchMoodData();
+                refreshMoodData();
             }
         } catch (error) {
             console.error('Error deleting mood:', error);
@@ -491,7 +606,7 @@ function MoodTracker({ isAuthReady }) {
                 }, 3000);
             }
         }
-    }, [isArabic, todayMood, fetchMoodData]);
+    }, [isArabic, todayMood, refreshMoodData]);
 
     // ✅ حالة التحميل
     if (loading && moodData.length === 0) {
@@ -521,6 +636,11 @@ function MoodTracker({ isAuthReady }) {
                         {moodStats.averageScore > 0 && (
                             <div className={`stat-badge ${moodStats.averageScore >= 70 ? 'positive' : moodStats.averageScore >= 50 ? 'neutral' : 'negative'}`}>
                                 😊 {moodStats.averageScore}% {isArabic ? 'إيجابية' : 'positive'}
+                            </div>
+                        )}
+                        {sentimentInsights && sentimentInsights.has_data && (
+                            <div className="stat-badge insight">
+                                🧠 {isArabic ? 'تحليل ذكي متاح' : 'AI analysis available'}
                             </div>
                         )}
                     </div>
@@ -569,6 +689,11 @@ function MoodTracker({ isAuthReady }) {
                                 {depressionRisk.percentage && (
                                     <span> • 📊 {depressionRisk.percentage}% {isArabic ? 'معدل انخفاض' : 'decline rate'}</span>
                                 )}
+                            </div>
+                        )}
+                        {depressionRisk.sentiment_data && (
+                            <div className="alert-stats ai-badge">
+                                🤖 {isArabic ? 'تحليل مدعوم بالذكاء الاصطناعي' : 'AI-powered analysis'}
                             </div>
                         )}
                     </div>
@@ -674,10 +799,27 @@ function MoodTracker({ isAuthReady }) {
                             <textarea 
                                 value={newMood.text_entry}
                                 onChange={(e) => setNewMood({...newMood, text_entry: e.target.value})}
+                                onBlur={handleTextBlur}
                                 placeholder={isArabic ? 'أضف أي تفاصيل إضافية عن حالتك المزاجية...' : 'Add any additional details about your mood...'}
                                 className="form-textarea"
                                 rows="3"
                             />
+                            {analyzingText && (
+                                <div className="analyzing-indicator">
+                                    <span className="spinner-small"></span> {isArabic ? 'جاري تحليل المشاعر...' : 'Analyzing sentiment...'}
+                                </div>
+                            )}
+                            {showAnalysis && currentAnalysis && (
+                                <div className="sentiment-analysis-result">
+                                    <span className="analysis-icon">🧠</span>
+                                    <span className="analysis-text">
+                                        {isArabic ? 'التحليل:' : 'Analysis:'} {currentAnalysis.sentiment_text}
+                                        {currentAnalysis.intensity && (
+                                            <span className="analysis-intensity"> ({currentAnalysis.intensity})</span>
+                                        )}
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="form-actions">
@@ -716,6 +858,48 @@ function MoodTracker({ isAuthReady }) {
                         <p className="insight-message">{sleepMoodCorrelation.message}</p>
                         <div className="insight-details">{sleepMoodCorrelation.details}</div>
                         <div className="insight-suggestion">💡 {sleepMoodCorrelation.suggestion}</div>
+                    </div>
+                </div>
+            )}
+
+            {/* ✅ رؤى المشاعر من API */}
+            {sentimentInsights && sentimentInsights.has_data && (
+                <div className="insight-card api-insights">
+                    <div className="insight-header">
+                        <span className="insight-icon">🤖</span>
+                        <h3>{isArabic ? 'تحليلات متقدمة بالذكاء الاصطناعي' : 'AI-Powered Advanced Insights'}</h3>
+                    </div>
+                    <div className="insight-body">
+                        {sentimentInsights.overall_sentiment && (
+                            <div className="insight-item">
+                                <span className="insight-label">{isArabic ? 'المشاعر العامة' : 'Overall Sentiment'}:</span>
+                                <span className={`insight-value ${sentimentInsights.overall_sentiment.overall === 'Positive' ? 'positive' : sentimentInsights.overall_sentiment.overall === 'Negative' ? 'negative' : 'neutral'}`}>
+                                    {sentimentInsights.overall_sentiment.overall}
+                                </span>
+                                <span className="insight-detail">
+                                    ({sentimentInsights.overall_sentiment.positive_rate}% {isArabic ? 'إيجابي' : 'positive'})
+                                </span>
+                            </div>
+                        )}
+                        {sentimentInsights.trend_analysis && sentimentInsights.trend_analysis.trend !== 'insufficient_data' && (
+                            <div className="insight-item">
+                                <span className="insight-label">{isArabic ? 'الاتجاه' : 'Trend'}:</span>
+                                <span className={`insight-value trend-${sentimentInsights.trend_analysis.trend}`}>
+                                    {sentimentInsights.trend_analysis.trend === 'improving' ? (isArabic ? '📈 تحسن' : '📈 Improving') : 
+                                     sentimentInsights.trend_analysis.trend === 'declining' ? (isArabic ? '📉 تراجع' : '📉 Declining') : 
+                                     (isArabic ? '➡️ مستقر' : '➡️ Stable')}
+                                </span>
+                                <span className="insight-detail">
+                                    {sentimentInsights.trend_analysis.message}
+                                </span>
+                            </div>
+                        )}
+                        {sentimentInsights.most_common_mood && (
+                            <div className="insight-item">
+                                <span className="insight-label">{isArabic ? 'المزاج الأكثر تكراراً' : 'Most Common Mood'}:</span>
+                                <span className="insight-value">{sentimentInsights.most_common_mood}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
