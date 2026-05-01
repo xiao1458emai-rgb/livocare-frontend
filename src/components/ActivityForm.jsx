@@ -209,33 +209,6 @@ const refreshAnalytics = useCallback(async () => {
     }
 }, [isArabic, showMessage]);
     
-    // ✅ دالة تحديث التحليلات يدوياً
-    const refreshAnalytics = useCallback(async () => {
-        setAnalyticsLoading(true);
-        try {
-            const response = await axiosInstance.get('/health/analysis/refresh/?lang=' + (isArabic ? 'ar' : 'en'));
-            
-            if (response.data?.success && response.data?.data) {
-                const data = response.data.data;
-                setHealthAnalytics(data);
-                
-                if (data.weight_prediction && data.weight_prediction.status === 'success') {
-                    setWeightPrediction(data.weight_prediction);
-                }
-                
-                if (data.vital_signs_analysis && data.vital_signs_analysis.alerts) {
-                    setVitalAlerts(data.vital_signs_analysis.alerts);
-                }
-                
-                showMessage(isArabic ? '✅ تم تحديث التحليلات الذكية' : '✅ Smart analytics updated', 'success');
-            }
-        } catch (error) {
-            console.error('Error refreshing analytics:', error);
-            showMessage(isArabic ? '❌ فشل تحديث التحليلات' : '❌ Failed to refresh analytics', 'error');
-        } finally {
-            setAnalyticsLoading(false);
-        }
-    }, [isArabic, showMessage]);
     
     // ✅ دالة جلب الوزن والبيانات الشخصية
     const fetchUserWeight = useCallback(async () => {
