@@ -1,4 +1,4 @@
-// src/components/ProfileManager.jsx - النسخة المعدلة
+// src/components/ProfileManager.jsx - النسخة المعدلة بالكامل
 'use client'
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axiosInstance from '../services/api';
@@ -26,7 +26,6 @@ const calculateBMI = (weight, height) => {
     return roundNumber(weight / (heightInMeters * heightInMeters), 1);
 };
 
-// ✅ حساب الوزن المثالي (صيغة روبنسون المعدلة - أكثر دقة)
 const calculateIdealWeight = (height, age, gender) => {
     if (!height) return null;
     const heightInCm = parseFloat(height);
@@ -37,11 +36,9 @@ const calculateIdealWeight = (height, age, gender) => {
     } else if (gender === 'F') {
         idealWeight = 49 + 1.7 * (heightInCm - 152.4);
     } else {
-        // افتراضي
         idealWeight = 50.5 + 1.8 * (heightInCm - 152.4);
     }
     
-    // تعديل حسب العمر (بعد 30 سنة يزيد الوزن المثالي قليلاً)
     if (age && age > 30) {
         const ageFactor = 1 + Math.min(0.15, (age - 30) / 200);
         idealWeight = idealWeight * ageFactor;
@@ -57,7 +54,6 @@ const getBMICategory = (bmi, isArabic) => {
     return { category: isArabic ? 'سمنة' : 'Obese', color: '#ef4444', icon: '🔴', advice: isArabic ? 'يُنصح باستشارة طبيب لوضع خطة صحية' : 'Consult a doctor for a health plan' };
 };
 
-// دالة تغيير اللغة العامة
 const setAppLanguage = (lang, isArabic) => {
     localStorage.setItem('app_lang', lang);
     document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
@@ -76,7 +72,7 @@ function ProfileManager({ isAuthReady }) {
     });
     const isArabic = lang === 'ar';
     
-    // --- حالات المستخدم ---
+    // --- حالات المستخدم (بدون chronic_conditions و current_medications) ---
     const [userData, setUserData] = useState({
         username: '',
         email: '',
@@ -88,18 +84,23 @@ function ProfileManager({ isAuthReady }) {
         height: '',
         occupation_status: '',
         health_goal: '',
-        activity_level: '',
-        chronic_conditions: '',
-        current_medications: ''
+        activity_level: ''
     });
     
-    // ✅ إزالة initial_weight من editable fields - الوزن يُقرأ فقط من health_status
+    // ✅ حالات منفصلة للأمراض المزمنة والأدوية
+    const [chronicConditions, setChronicConditions] = useState([]);
+    const [currentMedications, setCurrentMedications] = useState([]);
+    const [showAddCondition, setShowAddCondition] = useState(false);
+    const [showAddMedication, setShowAddMedication] = useState(false);
+    const [newCondition, setNewCondition] = useState({ name: '', diagnosis_date: '', medications: '' });
+    const [newMedication, setNewMedication] = useState({ name: '', dosage: '', frequency: '', start_date: '' });
+    const [loadingConditions, setLoadingConditions] = useState(false);
     
     // ✅ حالة تغيير اسم المستخدم
     const [isEditingUsername, setIsEditingUsername] = useState(false);
     const [newUsername, setNewUsername] = useState('');
     
-    // ✅ حالة تغيير كلمة المرور مع إظهار/إخفاء
+    // ✅ حالة تغيير كلمة المرور
     const [passwordData, setPasswordData] = useState({
         current_password: '',
         new_password: '',
@@ -122,7 +123,7 @@ function ProfileManager({ isAuthReady }) {
         return saved === 'true';
     });
     
-    // --- بيانات صحية حالية (مقروءة فقط من API) ---
+    // --- بيانات صحية حالية ---
     const [healthData, setHealthData] = useState({
         weight: null,
         sleep: null,
@@ -155,7 +156,7 @@ function ProfileManager({ isAuthReady }) {
     const [reducedMotion, setReducedMotion] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
     
-    // --- حساب العمر من تاريخ الميلاد ---
+    // --- حساب العمر ---
     const calculateAge = useCallback((birthDate) => {
         if (!birthDate) return null;
         const today = new Date();
@@ -170,16 +171,13 @@ function ProfileManager({ isAuthReady }) {
     
     const userAge = useMemo(() => calculateAge(userData.date_of_birth), [userData.date_of_birth, calculateAge]);
     
-    // ✅ الوزن المثالي يعتمد على الطول + الجنس + العمر
     const idealWeight = useMemo(() => {
         if (!userData.height) return null;
         return calculateIdealWeight(userData.height, userAge, userData.gender);
     }, [userData.height, userAge, userData.gender]);
     
-    // ✅ الوزن الحالي من health_status (مقروء فقط)
     const currentWeight = healthData.weight;
     
-    // ✅ حساب الفرق بين الوزن الحالي والمثالي
     const weightDifference = useMemo(() => {
         if (currentWeight && idealWeight) {
             return roundNumber(currentWeight - idealWeight, 1);
@@ -187,7 +185,6 @@ function ProfileManager({ isAuthReady }) {
         return null;
     }, [currentWeight, idealWeight]);
     
-    // ✅ حساب BMI المحسن
     const bmiData = useMemo(() => {
         const weight = currentWeight;
         const height = parseFloat(userData.height);
@@ -197,7 +194,6 @@ function ProfileManager({ isAuthReady }) {
         return { bmi, category, weight, height };
     }, [currentWeight, userData.height, isArabic]);
     
-    // --- Smart Profile المحسن ---
     const smartProfile = useMemo(() => {
         if (!bmiData) return null;
         
@@ -262,20 +258,15 @@ function ProfileManager({ isAuthReady }) {
         };
     }, [bmiData, healthData, userAge, idealWeight, currentWeight, weightDifference, userData.gender, isArabic]);
     
-    // --- التوصيات الذكية بناءً على الملف الشخصي والوزن المثالي ---
     const getPersonalizedRecommendations = useMemo(() => {
         const recommendations = [];
         const occupation = userData.occupation_status;
         const bmi = smartProfile?.bmi;
-        const age = smartProfile?.age;
         const idealWt = smartProfile?.idealWeight;
         const currentWt = smartProfile?.weight;
         const weightDiff = smartProfile?.weightDifference;
         const activityLevel = userData.activity_level;
-        const healthGoal = userData.health_goal;
-        const gender = userData.gender;
         
-        // ✅ توصيات الوزن بناءً على الوزن المثالي
         if (idealWt && currentWt) {
             if (weightDiff > 5) {
                 recommendations.push({ 
@@ -304,7 +295,6 @@ function ProfileManager({ isAuthReady }) {
             }
         }
         
-        // توصيات حسب المهنة
         if (occupation === 'Student') {
             recommendations.push({ icon: '📚', text: isArabic ? 'حاول النوم 7-8 ساعات لتحسين التركيز' : 'Try to sleep 7-8 hours to improve focus', priority: 'high' });
         } else if (occupation === 'Full-Time') {
@@ -313,7 +303,6 @@ function ProfileManager({ isAuthReady }) {
             recommendations.push({ icon: '⏰', text: isArabic ? 'حدد روتيناً ثابتاً للنوم والاستيقاظ' : 'Set a consistent sleep/wake routine', priority: 'high' });
         }
         
-        // توصيات BMI
         if (bmi) {
             if (bmi < 18.5) {
                 recommendations.push({ icon: '🥑', text: isArabic ? 'أضف مصادر صحية للدهون لزيادة الوزن' : 'Add healthy fats for weight gain', priority: 'high' });
@@ -322,18 +311,16 @@ function ProfileManager({ isAuthReady }) {
             }
         }
         
-        // توصيات النشاط
         if (activityLevel === 'low') {
             recommendations.push({ icon: '🚶', text: isArabic ? 'ابدأ بالمشي 10 دقائق يومياً' : 'Start with 10 minutes of walking daily', priority: 'high' });
         }
         
-        // توصيات النوم
         if (healthData.sleep && healthData.sleep < 7) {
             recommendations.push({ icon: '😴', text: isArabic ? `متوسط نومك ${healthData.sleep} ساعات، حاول النوم مبكراً` : `Average sleep ${healthData.sleep} hours, try sleeping earlier`, priority: 'high' });
         }
         
         return recommendations.slice(0, 5);
-    }, [userData.occupation_status, userData.activity_level, userData.health_goal, smartProfile, healthData, isArabic]);
+    }, [userData.occupation_status, userData.activity_level, smartProfile, healthData, isArabic]);
     
     // --- تأثيرات التحميل الأولي ---
     useEffect(() => {
@@ -351,10 +338,131 @@ function ProfileManager({ isAuthReady }) {
             fetchCurrentHealthData();
             loadAchievements();
             loadSavedSettings();
+            fetchChronicConditions();      // ✅ جلب الأمراض المزمنة
+            fetchCurrentMedications();     // ✅ جلب الأدوية الحالية
         }
     }, [isAuthReady, refreshKey]);
     
-    // --- دوال API ---
+    // --- دوال API للأمراض المزمنة والأدوية ---
+    
+    // ✅ جلب الأمراض المزمنة
+    const fetchChronicConditions = useCallback(async () => {
+        setLoadingConditions(true);
+        try {
+            const response = await axiosInstance.get('/user/conditions/');
+            if (response.data?.success) {
+                setChronicConditions(response.data.conditions);
+            }
+        } catch (error) {
+            console.error('Error fetching conditions:', error);
+        } finally {
+            setLoadingConditions(false);
+        }
+    }, []);
+    
+    // ✅ جلب الأدوية الحالية
+    const fetchCurrentMedications = useCallback(async () => {
+        try {
+            const response = await axiosInstance.get('/user/medications/');
+            if (response.data?.success) {
+                setCurrentMedications(response.data.medications);
+            }
+        } catch (error) {
+            console.error('Error fetching medications:', error);
+        }
+    }, []);
+    
+    // ✅ إضافة مرض مزمن جديد
+    const handleAddCondition = async (e) => {
+        e.preventDefault();
+        if (!newCondition.name.trim()) {
+            setMessage(isArabic ? '❌ الرجاء إدخال اسم المرض' : '❌ Please enter condition name');
+            setMessageType('error');
+            return;
+        }
+        
+        setSaving(true);
+        try {
+            await axiosInstance.post('/user/conditions/', newCondition);
+            await fetchChronicConditions();
+            setNewCondition({ name: '', diagnosis_date: '', medications: '' });
+            setShowAddCondition(false);
+            setMessage(isArabic ? '✅ تم إضافة المرض بنجاح' : '✅ Condition added successfully');
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error adding condition:', error);
+            setMessage(isArabic ? '❌ خطأ في إضافة المرض' : '❌ Error adding condition');
+            setMessageType('error');
+        } finally {
+            setSaving(false);
+            setTimeout(() => setMessage(''), 3000);
+        }
+    };
+    
+    // ✅ حذف مرض مزمن
+    const handleDeleteCondition = async (conditionId) => {
+        if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا المرض؟' : 'Are you sure you want to delete this condition?')) return;
+        
+        try {
+            await axiosInstance.delete(`/user/conditions/${conditionId}/delete/`);
+            await fetchChronicConditions();
+            setMessage(isArabic ? '✅ تم حذف المرض بنجاح' : '✅ Condition deleted successfully');
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error deleting condition:', error);
+            setMessage(isArabic ? '❌ خطأ في حذف المرض' : '❌ Error deleting condition');
+            setMessageType('error');
+        } finally {
+            setTimeout(() => setMessage(''), 3000);
+        }
+    };
+    
+    // ✅ إضافة دواء جديد
+    const handleAddMedication = async (e) => {
+        e.preventDefault();
+        if (!newMedication.name.trim()) {
+            setMessage(isArabic ? '❌ الرجاء إدخال اسم الدواء' : '❌ Please enter medication name');
+            setMessageType('error');
+            return;
+        }
+        
+        setSaving(true);
+        try {
+            await axiosInstance.post('/user/medications/', newMedication);
+            await fetchCurrentMedications();
+            setNewMedication({ name: '', dosage: '', frequency: '', start_date: '' });
+            setShowAddMedication(false);
+            setMessage(isArabic ? '✅ تم إضافة الدواء بنجاح' : '✅ Medication added successfully');
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error adding medication:', error);
+            setMessage(isArabic ? '❌ خطأ في إضافة الدواء' : '❌ Error adding medication');
+            setMessageType('error');
+        } finally {
+            setSaving(false);
+            setTimeout(() => setMessage(''), 3000);
+        }
+    };
+    
+    // ✅ حذف دواء
+    const handleDeleteMedication = async (medId) => {
+        if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا الدواء؟' : 'Are you sure you want to delete this medication?')) return;
+        
+        try {
+            await axiosInstance.delete(`/user/medications/${medId}/delete/`);
+            await fetchCurrentMedications();
+            setMessage(isArabic ? '✅ تم حذف الدواء بنجاح' : '✅ Medication deleted successfully');
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error deleting medication:', error);
+            setMessage(isArabic ? '❌ خطأ في حذف الدواء' : '❌ Error deleting medication');
+            setMessageType('error');
+        } finally {
+            setTimeout(() => setMessage(''), 3000);
+        }
+    };
+    
+    // --- دوال API الأساسية ---
     const loadSavedSettings = () => {
         try {
             const savedSettings = localStorage.getItem('appSettings');
@@ -367,7 +475,6 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    // ✅ جلب البيانات الصحية الحالية (الوزن فقط للعرض، غير قابل للتعديل هنا)
     const fetchCurrentHealthData = async () => {
         try {
             const [sleepRes, activitiesRes, mealsRes, moodRes, healthRes, habitsRes] = await Promise.all([
@@ -426,7 +533,6 @@ function ProfileManager({ isAuthReady }) {
                 habitCompletion = Math.round((completed / habitsData.length) * 100);
             }
             
-            // ✅ جلب أحدث وزن من health_status (للقراءة فقط)
             let latestWeight = null;
             if (healthDataRes.length > 0) {
                 const sortedHealth = [...healthDataRes].sort((a, b) => {
@@ -450,31 +556,29 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-  const fetchUserData = async () => {
-    setLoading(true);
-    try {
-        const response = await axiosInstance.get('/profile/');
-        let userDataFromApi = {};
-        if (response.data?.data) userDataFromApi = response.data.data;
-        else if (response.data && typeof response.data === 'object') userDataFromApi = response.data;
-        
-        setUserData({
-            username: userDataFromApi.username || '',
-            email: userDataFromApi.email || '',
-            first_name: userDataFromApi.first_name || '',
-            last_name: userDataFromApi.last_name || '',
-            date_of_birth: userDataFromApi.date_of_birth || '',
-            gender: userDataFromApi.gender || '',
-            phone_number: userDataFromApi.phone_number || '',
-            height: userDataFromApi.height?.toString() || '',
-            occupation_status: userDataFromApi.occupation_status || userDataFromApi.occupation || '',  // ✅ قراءة من كلا الحقلين
-            health_goal: userDataFromApi.health_goal || '',
-            activity_level: userDataFromApi.activity_level || '',
-            chronic_conditions: userDataFromApi.chronic_conditions || '',
-            current_medications: userDataFromApi.current_medications || ''
-        });
-    } catch (error) {
-        console.error('Error fetching user data:', error);
+    const fetchUserData = async () => {
+        setLoading(true);
+        try {
+            const response = await axiosInstance.get('/profile/');
+            let userDataFromApi = {};
+            if (response.data?.data) userDataFromApi = response.data.data;
+            else if (response.data && typeof response.data === 'object') userDataFromApi = response.data;
+            
+            setUserData({
+                username: userDataFromApi.username || '',
+                email: userDataFromApi.email || '',
+                first_name: userDataFromApi.first_name || '',
+                last_name: userDataFromApi.last_name || '',
+                date_of_birth: userDataFromApi.date_of_birth || '',
+                gender: userDataFromApi.gender || '',
+                phone_number: userDataFromApi.phone_number || '',
+                height: userDataFromApi.height?.toString() || '',
+                occupation_status: userDataFromApi.occupation_status || userDataFromApi.occupation || '',
+                health_goal: userDataFromApi.health_goal || '',
+                activity_level: userDataFromApi.activity_level || ''
+            });
+        } catch (error) {
+            console.error('Error fetching user data:', error);
             setMessage(isArabic ? 'خطأ في تحميل بيانات المستخدم' : 'Error loading user data');
             setMessageType('error');
         } finally {
@@ -482,7 +586,6 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    // ✅ تحديث اسم المستخدم
     const handleUpdateUsername = async () => {
         if (!newUsername.trim() || newUsername === userData.username) {
             setIsEditingUsername(false);
@@ -506,7 +609,6 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    // ✅ تغيير كلمة المرور مع إظهار/إخفاء
     const handleChangePassword = async (e) => {
         e.preventDefault();
         setChangingPassword(true);
@@ -570,27 +672,24 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    // ✅ تحديث الملف الشخصي (بدون وزن - الوزن يُعدل فقط في شاشة القياسات)
- const handleUserUpdate = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setMessage('');
-    
-    try {
-        const updateData = {
-            first_name: userData.first_name,
-            last_name: userData.last_name,
-            email: userData.email || null,
-            date_of_birth: userData.date_of_birth || null,
-            gender: userData.gender || null,
-            phone_number: userData.phone_number || null,
-            height: userData.height ? parseFloat(userData.height) : null,
-            occupation_status: userData.occupation_status || null,  // ✅ التصحيح هنا
-            health_goal: userData.health_goal || null,
-            activity_level: userData.activity_level || null,
-            chronic_conditions: userData.chronic_conditions || null,
-            current_medications: userData.current_medications || null
-        };
+    const handleUserUpdate = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        setMessage('');
+        
+        try {
+            const updateData = {
+                first_name: userData.first_name,
+                last_name: userData.last_name,
+                email: userData.email || null,
+                date_of_birth: userData.date_of_birth || null,
+                gender: userData.gender || null,
+                phone_number: userData.phone_number || null,
+                height: userData.height ? parseFloat(userData.height) : null,
+                occupation_status: userData.occupation_status || null,
+                health_goal: userData.health_goal || null,
+                activity_level: userData.activity_level || null
+            };
             
             Object.keys(updateData).forEach(key => {
                 if (updateData[key] === '' || updateData[key] === null) delete updateData[key];
@@ -612,7 +711,7 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    // --- إضافة هدف جديد ---
+    // --- الأهداف ---
     const [newGoal, setNewGoal] = useState({
         title: '',
         type: 'general',
@@ -646,7 +745,6 @@ function ProfileManager({ isAuthReady }) {
             switch (newGoal.type) {
                 case 'weight_loss':
                 case 'weight_gain':
-                    // ✅ استخدام الوزن الحالي من health_status كنقطة بداية
                     startValue = currentWeight || idealWeight || targetValue + (newGoal.type === 'weight_loss' ? 5 : -5);
                     break;
                 case 'sleep': startValue = healthData.sleep || 0; break;
@@ -699,7 +797,6 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    // ✅ حساب تقدم الأهداف بناءً على أحدث البيانات
     const calculateGoalProgress = useCallback((goal, currentData) => {
         let currentValue = 0;
         let targetValue = parseFloat(goal.target_value) || 0;
@@ -792,7 +889,7 @@ function ProfileManager({ isAuthReady }) {
         return { total, completed, inProgress, avgProgress };
     }, [healthGoals, healthData, calculateGoalProgress]);
     
-    // ✅ النسخ الاحتياطي
+    // --- النسخ الاحتياطي ---
     const handleFullBackup = async () => {
         if (!confirm(isArabic ? 'هل تريد إنشاء نسخة احتياطية كاملة؟' : 'Do you want to create a full backup?')) return;
         setExporting(true);
@@ -841,6 +938,8 @@ function ProfileManager({ isAuthReady }) {
             fetchUserData();
             fetchHealthGoals();
             fetchCurrentHealthData();
+            fetchChronicConditions();
+            fetchCurrentMedications();
             setRefreshKey(prev => prev + 1);
         } catch (error) {
             console.error('Error restoring backup:', error);
@@ -941,7 +1040,7 @@ function ProfileManager({ isAuthReady }) {
         );
     }
     
-    // ✅ دالة عرض حقل كلمة المرور مع زر إظهار/إخفاء
+    // ✅ دالة عرض حقل كلمة المرور
     const PasswordField = ({ label, value, onChange, show, setShow, placeholder }) => (
         <div className="field-group">
             <label>{label}</label>
@@ -1141,7 +1240,7 @@ function ProfileManager({ isAuthReady }) {
                                 <div className="field-group">
                                     <label>{isArabic ? 'الوظيفة' : 'Occupation'}</label>
                                     <select 
-                                        value={userData.occupation_status}  // ✅ تأكد من هذا
+                                        value={userData.occupation_status}
                                         onChange={(e) => setUserData({...userData, occupation_status: e.target.value})}
                                     >
                                         <option value="">{isArabic ? 'اختر الوظيفة' : 'Select occupation'}</option>
@@ -1154,7 +1253,140 @@ function ProfileManager({ isAuthReady }) {
                             </div>
                         </div>
                         
-                        {/* Health Information - بدون وزن (يُقرأ فقط) */}
+                        {/* ✅ الأمراض المزمنة - إدارة منفصلة */}
+                        <div className="form-section">
+                            <h3>🩺 {isArabic ? 'الأمراض المزمنة' : 'Chronic Conditions'}</h3>
+                            <div className="conditions-list">
+                                {chronicConditions.length > 0 ? (
+                                    chronicConditions.map(condition => (
+                                        <div key={condition.id} className="condition-chip">
+                                            <span className="condition-name">{condition.name}</span>
+                                            {condition.diagnosis_date && (
+                                                <span className="condition-date">{condition.diagnosis_date}</span>
+                                            )}
+                                            <button 
+                                                onClick={() => handleDeleteCondition(condition.id)}
+                                                className="delete-chip-btn"
+                                                title={isArabic ? 'حذف' : 'Delete'}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="empty-conditions">
+                                        <span className="empty-icon">🩺</span>
+                                        <span>{isArabic ? 'لا توجد أمراض مزمنة مسجلة' : 'No chronic conditions recorded'}</span>
+                                    </div>
+                                )}
+                            </div>
+                            {showAddCondition ? (
+                                <form onSubmit={handleAddCondition} className="add-condition-form">
+                                    <input 
+                                        type="text" 
+                                        placeholder={isArabic ? 'اسم المرض' : 'Condition name'}
+                                        value={newCondition.name}
+                                        onChange={(e) => setNewCondition({...newCondition, name: e.target.value})}
+                                        required
+                                    />
+                                    <input 
+                                        type="date" 
+                                        placeholder={isArabic ? 'تاريخ التشخيص' : 'Diagnosis date'}
+                                        value={newCondition.diagnosis_date}
+                                        onChange={(e) => setNewCondition({...newCondition, diagnosis_date: e.target.value})}
+                                    />
+                                    <textarea 
+                                        placeholder={isArabic ? 'الأدوية المرتبطة (اختياري)' : 'Related medications (optional)'}
+                                        value={newCondition.medications}
+                                        onChange={(e) => setNewCondition({...newCondition, medications: e.target.value})}
+                                        rows="2"
+                                    />
+                                    <div className="form-actions">
+                                        <button type="submit" disabled={saving} className="submit-btn small">
+                                            {saving ? '⏳' : '✅'} {isArabic ? 'إضافة' : 'Add'}
+                                        </button>
+                                        <button type="button" onClick={() => setShowAddCondition(false)} className="cancel-btn small">
+                                            ✕ {isArabic ? 'إلغاء' : 'Cancel'}
+                                        </button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <button onClick={() => setShowAddCondition(true)} className="add-btn">
+                                    ➕ {isArabic ? 'أضف مرضاً مزمنة' : 'Add Chronic Condition'}
+                                </button>
+                            )}
+                        </div>
+                        
+                        {/* ✅ الأدوية الحالية - إدارة منفصلة */}
+                        <div className="form-section">
+                            <h3>💊 {isArabic ? 'الأدوية الحالية' : 'Current Medications'}</h3>
+                            <div className="medications-list">
+                                {currentMedications.length > 0 ? (
+                                    currentMedications.map(med => (
+                                        <div key={med.id} className="medication-chip">
+                                            <span className="medication-name">{med.name}</span>
+                                            {med.dosage && <span className="medication-dosage">{med.dosage}</span>}
+                                            {med.frequency && <span className="medication-frequency">{med.frequency}</span>}
+                                            <button 
+                                                onClick={() => handleDeleteMedication(med.id)}
+                                                className="delete-chip-btn"
+                                                title={isArabic ? 'حذف' : 'Delete'}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="empty-medications">
+                                        <span className="empty-icon">💊</span>
+                                        <span>{isArabic ? 'لا توجد أدوية حالية مسجلة' : 'No current medications recorded'}</span>
+                                    </div>
+                                )}
+                            </div>
+                            {showAddMedication ? (
+                                <form onSubmit={handleAddMedication} className="add-medication-form">
+                                    <input 
+                                        type="text" 
+                                        placeholder={isArabic ? 'اسم الدواء' : 'Medication name'}
+                                        value={newMedication.name}
+                                        onChange={(e) => setNewMedication({...newMedication, name: e.target.value})}
+                                        required
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder={isArabic ? 'الجرعة (مثال: 500mg)' : 'Dosage (e.g., 500mg)'}
+                                        value={newMedication.dosage}
+                                        onChange={(e) => setNewMedication({...newMedication, dosage: e.target.value})}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder={isArabic ? 'التكرار (مثال: مرة يومياً)' : 'Frequency (e.g., once daily)'}
+                                        value={newMedication.frequency}
+                                        onChange={(e) => setNewMedication({...newMedication, frequency: e.target.value})}
+                                    />
+                                    <input 
+                                        type="date" 
+                                        placeholder={isArabic ? 'تاريخ البدء' : 'Start date'}
+                                        value={newMedication.start_date}
+                                        onChange={(e) => setNewMedication({...newMedication, start_date: e.target.value})}
+                                    />
+                                    <div className="form-actions">
+                                        <button type="submit" disabled={saving} className="submit-btn small">
+                                            {saving ? '⏳' : '✅'} {isArabic ? 'إضافة' : 'Add'}
+                                        </button>
+                                        <button type="button" onClick={() => setShowAddMedication(false)} className="cancel-btn small">
+                                            ✕ {isArabic ? 'إلغاء' : 'Cancel'}
+                                        </button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <button onClick={() => setShowAddMedication(true)} className="add-btn">
+                                    ➕ {isArabic ? 'أضف دواءً' : 'Add Medication'}
+                                </button>
+                            )}
+                        </div>
+                        
+                        {/* Health Information */}
                         <div className="form-section">
                             <h3>❤️ {isArabic ? 'المعلومات الصحية' : 'Health Information'}</h3>
                             <div className="form-grid">
@@ -1176,17 +1408,9 @@ function ProfileManager({ isAuthReady }) {
                                         <option value="high">{isArabic ? 'عالي' : 'High'}</option>
                                     </select>
                                 </div>
-                                <div className="field-group full-width">
-                                    <label>🩺 {isArabic ? 'أمراض مزمنة' : 'Chronic Conditions'}</label>
-                                    <textarea value={userData.chronic_conditions} onChange={(e) => setUserData({...userData, chronic_conditions: e.target.value})} rows="2" />
-                                </div>
-                                <div className="field-group full-width">
-                                    <label>💊 {isArabic ? 'أدوية حالية' : 'Current Medications'}</label>
-                                    <textarea value={userData.current_medications} onChange={(e) => setUserData({...userData, current_medications: e.target.value})} rows="2" />
-                                </div>
                             </div>
                             
-                            {/* ✅ عرض الوزن الحالي (للقراءة فقط) */}
+                            {/* عرض الوزن الحالي (للقراءة فقط) */}
                             <div className="current-weight-display">
                                 <div className="weight-info-box">
                                     <span className="weight-icon">⚖️</span>
@@ -1209,52 +1433,34 @@ function ProfileManager({ isAuthReady }) {
                             </div>
                         </div>
                         
-                        {/* Password Change with Show/Hide */}
+                        {/* Password Change */}
                         <div className="form-section">
                             <h3>🔐 {isArabic ? 'تغيير كلمة المرور' : 'Change Password'}</h3>
                             <div className="form-grid">
-                                <div className="field-group">
-                                    <label>{isArabic ? 'كلمة المرور الحالية' : 'Current Password'}</label>
-                                    <div className="password-input-wrapper">
-                                        <input 
-                                            type={showCurrentPassword ? "text" : "password"} 
-                                            value={passwordData.current_password} 
-                                            onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})}
-                                            placeholder={isArabic ? 'أدخل كلمة المرور الحالية' : 'Enter current password'}
-                                        />
-                                        <button type="button" className="password-toggle" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
-                                            {showCurrentPassword ? '🙈' : '👁️'}
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="field-group">
-                                    <label>{isArabic ? 'كلمة المرور الجديدة' : 'New Password'}</label>
-                                    <div className="password-input-wrapper">
-                                        <input 
-                                            type={showNewPassword ? "text" : "password"} 
-                                            value={passwordData.new_password} 
-                                            onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})}
-                                            placeholder={isArabic ? '8 أحرف على الأقل' : 'Minimum 8 characters'}
-                                        />
-                                        <button type="button" className="password-toggle" onClick={() => setShowNewPassword(!showNewPassword)}>
-                                            {showNewPassword ? '🙈' : '👁️'}
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="field-group">
-                                    <label>{isArabic ? 'تأكيد كلمة المرور' : 'Confirm Password'}</label>
-                                    <div className="password-input-wrapper">
-                                        <input 
-                                            type={showConfirmPassword ? "text" : "password"} 
-                                            value={passwordData.confirm_password} 
-                                            onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})}
-                                            placeholder={isArabic ? 'أعد كتابة كلمة المرور الجديدة' : 'Retype new password'}
-                                        />
-                                        <button type="button" className="password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                                            {showConfirmPassword ? '🙈' : '👁️'}
-                                        </button>
-                                    </div>
-                                </div>
+                                <PasswordField 
+                                    label={isArabic ? 'كلمة المرور الحالية' : 'Current Password'}
+                                    value={passwordData.current_password}
+                                    onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})}
+                                    show={showCurrentPassword}
+                                    setShow={setShowCurrentPassword}
+                                    placeholder={isArabic ? 'أدخل كلمة المرور الحالية' : 'Enter current password'}
+                                />
+                                <PasswordField 
+                                    label={isArabic ? 'كلمة المرور الجديدة' : 'New Password'}
+                                    value={passwordData.new_password}
+                                    onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})}
+                                    show={showNewPassword}
+                                    setShow={setShowNewPassword}
+                                    placeholder={isArabic ? '8 أحرف على الأقل' : 'Minimum 8 characters'}
+                                />
+                                <PasswordField 
+                                    label={isArabic ? 'تأكيد كلمة المرور' : 'Confirm Password'}
+                                    value={passwordData.confirm_password}
+                                    onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})}
+                                    show={showConfirmPassword}
+                                    setShow={setShowConfirmPassword}
+                                    placeholder={isArabic ? 'أعد كتابة كلمة المرور الجديدة' : 'Retype new password'}
+                                />
                             </div>
                             <button type="button" onClick={handleChangePassword} disabled={changingPassword} className="submit-btn secondary" style={{ marginTop: '1rem' }}>
                                 {changingPassword ? (isArabic ? '🔄 جاري...' : '🔄 Changing...') : (isArabic ? '🔑 تغيير' : '🔑 Change')}
@@ -1300,7 +1506,6 @@ function ProfileManager({ isAuthReady }) {
                                                 <option value="percent">%</option>
                                             </select>
                                         </div>
-                                   
                                     </div>
                                     <div className="field-group">
                                         <label>{isArabic ? 'تاريخ الانتهاء' : 'Target Date'}</label>
@@ -1400,7 +1605,7 @@ function ProfileManager({ isAuthReady }) {
                     </div>
                 )}
             </div>
-            
+ 
             {/* Styles */}
             <style jsx>{`
             /* ===========================================
