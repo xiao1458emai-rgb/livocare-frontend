@@ -1,3 +1,5 @@
+// ActivityAnalytics.jsx - النسخة المعدلة
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as stats from 'simple-statistics';
 import * as math from 'mathjs';
@@ -43,7 +45,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 setLang(event.detail.lang);
             }
         };
-        
         window.addEventListener('languageChange', handleLanguageChange);
         return () => window.removeEventListener('languageChange', handleLanguageChange);
     }, [lang]);
@@ -111,21 +112,26 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return null;
     };
 
-    // ✅ تحويل بيانات Backend إلى تنسيق Frontend
+    // ✅ تحويل بيانات Backend من API الجديد إلى تنسيق Frontend
     const transformBackendInsights = (backendData, localActivitySummary, currentHealthData) => {
         if (!backendData || backendData.error) return null;
         
-        const vitalSigns = backendData.vital_signs_analysis || {};
-        const bmiAnalysis = backendData.bmi_deep_analysis || {};
-        const bodyComposition = backendData.body_composition_analysis || {};
-        const metabolic = backendData.metabolic_analysis || {};
-        const lifestyleScore = backendData.lifestyle_score || {};
-        const personalizedRecs = backendData.personalized_recommendations || [];
-        const ageRisks = backendData.age_related_risks || {};
-        const userProfile = backendData.user_profile_analysis || {};
+        // استخراج البيانات من الـ API الجديد
+        const profile = backendData.profile || {};
+        const weightBmi = backendData.weight_bmi || {};
+        const vitalSigns = backendData.vital_signs || {};
+        const sleep = backendData.sleep || {};
+        const moodMental = backendData.mood_mental || {};
+        const nutrition = backendData.nutrition || {};
+        const activity = backendData.activity || {};
+        const habits = backendData.habits || {};
+        const healthRisks = backendData.health_risks || {};
+        const recommendations = backendData.personalized_recommendations || [];
+        const healthScore = backendData.health_score || {};
+        const predictions = backendData.predictions || {};
         
-        // حساب درجة الصحة من Backend
-        let score = lifestyleScore.score || 70;
+        // حساب درجة الصحة
+        let score = healthScore.total_score || 70;
         let status = 'good';
         if (score < 40) status = 'critical';
         else if (score < 60) status = 'poor';
@@ -133,7 +139,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         else if (score < 90) status = 'good';
         else status = 'excellent';
         
-        // تحويل التحذيرات من Backend
+        // تحويل التحذيرات
         const warnings = [];
         const positives = [];
         
@@ -144,101 +150,67 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                     type: alert.type,
                     severity: alert.severity === 'high' ? 'danger' : 'warning',
                     message: alert.message,
-                    value: alert.details
+                    value: alert.advice
                 });
             });
         }
         
-        if (vitalSigns.insights) {
-            vitalSigns.insights.forEach(insight => {
-                if (insight.severity === 'good') {
-                    positives.push({
-                        type: insight.type,
-                        message: insight.message,
-                        value: insight.details
-                    });
-                } else {
+        // إضافة تحذيرات من المخاطر الصحية
+        if (healthRisks.risks) {
+            healthRisks.risks.forEach(risk => {
+                if (risk.severity === 'high') {
                     warnings.push({
-                        type: insight.type,
-                        severity: insight.severity === 'high' ? 'danger' : 'warning',
-                        message: insight.message,
-                        value: insight.details
+                        type: risk.type,
+                        severity: 'danger',
+                        message: risk.condition,
+                        value: risk.message
                     });
                 }
             });
         }
         
-        // إضافة تحذيرات BMI
-        if (bmiAnalysis.category && bmiAnalysis.severity !== 'good') {
-            warnings.push({
-                type: 'bmi',
-                severity: bmiAnalysis.severity === 'critical' ? 'danger' : 'warning',
-                message: isArabic ? `مؤشر كتلة الجسم: ${bmiAnalysis.category}` : `BMI: ${bmiAnalysis.category}`,
-                value: `${bmiAnalysis.bmi} - ${bmiAnalysis.recommendation}`
-            });
-        } else if (bmiAnalysis.category) {
-            positives.push({
-                type: 'bmi',
-                message: isArabic ? `✅ مؤشر كتلة جسم طبيعي: ${bmiAnalysis.bmi}` : `✅ Normal BMI: ${bmiAnalysis.bmi}`,
-                value: bmiAnalysis.recommendation
-            });
-        }
-        
-        // إضافة تحذيرات تكوين الجسم
-        if (bodyComposition.body_fat_category && bodyComposition.body_fat_category === 'خطير') {
-            warnings.push({
-                type: 'body_fat',
-                severity: 'danger',
-                message: isArabic ? `⚠️ نسبة دهون خطيرة: ${bodyComposition.body_fat_percentage}%` : `⚠️ Critical body fat: ${bodyComposition.body_fat_percentage}%`,
-                value: bodyComposition.recommendation
-            });
-        }
-        
         // تحويل الاتجاهات
         const trends = [];
-        if (backendData.weight_trend_analysis && backendData.weight_trend_analysis.trend !== 'insufficient_data') {
-            const weightTrend = backendData.weight_trend_analysis;
+        if (weightBmi.trend === 'increasing') {
             trends.push({
                 type: 'weight',
-                direction: weightTrend.change > 0 ? 'up' : weightTrend.change < 0 ? 'down' : 'stable',
-                message: isArabic ? `📊 اتجاه الوزن: ${weightTrend.trend}` : `📊 Weight trend: ${weightTrend.trend}`,
-                change: `${Math.abs(weightTrend.change)} kg`
+                direction: 'up',
+                message: isArabic ? '📈 الوزن في ازدياد' : '📈 Weight increasing',
+                change: `${Math.abs(weightBmi.weight_change_90d || 0)} kg`
+            });
+        } else if (weightBmi.trend === 'decreasing') {
+            trends.push({
+                type: 'weight',
+                direction: 'down',
+                message: isArabic ? '📉 الوزن في انخفاض' : '📉 Weight decreasing',
+                change: `${Math.abs(weightBmi.weight_change_90d || 0)} kg`
             });
         }
         
         // تحويل الارتباطات
         const correlations = [];
-        if (backendData.sleep_mood_correlation && backendData.sleep_mood_correlation.status === 'ok') {
+        if (sleep.average_hours && moodMental.average_mood_score) {
             correlations.push({
                 type: 'sleep_mood',
                 severity: 'info',
                 message: isArabic ? '😴 تأثير النوم على المزاج' : '😴 Sleep impact on mood',
-                advice: isArabic ? 'النوم الجيد يحسن المزاج والطاقة' : 'Good sleep improves mood and energy'
+                advice: isArabic ? `نومك ${sleep.average_hours} ساعات يؤثر على مزاجك` : `Your ${sleep.average_hours} hours of sleep affects your mood`
             });
         }
         
         // تحويل المخاطر
         const risks = [];
-        if (backendData.glucose_risk_assessment && backendData.glucose_risk_assessment.status === 'critical') {
-            risks.push({
-                type: 'glucose',
-                severity: 'high',
-                message: isArabic ? '🚨 خطر ارتفاع السكر' : '🚨 High glucose risk',
-                details: isArabic ? `متوسط السكر: ${backendData.glucose_risk_assessment.average}` : `Average glucose: ${backendData.glucose_risk_assessment.average}`,
-                action: isArabic ? 'استشر طبيباً واتبع نظاماً غذائياً' : 'Consult a doctor and follow a diet plan'
-            });
-        }
-        
-        if (backendData.pre_exercise_recommendation && backendData.pre_exercise_recommendation.recommendations && 
-            backendData.pre_exercise_recommendation.recommendations.length > 0) {
-            backendData.pre_exercise_recommendation.recommendations.forEach(rec => {
-                risks.push({
-                    type: rec.type,
-                    severity: rec.type === 'critical' ? 'high' : 'medium',
-                    message: rec.title,
-                    details: rec.message,
-                    action: rec.advice
-                });
+        if (healthRisks.risks) {
+            healthRisks.risks.forEach(risk => {
+                if (risk.severity === 'high') {
+                    risks.push({
+                        type: risk.type,
+                        severity: 'high',
+                        message: risk.condition,
+                        details: risk.message,
+                        action: isArabic ? 'يُنصح باستشارة طبيب' : 'Consult a doctor'
+                    });
+                }
             });
         }
         
@@ -251,13 +223,18 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             healthData: currentHealthData,
             lastUpdated: new Date().toISOString(),
             backendData: {
-                bmi: bmiAnalysis,
-                bodyComposition: bodyComposition,
-                metabolic: metabolic,
-                lifestyleScore: lifestyleScore,
-                personalizedRecommendations: personalizedRecs,
-                ageRisks: ageRisks,
-                userProfile: userProfile
+                profile: profile,
+                weightBmi: weightBmi,
+                vitalSigns: vitalSigns,
+                sleep: sleep,
+                moodMental: moodMental,
+                nutrition: nutrition,
+                activity: activity,
+                habits: habits,
+                healthRisks: healthRisks,
+                recommendations: recommendations,
+                healthScore: healthScore,
+                predictions: predictions
             }
         };
     };
@@ -268,150 +245,70 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         const warnings = [];
         const positives = [];
 
-        // تحليل السكر
         if (healthData.bloodGlucose) {
             const glucose = healthData.bloodGlucose;
             if (glucose < 70) {
                 score -= 30;
-                warnings.push({ 
-                    type: 'glucose', 
-                    severity: 'danger', 
-                    message: isArabic ? '⚠️ سكر منخفض' : '⚠️ Low blood sugar', 
-                    value: `${glucose} mg/dL` 
-                });
+                warnings.push({ type: 'glucose', severity: 'danger', message: isArabic ? '⚠️ سكر منخفض' : '⚠️ Low blood sugar', value: `${glucose} mg/dL` });
             } else if (glucose > 180) {
                 score -= 20;
-                warnings.push({ 
-                    type: 'glucose', 
-                    severity: 'warning', 
-                    message: isArabic ? '⚠️ سكر مرتفع' : '⚠️ High blood sugar', 
-                    value: `${glucose} mg/dL` 
-                });
-            } else {
-                positives.push({ 
-                    type: 'glucose', 
-                    message: isArabic ? '✅ سكر طبيعي' : '✅ Normal blood sugar', 
-                    value: `${glucose} mg/dL` 
-                });
+                warnings.push({ type: 'glucose', severity: 'warning', message: isArabic ? '⚠️ سكر مرتفع' : '⚠️ High blood sugar', value: `${glucose} mg/dL` });
+            } else if (glucose) {
+                positives.push({ type: 'glucose', message: isArabic ? '✅ سكر طبيعي' : '✅ Normal blood sugar', value: `${glucose} mg/dL` });
             }
         }
 
-        // تحليل النبض
         if (healthData.heartRate) {
             const hr = healthData.heartRate;
             if (hr > 140) {
                 score -= 35;
-                warnings.push({ 
-                    type: 'heartRate', 
-                    severity: 'danger', 
-                    message: isArabic ? '🚨 نبض خطير جداً' : '🚨 Very dangerous heart rate', 
-                    value: `${hr} BPM` 
-                });
+                warnings.push({ type: 'heartRate', severity: 'danger', message: isArabic ? '🚨 نبض خطير جداً' : '🚨 Very dangerous heart rate', value: `${hr} BPM` });
             } else if (hr > 100) {
                 score -= 20;
-                warnings.push({ 
-                    type: 'heartRate', 
-                    severity: 'warning', 
-                    message: isArabic ? '⚠️ نبض مرتفع' : '⚠️ High heart rate', 
-                    value: `${hr} BPM` 
-                });
+                warnings.push({ type: 'heartRate', severity: 'warning', message: isArabic ? '⚠️ نبض مرتفع' : '⚠️ High heart rate', value: `${hr} BPM` });
             } else if (hr < 60) {
                 score -= 10;
-                warnings.push({ 
-                    type: 'heartRate', 
-                    severity: 'warning', 
-                    message: isArabic ? '⚠️ نبض منخفض' : '⚠️ Low heart rate', 
-                    value: `${hr} BPM` 
-                });
-            } else {
-                positives.push({ 
-                    type: 'heartRate', 
-                    message: isArabic ? '✅ نبض طبيعي' : '✅ Normal heart rate', 
-                    value: `${hr} BPM` 
-                });
+                warnings.push({ type: 'heartRate', severity: 'warning', message: isArabic ? '⚠️ نبض منخفض' : '⚠️ Low heart rate', value: `${hr} BPM` });
+            } else if (hr) {
+                positives.push({ type: 'heartRate', message: isArabic ? '✅ نبض طبيعي' : '✅ Normal heart rate', value: `${hr} BPM` });
             }
         }
 
-        // تحليل الأكسجين
         if (healthData.oxygenLevel) {
             const o2 = healthData.oxygenLevel;
             if (o2 < 90) {
                 score -= 30;
-                warnings.push({ 
-                    type: 'oxygen', 
-                    severity: 'danger', 
-                    message: isArabic ? '⚠️ نقص أكسجين خطير' : '⚠️ Critical low oxygen', 
-                    value: `${o2}%` 
-                });
+                warnings.push({ type: 'oxygen', severity: 'danger', message: isArabic ? '⚠️ نقص أكسجين خطير' : '⚠️ Critical low oxygen', value: `${o2}%` });
             } else if (o2 < 95) {
                 score -= 15;
-                warnings.push({ 
-                    type: 'oxygen', 
-                    severity: 'warning', 
-                    message: isArabic ? '⚠️ أكسجين منخفض' : '⚠️ Low oxygen', 
-                    value: `${o2}%` 
-                });
-            } else {
-                positives.push({ 
-                    type: 'oxygen', 
-                    message: isArabic ? '✅ أكسجين ممتاز' : '✅ Excellent oxygen', 
-                    value: `${o2}%` 
-                });
+                warnings.push({ type: 'oxygen', severity: 'warning', message: isArabic ? '⚠️ أكسجين منخفض' : '⚠️ Low oxygen', value: `${o2}%` });
+            } else if (o2) {
+                positives.push({ type: 'oxygen', message: isArabic ? '✅ أكسجين ممتاز' : '✅ Excellent oxygen', value: `${o2}%` });
             }
         }
 
-        // تحليل ضغط الدم
         if (healthData.bloodPressure) {
             const { systolic, diastolic } = healthData.bloodPressure;
             if (systolic > 140 || diastolic > 90) {
                 score -= 20;
-                warnings.push({ 
-                    type: 'bp', 
-                    severity: 'warning', 
-                    message: isArabic ? '⚠️ ضغط مرتفع' : '⚠️ High blood pressure', 
-                    value: `${systolic} / ${diastolic} mmHg` 
-                });
+                warnings.push({ type: 'bp', severity: 'warning', message: isArabic ? '⚠️ ضغط مرتفع' : '⚠️ High blood pressure', value: `${systolic}/${diastolic} mmHg` });
             } else if (systolic < 90 || diastolic < 60) {
                 score -= 15;
-                warnings.push({ 
-                    type: 'bp', 
-                    severity: 'warning', 
-                    message: isArabic ? '⚠️ ضغط منخفض' : '⚠️ Low blood pressure', 
-                    value: `${systolic} / ${diastolic} mmHg` 
-                });
-            } else {
-                positives.push({ 
-                    type: 'bp', 
-                    message: isArabic ? '✅ ضغط طبيعي' : '✅ Normal blood pressure', 
-                    value: `${systolic} / ${diastolic} mmHg` 
-                });
+                warnings.push({ type: 'bp', severity: 'warning', message: isArabic ? '⚠️ ضغط منخفض' : '⚠️ Low blood pressure', value: `${systolic}/${diastolic} mmHg` });
+            } else if (systolic && diastolic) {
+                positives.push({ type: 'bp', message: isArabic ? '✅ ضغط طبيعي' : '✅ Normal blood pressure', value: `${systolic}/${diastolic} mmHg` });
             }
         }
 
-        // تحليل النشاط
         const totalMinutes = activityData.totalMinutes || 0;
         if (totalMinutes === 0) {
             score -= 25;
-            warnings.push({ 
-                type: 'activity', 
-                severity: 'info', 
-                message: isArabic ? 'ℹ️ لا يوجد نشاط بعد' : 'ℹ️ No activity yet', 
-                value: isArabic ? '0 دقيقة' : '0 minutes' 
-            });
+            warnings.push({ type: 'activity', severity: 'info', message: isArabic ? 'ℹ️ لا يوجد نشاط بعد' : 'ℹ️ No activity yet', value: isArabic ? '0 دقيقة' : '0 minutes' });
         } else if (totalMinutes < 150) {
             score -= 15;
-            warnings.push({ 
-                type: 'activity', 
-                severity: 'info', 
-                message: isArabic ? '⚠️ نشاط أقل من الموصى به' : '⚠️ Activity below recommendation', 
-                value: `${totalMinutes} / 150 ${isArabic ? 'دقيقة' : 'minutes'}` 
-            });
+            warnings.push({ type: 'activity', severity: 'info', message: isArabic ? '⚠️ نشاط أقل من الموصى به' : '⚠️ Activity below recommendation', value: `${totalMinutes} / 150 ${isArabic ? 'دقيقة' : 'minutes'}` });
         } else {
-            positives.push({ 
-                type: 'activity', 
-                message: isArabic ? '✅ نشاط ممتاز' : '✅ Excellent activity', 
-                value: `${totalMinutes} ${isArabic ? 'دقيقة' : 'minutes'}` 
-            });
+            positives.push({ type: 'activity', message: isArabic ? '✅ نشاط ممتاز' : '✅ Excellent activity', value: `${totalMinutes} ${isArabic ? 'دقيقة' : 'minutes'}` });
         }
 
         score = Math.max(0, Math.min(100, score));
@@ -459,31 +356,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         }
 
         return trends;
-    };
-
-    // 🧠 تحليل العلاقات (محلي)
-    const analyzeCorrelations = (healthData) => {
-        const correlations = [];
-        
-        if (healthData.bloodGlucose && healthData.heartRate) {
-            if (healthData.bloodGlucose < 70 && healthData.heartRate > 100) {
-                correlations.push({
-                    type: 'glucose_heart_rate',
-                    severity: 'danger',
-                    message: isArabic ? '🚨 ارتباط خطير: انخفاض السكر مع ارتفاع النبض' : '🚨 Serious correlation: Low sugar with high heart rate',
-                    advice: isArabic ? 'علامات إجهاد حاد، يحتاج تدخل فوري' : 'Signs of acute stress, needs immediate attention'
-                });
-            } else if (healthData.bloodGlucose < 70 && healthData.heartRate > 90) {
-                correlations.push({
-                    type: 'glucose_heart_rate',
-                    severity: 'warning',
-                    message: isArabic ? '⚠️ ارتباط: انخفاض السكر مصحوب بارتفاع النبض' : '⚠️ Correlation: Low sugar with high heart rate',
-                    advice: isArabic ? 'يُنصح بأخذ قسط من الراحة وتناول سكر سريع' : 'Rest and eat fast-acting sugar'
-                });
-            }
-        }
-        
-        return correlations;
     };
 
     // 🚨 تحليل المخاطر (محلي)
@@ -534,7 +406,7 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return '🏅';
     };
 
-    // ✅ جلب جميع البيانات (مع Backend Insights)
+    // ✅ جلب جميع البيانات (مع Backend Insights الجديد)
     const fetchAllData = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
@@ -550,12 +422,11 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         setError(null);
         
         try {
-            // ✅ جلب البيانات من 4 مصادر
-            const [activitiesRes, healthRes, glucoseRes, insightsRes] = await Promise.all([
+            // ✅ استخدام الـ endpoints الجديدة فقط
+            const [activitiesRes, healthRes, comprehensiveRes] = await Promise.all([
                 axiosInstance.get('/activities/').catch(() => ({ data: [] })),
                 axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
-                axiosInstance.get('/blood-sugar/').catch(() => ({ data: [] })),
-                axiosInstance.get('/advanced-insights/').catch(() => ({ data: null }))
+                axiosInstance.get('/analytics/comprehensive/api/?lang=' + (isArabic ? 'ar' : 'en')).catch(() => ({ data: null }))
             ]);
             
             if (!isMountedRef.current) return;
@@ -576,34 +447,26 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 healthRecords = healthRes.data;
             }
             
-            // معالجة سكر الدم
-            let glucoseRecords = [];
-            if (glucoseRes.data?.results) {
-                glucoseRecords = glucoseRes.data.results;
-            } else if (Array.isArray(glucoseRes.data)) {
-                glucoseRecords = glucoseRes.data;
-            }
-            
-            // ✅ معالجة التحليلات من Backend
+            // ✅ معالجة التحليلات من Backend (API الجديد)
             let backendData = null;
-            if (insightsRes.data && !insightsRes.data.error) {
-                backendData = insightsRes.data;
-                console.log('✅ Backend insights loaded:', backendData);
+            if (comprehensiveRes.data?.success && comprehensiveRes.data?.data) {
+                backendData = comprehensiveRes.data.data;
+                console.log('✅ Backend insights loaded from comprehensive API:', backendData);
                 setUseBackendData(true);
+                setBackendInsights(backendData);
             } else {
                 console.log('⚠️ Backend insights not available, using local calculations');
                 setUseBackendData(false);
             }
             
             const latestHealth = healthRecords[0] || {};
-            const latestGlucose = glucoseRecords[0] || {};
             
             const currentHealthData = {
                 bloodPressure: latestHealth.systolic_pressure && latestHealth.diastolic_pressure ? 
                     { systolic: latestHealth.systolic_pressure, diastolic: latestHealth.diastolic_pressure } : null,
-                heartRate: latestHealth.heart_rate || null,
+                heartRate: latestHealth.heart_rate || latestHealth.heartRate || null,
                 oxygenLevel: latestHealth.spo2 || null,
-                bloodGlucose: latestGlucose.value || latestHealth.blood_glucose || null,
+                bloodGlucose: latestHealth.blood_glucose || null,
                 sleepData: null,
                 moodData: null
             };
@@ -642,7 +505,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                         summary: activitySummary,
                         globalHealth: calculateGlobalHealthScore(activitySummary, currentHealthData),
                         trends: calculateTrends(activitiesData),
-                        correlations: analyzeCorrelations(currentHealthData),
                         risks: analyzeRisks(currentHealthData),
                         healthData: currentHealthData,
                         lastUpdated: new Date().toISOString()
@@ -655,7 +517,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                     summary: activitySummary,
                     globalHealth: calculateGlobalHealthScore(activitySummary, currentHealthData),
                     trends: calculateTrends(activitiesData),
-                    correlations: analyzeCorrelations(currentHealthData),
                     risks: analyzeRisks(currentHealthData),
                     healthData: currentHealthData,
                     lastUpdated: new Date().toISOString()
@@ -799,66 +660,85 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                 </button>
             </div>
 
-            {/* ✅ إضافة معلومات BMI المتقدم إذا كان متوفراً */}
-            {activityInsights.backendData && activityInsights.backendData.bmi && activityInsights.backendData.bmi.status !== 'insufficient_data' && (
-                <div className="bmi-card">
-                    <div className="bmi-header">
-                        <span className="bmi-icon">⚖️</span>
-                        <h3>{isArabic ? 'تحليل مؤشر كتلة الجسم المتقدم' : 'Advanced BMI Analysis'}</h3>
+            {/* ✅ بطاقة درجة الصحة من Backend */}
+            {activityInsights.backendData && activityInsights.backendData.healthScore && (
+                <div className="health-score-card">
+                    <div className="score-header">
+                        <span className="score-icon">🎯</span>
+                        <h3>{isArabic ? 'درجة صحتك الشاملة' : 'Your Overall Health Score'}</h3>
                     </div>
-                    <div className="bmi-content">
-                        <div className="bmi-value">
-                            <span className="bmi-number">{activityInsights.backendData.bmi.bmi}</span>
-                            <span className="bmi-category" style={{ 
-                                background: activityInsights.backendData.bmi.severity === 'good' ? '#10b981' : 
-                                           activityInsights.backendData.bmi.severity === 'warning' ? '#f59e0b' : '#ef4444'
-                            }}>
-                                {activityInsights.backendData.bmi.category}
-                            </span>
-                        </div>
-                        <p className="bmi-recommendation">{activityInsights.backendData.bmi.recommendation}</p>
-                        
-                        {activityInsights.backendData.bmi.weight_to_lose > 0 && (
-                            <div className="weight-goal">
-                                <span>🎯 {isArabic ? 'الوزن المستهدف لخسارته' : 'Target weight to lose'}:</span>
-                                <strong>{activityInsights.backendData.bmi.weight_to_lose} kg</strong>
-                                <small>{activityInsights.backendData.bmi.time_to_goal?.message_ar || 
-                                        activityInsights.backendData.bmi.time_to_goal?.message_en}</small>
+                    <div className="score-value-large">
+                        <span className="score-number">{activityInsights.backendData.healthScore.total_score}</span>
+                        <span className="score-max">/100</span>
+                        <span className={`score-badge score-${activityInsights.backendData.healthScore.category}`}>
+                            {activityInsights.backendData.healthScore.category_text}
+                        </span>
+                    </div>
+                    <div className="score-components">
+                        {Object.entries(activityInsights.backendData.healthScore.components || {}).map(([key, value]) => (
+                            <div key={key} className="component-item">
+                                <span className="component-name">
+                                    {key === 'sleep' ? (isArabic ? 'نوم' : 'Sleep') :
+                                     key === 'mood' ? (isArabic ? 'مزاج' : 'Mood') :
+                                     key === 'nutrition' ? (isArabic ? 'تغذية' : 'Nutrition') :
+                                     key === 'activity' ? (isArabic ? 'نشاط' : 'Activity') :
+                                     key === 'habits' ? (isArabic ? 'عادات' : 'Habits') : key}
+                                </span>
+                                <div className="component-bar">
+                                    <div className="component-fill" style={{ width: `${(value / 20) * 100}%` }}></div>
+                                </div>
+                                <span className="component-score">{value}</span>
                             </div>
-                        )}
-                        
-                        {activityInsights.backendData.bmi.weight_to_gain > 0 && (
-                            <div className="weight-goal">
-                                <span>💪 {isArabic ? 'الوزن المستهدف لاكتسابه' : 'Target weight to gain'}:</span>
-                                <strong>{activityInsights.backendData.bmi.weight_to_gain} kg</strong>
-                                <small>{activityInsights.backendData.bmi.time_to_goal?.message_ar || 
-                                        activityInsights.backendData.bmi.time_to_goal?.message_en}</small>
-                            </div>
-                        )}
+                        ))}
                     </div>
                 </div>
             )}
 
-            {/* ✅ إضافة معلومات تكوين الجسم إذا كان متوفراً */}
-            {activityInsights.backendData && activityInsights.backendData.bodyComposition && 
-             activityInsights.backendData.bodyComposition.body_fat_percentage && (
-                <div className="body-composition-card">
-                    <div className="composition-header">
-                        <span className="composition-icon">💪</span>
-                        <h3>{isArabic ? 'تحليل تكوين الجسم' : 'Body Composition Analysis'}</h3>
+            {/* ✅ بطاقة الوزن و BMI من Backend */}
+            {activityInsights.backendData && activityInsights.backendData.weightBmi && 
+             activityInsights.backendData.weightBmi.bmi && (
+                <div className="bmi-card">
+                    <div className="bmi-header">
+                        <span className="bmi-icon">⚖️</span>
+                        <h3>{isArabic ? 'تحليل الوزن و BMI' : 'Weight & BMI Analysis'}</h3>
                     </div>
-                    <div className="composition-stats">
-                        <div className="stat-item">
-                            <span className="stat-label">{isArabic ? 'نسبة الدهون' : 'Body Fat'}:</span>
-                            <span className="stat-value">{activityInsights.backendData.bodyComposition.body_fat_percentage}%</span>
-                            <span className="stat-category">{activityInsights.backendData.bodyComposition.body_fat_category}</span>
+                    <div className="bmi-content">
+                        <div className="bmi-value">
+                            <span className="bmi-number">{activityInsights.backendData.weightBmi.bmi}</span>
+                            <span className="bmi-category" style={{ 
+                                background: activityInsights.backendData.weightBmi.bmi_category?.includes('طبيعي') || 
+                                          activityInsights.backendData.weightBmi.bmi_category?.includes('Normal') ? '#10b981' : 
+                                          activityInsights.backendData.weightBmi.bmi_category?.includes('زيادة') || 
+                                          activityInsights.backendData.weightBmi.bmi_category?.includes('Over') ? '#f59e0b' : '#ef4444'
+                            }}>
+                                {activityInsights.backendData.weightBmi.bmi_category}
+                            </span>
                         </div>
-                        <div className="stat-item">
-                            <span className="stat-label">{isArabic ? 'الكتلة العضلية' : 'Muscle Mass'}:</span>
-                            <span className="stat-value">{activityInsights.backendData.bodyComposition.estimated_muscle_mass_kg} kg</span>
+                        <div className="bmi-stats">
+                            <div className="stat">
+                                <span className="stat-label">{isArabic ? 'الوزن الحالي' : 'Current Weight'}</span>
+                                <span className="stat-value">{activityInsights.backendData.weightBmi.current_weight} kg</span>
+                            </div>
+                            <div className="stat">
+                                <span className="stat-label">{isArabic ? 'الوزن المثالي' : 'Ideal Weight'}</span>
+                                <span className="stat-value">
+                                    {activityInsights.backendData.weightBmi.ideal_weight_range?.min} - {activityInsights.backendData.weightBmi.ideal_weight_range?.max} kg
+                                </span>
+                            </div>
                         </div>
+                        {activityInsights.backendData.weightBmi.weight_to_lose > 0 && (
+                            <div className="weight-goal">
+                                <span>🎯 {isArabic ? 'الوزن المراد خسارته' : 'Target weight to lose'}:</span>
+                                <strong>{activityInsights.backendData.weightBmi.weight_to_lose} kg</strong>
+                            </div>
+                        )}
+                        {activityInsights.backendData.weightBmi.weight_to_gain > 0 && (
+                            <div className="weight-goal">
+                                <span>💪 {isArabic ? 'الوزن المراد اكتسابه' : 'Target weight to gain'}:</span>
+                                <strong>{activityInsights.backendData.weightBmi.weight_to_gain} kg</strong>
+                            </div>
+                        )}
                     </div>
-                    <p className="composition-recommendation">{activityInsights.backendData.bodyComposition.recommendation}</p>
                 </div>
             )}
 
@@ -916,15 +796,15 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             </div>
 
             {/* ✅ توصيات شخصية من Backend */}
-            {activityInsights.backendData && activityInsights.backendData.personalizedRecommendations && 
-             activityInsights.backendData.personalizedRecommendations.length > 0 && (
+            {activityInsights.backendData && activityInsights.backendData.recommendations && 
+             activityInsights.backendData.recommendations.length > 0 && (
                 <div className="recommendations-card">
                     <h3>{isArabic ? '💡 توصيات مخصصة لك' : '💡 Personalized Recommendations'}</h3>
                     <div className="recommendations-list">
-                        {activityInsights.backendData.personalizedRecommendations.slice(0, 4).map((rec, i) => (
-                            <div key={i} className={`recommendation-item priority-${rec.priority}`}>
+                        {activityInsights.backendData.recommendations.slice(0, 4).map((rec, i) => (
+                            <div key={i} className={`recommendation-item priority-${rec.priority || 'medium'}`}>
                                 <div className="recommendation-header">
-                                    <span className="recommendation-icon">{rec.icon}</span>
+                                    <span className="recommendation-icon">{rec.icon || '💡'}</span>
                                     <span className="recommendation-title">{rec.title}</span>
                                 </div>
                                 <p className="recommendation-description">{rec.description}</p>
@@ -934,6 +814,9 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                                             <li key={j}>✓ {action}</li>
                                         ))}
                                     </ul>
+                                )}
+                                {rec.quick_tip && (
+                                    <div className="quick-tip">💡 {rec.quick_tip}</div>
                                 )}
                             </div>
                         ))}
@@ -950,21 +833,6 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
                             <div key={i} className={`trend-item direction-${trend.direction}`}>
                                 <span className="trend-message">{trend.message}</span>
                                 <span className="trend-change">{trend.change}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* 🧠 ملاحظات ذكية */}
-            {activityInsights.correlations && activityInsights.correlations.length > 0 && (
-                <div className="correlations-card">
-                    <h3>{isArabic ? '🧠 ملاحظات ذكية' : '🧠 Smart Insights'}</h3>
-                    <div className="correlations-list">
-                        {activityInsights.correlations.map((corr, i) => (
-                            <div key={i} className={`correlation-item severity-${corr.severity}`}>
-                                <p className="correlation-message">{corr.message}</p>
-                                <p className="correlation-advice">💡 {corr.advice}</p>
                             </div>
                         ))}
                     </div>
@@ -1052,212 +920,86 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             </div>
 
             <style jsx>{`
-                /* الأنماط الموجودة محفوظة كما هي... */
+                .analytics-container { background: var(--card-bg, #ffffff); border-radius: 28px; padding: 1.5rem; border: 1px solid var(--border-light, #eef2f6); }
+                .dark-mode .analytics-container { background: #1e293b; border-color: #334155; }
+                .analytics-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border-light, #eef2f6); }
                 
-                /* أنماط إضافية للبطاقات الجديدة */
-                .ai-badge {
-                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-                    padding: 0.25rem 0.75rem;
-                    border-radius: 20px;
-                    font-size: 0.7rem;
-                    color: white;
-                    margin-left: 0.5rem;
-                }
+                .ai-badge { background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem; color: white; margin-left: 0.5rem; }
                 
-                .bmi-card, .body-composition-card, .recommendations-card {
-                    background: var(--secondary-bg, #f9fafb);
-                    border-radius: 18px;
-                    padding: 1.25rem;
-                    border: 1px solid var(--border-light, #eef2f6);
-                }
+                .health-score-card, .bmi-card, .recommendations-card { background: var(--secondary-bg, #f9fafb); border-radius: 18px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border-light, #eef2f6); }
+                .dark-mode .health-score-card, .dark-mode .bmi-card, .dark-mode .recommendations-card { background: #0f172a; border-color: #334155; }
                 
-                .dark-mode .bmi-card,
-                .dark-mode .body-composition-card,
-                .dark-mode .recommendations-card {
-                    background: #0f172a;
-                    border-color: #334155;
-                }
+                .score-value-large { display: flex; align-items: baseline; gap: 0.5rem; margin: 1rem 0; }
+                .score-number { font-size: 2.5rem; font-weight: 800; color: var(--primary, #6366f1); }
+                .score-max { font-size: 1rem; color: var(--text-tertiary, #94a3b8); }
+                .score-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem; font-weight: 600; color: white; }
+                .score-badge.score-excellent { background: #10b981; }
+                .score-badge.score-good { background: #3b82f6; }
+                .score-badge.score-fair { background: #f59e0b; }
+                .score-badge.score-poor { background: #ef4444; }
+                .score-badge.score-critical { background: #dc2626; }
                 
-                .bmi-header, .composition-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin-bottom: 1rem;
-                }
+                .score-components { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
+                .component-item { display: flex; align-items: center; gap: 0.5rem; }
+                .component-name { width: 70px; font-size: 0.7rem; font-weight: 600; }
+                .component-bar { flex: 1; height: 6px; background: var(--border-light, #e2e8f0); border-radius: 3px; overflow: hidden; }
+                .component-fill { height: 100%; background: linear-gradient(90deg, #10b981, #f59e0b); border-radius: 3px; }
+                .component-score { width: 30px; font-size: 0.7rem; font-weight: 600; text-align: right; }
                 
-                .bmi-icon, .composition-icon {
-                    font-size: 1.5rem;
-                }
+                .bmi-stats { display: flex; gap: 1rem; margin: 0.75rem 0; }
+                .bmi-stats .stat { flex: 1; text-align: center; }
+                .bmi-stats .stat-label { font-size: 0.6rem; color: var(--text-tertiary, #94a3b8); display: block; }
+                .bmi-stats .stat-value { font-size: 0.9rem; font-weight: 700; }
                 
-                .bmi-header h3, .composition-header h3 {
-                    margin: 0;
-                    font-size: 0.9rem;
-                }
+                .weight-goal { background: var(--card-bg, #ffffff); padding: 0.5rem 0.75rem; border-radius: 10px; margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+                .dark-mode .weight-goal { background: #1e293b; }
+                .weight-goal span { font-size: 0.7rem; }
+                .weight-goal strong { font-size: 0.9rem; color: var(--primary, #6366f1); }
                 
-                .bmi-value {
-                    display: flex;
-                    align-items: baseline;
-                    gap: 1rem;
-                    margin-bottom: 0.75rem;
-                }
+                .recommendations-list { display: flex; flex-direction: column; gap: 0.75rem; }
+                .recommendation-item { padding: 0.75rem; border-radius: 14px; background: var(--card-bg, #ffffff); }
+                .dark-mode .recommendation-item { background: #1e293b; }
+                .recommendation-item.priority-high { border-left: 3px solid #ef4444; }
+                .recommendation-item.priority-medium { border-left: 3px solid #f59e0b; }
+                .recommendation-item.priority-low { border-left: 3px solid #10b981; }
+                .recommendation-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+                .recommendation-icon { font-size: 1.2rem; }
+                .recommendation-title { font-weight: 600; font-size: 0.85rem; }
+                .recommendation-description { font-size: 0.75rem; color: var(--text-secondary, #64748b); margin: 0 0 0.5rem 0; }
+                .recommendation-actions { margin: 0; padding-left: 1.5rem; font-size: 0.7rem; }
+                .quick-tip { font-size: 0.7rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-light, #e2e8f0); color: #f59e0b; }
                 
-                .bmi-number {
-                    font-size: 2rem;
-                    font-weight: 800;
-                    color: var(--primary, #6366f1);
-                }
+                .global-health-card { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 20px; padding: 1.25rem; margin-bottom: 1rem; color: white; }
+                .health-score-container { display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+                .health-score-circle { width: 120px; height: 120px; }
+                .health-analysis { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
                 
-                .bmi-category {
-                    padding: 0.2rem 0.6rem;
-                    border-radius: 20px;
-                    font-size: 0.7rem;
-                    font-weight: 600;
-                    color: white;
-                }
+                .trends-card, .risks-card, .summary-card { background: var(--secondary-bg, #f8fafc); border-radius: 18px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border-light, #e2e8f0); }
+                .dark-mode .trends-card, .dark-mode .risks-card, .dark-mode .summary-card { background: #0f172a; border-color: #334155; }
                 
-                .bmi-recommendation {
-                    font-size: 0.8rem;
-                    margin-bottom: 0.75rem;
-                    color: var(--text-secondary, #95a9c6);
-                }
+                .trend-item, .risk-item { padding: 0.5rem 0; display: flex; justify-content: space-between; align-items: center; }
+                .trend-item.direction-up { color: #10b981; }
+                .trend-item.direction-down { color: #ef4444; }
                 
-                .weight-goal {
-                    background: var(--card-bg, #ffffff);
-                    padding: 0.75rem;
-                    border-radius: 12px;
-                    margin-top: 0.5rem;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.25rem;
-                }
+                .summary-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center; margin-bottom: 1rem; }
+                .stat-value { font-size: 1.5rem; font-weight: 800; display: block; }
+                .stat-label { font-size: 0.7rem; color: var(--text-tertiary, #94a3b8); }
                 
-                .dark-mode .weight-goal {
-                    background: #597eba;
-                }
+                .progress-container { margin: 1rem 0; }
+                .progress-bar-bg { background: var(--border-light, #e2e8f0); border-radius: 10px; height: 30px; overflow: hidden; }
+                .progress-bar-fill { background: linear-gradient(90deg, #10b981, #f59e0b); height: 100%; border-radius: 10px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: white; font-size: 0.7rem; font-weight: bold; }
                 
-                .weight-goal span {
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary, #9ca3af);
-                }
+                .best-activity, .preferred-time { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.8rem; }
                 
-                .weight-goal strong {
-                    font-size: 1.1rem;
-                    color: var(--primary, #6366f1);
-                }
+                .analytics-footer { margin-top: 1rem; padding-top: 1rem; text-align: center; border-top: 1px solid var(--border-light, #e2e8f0); font-size: 0.65rem; color: var(--text-tertiary, #94a3b8); }
                 
-                .weight-goal small {
-                    font-size: 0.65rem;
-                }
-                
-                .composition-stats {
-                    display: flex;
-                    gap: 1rem;
-                    margin-bottom: 0.75rem;
-                }
-                
-                .composition-stats .stat-item {
-                    flex: 1;
-                    background: var(--card-bg, #ffffff);
-                    padding: 0.75rem;
-                    border-radius: 12px;
-                    text-align: center;
-                }
-                
-                .dark-mode .composition-stats .stat-item {
-                    background: #1e293b;
-                }
-                
-                .composition-stats .stat-label {
-                    font-size: 0.65rem;
-                    color: var(--text-tertiary, #b9c2d2);
-                    display: block;
-                }
-                
-                .composition-stats .stat-value {
-                    font-size: 1.1rem;
-                    font-weight: 700;
-                    display: block;
-                }
-                
-                .composition-stats .stat-category {
-                    font-size: 0.6rem;
-                    display: block;
-                    margin-top: 0.25rem;
-                }
-                
-                .composition-recommendation {
-                    font-size: 0.75rem;
-                    color: var(--text-secondary, #90a4c0);
-                    margin: 0;
-                }
-                
-                .recommendations-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.75rem;
-                }
-                
-                .recommendation-item {
-                    padding: 0.75rem;
-                    border-radius: 14px;
-                    background: var(--card-bg, #ffffff);
-                }
-                
-                .dark-mode .recommendation-item {
-                    background: #1e293b;
-                }
-                
-                .recommendation-item.priority-high {
-                    border-left: 3px solid #ef4444;
-                }
-                
-                .recommendation-item.priority-medium {
-                    border-left: 3px solid #f59e0b;
-                }
-                
-                .recommendation-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin-bottom: 0.5rem;
-                }
-                
-                .recommendation-icon {
-                    font-size: 1.2rem;
-                }
-                
-                .recommendation-title {
-                    font-weight: 600;
-                    font-size: 0.85rem;
-                }
-                
-                .recommendation-description {
-                    font-size: 0.75rem;
-                    color: var(--text-secondary, #64748b);
-                    margin: 0 0 0.5rem 0;
-                }
-                
-                .recommendation-actions {
-                    margin: 0;
-                    padding-left: 1.5rem;
-                    font-size: 0.7rem;
-                    color: var(--text-tertiary, #bcc4d3);
-                }
-                
-                .recommendation-actions li {
-                    margin-bottom: 0.25rem;
-                }
-                
-                .ai-badge-footer {
-                    margin-left: 0.5rem;
-                    font-size: 0.6rem;
-                    opacity: 0.7;
-                }
+                .spinner { width: 40px; height: 40px; border: 3px solid var(--border-light, #e2e8f0); border-top-color: #f59e0b; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+                @keyframes spin { to { transform: rotate(360deg); } }
                 
                 @media (max-width: 768px) {
-                    .composition-stats {
-                        flex-direction: column;
-                    }
+                    .analytics-container { padding: 1rem; }
+                    .summary-stats { gap: 0.5rem; }
+                    .bmi-stats { flex-direction: column; gap: 0.5rem; }
                 }
             `}</style>
         </div>
