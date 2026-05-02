@@ -65,19 +65,19 @@ const setAppLanguage = (lang, isArabic) => {
 // ==================== المكون الرئيسي ====================
 
 function ProfileManager({ isAuthReady }) {
-    // ✅ منع إعادة تحميل الصفحة نهائياً
+    // ✅ كود لتتبع سبب إعادة التحميل (بدون منعها)
 useEffect(() => {
-    // منع أي محاولة لإعادة التحميل
-    const preventReload = (e) => {
-        e.preventDefault();
-        e.returnValue = '';
-        console.log('🛡️ تم منع محاولة إعادة تحميل الصفحة');
-        return false;
+    // تتبع سبب إعادة التحميل
+    const handleBeforeUnload = (e) => {
+        console.log('🔍 الصفحة على وشك إعادة التحميل!');
+        console.trace('المكدس:');
+        // لا نمنع إعادة التحميل، فقط نسجلها
+        return undefined;
     };
     
-    window.addEventListener('beforeunload', preventReload);
+    window.addEventListener('beforeunload', handleBeforeUnload);
     
-    return () => window.removeEventListener('beforeunload', preventReload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
 }, []);
     // --- حالات اللغة ---
     const [lang, setLang] = useState(() => {
