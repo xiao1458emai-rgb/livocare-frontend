@@ -1,4 +1,4 @@
-// src/components/ProfileManager.jsx - النسخة النهائية الصحيحة
+// src/components/ProfileManager.jsx - النسخة النهائية بدون أمراض مزمنة وأدوية
 'use client'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axiosInstance from '../services/api';
@@ -66,19 +66,18 @@ const setAppLanguage = (lang, isArabic) => {
 
 function ProfileManager({ isAuthReady }) {
     // ✅ كود لتتبع سبب إعادة التحميل (بدون منعها)
-useEffect(() => {
-    // تتبع سبب إعادة التحميل
-    const handleBeforeUnload = (e) => {
-        console.log('🔍 الصفحة على وشك إعادة التحميل!');
-        console.trace('المكدس:');
-        // لا نمنع إعادة التحميل، فقط نسجلها
-        return undefined;
-    };
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            console.log('🔍 الصفحة على وشك إعادة التحميل!');
+            console.trace('المكدس:');
+            return undefined;
+        };
+        
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, []);
     
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-}, []);
     // --- حالات اللغة ---
     const [lang, setLang] = useState(() => {
         const saved = localStorage.getItem('app_lang');
@@ -100,15 +99,6 @@ useEffect(() => {
         health_goal: '',
         activity_level: ''
     });
-    
-    // ✅ حالات منفصلة للأمراض المزمنة
-    const [chronicConditions, setChronicConditions] = useState([]);
-    const [currentMedications, setCurrentMedications] = useState([]);
-    const [showAddCondition, setShowAddCondition] = useState(false);
-    const [showAddMedication, setShowAddMedication] = useState(false);
-    const [newCondition, setNewCondition] = useState({ name: '', diagnosis_date: '', medications: '' });
-    const [newMedication, setNewMedication] = useState({ name: '', dosage: '', frequency: '', start_date: '' });
-    const [loadingConditions, setLoadingConditions] = useState(false);
     
     // حالة منع التحميل المتكرر
     const isInitialLoadRef = useRef(false);
@@ -176,28 +166,28 @@ useEffect(() => {
     const [refreshKey, setRefreshKey] = useState(0);
     
     // ✅ هنا تبدأ useEffect - داخل المكون
-useEffect(() => {
-    console.log('🚀 ProfileManager mounted at:', new Date().toISOString());
-    
-    const handleError = (event) => {
-        console.error('💥 Uncaught Error:', event.error);
-        console.error('💥 Error message:', event.message);
-        console.error('💥 Error filename:', event.filename);
-        console.error('💥 Error line:', event.lineno);
-    };
-    window.addEventListener('error', handleError);
-    
-    const handleRejection = (event) => {
-        console.error('💥 Unhandled Promise Rejection:', event.reason);
-        console.error('💥 Promise:', event.promise);
-    };
-    window.addEventListener('unhandledrejection', handleRejection);
-    
-    return () => {
-        window.removeEventListener('error', handleError);
-        window.removeEventListener('unhandledrejection', handleRejection);
-    };
-}, []);
+    useEffect(() => {
+        console.log('🚀 ProfileManager mounted at:', new Date().toISOString());
+        
+        const handleError = (event) => {
+            console.error('💥 Uncaught Error:', event.error);
+            console.error('💥 Error message:', event.message);
+            console.error('💥 Error filename:', event.filename);
+            console.error('💥 Error line:', event.lineno);
+        };
+        window.addEventListener('error', handleError);
+        
+        const handleRejection = (event) => {
+            console.error('💥 Unhandled Promise Rejection:', event.reason);
+            console.error('💥 Promise:', event.promise);
+        };
+        window.addEventListener('unhandledrejection', handleRejection);
+        
+        return () => {
+            window.removeEventListener('error', handleError);
+            window.removeEventListener('unhandledrejection', handleRejection);
+        };
+    }, []);
     
     // --- حساب العمر ---
     const calculateAge = useCallback((birthDate) => {
@@ -385,162 +375,12 @@ useEffect(() => {
                     fetchHealthGoals(),
                     fetchCurrentHealthData(),
                     loadAchievements(),
-                    loadSavedSettings(),
-                    fetchChronicConditions(),
-                    fetchCurrentMedications()
+                    loadSavedSettings()
                 ]);
             };
             loadAllData();
         }
     }, [isAuthReady]);
-    
-    // --- دوال API للأمراض المزمنة والأدوية ---
-    
-    // ✅ جلب الأمراض المزمنة
-    const fetchChronicConditions = useCallback(async () => {
-        setLoadingConditions(true);
-        try {
-            const response = await axiosInstance.get('/user/conditions/');
-            if (response.data?.success) {
-                setChronicConditions(response.data.conditions);
-                console.log('✅ Chronic conditions loaded:', response.data.conditions);
-            }
-        } catch (error) {
-            console.error('Error fetching conditions:', error);
-        } finally {
-            setLoadingConditions(false);
-        }
-    }, []);
-    
-    // ✅ جلب الأدوية الحالية
-    const fetchCurrentMedications = useCallback(async () => {
-        try {
-            const response = await axiosInstance.get('/user/medications/');
-            if (response.data?.success) {
-                setCurrentMedications(response.data.medications);
-                console.log('✅ Medications loaded:', response.data.medications);
-            }
-        } catch (error) {
-            console.error('Error fetching medications:', error);
-        }
-    }, []);
-    
-    // ✅ إضافة مرض مزمن جديد
-    const handleAddCondition = async (e) => {
-        e.preventDefault();
-        if (!newCondition.name.trim()) {
-            setMessage(isArabic ? '❌ الرجاء إدخال اسم المرض' : '❌ Please enter condition name');
-            setMessageType('error');
-            return;
-        }
-        
-        if (isAddingRef.current) return;
-        isAddingRef.current = true;
-        
-        setSaving(true);
-        try {
-            await axiosInstance.post('/user/conditions/', newCondition);
-            setChronicConditions(prev => [...prev, { 
-                id: Date.now(), 
-                name: newCondition.name, 
-                diagnosis_date: newCondition.diagnosis_date,
-                medications: newCondition.medications
-            }]);
-            setNewCondition({ name: '', diagnosis_date: '', medications: '' });
-            setShowAddCondition(false);
-            setMessage(isArabic ? '✅ تم إضافة المرض بنجاح' : '✅ Condition added successfully');
-            setMessageType('success');
-        } catch (error) {
-            console.error('Error adding condition:', error);
-            setMessage(isArabic ? '❌ خطأ في إضافة المرض' : '❌ Error adding condition');
-            setMessageType('error');
-        } finally {
-            setSaving(false);
-            isAddingRef.current = false;
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
-    
-    // ✅ حذف مرض مزمن
-    const handleDeleteCondition = async (conditionId) => {
-        if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا المرض؟' : 'Are you sure you want to delete this condition?')) return;
-        
-        if (isAddingRef.current) return;
-        isAddingRef.current = true;
-        
-        try {
-            await axiosInstance.delete(`/user/conditions/${conditionId}/delete/`);
-            setChronicConditions(prev => prev.filter(c => c.id !== conditionId));
-            setMessage(isArabic ? '✅ تم حذف المرض بنجاح' : '✅ Condition deleted successfully');
-            setMessageType('success');
-        } catch (error) {
-            console.error('Error deleting condition:', error);
-            setMessage(isArabic ? '❌ خطأ في حذف المرض' : '❌ Error deleting condition');
-            setMessageType('error');
-        } finally {
-            isAddingRef.current = false;
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
-    
-    // ✅ إضافة دواء جديد
-    const handleAddMedication = async (e) => {
-        e.preventDefault();
-        if (!newMedication.name.trim()) {
-            setMessage(isArabic ? '❌ الرجاء إدخال اسم الدواء' : '❌ Please enter medication name');
-            setMessageType('error');
-            return;
-        }
-        
-        if (isAddingRef.current) return;
-        isAddingRef.current = true;
-        
-        setSaving(true);
-        try {
-            const response = await axiosInstance.post('/user/medications/', newMedication);
-            setCurrentMedications(prev => [...prev, {
-                id: response.data?.medication?.id || Date.now(),
-                name: newMedication.name,
-                dosage: newMedication.dosage,
-                frequency: newMedication.frequency,
-                start_date: newMedication.start_date
-            }]);
-            setNewMedication({ name: '', dosage: '', frequency: '', start_date: '' });
-            setShowAddMedication(false);
-            setMessage(isArabic ? '✅ تم إضافة الدواء بنجاح' : '✅ Medication added successfully');
-            setMessageType('success');
-        } catch (error) {
-            console.error('Error adding medication:', error);
-            setMessage(isArabic ? '❌ خطأ في إضافة الدواء' : '❌ Error adding medication');
-            setMessageType('error');
-        } finally {
-            setSaving(false);
-            isAddingRef.current = false;
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
-    
-    // ✅ حذف دواء
-    const handleDeleteMedication = async (medId) => {
-        if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا الدواء؟' : 'Are you sure you want to delete this medication?')) return;
-        
-        if (isAddingRef.current) return;
-        isAddingRef.current = true;
-        
-        try {
-            await axiosInstance.delete(`/user/medications/${medId}/delete/`);
-            setCurrentMedications(prev => prev.filter(m => m.id !== medId));
-            setMessage(isArabic ? '✅ تم حذف الدواء بنجاح' : '✅ Medication deleted successfully');
-            setMessageType('success');
-        } catch (error) {
-            console.error('Error deleting medication:', error);
-            setMessage(isArabic ? '❌ خطأ في حذف الدواء' : '❌ Error deleting medication');
-            setMessageType('error');
-        } finally {
-            isAddingRef.current = false;
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
     
     // --- دوال API الأساسية ---
     const loadSavedSettings = useCallback(() => {
@@ -1017,8 +857,6 @@ useEffect(() => {
             fetchUserData();
             fetchHealthGoals();
             fetchCurrentHealthData();
-            fetchChronicConditions();
-            fetchCurrentMedications();
         } catch (error) {
             console.error('Error restoring backup:', error);
             setMessage(isArabic ? '❌ خطأ في استعادة النسخة الاحتياطية' : '❌ Error restoring backup');
@@ -1330,142 +1168,6 @@ useEffect(() => {
                             </div>
                         </div>
                         
-                        {/* ✅ الأمراض المزمنة - إدارة منفصلة */}
-                        <div className="form-section">
-                            <h3>🩺 {isArabic ? 'الأمراض المزمنة' : 'Chronic Conditions'}</h3>
-                            <div className="conditions-list">
-                                {chronicConditions.length > 0 ? (
-                                    chronicConditions.map(condition => (
-                                        <div key={condition.id} className="condition-chip">
-                                            <span className="condition-name">{condition.name}</span>
-                                            {condition.diagnosis_date && (
-                                                <span className="condition-date">{condition.diagnosis_date}</span>
-                                            )}
-                                            {condition.medications && (
-                                                <span className="condition-medications">💊 {condition.medications}</span>
-                                            )}
-                                            <button 
-                                                onClick={() => handleDeleteCondition(condition.id)}
-                                                className="delete-chip-btn"
-                                                title={isArabic ? 'حذف' : 'Delete'}
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="empty-conditions">
-                                        <span className="empty-icon">🩺</span>
-                                        <span>{isArabic ? 'لا توجد أمراض مزمنة مسجلة' : 'No chronic conditions recorded'}</span>
-                                    </div>
-                                )}
-                            </div>
-                            {showAddCondition ? (
-                                <form onSubmit={handleAddCondition} className="add-condition-form">
-                                    <input 
-                                        type="text" 
-                                        placeholder={isArabic ? 'اسم المرض' : 'Condition name'}
-                                        value={newCondition.name}
-                                        onChange={(e) => setNewCondition({...newCondition, name: e.target.value})}
-                                        required
-                                    />
-                                    <input 
-                                        type="date" 
-                                        placeholder={isArabic ? 'تاريخ التشخيص' : 'Diagnosis date'}
-                                        value={newCondition.diagnosis_date}
-                                        onChange={(e) => setNewCondition({...newCondition, diagnosis_date: e.target.value})}
-                                    />
-                                    <textarea 
-                                        placeholder={isArabic ? 'الأدوية المرتبطة (اختياري)' : 'Related medications (optional)'}
-                                        value={newCondition.medications}
-                                        onChange={(e) => setNewCondition({...newCondition, medications: e.target.value})}
-                                        rows="2"
-                                    />
-                                    <div className="form-actions">
-                                        <button type="submit" disabled={saving} className="submit-btn small">
-                                            {saving ? '⏳' : '✅'} {isArabic ? 'إضافة' : 'Add'}
-                                        </button>
-                                        <button type="button" onClick={() => setShowAddCondition(false)} className="cancel-btn small">
-                                            ✕ {isArabic ? 'إلغاء' : 'Cancel'}
-                                        </button>
-                                    </div>
-                                </form>
-                            ) : (
-                                <button onClick={() => setShowAddCondition(true)} className="add-btn">
-                                    ➕ {isArabic ? 'أضف مرضاً مزمنة' : 'Add Chronic Condition'}
-                                </button>
-                            )}
-                        </div>
-                        
-                        {/* ✅ الأدوية الحالية - إدارة منفصلة */}
-                        <div className="form-section">
-                            <h3>💊 {isArabic ? 'الأدوية الحالية' : 'Current Medications'}</h3>
-                            <div className="medications-list">
-                                {currentMedications.length > 0 ? (
-                                    currentMedications.map(med => (
-                                        <div key={med.id} className="medication-chip">
-                                            <span className="medication-name">{med.name}</span>
-                                            {med.dosage && <span className="medication-dosage">{med.dosage}</span>}
-                                            {med.frequency && <span className="medication-frequency">{med.frequency}</span>}
-                                            <button 
-                                                onClick={() => handleDeleteMedication(med.id)}
-                                                className="delete-chip-btn"
-                                                title={isArabic ? 'حذف' : 'Delete'}
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="empty-medications">
-                                        <span className="empty-icon">💊</span>
-                                        <span>{isArabic ? 'لا توجد أدوية حالية مسجلة' : 'No current medications recorded'}</span>
-                                    </div>
-                                )}
-                            </div>
-                            {showAddMedication ? (
-                                <form onSubmit={handleAddMedication} className="add-medication-form">
-                                    <input 
-                                        type="text" 
-                                        placeholder={isArabic ? 'اسم الدواء' : 'Medication name'}
-                                        value={newMedication.name}
-                                        onChange={(e) => setNewMedication({...newMedication, name: e.target.value})}
-                                        required
-                                    />
-                                    <input 
-                                        type="text" 
-                                        placeholder={isArabic ? 'الجرعة (مثال: 500mg)' : 'Dosage (e.g., 500mg)'}
-                                        value={newMedication.dosage}
-                                        onChange={(e) => setNewMedication({...newMedication, dosage: e.target.value})}
-                                    />
-                                    <input 
-                                        type="text" 
-                                        placeholder={isArabic ? 'التكرار (مثال: مرة يومياً)' : 'Frequency (e.g., once daily)'}
-                                        value={newMedication.frequency}
-                                        onChange={(e) => setNewMedication({...newMedication, frequency: e.target.value})}
-                                    />
-                                    <input 
-                                        type="date" 
-                                        placeholder={isArabic ? 'تاريخ البدء' : 'Start date'}
-                                        value={newMedication.start_date}
-                                        onChange={(e) => setNewMedication({...newMedication, start_date: e.target.value})}
-                                    />
-                                    <div className="form-actions">
-                                        <button type="submit" disabled={saving} className="submit-btn small">
-                                            {saving ? '⏳' : '✅'} {isArabic ? 'إضافة' : 'Add'}
-                                        </button>
-                                        <button type="button" onClick={() => setShowAddMedication(false)} className="cancel-btn small">
-                                            ✕ {isArabic ? 'إلغاء' : 'Cancel'}
-                                        </button>
-                                    </div>
-                                </form>
-                            ) : (
-                                <button onClick={() => setShowAddMedication(true)} className="add-btn">
-                                    ➕ {isArabic ? 'أضف دواءً' : 'Add Medication'}
-                                </button>
-                            )}
-                        </div>
-                        
                         {/* Health Information */}
                         <div className="form-section">
                             <h3>❤️ {isArabic ? 'المعلومات الصحية' : 'Health Information'}</h3>
@@ -1686,7 +1388,7 @@ useEffect(() => {
                 )}
             </div>
 
-            {/* Styles */}
+            {/* Styles (CSS كما هو دون تغيير) */}
             <style jsx>{`
             /* ===========================================
    ProfileManager.css - الأنماط الداخلية فقط
