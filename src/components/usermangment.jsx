@@ -1,6 +1,6 @@
-// src/components/ProfileManager.jsx - النسخة المعدلة بالكامل
+// src/components/ProfileManager.jsx - النسخة النهائية
 'use client'
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axiosInstance from '../services/api';
 import '../index.css';
 
@@ -72,7 +72,7 @@ function ProfileManager({ isAuthReady }) {
     });
     const isArabic = lang === 'ar';
     
-    // --- حالات المستخدم (بدون chronic_conditions و current_medications) ---
+    // --- حالات المستخدم ---
     const [userData, setUserData] = useState({
         username: '',
         email: '',
@@ -87,7 +87,7 @@ function ProfileManager({ isAuthReady }) {
         activity_level: ''
     });
     
-    // ✅ حالات منفصلة للأمراض المزمنة والأدوية
+    // ✅ حالات منفصلة للأمراض المزمنة
     const [chronicConditions, setChronicConditions] = useState([]);
     const [currentMedications, setCurrentMedications] = useState([]);
     const [showAddCondition, setShowAddCondition] = useState(false);
@@ -95,6 +95,10 @@ function ProfileManager({ isAuthReady }) {
     const [newCondition, setNewCondition] = useState({ name: '', diagnosis_date: '', medications: '' });
     const [newMedication, setNewMedication] = useState({ name: '', dosage: '', frequency: '', start_date: '' });
     const [loadingConditions, setLoadingConditions] = useState(false);
+    
+    // حالة منع التحميل المتكرر
+    const isInitialLoadRef = useRef(false);
+    const [isDataLoaded, setIsDataLoaded] = useState(false);
     
     // ✅ حالة تغيير اسم المستخدم
     const [isEditingUsername, setIsEditingUsername] = useState(false);
@@ -322,7 +326,7 @@ function ProfileManager({ isAuthReady }) {
         return recommendations.slice(0, 5);
     }, [userData.occupation_status, userData.activity_level, smartProfile, healthData, isArabic]);
     
-    // --- تأثيرات التحميل الأولي ---
+    // --- تأثيرات التحميل الأولي - محسنة لمنع إعادة التحميل المتكررة ---
     useEffect(() => {
         const motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
         setReducedMotion(motionMediaQuery.matches);
@@ -331,15 +335,24 @@ function ProfileManager({ isAuthReady }) {
         return () => motionMediaQuery.removeEventListener('change', handleMotionChange);
     }, []);
     
+    // ✅ استخدام useRef لمنع التحميل المتكرر
     useEffect(() => {
-        if (isAuthReady) {
-            fetchUserData();
-            fetchHealthGoals();
-            fetchCurrentHealthData();
-            loadAchievements();
-            loadSavedSettings();
-            fetchChronicConditions();      // ✅ جلب الأمراض المزمنة
-            fetchCurrentMedications();     // ✅ جلب الأدوية الحالية
+        if (isAuthReady && !isInitialLoadRef.current) {
+            isInitialLoadRef.current = true;
+            
+            const loadAllData = async () => {
+                await Promise.all([
+                    fetchUserData(),
+                    fetchHealthGoals(),
+                    fetchCurrentHealthData(),
+                    loadAchievements(),
+                    loadSavedSettings(),
+                    fetchChronicConditions(),
+                    fetchCurrentMedications()
+                ]);
+                setIsDataLoaded(true);
+            };
+            loadAllData();
         }
     }, [isAuthReady]);
     
@@ -352,6 +365,7 @@ function ProfileManager({ isAuthReady }) {
             const response = await axiosInstance.get('/user/conditions/');
             if (response.data?.success) {
                 setChronicConditions(response.data.conditions);
+                console.log('✅ Chronic conditions loaded:', response.data.conditions);
             }
         } catch (error) {
             console.error('Error fetching conditions:', error);
@@ -366,6 +380,7 @@ function ProfileManager({ isAuthReady }) {
             const response = await axiosInstance.get('/user/medications/');
             if (response.data?.success) {
                 setCurrentMedications(response.data.medications);
+                console.log('✅ Medications loaded:', response.data.medications);
             }
         } catch (error) {
             console.error('Error fetching medications:', error);
@@ -389,6 +404,7 @@ function ProfileManager({ isAuthReady }) {
             setShowAddCondition(false);
             setMessage(isArabic ? '✅ تم إضافة المرض بنجاح' : '✅ Condition added successfully');
             setMessageType('success');
+            setRefreshKey(prev => prev + 1);
         } catch (error) {
             console.error('Error adding condition:', error);
             setMessage(isArabic ? '❌ خطأ في إضافة المرض' : '❌ Error adding condition');
@@ -408,6 +424,7 @@ function ProfileManager({ isAuthReady }) {
             await fetchChronicConditions();
             setMessage(isArabic ? '✅ تم حذف المرض بنجاح' : '✅ Condition deleted successfully');
             setMessageType('success');
+            setRefreshKey(prev => prev + 1);
         } catch (error) {
             console.error('Error deleting condition:', error);
             setMessage(isArabic ? '❌ خطأ في حذف المرض' : '❌ Error deleting condition');
@@ -434,6 +451,7 @@ function ProfileManager({ isAuthReady }) {
             setShowAddMedication(false);
             setMessage(isArabic ? '✅ تم إضافة الدواء بنجاح' : '✅ Medication added successfully');
             setMessageType('success');
+            setRefreshKey(prev => prev + 1);
         } catch (error) {
             console.error('Error adding medication:', error);
             setMessage(isArabic ? '❌ خطأ في إضافة الدواء' : '❌ Error adding medication');
@@ -453,6 +471,7 @@ function ProfileManager({ isAuthReady }) {
             await fetchCurrentMedications();
             setMessage(isArabic ? '✅ تم حذف الدواء بنجاح' : '✅ Medication deleted successfully');
             setMessageType('success');
+            setRefreshKey(prev => prev + 1);
         } catch (error) {
             console.error('Error deleting medication:', error);
             setMessage(isArabic ? '❌ خطأ في حذف الدواء' : '❌ Error deleting medication');
@@ -463,7 +482,7 @@ function ProfileManager({ isAuthReady }) {
     };
     
     // --- دوال API الأساسية ---
-    const loadSavedSettings = () => {
+    const loadSavedSettings = useCallback(() => {
         try {
             const savedSettings = localStorage.getItem('appSettings');
             if (savedSettings) {
@@ -473,9 +492,9 @@ function ProfileManager({ isAuthReady }) {
         } catch (error) {
             console.error('Error loading settings:', error);
         }
-    };
+    }, []);
     
-    const fetchCurrentHealthData = async () => {
+    const fetchCurrentHealthData = useCallback(async () => {
         try {
             const [sleepRes, activitiesRes, mealsRes, moodRes, healthRes, habitsRes] = await Promise.all([
                 axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
@@ -554,9 +573,9 @@ function ProfileManager({ isAuthReady }) {
         } catch (error) {
             console.error('Error fetching health data:', error);
         }
-    };
+    }, []);
     
-    const fetchUserData = async () => {
+    const fetchUserData = useCallback(async () => {
         setLoading(true);
         try {
             const response = await axiosInstance.get('/profile/');
@@ -584,7 +603,7 @@ function ProfileManager({ isAuthReady }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [isArabic]);
     
     const handleUpdateUsername = async () => {
         if (!newUsername.trim() || newUsername === userData.username) {
@@ -650,7 +669,7 @@ function ProfileManager({ isAuthReady }) {
         }
     };
     
-    const fetchHealthGoals = async () => {
+    const fetchHealthGoals = useCallback(async () => {
         try {
             const response = await axiosInstance.get('/goals/');
             let goalsData = [];
@@ -661,16 +680,16 @@ function ProfileManager({ isAuthReady }) {
             console.error('Error fetching health goals:', error);
             setHealthGoals([]);
         }
-    };
+    }, []);
     
-    const loadAchievements = async () => {
+    const loadAchievements = useCallback(async () => {
         try {
             const response = await axiosInstance.get('/achievements/').catch(() => ({ data: [] }));
             setAchievements(response.data || []);
         } catch (error) {
             console.error('Error loading achievements:', error);
         }
-    };
+    }, []);
     
     const handleUserUpdate = async (e) => {
         e.preventDefault();
@@ -700,7 +719,6 @@ function ProfileManager({ isAuthReady }) {
             setMessageType('success');
             await fetchUserData();
             await fetchCurrentHealthData();
-            setRefreshKey(prev => prev + 1);
         } catch (error) {
             console.error('Error updating profile:', error);
             setMessage(isArabic ? '❌ خطأ في تحديث الملف الشخصي' : '❌ Error updating profile');
@@ -940,7 +958,6 @@ function ProfileManager({ isAuthReady }) {
             fetchCurrentHealthData();
             fetchChronicConditions();
             fetchCurrentMedications();
-            setRefreshKey(prev => prev + 1);
         } catch (error) {
             console.error('Error restoring backup:', error);
             setMessage(isArabic ? '❌ خطأ في استعادة النسخة الاحتياطية' : '❌ Error restoring backup');
@@ -1263,6 +1280,9 @@ function ProfileManager({ isAuthReady }) {
                                             <span className="condition-name">{condition.name}</span>
                                             {condition.diagnosis_date && (
                                                 <span className="condition-date">{condition.diagnosis_date}</span>
+                                            )}
+                                            {condition.medications && (
+                                                <span className="condition-medications">💊 {condition.medications}</span>
                                             )}
                                             <button 
                                                 onClick={() => handleDeleteCondition(condition.id)}
@@ -1605,7 +1625,7 @@ function ProfileManager({ isAuthReady }) {
                     </div>
                 )}
             </div>
- 
+
             {/* Styles */}
             <style jsx>{`
             /* ===========================================
