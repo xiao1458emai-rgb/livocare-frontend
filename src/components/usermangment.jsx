@@ -386,101 +386,138 @@ function ProfileManager({ isAuthReady }) {
             console.error('Error fetching medications:', error);
         }
     }, []);
+    // src/components/ProfileManager.jsx - الأجزاء المعدلة فقط
+
+// ✅ أضف هذه المتغيرات في بداية المكون
+const isMountedRef = useRef(true);
+const isAddingRef = useRef(false);
+
+// ✅ عدّل دالة handleAddCondition لتكون هكذا
+const handleAddCondition = async (e) => {
+    e.preventDefault();
+    if (!newCondition.name.trim()) {
+        setMessage(isArabic ? '❌ الرجاء إدخال اسم المرض' : '❌ Please enter condition name');
+        setMessageType('error');
+        return;
+    }
     
-    // ✅ إضافة مرض مزمن جديد
-    const handleAddCondition = async (e) => {
-        e.preventDefault();
-        if (!newCondition.name.trim()) {
-            setMessage(isArabic ? '❌ الرجاء إدخال اسم المرض' : '❌ Please enter condition name');
-            setMessageType('error');
-            return;
-        }
+    // منع الإضافة المتكررة
+    if (isAddingRef.current) return;
+    isAddingRef.current = true;
+    
+    setSaving(true);
+    try {
+        await axiosInstance.post('/user/conditions/', newCondition);
+        // ✅ تحديث القائمة محلياً بدلاً من إعادة الجلب
+        setChronicConditions(prev => [...prev, { 
+            id: Date.now(), 
+            name: newCondition.name, 
+            diagnosis_date: newCondition.diagnosis_date,
+            medications: newCondition.medications
+        }]);
+        setNewCondition({ name: '', diagnosis_date: '', medications: '' });
+        setShowAddCondition(false);
+        setMessage(isArabic ? '✅ تم إضافة المرض بنجاح' : '✅ Condition added successfully');
+        setMessageType('success');
         
-        setSaving(true);
-        try {
-            await axiosInstance.post('/user/conditions/', newCondition);
-            await fetchChronicConditions();
-            setNewCondition({ name: '', diagnosis_date: '', medications: '' });
-            setShowAddCondition(false);
-            setMessage(isArabic ? '✅ تم إضافة المرض بنجاح' : '✅ Condition added successfully');
-            setMessageType('success');
-            setRefreshKey(prev => prev + 1);
-        } catch (error) {
-            console.error('Error adding condition:', error);
-            setMessage(isArabic ? '❌ خطأ في إضافة المرض' : '❌ Error adding condition');
-            setMessageType('error');
-        } finally {
-            setSaving(false);
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
-    
-    // ✅ حذف مرض مزمن
-    const handleDeleteCondition = async (conditionId) => {
-        if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا المرض؟' : 'Are you sure you want to delete this condition?')) return;
+        // ✅ لا تستدعي fetchChronicConditions() لتجنب إعادة التحميل
+        // فقط قم بتحديث القائمة محلياً
         
-        try {
-            await axiosInstance.delete(`/user/conditions/${conditionId}/delete/`);
-            await fetchChronicConditions();
-            setMessage(isArabic ? '✅ تم حذف المرض بنجاح' : '✅ Condition deleted successfully');
-            setMessageType('success');
-            setRefreshKey(prev => prev + 1);
-        } catch (error) {
-            console.error('Error deleting condition:', error);
-            setMessage(isArabic ? '❌ خطأ في حذف المرض' : '❌ Error deleting condition');
-            setMessageType('error');
-        } finally {
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
+    } catch (error) {
+        console.error('Error adding condition:', error);
+        setMessage(isArabic ? '❌ خطأ في إضافة المرض' : '❌ Error adding condition');
+        setMessageType('error');
+    } finally {
+        setSaving(false);
+        isAddingRef.current = false;
+        setTimeout(() => setMessage(''), 3000);
+    }
+};
+
+// ✅ عدّل دالة handleDeleteCondition لتكون هكذا
+const handleDeleteCondition = async (conditionId) => {
+    if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا المرض؟' : 'Are you sure you want to delete this condition?')) return;
     
-    // ✅ إضافة دواء جديد
-    const handleAddMedication = async (e) => {
-        e.preventDefault();
-        if (!newMedication.name.trim()) {
-            setMessage(isArabic ? '❌ الرجاء إدخال اسم الدواء' : '❌ Please enter medication name');
-            setMessageType('error');
-            return;
-        }
-        
-        setSaving(true);
-        try {
-            await axiosInstance.post('/user/medications/', newMedication);
-            await fetchCurrentMedications();
-            setNewMedication({ name: '', dosage: '', frequency: '', start_date: '' });
-            setShowAddMedication(false);
-            setMessage(isArabic ? '✅ تم إضافة الدواء بنجاح' : '✅ Medication added successfully');
-            setMessageType('success');
-            setRefreshKey(prev => prev + 1);
-        } catch (error) {
-            console.error('Error adding medication:', error);
-            setMessage(isArabic ? '❌ خطأ في إضافة الدواء' : '❌ Error adding medication');
-            setMessageType('error');
-        } finally {
-            setSaving(false);
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
+    // ✅ منع الحذف المتكرر
+    if (isAddingRef.current) return;
+    isAddingRef.current = true;
     
-    // ✅ حذف دواء
-    const handleDeleteMedication = async (medId) => {
-        if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا الدواء؟' : 'Are you sure you want to delete this medication?')) return;
-        
-        try {
-            await axiosInstance.delete(`/user/medications/${medId}/delete/`);
-            await fetchCurrentMedications();
-            setMessage(isArabic ? '✅ تم حذف الدواء بنجاح' : '✅ Medication deleted successfully');
-            setMessageType('success');
-            setRefreshKey(prev => prev + 1);
-        } catch (error) {
-            console.error('Error deleting medication:', error);
-            setMessage(isArabic ? '❌ خطأ في حذف الدواء' : '❌ Error deleting medication');
-            setMessageType('error');
-        } finally {
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
+    try {
+        await axiosInstance.delete(`/user/conditions/${conditionId}/delete/`);
+        // ✅ تحديث القائمة محلياً بدلاً من إعادة الجلب
+        setChronicConditions(prev => prev.filter(c => c.id !== conditionId));
+        setMessage(isArabic ? '✅ تم حذف المرض بنجاح' : '✅ Condition deleted successfully');
+        setMessageType('success');
+    } catch (error) {
+        console.error('Error deleting condition:', error);
+        setMessage(isArabic ? '❌ خطأ في حذف المرض' : '❌ Error deleting condition');
+        setMessageType('error');
+    } finally {
+        isAddingRef.current = false;
+        setTimeout(() => setMessage(''), 3000);
+    }
+};
+
+// ✅ عدّل دالة handleAddMedication
+const handleAddMedication = async (e) => {
+    e.preventDefault();
+    if (!newMedication.name.trim()) {
+        setMessage(isArabic ? '❌ الرجاء إدخال اسم الدواء' : '❌ Please enter medication name');
+        setMessageType('error');
+        return;
+    }
     
+    if (isAddingRef.current) return;
+    isAddingRef.current = true;
+    
+    setSaving(true);
+    try {
+        await axiosInstance.post('/user/medications/', newMedication);
+        // ✅ تحديث القائمة محلياً
+        setCurrentMedications(prev => [...prev, {
+            id: Date.now(),
+            name: newMedication.name,
+            dosage: newMedication.dosage,
+            frequency: newMedication.frequency,
+            start_date: newMedication.start_date
+        }]);
+        setNewMedication({ name: '', dosage: '', frequency: '', start_date: '' });
+        setShowAddMedication(false);
+        setMessage(isArabic ? '✅ تم إضافة الدواء بنجاح' : '✅ Medication added successfully');
+        setMessageType('success');
+    } catch (error) {
+        console.error('Error adding medication:', error);
+        setMessage(isArabic ? '❌ خطأ في إضافة الدواء' : '❌ Error adding medication');
+        setMessageType('error');
+    } finally {
+        setSaving(false);
+        isAddingRef.current = false;
+        setTimeout(() => setMessage(''), 3000);
+    }
+};
+
+// ✅ عدّل دالة handleDeleteMedication
+const handleDeleteMedication = async (medId) => {
+    if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا الدواء؟' : 'Are you sure you want to delete this medication?')) return;
+    
+    if (isAddingRef.current) return;
+    isAddingRef.current = true;
+    
+    try {
+        await axiosInstance.delete(`/user/medications/${medId}/delete/`);
+        // ✅ تحديث القائمة محلياً
+        setCurrentMedications(prev => prev.filter(m => m.id !== medId));
+        setMessage(isArabic ? '✅ تم حذف الدواء بنجاح' : '✅ Medication deleted successfully');
+        setMessageType('success');
+    } catch (error) {
+        console.error('Error deleting medication:', error);
+        setMessage(isArabic ? '❌ خطأ في حذف الدواء' : '❌ Error deleting medication');
+        setMessageType('error');
+    } finally {
+        isAddingRef.current = false;
+        setTimeout(() => setMessage(''), 3000);
+    }
+};
     // --- دوال API الأساسية ---
     const loadSavedSettings = useCallback(() => {
         try {
