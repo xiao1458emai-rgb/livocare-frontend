@@ -162,43 +162,28 @@ function ProfileManager({ isAuthReady }) {
     const [refreshKey, setRefreshKey] = useState(0);
     
     // ✅ هنا تبدأ useEffect - داخل المكون
-    useEffect(() => {
-        console.log('🚀 PAGE LOADED / MOUNTED at:', new Date().toISOString());
-        
-        const handleError = (event) => {
-            console.error('💥 Uncaught Error:', event.error);
-            console.error('💥 Error message:', event.message);
-            console.error('💥 Error filename:', event.filename);
-            console.error('💥 Error line:', event.lineno);
-        };
-        window.addEventListener('error', handleError);
-        
-        const handleRejection = (event) => {
-            console.error('💥 Unhandled Promise Rejection:', event.reason);
-            console.error('💥 Promise:', event.promise);
-        };
-        window.addEventListener('unhandledrejection', handleRejection);
-        
-        // مراقبة محاولات إعادة تحميل الصفحة
-        const originalReload = window.location.reload;
-        window.location.reload = function(...args) {
-            console.error('🚨 window.location.reload() called! Stack trace:', new Error().stack);
-            return originalReload.apply(this, args);
-        };
-        
-        const originalReplace = window.location.replace;
-        window.location.replace = function(...args) {
-            console.error('🚨 window.location.replace() called! Stack trace:', new Error().stack);
-            return originalReplace.apply(this, args);
-        };
-        
-        return () => {
-            window.removeEventListener('error', handleError);
-            window.removeEventListener('unhandledrejection', handleRejection);
-            window.location.reload = originalReload;
-            window.location.replace = originalReplace;
-        };
-    }, []);
+useEffect(() => {
+    console.log('🚀 ProfileManager mounted at:', new Date().toISOString());
+    
+    const handleError = (event) => {
+        console.error('💥 Uncaught Error:', event.error);
+        console.error('💥 Error message:', event.message);
+        console.error('💥 Error filename:', event.filename);
+        console.error('💥 Error line:', event.lineno);
+    };
+    window.addEventListener('error', handleError);
+    
+    const handleRejection = (event) => {
+        console.error('💥 Unhandled Promise Rejection:', event.reason);
+        console.error('💥 Promise:', event.promise);
+    };
+    window.addEventListener('unhandledrejection', handleRejection);
+    
+    return () => {
+        window.removeEventListener('error', handleError);
+        window.removeEventListener('unhandledrejection', handleRejection);
+    };
+}, []);
     
     // --- حساب العمر ---
     const calculateAge = useCallback((birthDate) => {
