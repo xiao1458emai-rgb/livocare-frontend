@@ -341,7 +341,7 @@ function ProfileManager({ isAuthReady }) {
             fetchChronicConditions();      // ✅ جلب الأمراض المزمنة
             fetchCurrentMedications();     // ✅ جلب الأدوية الحالية
         }
-    }, [isAuthReady, refreshKey]);
+    }, [isAuthReady]);
     
     // --- دوال API للأمراض المزمنة والأدوية ---
     
