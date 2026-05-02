@@ -5,20 +5,7 @@ import axiosInstance from '../services/api';
 import '../index.css';
 
 // ==================== دوال مساعدة ====================
-// ✅ منع إعادة تحميل الصفحة نهائياً
-useEffect(() => {
-    // منع أي محاولة لإعادة التحميل
-    const preventReload = (e) => {
-        e.preventDefault();
-        e.returnValue = '';
-        console.log('🛡️ تم منع محاولة إعادة تحميل الصفحة');
-        return false;
-    };
-    
-    window.addEventListener('beforeunload', preventReload);
-    
-    return () => window.removeEventListener('beforeunload', preventReload);
-}, []);
+
 const extractDataSafely = (response) => {
     if (!response || !response.data) return [];
     if (Array.isArray(response.data)) return response.data;
@@ -78,6 +65,20 @@ const setAppLanguage = (lang, isArabic) => {
 // ==================== المكون الرئيسي ====================
 
 function ProfileManager({ isAuthReady }) {
+    // ✅ منع إعادة تحميل الصفحة نهائياً
+useEffect(() => {
+    // منع أي محاولة لإعادة التحميل
+    const preventReload = (e) => {
+        e.preventDefault();
+        e.returnValue = '';
+        console.log('🛡️ تم منع محاولة إعادة تحميل الصفحة');
+        return false;
+    };
+    
+    window.addEventListener('beforeunload', preventReload);
+    
+    return () => window.removeEventListener('beforeunload', preventReload);
+}, []);
     // --- حالات اللغة ---
     const [lang, setLang] = useState(() => {
         const saved = localStorage.getItem('app_lang');
