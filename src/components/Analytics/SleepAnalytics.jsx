@@ -1,5 +1,6 @@
 // src/components/Analytics/SleepAnalytics.jsx - النسخة المطورة
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { mean } from 'mathjs';
 import { Line, Bar } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
