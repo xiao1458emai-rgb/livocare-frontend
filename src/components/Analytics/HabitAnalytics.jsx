@@ -2,21 +2,19 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axiosInstance from '../../services/api';
 import '../../index.css';
 
-// ✅ نفس دوال التصنيف المستخدمة في HabitTracker
+// ✅ دوال مساعدة
 const getStoredHabitType = (habitId) => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(`habit_type_${habitId}`);
 };
 
 const detectHabitType = (habitName, habitDescription = '', habitId = null) => {
-    // ✅ أولاً: التحقق من التخزين المحلي
     const storedType = habitId ? getStoredHabitType(habitId) : null;
     if (storedType === 'medication') return 'medication';
     if (storedType === 'habit') return 'habit';
     
     const text = (habitName + ' ' + habitDescription).toLowerCase();
     
-    // كلمات تدل على دواء
     const medicationKeywords = [
         'دواء', 'medication', 'حبة', 'pill', 'علاج', 'treatment',
         'مضاد حيوي', 'antibiotic', 'مسكن', 'painkiller', 'ibuprofen',
@@ -24,7 +22,6 @@ const detectHabitType = (habitName, habitDescription = '', habitId = null) => {
         'lisinopril', 'amlodipine', 'mg', 'ملجم', 'جرعة', 'dose'
     ];
     
-    // كلمات تدل على عادة
     const habitKeywords = [
         'ماء', 'water', 'رياضة', 'exercise', 'مشي', 'walk', 'جري', 'run',
         'نوم', 'sleep', 'يوجا', 'yoga', 'تأمل', 'meditation', 'قراءة', 'reading'
@@ -38,16 +35,157 @@ const detectHabitType = (habitName, habitDescription = '', habitId = null) => {
         if (text.includes(keyword)) return 'habit';
     }
     
-    // ✅ إذا كان الوصف يحتوي على معلومات دوائية
-    if (habitDescription && (
-        habitDescription.includes('mg') || 
-        habitDescription.includes('ملجم') ||
-        habitDescription.includes('💊')
-    )) {
+    if (habitDescription && (habitDescription.includes('mg') || habitDescription.includes('ملجم') || habitDescription.includes('💊'))) {
         return 'medication';
     }
     
     return 'habit';
+};
+
+// ✅ قاعدة بيانات بسيطة للأمراض المرتبطة بالأدوية
+const medicationDiseaseMap = {
+    'metformin': ['diabetes', 'type_2_diabetes', 'prediabetes'],
+    'insulin': ['diabetes', 'type_1_diabetes'],
+    'lisinopril': ['hypertension', 'high_blood_pressure', 'heart_failure'],
+    'amlodipine': ['hypertension', 'angina'],
+    'atorvastatin': ['high_cholesterol', 'hyperlipidemia'],
+    'simvastatin': ['high_cholesterol'],
+    'ibuprofen': ['pain', 'inflammation', 'arthritis'],
+    'paracetamol': ['pain', 'fever'],
+    'aspirin': ['pain', 'fever', 'heart_disease_prevention'],
+    'omeprazole': ['heartburn', 'gerd', 'acid_reflux'],
+    'albuterol': ['asthma', 'copd'],
+    'levothyroxine': ['hypothyroidism'],
+    'sertraline': ['depression', 'anxiety'],
+    'fluoxetine': ['depression', 'anxiety'],
+    'citalopram': ['depression'],
+    'tramadol': ['pain'],
+    'morphine': ['severe_pain'],
+    'warfarin': ['blood_clots', 'dvt'],
+    'clopidogrel': ['blood_clots', 'stroke_prevention']
+};
+
+// ✅ تفاعلات الأدوية المعروفة (مهمة جداً)
+const drugInteractions = {
+    // مضادات التخثر
+    'warfarin': ['ibuprofen', 'aspirin', 'paracetamol'],
+    'clopidogrel': ['ibuprofen', 'omeprazole', 'esomeprazole'],
+    'aspirin': ['ibuprofen', 'warfarin', 'heparin'],
+    
+    // أدوية السكري
+    'metformin': ['furosemide', 'cimetidine', 'iodinated_contrast'],
+    'insulin': ['beta_blockers', 'alcohol'],
+    
+    // ضغط الدم
+    'lisinopril': ['potassium_supplements', 'spironolactone', 'ibuprofen'],
+    'amlodipine': ['grapefruit', 'simvastatin', 'clarithromycin'],
+    
+    // كوليسترول
+    'atorvastatin': ['grapefruit', 'clarithromycin', 'itraconazole'],
+    'simvastatin': ['grapefruit', 'clarithromycin', 'cyclosporine'],
+    
+    // مضادات الاكتئاب
+    'sertraline': ['ibuprofen', 'aspirin', 'warfarin', 'tramadol'],
+    'fluoxetine': ['ibuprofen', 'aspirin', 'tramadol', 'lithium'],
+    
+    // مسكنات
+    'ibuprofen': ['warfarin', 'aspirin', 'lisinopril', 'metformin'],
+    'tramadol': ['antidepressants', 'alcohol', 'benzodiazepines']
+};
+
+// ✅ أوقات تناول الدواء الموصى بها
+const getSuggestedTime = (medicationName) => {
+    const name = medicationName.toLowerCase();
+    if (name.includes('metformin') || name.includes('diabetes')) {
+        return { time: 'مع الوجبات', icon: '🍽️', reason: 'يؤخذ مع الوجبات لتقليل اضطرابات المعدة' };
+    }
+    if (name.includes('statin') || name.includes('atorvastatin') || name.includes('simvastatin')) {
+        return { time: 'مساءً', icon: '🌙', reason: 'يفضل تناوله مساءً لأن الكوليسترول يُنتج ليلاً' };
+    }
+    if (name.includes('lisinopril') || name.includes('pril')) {
+        return { time: 'صباحاً', icon: '🌅', reason: 'يفضل تناوله صباحاً لتجنب انخفاض الضغط ليلاً' };
+    }
+    if (name.includes('amlodipine') || name.includes('dipine')) {
+        return { time: 'صباحاً', icon: '🌅', reason: 'يؤخذ صباحاً للحفاظ على ضغط دم منتظم' };
+    }
+    if (name.includes('ibuprofen') || name.includes('advil')) {
+        return { time: 'مع الوجبات', icon: '🍽️', reason: 'يؤخذ مع الطعام لتقليل تهيج المعدة' };
+    }
+    if (name.includes('levothyroxine')) {
+        return { time: 'صباحاً على الريق', icon: '🌅', reason: 'يؤخذ على معدة فارغة قبل الإفطار بـ 30 دقيقة' };
+    }
+    if (name.includes('sertraline') || name.includes('fluoxetine')) {
+        return { time: 'صباحاً', icon: '🌅', reason: 'يفضل تناوله صباحاً لتجنب الأرق' };
+    }
+    if (name.includes('citalopram') || name.includes('escitalopram')) {
+        return { time: 'صباحاً أو مساءً', icon: '🔄', reason: 'يمكن تناوله صباحاً أو مساءً' };
+    }
+    return { time: 'حسب医嘱 الطبيب', icon: '📋', reason: 'اتبع تعليمات طبيبك' };
+};
+
+// ✅ قاعدة بيانات للآثار الجانبية الشائعة
+const getCommonSideEffects = (medicationName) => {
+    const name = medicationName.toLowerCase();
+    if (name.includes('metformin')) {
+        return ['غثيان', 'إسهال', 'انتفاخ', 'طعم معدني في الفم'];
+    }
+    if (name.includes('statin') || name.includes('atorvastatin') || name.includes('simvastatin')) {
+        return ['آلام عضلية', 'ضعف عام', 'اضطرابات هضمية', 'ارتفاع إنزيمات الكبد'];
+    }
+    if (name.includes('lisinopril') || name.includes('pril')) {
+        return ['سعال جاف', 'دوخة', 'صداع', 'انخفاض ضغط الدم'];
+    }
+    if (name.includes('amlodipine') || name.includes('dipine')) {
+        return ['تورم الأطراف', 'صداع', 'دوخة', 'احمرار الوجه'];
+    }
+    if (name.includes('ibuprofen')) {
+        return ['تهيج المعدة', 'حرقة', 'دوخة', 'احتباس السوائل'];
+    }
+    if (name.includes('sertraline') || name.includes('fluoxetine')) {
+        return ['غثيان', 'أرق', 'جفاف الفم', 'زيادة الوزن', 'اضطرابات جنسية'];
+    }
+    return null;
+};
+
+// ✅ دالة لجلب معلومات الدواء من FDA API
+const fetchDrugInfoFromFDA = async (drugName) => {
+    try {
+        const response = await axiosInstance.get(`https://api.fda.gov/drug/label.json?search=openfda.brand_name:"${encodeURIComponent(drugName)}"+or+openfda.generic_name:"${encodeURIComponent(drugName)}"&limit=1`);
+        if (response.data?.results?.[0]) {
+            const drug = response.data.results[0];
+            const openfda = drug.openfda || {};
+            return {
+                brandName: openfda.brand_name?.[0] || drugName,
+                genericName: openfda.generic_name?.[0] || '',
+                manufacturer: openfda.manufacturer_name?.[0] || '',
+                indication: drug.indications_and_usage?.[0]?.replace(/<[^>]*>/g, '') || 'غير متوفر',
+                warnings: drug.warnings?.[0]?.replace(/<[^>]*>/g, '') || 'غير متوفر',
+                dosage: drug.dosage_and_administration?.[0]?.replace(/<[^>]*>/g, '') || 'غير متوفر'
+            };
+        }
+        return null;
+    } catch (error) {
+        console.log('FDA API not available for:', drugName);
+        return null;
+    }
+};
+
+// ✅ تحليل متقدم باستخدام Groq API (اختياري)
+const analyzeWithGroq = async (medications, isArabic) => {
+    try {
+        const medicationNames = medications.map(m => m.name).join(', ');
+        const response = await axiosInstance.post('/sentiment/chat/', {
+            message: `Analyze these medications: ${medicationNames}. List potential interactions, suggested times, possible diseases, and precautions. ${isArabic ? 'رد بالعربية' : 'Reply in English'}`
+        }, { timeout: 10000 });
+        
+        if (response.data?.success && response.data?.data) {
+            return response.data.data;
+        }
+        return null;
+    } catch (error) {
+        console.log('Groq API not available, using local analysis');
+        return null;
+    }
 };
 
 const HabitAnalytics = ({ refreshTrigger }) => {
@@ -66,6 +204,8 @@ const HabitAnalytics = ({ refreshTrigger }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('medications');
+    const [aiAnalysis, setAiAnalysis] = useState(null);
+    const [analyzingAI, setAnalyzingAI] = useState(false);
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
 
@@ -77,17 +217,12 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                 fetchData();
             }
         };
-        
         window.addEventListener('languageChange', handleLanguageChange);
         return () => window.removeEventListener('languageChange', handleLanguageChange);
     }, [lang]);
 
-    // ✅ الاستماع لتغيير نوع العادة
     useEffect(() => {
-        const handleTypeChange = () => {
-            fetchData();
-        };
-        
+        const handleTypeChange = () => fetchData();
         window.addEventListener('habitTypeChanged', handleTypeChange);
         return () => window.removeEventListener('habitTypeChanged', handleTypeChange);
     }, []);
@@ -96,6 +231,130 @@ const HabitAnalytics = ({ refreshTrigger }) => {
         if (response?.results) return response.results;
         if (Array.isArray(response)) return response;
         return [];
+    };
+
+    // ✅ تحليل متقدم للأدوية
+    const analyzeMedicationsDeep = async (medicationsList) => {
+        if (medicationsList.length === 0) return null;
+        
+        const analyzedMeds = [];
+        let combinedRisks = [];
+        let interactions = [];
+        
+        // تحليل كل دواء على حدة
+        for (const med of medicationsList) {
+            const medicationInfo = {
+                ...med,
+                fdaInfo: null,
+                suggestedTime: getSuggestedTime(med.name),
+                commonSideEffects: getCommonSideEffects(med.name),
+                possibleDiseases: [],
+                interactions: []
+            };
+            
+            // استنتاج الأمراض المحتملة
+            const lowerName = med.name.toLowerCase();
+            for (const [medKeyword, diseases] of Object.entries(medicationDiseaseMap)) {
+                if (lowerName.includes(medKeyword)) {
+                    medicationInfo.possibleDiseases.push(...diseases);
+                }
+            }
+            medicationInfo.possibleDiseases = [...new Set(medicationInfo.possibleDiseases)];
+            
+            // جلب معلومات من FDA إذا كان الدواء مهماً
+            try {
+                const fdaInfo = await fetchDrugInfoFromFDA(med.name);
+                if (fdaInfo) medicationInfo.fdaInfo = fdaInfo;
+            } catch (e) {}
+            
+            analyzedMeds.push(medicationInfo);
+        }
+        
+        // تحليل التفاعلات بين الأدوية
+        for (let i = 0; i < analyzedMeds.length; i++) {
+            for (let j = i + 1; j < analyzedMeds.length; j++) {
+                const med1 = analyzedMeds[i];
+                const med2 = analyzedMeds[j];
+                const lower1 = med1.name.toLowerCase();
+                const lower2 = med2.name.toLowerCase();
+                
+                for (const [drug, interactsWith] of Object.entries(drugInteractions)) {
+                    if (lower1.includes(drug) && interactsWith.some(x => lower2.includes(x))) {
+                        interactions.push({
+                            medication1: med1.name,
+                            medication2: med2.name,
+                            severity: 'high',
+                            description: isArabic 
+                                ? `تفاعل محتمل بين ${med1.name} و ${med2.name}`
+                                : `Potential interaction between ${med1.name} and ${med2.name}`,
+                            recommendation: isArabic 
+                                ? 'يُنصح باستشارة الطبيب قبل تناول هذين الدواءين معاً'
+                                : 'Consult your doctor before taking these medications together'
+                        });
+                    }
+                    if (lower2.includes(drug) && interactsWith.some(x => lower1.includes(x))) {
+                        interactions.push({
+                            medication1: med2.name,
+                            medication2: med1.name,
+                            severity: 'high',
+                            description: isArabic 
+                                ? `تفاعل محتمل بين ${med2.name} و ${med1.name}`
+                                : `Potential interaction between ${med2.name} and ${med1.name}`,
+                            recommendation: isArabic 
+                                ? 'يُنصح باستشارة الطبيب قبل تناول هذين الدواءين معاً'
+                                : 'Consult your doctor before taking these medications together'
+                        });
+                    }
+                }
+            }
+        }
+        
+        // إزالة التفاعلات المكررة
+        interactions = interactions.filter((inter, idx, self) => 
+            idx === self.findIndex(i => i.medication1 === inter.medication1 && i.medication2 === inter.medication2)
+        );
+        
+        // استنتاج الأمراض المحتملة بناءً على مجموعة الأدوية
+        const allDiseases = analyzedMeds.flatMap(m => m.possibleDiseases);
+        const diseaseFrequency = {};
+        allDiseases.forEach(d => { diseaseFrequency[d] = (diseaseFrequency[d] || 0) + 1; });
+        
+        const likelyConditions = Object.entries(diseaseFrequency)
+            .filter(([_, count]) => count >= 1)
+            .map(([disease]) => {
+                const diseaseNames = {
+                    'diabetes': isArabic ? 'السكري' : 'Diabetes',
+                    'type_2_diabetes': isArabic ? 'السكري من النوع الثاني' : 'Type 2 Diabetes',
+                    'prediabetes': isArabic ? 'مقدمات السكري' : 'Prediabetes',
+                    'hypertension': isArabic ? 'ارتفاع ضغط الدم' : 'Hypertension',
+                    'high_blood_pressure': isArabic ? 'ارتفاع ضغط الدم' : 'High Blood Pressure',
+                    'heart_failure': isArabic ? 'قصور القلب' : 'Heart Failure',
+                    'angina': isArabic ? 'الذبحة الصدرية' : 'Angina',
+                    'high_cholesterol': isArabic ? 'ارتفاع الكوليسترول' : 'High Cholesterol',
+                    'hyperlipidemia': isArabic ? 'فرط شحميات الدم' : 'Hyperlipidemia',
+                    'pain': isArabic ? 'آلام' : 'Pain',
+                    'inflammation': isArabic ? 'التهابات' : 'Inflammation',
+                    'arthritis': isArabic ? 'التهاب المفاصل' : 'Arthritis',
+                    'fever': isArabic ? 'حمى' : 'Fever',
+                    'asthma': isArabic ? 'الربو' : 'Asthma',
+                    'copd': isArabic ? 'مرض الانسداد الرئوي' : 'COPD',
+                    'hypothyroidism': isArabic ? 'قصور الغدة الدرقية' : 'Hypothyroidism',
+                    'depression': isArabic ? 'الاكتئاب' : 'Depression',
+                    'anxiety': isArabic ? 'القلق' : 'Anxiety',
+                    'heart_disease_prevention': isArabic ? 'الوقاية من أمراض القلب' : 'Heart Disease Prevention',
+                    'gerd': isArabic ? 'الارتجاع المريئي' : 'GERD',
+                    'blood_clots': isArabic ? 'جلطات الدم' : 'Blood Clots',
+                    'dvt': isArabic ? 'تجلط الأوردة العميقة' : 'DVT'
+                };
+                return diseaseNames[disease] || disease;
+            });
+        
+        return {
+            medications: analyzedMeds,
+            interactions,
+            likelyConditions: [...new Set(likelyConditions)],
+            aiAnalysis: null
+        };
     };
 
     const fetchData = useCallback(async () => {
@@ -127,6 +386,21 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             }
 
             const analysis = analyzeHabits(habits, logs);
+            
+            // ✅ تحليل متقدم للأدوية
+            if (analysis.medications.list.length > 0) {
+                const deepAnalysis = await analyzeMedicationsDeep(analysis.medications.list);
+                analysis.medications.deepAnalysis = deepAnalysis;
+                
+                // ✅ محاولة تحليل AI متقدم (اختياري)
+                setAnalyzingAI(true);
+                const groqAnalysis = await analyzeWithGroq(analysis.medications.list, isArabic);
+                if (groqAnalysis) {
+                    analysis.medications.aiAnalysis = groqAnalysis;
+                }
+                setAnalyzingAI(false);
+            }
+            
             console.log('📊 Analysis result - Medications count:', analysis.medications.count);
             setData(analysis);
         } catch (err) {
@@ -146,7 +420,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
     }, [fetchData, refreshTrigger]);
 
     const analyzeHabits = (habits, logs) => {
-        // ✅ فصل الأدوية عن العادات باستخدام نفس نظام التصنيف
         const medications = [];
         const regularHabits = [];
         
@@ -159,7 +432,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             const total = habitLogs.length;
             const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
             
-            // حساب streak
             let streak = 0;
             const checkDate = new Date();
             for (let i = 0; i < 30; i++) {
@@ -189,9 +461,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             }
         });
         
-        console.log(`📊 Medications found: ${medications.length}, Habits found: ${regularHabits.length}`);
-        
-        // ✅ إحصائيات الأدوية
         const medicationStats = {
             total: medications.length,
             completed: medications.reduce((sum, m) => sum + m.completed, 0),
@@ -207,7 +476,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             ? Math.max(...medications.map(m => m.streak), 0) 
             : 0;
         
-        // ✅ تحليل الالتزام
         let complianceMessage = '';
         if (medicationStats.adherenceRate >= 90) {
             complianceMessage = isArabic ? 'التزام ممتاز! استمر' : 'Excellent adherence! Keep it up';
@@ -223,19 +491,21 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             complianceMessage = isArabic ? 'لا توجد أدوية' : 'No medications';
         }
         
-        // ✅ أنماط صحية
-        const healthPatterns = [];
-        if (medications.some(m => m.name.toLowerCase().includes('ibuprofen') || m.name.toLowerCase().includes('advil') || m.name.toLowerCase().includes('pain'))) {
-            healthPatterns.push({
-                icon: '⚠️',
-                name: isArabic ? 'استخدام مسكنات الألم' : 'Pain reliever use',
-                note: isArabic ? 'قد يشير إلى آلام متكررة' : 'May indicate recurring pain'
-            });
-        }
+        const habitStats = {
+            total: regularHabits.length,
+            completed: regularHabits.reduce((sum, h) => sum + h.completed, 0),
+            totalLogs: regularHabits.reduce((sum, h) => sum + h.total, 0),
+            completionRate: 0
+        };
+        habitStats.completionRate = habitStats.totalLogs > 0 
+            ? Math.round((habitStats.completed / habitStats.totalLogs) * 100) 
+            : 0;
         
-        // ✅ توصيات ذكية
+        const allItems = [...medications, ...regularHabits];
+        const strongestHabit = allItems.reduce((best, current) => 
+            current.rate > best.rate ? current : best, { rate: 0, name: '' });
+        
         const recommendations = [];
-        
         if (medications.length > 0 && medicationStats.adherenceRate === 0) {
             recommendations.push({
                 icon: '💊',
@@ -261,23 +531,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             });
         }
         
-        // ✅ إحصائيات العادات
-        const habitStats = {
-            total: regularHabits.length,
-            completed: regularHabits.reduce((sum, h) => sum + h.completed, 0),
-            totalLogs: regularHabits.reduce((sum, h) => sum + h.total, 0),
-            completionRate: 0
-        };
-        habitStats.completionRate = habitStats.totalLogs > 0 
-            ? Math.round((habitStats.completed / habitStats.totalLogs) * 100) 
-            : 0;
-        
-        // ✅ أقوى عادة
-        const allItems = [...medications, ...regularHabits];
-        const strongestHabit = allItems.reduce((best, current) => 
-            current.rate > best.rate ? current : best, { rate: 0, name: '' });
-        
-        // ✅ نصائح سريعة
         const quickTips = [
             { icon: '💊', text: isArabic ? 'سجل أدويتك يومياً' : 'Log your medications daily' },
             { icon: '📅', text: isArabic ? 'حافظ على روتين ثابت' : 'Maintain a consistent routine' },
@@ -291,7 +544,9 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                 stats: medicationStats,
                 adherenceRate: medicationStats.adherenceRate,
                 streak: medicationStats.overallStreak,
-                complianceMessage
+                complianceMessage,
+                deepAnalysis: null,
+                aiAnalysis: null
             },
             habits: {
                 list: regularHabits,
@@ -299,7 +554,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                 stats: habitStats,
                 completionRate: habitStats.completionRate
             },
-            healthPatterns,
             recommendations,
             quickTips,
             strongestHabit: strongestHabit.name,
@@ -308,7 +562,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
         };
     };
 
-    // تأثير الوضع المظلم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true';
         setDarkMode(savedDarkMode);
@@ -346,16 +599,17 @@ const HabitAnalytics = ({ refreshTrigger }) => {
         );
     }
 
+    const deepAnalysis = data.medications.deepAnalysis;
+
     return (
         <div className={`analytics-container ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
-                <h2>📊 {isArabic ? 'تحليل العادات' : 'Habits Analytics'}</h2>
+                <h2>📊 {isArabic ? 'تحليل العادات والأدوية' : 'Habits & Medications Analytics'}</h2>
                 <button onClick={fetchData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
             </div>
 
-            {/* ملخص سريع */}
             <div className="analytics-stats-grid">
                 <div className="analytics-stat-card">
                     <div className="stat-icon">💊</div>
@@ -387,7 +641,114 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                 </div>
             </div>
 
-            {/* تبويبات */}
+            {/* ✅ قسم تحليل الأدوية المتقدم */}
+            {data.medications.count > 0 && deepAnalysis && (
+                <>
+                    {/* الأمراض المحتملة */}
+                    {deepAnalysis.likelyConditions.length > 0 && (
+                        <div className="diseases-card">
+                            <div className="diseases-header">
+                                <span className="diseases-icon">🩺</span>
+                                <h3>{isArabic ? 'الأمراض المحتملة بناءً على أدويتك' : 'Potential Conditions Based on Your Medications'}</h3>
+                            </div>
+                            <div className="diseases-list">
+                                {deepAnalysis.likelyConditions.map((condition, idx) => (
+                                    <div key={idx} className="disease-item">
+                                        <span className="disease-marker">✅</span>
+                                        <span>{condition}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="diseases-note">
+                                ⚠️ {isArabic ? 'هذا تحليل استرشادي وليس تشخيصاً طبياً. استشر طبيبك للتشخيص الدقيق.' : 'This is for guidance only, not a medical diagnosis. Consult your doctor.'}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* تفاعلات الأدوية */}
+                    {deepAnalysis.interactions.length > 0 && (
+                        <div className="interactions-card">
+                            <div className="interactions-header">
+                                <span className="interactions-icon">⚠️</span>
+                                <h3>{isArabic ? 'تفاعلات دوائية محتملة' : 'Potential Drug Interactions'}</h3>
+                            </div>
+                            <div className="interactions-list">
+                                {deepAnalysis.interactions.map((inter, idx) => (
+                                    <div key={idx} className="interaction-item severity-high">
+                                        <div className="interaction-title">
+                                            🔴 {inter.medication1} ↔️ {inter.medication2}
+                                        </div>
+                                        <p className="interaction-desc">{inter.description}</p>
+                                        <p className="interaction-recommendation">💡 {inter.recommendation}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* تفاصيل الأدوية */}
+                    <div className="medications-details">
+                        <h3>{isArabic ? 'تفاصيل الأدوية' : 'Medication Details'}</h3>
+                        <div className="medications-details-list">
+                            {deepAnalysis.medications.map((med, idx) => (
+                                <div key={idx} className="medication-detail-card">
+                                    <div className="med-detail-header">
+                                        <span className="med-detail-icon">💊</span>
+                                        <span className="med-detail-name">{med.name}</span>
+                                        <span className={`med-detail-rate ${med.rate >= 70 ? 'high' : med.rate >= 40 ? 'medium' : 'low'}`}>
+                                            {med.rate}%
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="med-detail-body">
+                                        {/* وقت التناول الموصى به */}
+                                        {med.suggestedTime && (
+                                            <div className="med-detail-item">
+                                                <span className="detail-icon">⏰</span>
+                                                <span className="detail-label">{isArabic ? 'الوقت المثالي' : 'Suggested Time'}:</span>
+                                                <span className="detail-value">{med.suggestedTime.time} {med.suggestedTime.icon}</span>
+                                                <span className="detail-reason">{med.suggestedTime.reason}</span>
+                                            </div>
+                                        )}
+                                        
+                                        {/* الآثار الجانبية */}
+                                        {med.commonSideEffects && med.commonSideEffects.length > 0 && (
+                                            <div className="med-detail-item">
+                                                <span className="detail-icon">⚠️</span>
+                                                <span className="detail-label">{isArabic ? 'الآثار الجانبية' : 'Side Effects'}:</span>
+                                                <span className="detail-value">{med.commonSideEffects.join(', ')}</span>
+                                            </div>
+                                        )}
+                                        
+                                        {/* الأمراض المرتبطة */}
+                                        {med.possibleDiseases.length > 0 && (
+                                            <div className="med-detail-item">
+                                                <span className="detail-icon">🩺</span>
+                                                <span className="detail-label">{isArabic ? 'يستخدم لعلاج' : 'Treats'}:</span>
+                                                <span className="detail-value">
+                                                    {med.possibleDiseases.map(d => {
+                                                        const names = {
+                                                            'diabetes': isArabic ? 'السكري' : 'Diabetes',
+                                                            'hypertension': isArabic ? 'ارتفاع الضغط' : 'Hypertension',
+                                                            'high_cholesterol': isArabic ? 'ارتفاع الكوليسترول' : 'High Cholesterol',
+                                                            'pain': isArabic ? 'آلام' : 'Pain',
+                                                            'depression': isArabic ? 'الاكتئاب' : 'Depression',
+                                                            'anxiety': isArabic ? 'القلق' : 'Anxiety',
+                                                            'asthma': isArabic ? 'الربو' : 'Asthma'
+                                                        };
+                                                        return names[d] || d;
+                                                    }).join(', ')}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </>
+            )}
+
             <div className="analytics-tabs">
                 <button className={activeTab === 'medications' ? 'active' : ''} onClick={() => setActiveTab('medications')}>
                     💊 {isArabic ? 'الأدوية' : 'Medications'}
@@ -401,16 +762,12 @@ const HabitAnalytics = ({ refreshTrigger }) => {
             </div>
 
             <div className="tab-content">
-                {/* تبويب الأدوية */}
                 {activeTab === 'medications' && (
                     <div className="medications-section">
                         {data.medications.count === 0 ? (
                             <div className="analytics-empty">
                                 <div className="empty-icon">💊</div>
                                 <p>{isArabic ? 'لا توجد أدوية مسجلة' : 'No medications recorded'}</p>
-                                <p className="empty-hint">
-                                    {isArabic ? 'الأدوية التي أضفتها ستظهر هنا تلقائياً' : 'Medications you add will appear here automatically'}
-                                </p>
                             </div>
                         ) : (
                             <>
@@ -452,7 +809,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* تبويب العادات */}
                 {activeTab === 'habits' && (
                     <div className="habits-section">
                         {data.habits.count === 0 ? (
@@ -481,12 +837,7 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                                         {data.habits.list.map(habit => (
                                             <div key={habit.id} className="habit-card">
                                                 <div className="habit-header">
-                                                    <span className="habit-name">
-                                                        {habit.type === 'water' ? '💧 ' : 
-                                                         habit.type === 'exercise' ? '🏃 ' :
-                                                         habit.type === 'sleep' ? '😴 ' : '✅ '}
-                                                        {habit.name}
-                                                    </span>
+                                                    <span className="habit-name">{habit.name}</span>
                                                     <span className={`habit-rate ${habit.rate >= 70 ? 'high' : habit.rate >= 40 ? 'medium' : 'low'}`}>
                                                         {habit.rate}%
                                                     </span>
@@ -507,7 +858,6 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* تبويب التحليلات */}
                 {activeTab === 'insights' && (
                     <div className="insights-section">
                         {data.recommendations.length > 0 && (
@@ -549,605 +899,69 @@ const HabitAnalytics = ({ refreshTrigger }) => {
                 </small>
             </div>
 
-                    <style jsx>{`
- /* ===========================================
-   HabitAnalytics.css - الأنماط الداخلية فقط
-   ✅ الألوان والأشكال والبطاقات
-   ✅ متوافق مع الثيمين (فاتح/داكن)
-   ✅ بدون أي تأثير على التخطيط العام أو الاستجابة
-   =========================================== */
-
-/* ===== حاوية التحليلات الداخلية ===== */
-.analytics-container {
-    background: var(--card-bg, #ffffff);
-    border-radius: 28px;
-    padding: 1.5rem;
-    margin: 0;
-    transition: all 0.2s ease;
-}
-
-.analytics-container.dark-mode {
-    background: #1e293b;
-}
-
-/* ===== الرأس ===== */
-.analytics-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.analytics-header h2 {
-    font-size: 1.35rem;
-    font-weight: 700;
-    margin: 0;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.3px;
-}
-
-.dark-mode .analytics-header h2 {
-    background: linear-gradient(135deg, #818cf8, #a78bfa);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.refresh-btn {
-    background: var(--secondary-bg, #f1f5f9);
-    border: none;
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 1.1rem;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-secondary, #64748b);
-}
-
-.dark-mode .refresh-btn {
-    background: #334155;
-    color: #94a3b8;
-}
-
-.refresh-btn:hover {
-    background: #6366f1;
-    color: white;
-    transform: rotate(180deg);
-}
-
-/* ===== شبكة الإحصائيات ===== */
-.analytics-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.analytics-stat-card {
-    background: var(--secondary-bg, #f8fafc);
-    border-radius: 20px;
-    padding: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    transition: all 0.2s;
-    border: 1px solid var(--border-light, #e2e8f0);
-}
-
-.dark-mode .analytics-stat-card {
-    background: #0f172a;
-    border-color: #334155;
-}
-
-.analytics-stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-}
-
-.dark-mode .analytics-stat-card:hover {
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-}
-
-.stat-icon {
-    font-size: 1.8rem;
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    border-radius: 16px;
-    color: white;
-}
-
-.stat-content {
-    flex: 1;
-}
-
-.stat-value {
-    font-size: 1.6rem;
-    font-weight: 800;
-    color: var(--text-primary, #0f172a);
-    line-height: 1.2;
-}
-
-.dark-mode .stat-value {
-    color: #f1f5f9;
-}
-
-.stat-label {
-    font-size: 0.7rem;
-    color: var(--text-secondary, #64748b);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 600;
-}
-
-/* ===== التبويبات ===== */
-.analytics-tabs {
-    display: flex;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-    border-bottom: 2px solid var(--border-light, #e2e8f0);
-    padding-bottom: 0.5rem;
-}
-
-.dark-mode .analytics-tabs {
-    border-bottom-color: #334155;
-}
-
-.analytics-tabs button {
-    padding: 0.6rem 1.25rem;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary, #64748b);
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.85rem;
-    font-weight: 600;
-    border-radius: 40px;
-}
-
-.analytics-tabs button.active {
-    background: #6366f1;
-    color: white;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-}
-
-.analytics-tabs button:hover:not(.active) {
-    background: var(--hover-bg, #f1f5f9);
-    color: var(--text-primary, #0f172a);
-}
-
-.dark-mode .analytics-tabs button:hover:not(.active) {
-    background: #334155;
-    color: #f1f5f9;
-}
-
-/* ===== بطاقات الإحصاءات والتحليلات ===== */
-.insight-card {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    border-radius: 24px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    color: white;
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-}
-
-.insight-icon {
-    font-size: 2.5rem;
-}
-
-.insight-content h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 0.9rem;
-    font-weight: 500;
-    opacity: 0.9;
-}
-
-.insight-content .stat-value {
-    color: white;
-    font-size: 2.5rem;
-    font-weight: 800;
-}
-
-.insight-content p {
-    margin: 0;
-    font-size: 0.8rem;
-    opacity: 0.9;
-}
-
-/* ===== قسم التوصيات ===== */
-.recommendations-section {
-    background: var(--secondary-bg, #f8fafc);
-    border-radius: 20px;
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
-    border: 1px solid var(--border-light, #e2e8f0);
-}
-
-.dark-mode .recommendations-section {
-    background: #0f172a;
-    border-color: #334155;
-}
-
-.recommendations-section h3,
-.recommendations-section h4 {
-    margin: 0 0 1rem 0;
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--text-primary, #0f172a);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.dark-mode .recommendations-section h3,
-.dark-mode .recommendations-section h4 {
-    color: #f1f5f9;
-}
-
-.recommendations-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.recommendation-card {
-    background: var(--card-bg, #ffffff);
-    border-radius: 16px;
-    padding: 1rem;
-    transition: all 0.2s;
-    border-left: 3px solid #6366f1;
-}
-
-.dark-mode .recommendation-card {
-    background: #1e293b;
-}
-
-.recommendation-card:hover {
-    transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.dark-mode .recommendation-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-[dir="rtl"] .recommendation-card {
-    border-left: none;
-    border-right: 3px solid #6366f1;
-}
-
-[dir="rtl"] .recommendation-card:hover {
-    transform: translateX(-4px);
-}
-
-.rec-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.rec-icon {
-    font-size: 1.2rem;
-}
-
-.rec-category {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #6366f1;
-    letter-spacing: 0.5px;
-}
-
-.rec-message {
-    font-size: 0.85rem;
-    margin: 0.5rem 0;
-    color: var(--text-primary, #0f172a);
-    font-weight: 500;
-}
-
-.rec-advice {
-    font-size: 0.75rem;
-    color: var(--text-secondary, #64748b);
-    background: var(--tertiary-bg, #f1f5f9);
-    padding: 0.5rem 0.75rem;
-    border-radius: 12px;
-    margin-top: 0.5rem;
-}
-
-.dark-mode .rec-advice {
-    background: #0f172a;
-    color: #94a3b8;
-}
-
-/* ===== قائمة الأدوية والعادات ===== */
-.habits-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.habit-card {
-    background: var(--card-bg, #ffffff);
-    border-radius: 18px;
-    padding: 1rem;
-    border: 1px solid var(--border-light, #e2e8f0);
-    transition: all 0.2s;
-}
-
-.dark-mode .habit-card {
-    background: #1e293b;
-    border-color: #334155;
-}
-
-.habit-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-}
-
-.dark-mode .habit-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.habit-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-}
-
-.habit-name {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-primary, #0f172a);
-}
-
-.dark-mode .habit-name {
-    color: #f1f5f9;
-}
-
-.habit-rate {
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 0.2rem 0.6rem;
-    border-radius: 40px;
-}
-
-.habit-rate.high {
-    background: rgba(16, 185, 129, 0.15);
-    color: #10b981;
-}
-
-.habit-rate.medium {
-    background: rgba(245, 158, 11, 0.15);
-    color: #f59e0b;
-}
-
-.habit-rate.low {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
-}
-
-.habit-stats {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 0.75rem;
-    font-size: 0.7rem;
-    color: var(--text-secondary, #64748b);
-}
-
-.dark-mode .habit-stats {
-    color: #94a3b8;
-}
-
-.progress-bar {
-    background: var(--border-light, #e2e8f0);
-    border-radius: 10px;
-    height: 6px;
-    overflow: hidden;
-}
-
-.dark-mode .progress-bar {
-    background: #334155;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
-    border-radius: 10px;
-    transition: width 0.3s ease;
-}
-
-/* ===== نصائح سريعة ===== */
-.habit-tips {
-    background: var(--secondary-bg, #f8fafc);
-    border-radius: 20px;
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
-    border: 1px solid var(--border-light, #e2e8f0);
-}
-
-.dark-mode .habit-tips {
-    background: #0f172a;
-    border-color: #334155;
-}
-
-.habit-tips h4 {
-    margin: 0 0 1rem 0;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--text-primary, #0f172a);
-}
-
-.tips-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
-}
-
-.tip-item {
-    background: var(--card-bg, #ffffff);
-    border-radius: 14px;
-    padding: 0.75rem;
-    text-align: center;
-    transition: all 0.2s;
-}
-
-.dark-mode .tip-item {
-    background: #1e293b;
-}
-
-.tip-item:hover {
-    transform: translateY(-2px);
-}
-
-.tip-icon {
-    font-size: 1.5rem;
-    display: block;
-    margin-bottom: 0.25rem;
-}
-
-.tip-item p {
-    font-size: 0.7rem;
-    margin: 0;
-    color: var(--text-secondary, #64748b);
-}
-
-/* ===== حالات فارغة ===== */
-.analytics-empty {
-    text-align: center;
-    padding: 2rem;
-    background: var(--secondary-bg, #f8fafc);
-    border-radius: 20px;
-    border: 1px solid var(--border-light, #e2e8f0);
-}
-
-.dark-mode .analytics-empty {
-    background: #0f172a;
-    border-color: #334155;
-}
-
-.empty-icon {
-    font-size: 2.5rem;
-    margin-bottom: 0.75rem;
-}
-
-.analytics-empty p {
-    margin: 0.25rem 0;
-    color: var(--text-primary, #0f172a);
-}
-
-.empty-hint {
-    font-size: 0.7rem;
-    color: var(--text-secondary, #64748b);
-}
-
-/* ===== حالات التحميل والخطأ ===== */
-.analytics-loading,
-.analytics-error {
-    text-align: center;
-    padding: 2rem;
-    background: var(--card-bg, #ffffff);
-    border-radius: 20px;
-}
-
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--border-light, #e2e8f0);
-    border-top-color: #6366f1;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 1rem;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.retry-btn {
-    margin-top: 1rem;
-    padding: 0.5rem 1.25rem;
-    background: #6366f1;
-    color: white;
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 500;
-    transition: all 0.2s;
-}
-
-.retry-btn:hover {
-    background: #4f46e5;
-    transform: translateY(-1px);
-}
-
-/* ===== التذييل ===== */
-.analytics-footer {
-    text-align: center;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-light, #e2e8f0);
-    margin-top: 0.5rem;
-}
-
-.dark-mode .analytics-footer {
-    border-top-color: #334155;
-}
-
-.analytics-footer small {
-    font-size: 0.65rem;
-    color: var(--text-tertiary, #94a3b8);
-}
-
-/* ===== أنماط إضافية للثيم الداكن ===== */
-.dark-mode .insight-card {
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
-}
-
-/* ===== دعم RTL ===== */
-[dir="rtl"] .habit-stats {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .tips-grid {
-    direction: rtl;
-}
-
-/* ===== تقليل الحركة ===== */
-@media (prefers-reduced-motion: reduce) {
-    .refresh-btn:hover,
-    .recommendation-card:hover,
-    .habit-card:hover,
-    .tip-item:hover,
-    .analytics-stat-card:hover {
-        transform: none;
-    }
-    
-    .progress-fill {
-        transition: none;
-    }
-    
-    .spinner {
-        animation: none;
-    }
-}
+            <style jsx>{`
+                .analytics-container { background: var(--card-bg, #ffffff); border-radius: 28px; padding: 1.5rem; border: 1px solid var(--border-light, #eef2f6); }
+                .dark-mode .analytics-container { background: #1e293b; border-color: #334155; }
+                .analytics-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border-light, #eef2f6); }
+                .refresh-btn { background: var(--secondary-bg, #f1f5f9); border: none; width: 38px; height: 38px; border-radius: 12px; cursor: pointer; }
+                .dark-mode .refresh-btn { background: #334155; }
+                .refresh-btn:hover { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; transform: rotate(180deg); }
+                .analytics-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+                .analytics-stat-card { background: var(--secondary-bg, #f8fafc); border-radius: 20px; padding: 1rem; display: flex; align-items: center; gap: 0.75rem; border: 1px solid var(--border-light, #e2e8f0); }
+                .dark-mode .analytics-stat-card { background: #0f172a; border-color: #334155; }
+                .stat-icon { font-size: 1.8rem; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 16px; color: white; }
+                .stat-value { font-size: 1.4rem; font-weight: 800; }
+                .stat-label { font-size: 0.65rem; color: var(--text-secondary, #64748b); }
+                .diseases-card, .interactions-card { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 20px; padding: 1.25rem; margin-bottom: 1.5rem; color: white; }
+                .diseases-header, .interactions-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+                .diseases-icon, .interactions-icon { font-size: 1.5rem; }
+                .diseases-header h3, .interactions-header h3 { margin: 0; font-size: 0.9rem; }
+                .diseases-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+                .disease-item { display: flex; align-items: center; gap: 0.25rem; background: rgba(255,255,255,0.1); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; }
+                .diseases-note { font-size: 0.65rem; opacity: 0.7; margin-top: 0.5rem; }
+                .interaction-item { background: rgba(239,68,68,0.15); border-radius: 12px; padding: 0.75rem; margin-bottom: 0.5rem; border-left: 3px solid #ef4444; }
+                .interaction-title { font-weight: 700; font-size: 0.8rem; margin-bottom: 0.25rem; }
+                .interaction-desc { font-size: 0.7rem; margin: 0.25rem 0; opacity: 0.9; }
+                .interaction-recommendation { font-size: 0.65rem; margin: 0.25rem 0 0; color: #fbbf24; }
+                .medications-details { margin-bottom: 1.5rem; }
+                .medications-details h3 { font-size: 0.9rem; margin-bottom: 1rem; }
+                .medications-details-list { display: flex; flex-direction: column; gap: 0.75rem; }
+                .medication-detail-card { background: var(--secondary-bg, #f8fafc); border-radius: 16px; padding: 1rem; border: 1px solid var(--border-light, #e2e8f0); }
+                .dark-mode .medication-detail-card { background: #0f172a; border-color: #334155; }
+                .med-detail-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-light, #e2e8f0); }
+                .med-detail-icon { font-size: 1.2rem; }
+                .med-detail-name { font-weight: 700; flex: 1; }
+                .med-detail-rate { padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.7rem; font-weight: 700; }
+                .med-detail-rate.high { background: rgba(16,185,129,0.15); color: #10b981; }
+                .med-detail-rate.medium { background: rgba(245,158,11,0.15); color: #f59e0b; }
+                .med-detail-rate.low { background: rgba(239,68,68,0.15); color: #ef4444; }
+                .med-detail-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.75rem; }
+                .detail-icon { font-size: 0.8rem; }
+                .detail-label { font-weight: 600; color: var(--text-secondary, #64748b); min-width: 80px; }
+                .detail-value { font-weight: 500; }
+                .detail-reason { font-size: 0.65rem; color: var(--text-tertiary, #94a3b8); width: 100%; margin-top: 0.25rem; margin-left: 1.5rem; }
+                .analytics-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; padding: 0.25rem; background: var(--secondary-bg, #f8fafc); border-radius: 50px; border: 1px solid var(--border-light, #e2e8f0); }
+                .analytics-tabs button { flex: 1; padding: 0.5rem 1rem; background: transparent; border: none; border-radius: 40px; cursor: pointer; font-weight: 600; color: var(--text-secondary, #64748b); }
+                .analytics-tabs button.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; }
+                .insight-card { display: flex; gap: 1rem; background: linear-gradient(135deg, #10b98120, #05966920); border-radius: 16px; padding: 1rem; margin-bottom: 1rem; border: 1px solid #10b98140; }
+                .habit-card { background: var(--card-bg, #ffffff); border-radius: 14px; padding: 0.75rem; margin-bottom: 0.5rem; border: 1px solid var(--border-light, #e2e8f0); }
+                .habit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+                .habit-name { font-weight: 600; }
+                .habit-rate { padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.7rem; font-weight: 700; }
+                .habit-rate.high { background: rgba(16,185,129,0.15); color: #10b981; }
+                .habit-rate.medium { background: rgba(245,158,11,0.15); color: #f59e0b; }
+                .habit-rate.low { background: rgba(239,68,68,0.15); color: #ef4444; }
+                .habit-stats { display: flex; gap: 1rem; font-size: 0.65rem; color: var(--text-secondary, #64748b); margin-bottom: 0.5rem; }
+                .progress-bar { height: 4px; background: var(--border-light, #e2e8f0); border-radius: 4px; overflow: hidden; }
+                .progress-fill { height: 100%; background: linear-gradient(90deg, #10b981, #f59e0b); }
+                .recommendation-card { background: var(--card-bg, #ffffff); border-radius: 14px; padding: 0.75rem; margin-bottom: 0.5rem; border-left: 3px solid #f59e0b; }
+                .tips-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 1rem 0; }
+                .tip-item { text-align: center; padding: 0.75rem; background: var(--secondary-bg, #f8fafc); border-radius: 14px; }
+                .analytics-footer { text-align: center; padding-top: 1rem; border-top: 1px solid var(--border-light, #e2e8f0); font-size: 0.65rem; color: var(--text-tertiary, #94a3b8); }
+                @media (max-width: 768px) { .analytics-stats-grid { grid-template-columns: repeat(2, 1fr); } .tips-grid { grid-template-columns: 1fr; } .med-detail-item { flex-direction: column; gap: 0.25rem; } .detail-label { min-width: auto; } }
             `}</style>
         </div>
     );
 };
-
 
 export default HabitAnalytics;
