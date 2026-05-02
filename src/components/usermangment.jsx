@@ -1,136 +1,11 @@
-// src/components/ProfileManager.jsx - النسخة النهائية
+// src/components/ProfileManager.jsx - النسخة النهائية الصحيحة
 'use client'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axiosInstance from '../services/api';
 import '../index.css';
 
 // ==================== دوال مساعدة ====================
-// ✅ أضف هذا في بداية المكون (قبل أي شيء)
-useEffect(() => {
-    // مراقبة إذا كانت الصفحة تعيد التحميل
-    console.log('🚀 PAGE LOADED / MOUNTED at:', new Date().toISOString());
-    
-    // مراقبة أي خطأ غير معالج
-    const handleError = (event) => {
-        console.error('💥 Uncaught Error:', event.error);
-        console.error('💥 Error message:', event.message);
-        console.error('💥 Error filename:', event.filename);
-        console.error('💥 Error line:', event.lineno);
-    };
-    window.addEventListener('error', handleError);
-    
-    // مراقبة رفض الـ Promise الغير معالج
-    const handleRejection = (event) => {
-        console.error('💥 Unhandled Promise Rejection:', event.reason);
-        console.error('💥 Promise:', event.promise);
-    };
-    window.addEventListener('unhandledrejection', handleRejection);
-    
-    return () => {
-        window.removeEventListener('error', handleError);
-        window.removeEventListener('unhandledrejection', handleRejection);
-    };
-}, []);
-const handleAddMedication = async (e) => {
-    e.preventDefault();
-    e.stopPropagation(); // ✅ منع انتشار الحدث
-    
-    console.log('➕ handleAddMedication START - timestamp:', Date.now());
-    
-    if (!newMedication.name.trim()) {
-        setMessage(isArabic ? '❌ الرجاء إدخال اسم الدواء' : '❌ Please enter medication name');
-        setMessageType('error');
-        return;
-    }
-    
-    if (isAddingRef.current) {
-        console.log('⚠️ Already adding, skipping...');
-        return;
-    }
-    isAddingRef.current = true;
-    
-    setSaving(true);
-    
-    try {
-        console.log('📡 Sending POST to /user/medications/');
-        console.log('📦 Payload:', newMedication);
-        
-        const response = await axiosInstance.post('/user/medications/', newMedication);
-        
-        console.log('✅ Response status:', response.status);
-        console.log('✅ Response data:', response.data);
-        
-        if (!response.data?.success) {
-            throw new Error(response.data?.error || 'Failed to add medication');
-        }
-        
-        // ✅ تحديث القائمة محلياً
-        const newMed = {
-            id: response.data?.medication?.id || Date.now(),
-            name: newMedication.name,
-            dosage: newMedication.dosage,
-            frequency: newMedication.frequency,
-            start_date: newMedication.start_date
-        };
-        
-        console.log('➕ Updating medications state with:', newMed);
-        
-        // ✅ استخدام updater function لتجنب مشاكل الـ closure
-        setCurrentMedications(prev => {
-            console.log('📊 Old medications count:', prev.length);
-            const updated = [...prev, newMed];
-            console.log('📊 New medications count:', updated.length);
-            return updated;
-        });
-        
-        setNewMedication({ name: '', dosage: '', frequency: '', start_date: '' });
-        setShowAddMedication(false);
-        setMessage(isArabic ? '✅ تم إضافة الدواء بنجاح' : '✅ Medication added successfully');
-        setMessageType('success');
-        
-        console.log('✅ handleAddMedication SUCCESS - page should NOT reload');
-        
-    } catch (error) {
-        console.error('❌ Error details:', error);
-        console.error('❌ Error response:', error.response);
-        console.error('❌ Error status:', error.response?.status);
-        console.error('❌ Error data:', error.response?.data);
-        
-        // ✅ إذا كان الخطأ 401 Unauthorized، لا نعيد تحميل الصفحة
-        if (error.response?.status === 401) {
-            console.log('🔐 Token expired, but NOT reloading page');
-            // يمكنك تحديث التوكن هنا إذا أردت
-        } else {
-            setMessage(isArabic ? '❌ خطأ في إضافة الدواء' : '❌ Error adding medication');
-            setMessageType('error');
-        }
-    } finally {
-        setSaving(false);
-        isAddingRef.current = false;
-        setTimeout(() => setMessage(''), 3000);
-        console.log('➕ handleAddMedication END - timestamp:', Date.now());
-    }
-};
-// ✅ ابحث عن أي استدعاء لـ window.location.reload أو window.location.href
-useEffect(() => {
-    // مراقبة محاولات تغيير الـ URL أو إعادة التحميل
-    const originalReload = window.location.reload;
-    window.location.reload = function(...args) {
-        console.error('🚨 window.location.reload() called! Stack trace:', new Error().stack);
-        return originalReload.apply(this, args);
-    };
-    
-    const originalReplace = window.location.replace;
-    window.location.replace = function(...args) {
-        console.error('🚨 window.location.replace() called! Stack trace:', new Error().stack);
-        return originalReplace.apply(this, args);
-    };
-    
-    return () => {
-        window.location.reload = originalReload;
-        window.location.replace = originalReplace;
-    };
-}, []);
+
 const extractDataSafely = (response) => {
     if (!response || !response.data) return [];
     if (Array.isArray(response.data)) return response.data;
@@ -223,7 +98,8 @@ function ProfileManager({ isAuthReady }) {
     
     // حالة منع التحميل المتكرر
     const isInitialLoadRef = useRef(false);
-    const [isDataLoaded, setIsDataLoaded] = useState(false);
+    const isAddingRef = useRef(false);
+    const isMountedRef = useRef(true);
     
     // ✅ حالة تغيير اسم المستخدم
     const [isEditingUsername, setIsEditingUsername] = useState(false);
@@ -284,6 +160,45 @@ function ProfileManager({ isAuthReady }) {
     const [deleting, setDeleting] = useState(false);
     const [reducedMotion, setReducedMotion] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    
+    // ✅ هنا تبدأ useEffect - داخل المكون
+    useEffect(() => {
+        console.log('🚀 PAGE LOADED / MOUNTED at:', new Date().toISOString());
+        
+        const handleError = (event) => {
+            console.error('💥 Uncaught Error:', event.error);
+            console.error('💥 Error message:', event.message);
+            console.error('💥 Error filename:', event.filename);
+            console.error('💥 Error line:', event.lineno);
+        };
+        window.addEventListener('error', handleError);
+        
+        const handleRejection = (event) => {
+            console.error('💥 Unhandled Promise Rejection:', event.reason);
+            console.error('💥 Promise:', event.promise);
+        };
+        window.addEventListener('unhandledrejection', handleRejection);
+        
+        // مراقبة محاولات إعادة تحميل الصفحة
+        const originalReload = window.location.reload;
+        window.location.reload = function(...args) {
+            console.error('🚨 window.location.reload() called! Stack trace:', new Error().stack);
+            return originalReload.apply(this, args);
+        };
+        
+        const originalReplace = window.location.replace;
+        window.location.replace = function(...args) {
+            console.error('🚨 window.location.replace() called! Stack trace:', new Error().stack);
+            return originalReplace.apply(this, args);
+        };
+        
+        return () => {
+            window.removeEventListener('error', handleError);
+            window.removeEventListener('unhandledrejection', handleRejection);
+            window.location.reload = originalReload;
+            window.location.replace = originalReplace;
+        };
+    }, []);
     
     // --- حساب العمر ---
     const calculateAge = useCallback((birthDate) => {
@@ -451,7 +366,7 @@ function ProfileManager({ isAuthReady }) {
         return recommendations.slice(0, 5);
     }, [userData.occupation_status, userData.activity_level, smartProfile, healthData, isArabic]);
     
-    // --- تأثيرات التحميل الأولي - محسنة لمنع إعادة التحميل المتكررة ---
+    // --- تأثيرات التحميل الأولي ---
     useEffect(() => {
         const motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
         setReducedMotion(motionMediaQuery.matches);
@@ -475,7 +390,6 @@ function ProfileManager({ isAuthReady }) {
                     fetchChronicConditions(),
                     fetchCurrentMedications()
                 ]);
-                setIsDataLoaded(true);
             };
             loadAllData();
         }
@@ -511,138 +425,124 @@ function ProfileManager({ isAuthReady }) {
             console.error('Error fetching medications:', error);
         }
     }, []);
-    // src/components/ProfileManager.jsx - الأجزاء المعدلة فقط
-
-// ✅ أضف هذه المتغيرات في بداية المكون
-const isMountedRef = useRef(true);
-const isAddingRef = useRef(false);
-
-// ✅ عدّل دالة handleAddCondition لتكون هكذا
-const handleAddCondition = async (e) => {
-    e.preventDefault();
-    if (!newCondition.name.trim()) {
-        setMessage(isArabic ? '❌ الرجاء إدخال اسم المرض' : '❌ Please enter condition name');
-        setMessageType('error');
-        return;
-    }
     
-    // منع الإضافة المتكررة
-    if (isAddingRef.current) return;
-    isAddingRef.current = true;
-    
-    setSaving(true);
-    try {
-        await axiosInstance.post('/user/conditions/', newCondition);
-        // ✅ تحديث القائمة محلياً بدلاً من إعادة الجلب
-        setChronicConditions(prev => [...prev, { 
-            id: Date.now(), 
-            name: newCondition.name, 
-            diagnosis_date: newCondition.diagnosis_date,
-            medications: newCondition.medications
-        }]);
-        setNewCondition({ name: '', diagnosis_date: '', medications: '' });
-        setShowAddCondition(false);
-        setMessage(isArabic ? '✅ تم إضافة المرض بنجاح' : '✅ Condition added successfully');
-        setMessageType('success');
+    // ✅ إضافة مرض مزمن جديد
+    const handleAddCondition = async (e) => {
+        e.preventDefault();
+        if (!newCondition.name.trim()) {
+            setMessage(isArabic ? '❌ الرجاء إدخال اسم المرض' : '❌ Please enter condition name');
+            setMessageType('error');
+            return;
+        }
         
-        // ✅ لا تستدعي fetchChronicConditions() لتجنب إعادة التحميل
-        // فقط قم بتحديث القائمة محلياً
+        if (isAddingRef.current) return;
+        isAddingRef.current = true;
         
-    } catch (error) {
-        console.error('Error adding condition:', error);
-        setMessage(isArabic ? '❌ خطأ في إضافة المرض' : '❌ Error adding condition');
-        setMessageType('error');
-    } finally {
-        setSaving(false);
-        isAddingRef.current = false;
-        setTimeout(() => setMessage(''), 3000);
-    }
-};
-
-// ✅ عدّل دالة handleDeleteCondition لتكون هكذا
-const handleDeleteCondition = async (conditionId) => {
-    if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا المرض؟' : 'Are you sure you want to delete this condition?')) return;
+        setSaving(true);
+        try {
+            await axiosInstance.post('/user/conditions/', newCondition);
+            setChronicConditions(prev => [...prev, { 
+                id: Date.now(), 
+                name: newCondition.name, 
+                diagnosis_date: newCondition.diagnosis_date,
+                medications: newCondition.medications
+            }]);
+            setNewCondition({ name: '', diagnosis_date: '', medications: '' });
+            setShowAddCondition(false);
+            setMessage(isArabic ? '✅ تم إضافة المرض بنجاح' : '✅ Condition added successfully');
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error adding condition:', error);
+            setMessage(isArabic ? '❌ خطأ في إضافة المرض' : '❌ Error adding condition');
+            setMessageType('error');
+        } finally {
+            setSaving(false);
+            isAddingRef.current = false;
+            setTimeout(() => setMessage(''), 3000);
+        }
+    };
     
-    // ✅ منع الحذف المتكرر
-    if (isAddingRef.current) return;
-    isAddingRef.current = true;
+    // ✅ حذف مرض مزمن
+    const handleDeleteCondition = async (conditionId) => {
+        if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا المرض؟' : 'Are you sure you want to delete this condition?')) return;
+        
+        if (isAddingRef.current) return;
+        isAddingRef.current = true;
+        
+        try {
+            await axiosInstance.delete(`/user/conditions/${conditionId}/delete/`);
+            setChronicConditions(prev => prev.filter(c => c.id !== conditionId));
+            setMessage(isArabic ? '✅ تم حذف المرض بنجاح' : '✅ Condition deleted successfully');
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error deleting condition:', error);
+            setMessage(isArabic ? '❌ خطأ في حذف المرض' : '❌ Error deleting condition');
+            setMessageType('error');
+        } finally {
+            isAddingRef.current = false;
+            setTimeout(() => setMessage(''), 3000);
+        }
+    };
     
-    try {
-        await axiosInstance.delete(`/user/conditions/${conditionId}/delete/`);
-        // ✅ تحديث القائمة محلياً بدلاً من إعادة الجلب
-        setChronicConditions(prev => prev.filter(c => c.id !== conditionId));
-        setMessage(isArabic ? '✅ تم حذف المرض بنجاح' : '✅ Condition deleted successfully');
-        setMessageType('success');
-    } catch (error) {
-        console.error('Error deleting condition:', error);
-        setMessage(isArabic ? '❌ خطأ في حذف المرض' : '❌ Error deleting condition');
-        setMessageType('error');
-    } finally {
-        isAddingRef.current = false;
-        setTimeout(() => setMessage(''), 3000);
-    }
-};
-
-// ✅ عدّل دالة handleAddMedication
-const handleAddMedication = async (e) => {
-    e.preventDefault();
-    if (!newMedication.name.trim()) {
-        setMessage(isArabic ? '❌ الرجاء إدخال اسم الدواء' : '❌ Please enter medication name');
-        setMessageType('error');
-        return;
-    }
+    // ✅ إضافة دواء جديد
+    const handleAddMedication = async (e) => {
+        e.preventDefault();
+        if (!newMedication.name.trim()) {
+            setMessage(isArabic ? '❌ الرجاء إدخال اسم الدواء' : '❌ Please enter medication name');
+            setMessageType('error');
+            return;
+        }
+        
+        if (isAddingRef.current) return;
+        isAddingRef.current = true;
+        
+        setSaving(true);
+        try {
+            const response = await axiosInstance.post('/user/medications/', newMedication);
+            setCurrentMedications(prev => [...prev, {
+                id: response.data?.medication?.id || Date.now(),
+                name: newMedication.name,
+                dosage: newMedication.dosage,
+                frequency: newMedication.frequency,
+                start_date: newMedication.start_date
+            }]);
+            setNewMedication({ name: '', dosage: '', frequency: '', start_date: '' });
+            setShowAddMedication(false);
+            setMessage(isArabic ? '✅ تم إضافة الدواء بنجاح' : '✅ Medication added successfully');
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error adding medication:', error);
+            setMessage(isArabic ? '❌ خطأ في إضافة الدواء' : '❌ Error adding medication');
+            setMessageType('error');
+        } finally {
+            setSaving(false);
+            isAddingRef.current = false;
+            setTimeout(() => setMessage(''), 3000);
+        }
+    };
     
-    if (isAddingRef.current) return;
-    isAddingRef.current = true;
+    // ✅ حذف دواء
+    const handleDeleteMedication = async (medId) => {
+        if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا الدواء؟' : 'Are you sure you want to delete this medication?')) return;
+        
+        if (isAddingRef.current) return;
+        isAddingRef.current = true;
+        
+        try {
+            await axiosInstance.delete(`/user/medications/${medId}/delete/`);
+            setCurrentMedications(prev => prev.filter(m => m.id !== medId));
+            setMessage(isArabic ? '✅ تم حذف الدواء بنجاح' : '✅ Medication deleted successfully');
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error deleting medication:', error);
+            setMessage(isArabic ? '❌ خطأ في حذف الدواء' : '❌ Error deleting medication');
+            setMessageType('error');
+        } finally {
+            isAddingRef.current = false;
+            setTimeout(() => setMessage(''), 3000);
+        }
+    };
     
-    setSaving(true);
-    try {
-        await axiosInstance.post('/user/medications/', newMedication);
-        // ✅ تحديث القائمة محلياً
-        setCurrentMedications(prev => [...prev, {
-            id: Date.now(),
-            name: newMedication.name,
-            dosage: newMedication.dosage,
-            frequency: newMedication.frequency,
-            start_date: newMedication.start_date
-        }]);
-        setNewMedication({ name: '', dosage: '', frequency: '', start_date: '' });
-        setShowAddMedication(false);
-        setMessage(isArabic ? '✅ تم إضافة الدواء بنجاح' : '✅ Medication added successfully');
-        setMessageType('success');
-    } catch (error) {
-        console.error('Error adding medication:', error);
-        setMessage(isArabic ? '❌ خطأ في إضافة الدواء' : '❌ Error adding medication');
-        setMessageType('error');
-    } finally {
-        setSaving(false);
-        isAddingRef.current = false;
-        setTimeout(() => setMessage(''), 3000);
-    }
-};
-
-// ✅ عدّل دالة handleDeleteMedication
-const handleDeleteMedication = async (medId) => {
-    if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا الدواء؟' : 'Are you sure you want to delete this medication?')) return;
-    
-    if (isAddingRef.current) return;
-    isAddingRef.current = true;
-    
-    try {
-        await axiosInstance.delete(`/user/medications/${medId}/delete/`);
-        // ✅ تحديث القائمة محلياً
-        setCurrentMedications(prev => prev.filter(m => m.id !== medId));
-        setMessage(isArabic ? '✅ تم حذف الدواء بنجاح' : '✅ Medication deleted successfully');
-        setMessageType('success');
-    } catch (error) {
-        console.error('Error deleting medication:', error);
-        setMessage(isArabic ? '❌ خطأ في حذف الدواء' : '❌ Error deleting medication');
-        setMessageType('error');
-    } finally {
-        isAddingRef.current = false;
-        setTimeout(() => setMessage(''), 3000);
-    }
-};
     // --- دوال API الأساسية ---
     const loadSavedSettings = useCallback(() => {
         try {
@@ -1243,7 +1143,6 @@ const handleDeleteMedication = async (medId) => {
     
     return (
         <div className={`analytics-container ${reducedMotion ? 'reduce-motion' : ''} ${darkMode ? 'dark-theme' : ''}`}>
-            {/* Header */}
             <div className="analytics-header">
                 <div className="header-left">
                     <div className="avatar-placeholder">
