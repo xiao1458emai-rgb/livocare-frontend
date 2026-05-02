@@ -5,7 +5,132 @@ import axiosInstance from '../services/api';
 import '../index.css';
 
 // ==================== دوال مساعدة ====================
-
+// ✅ أضف هذا في بداية المكون (قبل أي شيء)
+useEffect(() => {
+    // مراقبة إذا كانت الصفحة تعيد التحميل
+    console.log('🚀 PAGE LOADED / MOUNTED at:', new Date().toISOString());
+    
+    // مراقبة أي خطأ غير معالج
+    const handleError = (event) => {
+        console.error('💥 Uncaught Error:', event.error);
+        console.error('💥 Error message:', event.message);
+        console.error('💥 Error filename:', event.filename);
+        console.error('💥 Error line:', event.lineno);
+    };
+    window.addEventListener('error', handleError);
+    
+    // مراقبة رفض الـ Promise الغير معالج
+    const handleRejection = (event) => {
+        console.error('💥 Unhandled Promise Rejection:', event.reason);
+        console.error('💥 Promise:', event.promise);
+    };
+    window.addEventListener('unhandledrejection', handleRejection);
+    
+    return () => {
+        window.removeEventListener('error', handleError);
+        window.removeEventListener('unhandledrejection', handleRejection);
+    };
+}, []);
+const handleAddMedication = async (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // ✅ منع انتشار الحدث
+    
+    console.log('➕ handleAddMedication START - timestamp:', Date.now());
+    
+    if (!newMedication.name.trim()) {
+        setMessage(isArabic ? '❌ الرجاء إدخال اسم الدواء' : '❌ Please enter medication name');
+        setMessageType('error');
+        return;
+    }
+    
+    if (isAddingRef.current) {
+        console.log('⚠️ Already adding, skipping...');
+        return;
+    }
+    isAddingRef.current = true;
+    
+    setSaving(true);
+    
+    try {
+        console.log('📡 Sending POST to /user/medications/');
+        console.log('📦 Payload:', newMedication);
+        
+        const response = await axiosInstance.post('/user/medications/', newMedication);
+        
+        console.log('✅ Response status:', response.status);
+        console.log('✅ Response data:', response.data);
+        
+        if (!response.data?.success) {
+            throw new Error(response.data?.error || 'Failed to add medication');
+        }
+        
+        // ✅ تحديث القائمة محلياً
+        const newMed = {
+            id: response.data?.medication?.id || Date.now(),
+            name: newMedication.name,
+            dosage: newMedication.dosage,
+            frequency: newMedication.frequency,
+            start_date: newMedication.start_date
+        };
+        
+        console.log('➕ Updating medications state with:', newMed);
+        
+        // ✅ استخدام updater function لتجنب مشاكل الـ closure
+        setCurrentMedications(prev => {
+            console.log('📊 Old medications count:', prev.length);
+            const updated = [...prev, newMed];
+            console.log('📊 New medications count:', updated.length);
+            return updated;
+        });
+        
+        setNewMedication({ name: '', dosage: '', frequency: '', start_date: '' });
+        setShowAddMedication(false);
+        setMessage(isArabic ? '✅ تم إضافة الدواء بنجاح' : '✅ Medication added successfully');
+        setMessageType('success');
+        
+        console.log('✅ handleAddMedication SUCCESS - page should NOT reload');
+        
+    } catch (error) {
+        console.error('❌ Error details:', error);
+        console.error('❌ Error response:', error.response);
+        console.error('❌ Error status:', error.response?.status);
+        console.error('❌ Error data:', error.response?.data);
+        
+        // ✅ إذا كان الخطأ 401 Unauthorized، لا نعيد تحميل الصفحة
+        if (error.response?.status === 401) {
+            console.log('🔐 Token expired, but NOT reloading page');
+            // يمكنك تحديث التوكن هنا إذا أردت
+        } else {
+            setMessage(isArabic ? '❌ خطأ في إضافة الدواء' : '❌ Error adding medication');
+            setMessageType('error');
+        }
+    } finally {
+        setSaving(false);
+        isAddingRef.current = false;
+        setTimeout(() => setMessage(''), 3000);
+        console.log('➕ handleAddMedication END - timestamp:', Date.now());
+    }
+};
+// ✅ ابحث عن أي استدعاء لـ window.location.reload أو window.location.href
+useEffect(() => {
+    // مراقبة محاولات تغيير الـ URL أو إعادة التحميل
+    const originalReload = window.location.reload;
+    window.location.reload = function(...args) {
+        console.error('🚨 window.location.reload() called! Stack trace:', new Error().stack);
+        return originalReload.apply(this, args);
+    };
+    
+    const originalReplace = window.location.replace;
+    window.location.replace = function(...args) {
+        console.error('🚨 window.location.replace() called! Stack trace:', new Error().stack);
+        return originalReplace.apply(this, args);
+    };
+    
+    return () => {
+        window.location.reload = originalReload;
+        window.location.replace = originalReplace;
+    };
+}, []);
 const extractDataSafely = (response) => {
     if (!response || !response.data) return [];
     if (Array.isArray(response.data)) return response.data;
