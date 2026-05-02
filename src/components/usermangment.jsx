@@ -5,49 +5,7 @@ import axiosInstance from '../services/api';
 import '../index.css';
 
 // ==================== دوال مساعدة ====================
-// ✅ كود تصحيح متقدم لمراقبة إعادة تحميل الصفحة
-if (typeof window !== 'undefined') {
-    // مراقبة محاولات تغيير الـ URL
-    const originalPushState = window.history.pushState;
-    const originalReplaceState = window.history.replaceState;
-    
-    window.history.pushState = function(...args) {
-        console.log('🔄 history.pushState called:', args);
-        console.trace('Stack trace:');
-        return originalPushState.apply(this, args);
-    };
-    
-    window.history.replaceState = function(...args) {
-        console.log('🔄 history.replaceState called:', args);
-        console.trace('Stack trace:');
-        return originalReplaceState.apply(this, args);
-    };
-    
-    // مراقبة أي محاولة لتغيير الـ href
-    let originalHref = window.location.href;
-    Object.defineProperty(window.location, 'href', {
-        get: function() { return originalHref; },
-        set: function(value) {
-            console.log('🚨 window.location.href is being set to:', value);
-            console.trace('Stack trace:');
-            if (value !== originalHref) {
-                console.error('❌ This will cause a page reload!');
-                debugger; // سيتوقف التنفيذ هنا في Developer Tools
-            }
-            originalHref = value;
-            return value;
-        }
-    });
-    
-    // مراقبة أي استدعاء لـ reload
-    const originalReload = window.location.reload;
-    window.location.reload = function(...args) {
-        console.error('🚨 window.location.reload() called!');
-        console.trace('Stack trace:');
-        debugger; // سيتوقف التنفيذ هنا في Developer Tools
-        return originalReload.apply(this, args);
-    };
-}
+
 const extractDataSafely = (response) => {
     if (!response || !response.data) return [];
     if (Array.isArray(response.data)) return response.data;
@@ -511,82 +469,42 @@ useEffect(() => {
         }
     };
     
-const handleAddMedication = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('📝 === START handleAddMedication ===');
-    console.log('📝 Timestamp:', Date.now());
-    console.log('📝 Stack trace:', new Error().stack);
-    
-    if (!newMedication.name.trim()) {
-        setMessage(isArabic ? '❌ الرجاء إدخال اسم الدواء' : '❌ Please enter medication name');
-        setMessageType('error');
-        return;
-    }
-    
-    if (isAddingRef.current) {
-        console.log('⚠️ Already adding, skipping...');
-        return;
-    }
-    isAddingRef.current = true;
-    
-    setSaving(true);
-    
-    try {
-        console.log('📡 Sending POST to /user/medications/');
-        const response = await axiosInstance.post('/user/medications/', newMedication);
-        console.log('✅ Response received:', response.status, response.data);
+    // ✅ إضافة دواء جديد
+    const handleAddMedication = async (e) => {
+        e.preventDefault();
+        if (!newMedication.name.trim()) {
+            setMessage(isArabic ? '❌ الرجاء إدخال اسم الدواء' : '❌ Please enter medication name');
+            setMessageType('error');
+            return;
+        }
         
-        // ✅ تحديث القائمة محلياً
-        const newMed = {
-            id: response.data?.medication?.id || Date.now(),
-            name: newMedication.name,
-            dosage: newMedication.dosage,
-            frequency: newMedication.frequency,
-            start_date: newMedication.start_date
-        };
+        if (isAddingRef.current) return;
+        isAddingRef.current = true;
         
-        console.log('📝 Updating medications state with:', newMed);
-        console.log('📝 Current medications count:', currentMedications.length);
-        
-        setCurrentMedications(prev => {
-            console.log('📝 Previous medications (inside setter):', prev.length);
-            const updated = [...prev, newMed];
-            console.log('📝 Updated medications:', updated.length);
-            return updated;
-        });
-        
-        console.log('📝 State update called, checking if page will reload...');
-        
-        setNewMedication({ name: '', dosage: '', frequency: '', start_date: '' });
-        setShowAddMedication(false);
-        setMessage(isArabic ? '✅ تم إضافة الدواء بنجاح' : '✅ Medication added successfully');
-        setMessageType('success');
-        
-        console.log('✅ === END handleAddMedication - SUCCESS ===');
-        
-        // ✅ لا توجد أي استدعاءات لـ fetch أو refresh هنا
-        
-    } catch (error) {
-        console.error('❌ Error adding medication:', error);
-        console.error('❌ Error response:', error.response);
-        console.error('❌ Error status:', error.response?.status);
-        console.error('❌ Error data:', error.response?.data);
-        
-        if (error.response?.status === 401) {
-            console.log('🔐 Token expired - this might cause a redirect!');
-        } else {
+        setSaving(true);
+        try {
+            const response = await axiosInstance.post('/user/medications/', newMedication);
+            setCurrentMedications(prev => [...prev, {
+                id: response.data?.medication?.id || Date.now(),
+                name: newMedication.name,
+                dosage: newMedication.dosage,
+                frequency: newMedication.frequency,
+                start_date: newMedication.start_date
+            }]);
+            setNewMedication({ name: '', dosage: '', frequency: '', start_date: '' });
+            setShowAddMedication(false);
+            setMessage(isArabic ? '✅ تم إضافة الدواء بنجاح' : '✅ Medication added successfully');
+            setMessageType('success');
+        } catch (error) {
+            console.error('Error adding medication:', error);
             setMessage(isArabic ? '❌ خطأ في إضافة الدواء' : '❌ Error adding medication');
             setMessageType('error');
+        } finally {
+            setSaving(false);
+            isAddingRef.current = false;
+            setTimeout(() => setMessage(''), 3000);
         }
-    } finally {
-        setSaving(false);
-        isAddingRef.current = false;
-        setTimeout(() => setMessage(''), 3000);
-        console.log('📝 === END handleAddMedication (finally) ===');
-    }
-};
+    };
     
     // ✅ حذف دواء
     const handleDeleteMedication = async (medId) => {
@@ -1150,26 +1068,7 @@ const handleAddMedication = async (e) => {
             localStorage.setItem('darkMode', 'false');
         }
     }, [darkMode]);
-    // ✅ مراقبة التغييرات في الحالات الرئيسية
-useEffect(() => {
-    console.log('🔍 chronicConditions changed:', chronicConditions.length);
-}, [chronicConditions]);
-
-useEffect(() => {
-    console.log('🔍 currentMedications changed:', currentMedications.length);
-}, [currentMedications]);
-
-useEffect(() => {
-    console.log('🔍 saving changed:', saving);
-}, [saving]);
-
-useEffect(() => {
-    console.log('🔍 loading changed:', loading);
-}, [loading]);
-
-useEffect(() => {
-    console.log('🔍 refreshKey changed:', refreshKey);
-}, [refreshKey]);
+    
     // --- تبديل اللغة ---
     const toggleLanguage = useCallback(() => {
         const newLang = lang === 'ar' ? 'en' : 'ar';
