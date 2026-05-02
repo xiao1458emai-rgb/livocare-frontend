@@ -1,6 +1,5 @@
 // src/components/Analytics/SleepAnalytics.jsx - النسخة المطورة
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { mean } from 'mathjs';
 import { Line, Bar } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
@@ -29,7 +28,12 @@ ChartJS.register(
     Legend,
     Filler
 );
-
+// دالة لحساب المتوسط بدون مكتبة mathjs
+const safeMean = (arr) => {
+    if (!arr || arr.length === 0) return 0;
+    const sum = arr.reduce((acc, val) => acc + val, 0);
+    return sum / arr.length;
+};
 const SleepAnalytics = ({ refreshTrigger }) => {
     // ✅ إعدادات اللغة
     const [lang, setLang] = useState(() => {
@@ -230,8 +234,8 @@ const SleepAnalytics = ({ refreshTrigger }) => {
             return hour + minute / 60;
         }).filter(h => h > 0 && h < 24);
         
-        const avgBedTime = bedTimes.length > 0 ? math.mean(bedTimes) : 0;
-        const avgWakeTime = wakeTimes.length > 0 ? math.mean(wakeTimes) : 0;
+        const avgBedTime = bedTimes.length > 0 ? safeMean(bedTimes) : 0;
+        const avgWakeTime = wakeTimes.length > 0 ? safeMean(wakeTimes) : 0;
         const avgDuration = avgWakeTime > avgBedTime ? avgWakeTime - avgBedTime : (24 - avgBedTime) + avgWakeTime;
         
         let chronotype = '';

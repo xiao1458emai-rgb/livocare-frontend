@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import axiosInstance from '../services/api';
 import '../index.css';
 import SleepAnalytics from './Analytics/SleepAnalytics';
-import math from 'mathjs';
 
 // دالة لتقريب الأرقام
 const roundNumber = (num, decimals = 1) => {
