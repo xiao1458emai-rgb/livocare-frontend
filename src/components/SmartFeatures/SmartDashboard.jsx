@@ -486,28 +486,6 @@ const SmartDashboard = () => {
         </section>
     );
 
-    // ===========================================
-    // 🎨 عرض التحميل والخطأ
-    // ===========================================
-    if (loading && !healthScore) {
-        return (
-            <div className="smart-loading">
-                <div className="spinner"></div>
-                <p>🧠 {isArabic ? 'جاري تحليل بياناتك باستخدام الذكاء الاصطناعي...' : 'Analyzing your data with AI...'}</p>
-            </div>
-        );
-    }
-
-    if (error && !healthScore) {
-        return (
-            <div className="smart-error">
-                <p>❌ {error}</p>
-                <button onClick={fetchAllData} className="retry-btn">
-                    🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
-                </button>
-            </div>
-        );
-    }
 
     // ===========================================
     // 🖥️ العرض الرئيسي
