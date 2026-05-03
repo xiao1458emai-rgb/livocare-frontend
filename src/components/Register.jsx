@@ -50,96 +50,77 @@ function Register({ onRegisterSuccess }) {
     const isSubmittingRef = useRef(false);
     const lastGoogleAttemptRef = useRef(0);
 
-// ✅ تسجيل مباشر باستخدام Google (بدون خدمة منفصلة)
-const googleRegister = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-        if (loading) return;
-        setLoading(true);
-        setMessage('');
-        
-        try {
-            console.log('🔑 Google token received');
+    // ✅ تسجيل مباشر باستخدام Google (بدون خدمة منفصلة)
+    const googleRegister = useGoogleLogin({
+        onSuccess: async (tokenResponse) => {
+            if (loading) return;
+            setLoading(true);
+            setMessage('');
             
-            // 1. جلب معلومات المستخدم من Google
-            const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-            });
-            const userInfo = await userInfoResponse.json();
-            
-            console.log('✅ Google user:', userInfo);
-            
-            // 2. التحقق من صحة البريد
-            if (!userInfo.email_verified) {
-                setMessage(isArabic ? '❌ البريد الإلكتروني غير موثق في Google' : '❌ Email not verified in Google');
-                setMessageType('error');
-                setLoading(false);
-                return;
-            }
-            
-            // 3. إنشاء اسم مستخدم من البريد
-            let baseUsername = userInfo.email.split('@')[0];
-            // تنظيف اسم المستخدم من الأحرف غير المسموحة
-            baseUsername = baseUsername.replace(/[^a-zA-Z0-9_]/g, '_');
-            let username = baseUsername;
-            let counter = 1;
-            
-            // 4. ✅ تجربة التسجيل مباشرة (بدون التحقق المسبق)
-            // إذا فشل بسبب وجود اسم مستخدم، جرب اسماً آخر
-            
-            // 5. إنشاء كلمة مرور عشوائية قوية
-            const randomPassword = Math.random().toString(36).slice(-12) + 'Aa1!' + Math.floor(Math.random() * 1000);
-            
-            let registerSuccess = false;
-            let finalUsername = username;
-            let maxAttempts = 5;
-            
-            while (!registerSuccess && maxAttempts > 0) {
+            try {
+                console.log('🔑 Google token received');
+                
+                // 1. جلب معلومات المستخدم من Google
+                const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+                });
+                const userInfo = await userInfoResponse.json();
+                
+                console.log('✅ Google user:', userInfo);
+                
+                // 2. التحقق من صحة البريد (أمان)
+                if (!userInfo.email_verified) {
+                    setMessage(isArabic ? '❌ البريد الإلكتروني غير موثق في Google. لا يمكن التسجيل.' : '❌ Email not verified in Google. Cannot register.');
+                    setMessageType('error');
+                    setLoading(false);
+                    return;
+                }
+                
+                // 3. التحقق من أن البريد غير موجود مسبقاً
+                let emailExists = false;
                 try {
-                    const registerResponse = await axiosInstance.post('/auth/register/', {
-                        username: finalUsername,
-                        email: userInfo.email,
-                        password: randomPassword,
-                        password2: randomPassword,
-                        first_name: userInfo.given_name || '',
-                        last_name: userInfo.family_name || ''
-                    });
-                    
-                    console.log('✅ Registration success:', registerResponse.data);
-                    registerSuccess = true;
-                    
-                    // 6. تسجيل الدخول التلقائي
-                    const loginResponse = await axiosInstance.post('/auth/token/', {
-                        username: finalUsername,
-                        password: randomPassword
-                    });
-                    
-                    localStorage.setItem('access_token', loginResponse.data.access);
-                    localStorage.setItem('refresh_token', loginResponse.data.refresh);
-                    localStorage.setItem('username', finalUsername);
-                    
-                    setMessage(isArabic ? '🎉 تم إنشاء الحساب بنجاح عبر Google!' : '🎉 Account created successfully with Google!');
-                    setMessageType('success');
-                    
-                    setTimeout(() => {
-                        if (onRegisterSuccess) onRegisterSuccess();
-                        else navigate('/dashboard');
-                    }, 2000);
-                    
-                } catch (error) {
-                    console.error('Registration attempt failed:', error.response?.data);
-                    
-                    // إذا كان اسم المستخدم موجوداً، جرب اسماً آخر
-                    if (error.response?.data?.username) {
-                        maxAttempts--;
-                        finalUsername = `${baseUsername}${counter}`;
-                        counter++;
-                        console.log(`Trying new username: ${finalUsername}, attempts left: ${maxAttempts}`);
-                    } else if (error.response?.data?.email) {
-                        // البريد موجود مسبقاً - حاول تسجيل الدخول
-                        setMessage(isArabic ? '📧 هذا البريد مسجل بالفعل. جاري تسجيل الدخول...' : '📧 Email already registered. Logging in...');
-                        setMessageType('info');
+                    const checkResponse = await axiosInstance.post('/auth/check-email/', { email: userInfo.email });
+                    emailExists = checkResponse.data?.exists || false;
+                } catch (checkError) {
+                    console.log('Email check endpoint not available, continuing...');
+                }
+                
+                if (emailExists) {
+                    setMessage(isArabic ? '📧 هذا البريد مسجل بالفعل. الرجاء تسجيل الدخول' : '📧 Email already registered. Please login');
+                    setMessageType('info');
+                    setLoading(false);
+                    setTimeout(() => navigate('/login'), 2000);
+                    return;
+                }
+                
+                // 4. إنشاء اسم مستخدم من البريد (نظيف وآمن)
+                let baseUsername = userInfo.email.split('@')[0];
+                baseUsername = baseUsername.replace(/[^a-zA-Z0-9_]/g, '_');
+                let username = baseUsername;
+                let counter = 1;
+                
+                // 5. إنشاء كلمة مرور عشوائية قوية
+                const randomPassword = Math.random().toString(36).slice(-12) + 'Aa1!' + Math.floor(Math.random() * 1000);
+                
+                let registerSuccess = false;
+                let finalUsername = username;
+                let maxAttempts = 5;
+                
+                while (!registerSuccess && maxAttempts > 0) {
+                    try {
+                        const registerResponse = await axiosInstance.post('/auth/register/', {
+                            username: finalUsername,
+                            email: userInfo.email,
+                            password: randomPassword,
+                            password2: randomPassword,
+                            first_name: userInfo.given_name || '',
+                            last_name: userInfo.family_name || ''
+                        });
                         
-                        // محاولة تسجيل الدخول
+                        console.log('✅ Registration success:', registerResponse.data);
+                        registerSuccess = true;
+                        
+                        // 6. تسجيل الدخول التلقائي
                         const loginResponse = await axiosInstance.post('/auth/token/', {
                             username: finalUsername,
                             password: randomPassword
@@ -147,50 +128,64 @@ const googleRegister = useGoogleLogin({
                         
                         localStorage.setItem('access_token', loginResponse.data.access);
                         localStorage.setItem('refresh_token', loginResponse.data.refresh);
+                        localStorage.setItem('username', finalUsername);
+                        
+                        setMessage(isArabic ? '🎉 تم إنشاء الحساب بنجاح عبر Google!' : '🎉 Account created successfully with Google!');
+                        setMessageType('success');
                         
                         setTimeout(() => {
                             if (onRegisterSuccess) onRegisterSuccess();
                             else navigate('/dashboard');
-                        }, 1500);
+                        }, 2000);
                         
-                        registerSuccess = true;
-                        break;
-                    } else {
-                        throw error;
+                    } catch (error) {
+                        console.error('Registration attempt failed:', error.response?.data);
+                        
+                        if (error.response?.data?.username) {
+                            maxAttempts--;
+                            finalUsername = `${baseUsername}${counter}`;
+                            counter++;
+                            console.log(`Trying new username: ${finalUsername}, attempts left: ${maxAttempts}`);
+                        } else if (error.response?.data?.email) {
+                            setMessage(isArabic ? '📧 هذا البريد مسجل بالفعل' : '📧 Email already registered');
+                            setMessageType('error');
+                            break;
+                        } else {
+                            throw error;
+                        }
                     }
                 }
-            }
-            
-            if (!registerSuccess) {
-                setMessage(isArabic ? '❌ فشل إنشاء الحساب. حاول مرة أخرى' : '❌ Account creation failed. Try again');
+                
+                if (!registerSuccess && maxAttempts === 0) {
+                    setMessage(isArabic ? '❌ فشل إنشاء الحساب. حاول مرة أخرى' : '❌ Account creation failed. Try again');
+                    setMessageType('error');
+                }
+                
+            } catch (error) {
+                console.error('Google registration error:', error);
+                setMessage(isArabic ? '❌ فشل التسجيل عبر Google. حاول مرة أخرى' : '❌ Google registration failed. Try again');
                 setMessageType('error');
+            } finally {
+                setLoading(false);
             }
+        },
+        onError: (error) => {
+            console.error('Google login error:', error);
             
-        } catch (error) {
-            console.error('Google registration error:', error);
-            setMessage(isArabic ? '❌ فشل التسجيل عبر Google. حاول مرة أخرى' : '❌ Google registration failed. Try again');
+            const now = Date.now();
+            if (now - lastGoogleAttemptRef.current < 30000) {
+                setMessage(isArabic ? '⚠️ الرجاء الانتظار 30 ثانية قبل المحاولة مرة أخرى' : '⚠️ Please wait 30 seconds before trying again');
+                setMessageType('error');
+                return;
+            }
+            lastGoogleAttemptRef.current = now;
+            
+            setMessage(isArabic ? '❌ فشل الاتصال بـ Google. تأكد من اتصال الإنترنت' : '❌ Failed to connect to Google. Check your internet connection');
             setMessageType('error');
-        } finally {
             setLoading(false);
-        }
-    },
-    onError: (error) => {
-        console.error('Google login error:', error);
-        
-        // منع الطلبات المتكررة
-        const now = Date.now();
-        if (now - lastGoogleAttemptRef.current < 30000) {
-            setMessage(isArabic ? '⚠️ الرجاء الانتظار 30 ثانية قبل المحاولة مرة أخرى' : '⚠️ Please wait 30 seconds before trying again');
-            setMessageType('error');
-            return;
-        }
-        lastGoogleAttemptRef.current = now;
-        
-        setMessage(isArabic ? '❌ فشل الاتصال بـ Google. تأكد من اتصال الإنترنت' : '❌ Failed to connect to Google. Check your internet connection');
-        setMessageType('error');
-    },
-    flow: 'implicit'
-});
+        },
+        flow: 'implicit'
+    });
 
     // ✅ تبديل اللغة
     const toggleLanguage = () => {
@@ -274,7 +269,7 @@ const googleRegister = useGoogleLogin({
         }));
     };
 
-    // ✅ حساب قوة كلمة المرور
+    // ✅ حساب قوة كلمة المرور (للنموذج العادي فقط)
     useEffect(() => {
         if (!formData.password) {
             setPasswordStrength(0);
@@ -337,6 +332,7 @@ const googleRegister = useGoogleLogin({
         return isArabic ? 'قوية جداً' : 'Very Strong';
     };
 
+    // ✅ التحقق من صحة النموذج العادي (بدون تحقق اسم المستخدم)
     const validateForm = () => {
         if (formData.first_name && (formData.first_name.length < 2 || formData.first_name.length > 50)) {
             return isArabic ? 'الاسم الأول يجب أن يكون بين 2 و 50 حرفاً' : 'First name must be between 2 and 50 characters';
@@ -360,6 +356,7 @@ const googleRegister = useGoogleLogin({
             return isArabic ? 'البريد الإلكتروني غير صالح' : 'Invalid email address';
         }
         
+        // التحقق من كلمة المرور
         if (!formData.password) {
             return isArabic ? 'كلمة المرور مطلوبة' : 'Password is required';
         }
@@ -381,6 +378,7 @@ const googleRegister = useGoogleLogin({
         return null;
     };
 
+    // ✅ إرسال النموذج العادي
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
@@ -525,14 +523,12 @@ const googleRegister = useGoogleLogin({
 
     return (
         <div className="register-wrapper">
-            {/* خلفية متحركة */}
             <div className="register-background">
                 <div className="bg-blob bg-blob-1"></div>
                 <div className="bg-blob bg-blob-2"></div>
                 <div className="bg-blob bg-blob-3"></div>
             </div>
 
-            {/* شريط التحكم العلوي */}
             <div className="register-navbar">
                 <div className="navbar-content">
                     <Link to="/" className="logo-area">
@@ -565,7 +561,6 @@ const googleRegister = useGoogleLogin({
                 </div>
             </div>
 
-            {/* المحتوى الرئيسي */}
             <div className="register-main">
                 <div className="register-card">
                     <div className="card-header">
@@ -577,7 +572,6 @@ const googleRegister = useGoogleLogin({
                     </div>
                     
                     <form onSubmit={handleSubmit} className="register-form">
-                        {/* الاسم الأول واسم العائلة */}
                         <div className="form-row">
                             <div className="form-field">
                                 <label className="field-label">
@@ -614,7 +608,6 @@ const googleRegister = useGoogleLogin({
                             </div>
                         </div>
 
-                        {/* اسم المستخدم */}
                         <div className="form-field">
                             <label className="field-label required">
                                 <span className="label-icon">🔖</span>
@@ -639,7 +632,6 @@ const googleRegister = useGoogleLogin({
                             )}
                         </div>
 
-                        {/* البريد الإلكتروني */}
                         <div className="form-field">
                             <label className="field-label required">
                                 <span className="label-icon">📧</span>
@@ -664,7 +656,6 @@ const googleRegister = useGoogleLogin({
                             )}
                         </div>
 
-                        {/* كلمة المرور */}
                         <div className="form-field">
                             <label className="field-label required">
                                 <span className="label-icon">🔒</span>
@@ -685,7 +676,6 @@ const googleRegister = useGoogleLogin({
                                     type="button"
                                     className="password-eye"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    aria-label={showPassword ? (isArabic ? 'إخفاء' : 'Hide') : (isArabic ? 'إظهار' : 'Show')}
                                 >
                                     {showPassword ? '👁️' : '👁️‍🗨️'}
                                 </button>
@@ -712,7 +702,6 @@ const googleRegister = useGoogleLogin({
                             </div>
                         </div>
 
-                        {/* تأكيد كلمة المرور */}
                         <div className="form-field">
                             <label className="field-label required">
                                 <span className="label-icon">✓</span>
@@ -733,7 +722,6 @@ const googleRegister = useGoogleLogin({
                                     type="button"
                                     className="password-eye"
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    aria-label={showConfirmPassword ? (isArabic ? 'إخفاء' : 'Hide') : (isArabic ? 'إظهار' : 'Show')}
                                 >
                                     {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
                                 </button>
@@ -745,7 +733,6 @@ const googleRegister = useGoogleLogin({
                             )}
                         </div>
 
-                        {/* الموافقة على الشروط */}
                         <div className="terms-checkbox">
                             <label className="checkbox-label">
                                 <input
@@ -768,7 +755,6 @@ const googleRegister = useGoogleLogin({
                             </label>
                         </div>
 
-                        {/* أزرار الإجراء */}
                         <div className="form-buttons">
                             <button 
                                 type="submit" 
@@ -788,14 +774,12 @@ const googleRegister = useGoogleLogin({
                             </button>
                         </div>
 
-                        {/* الفاصل */}
                         <div className="divider">
                             <span className="divider-line"></span>
                             <span className="divider-text">{isArabic ? 'أو' : 'OR'}</span>
                             <span className="divider-line"></span>
                         </div>
 
-                        {/* زر Google - التسجيل المباشر */}
                         <button 
                             type="button"
                             onClick={() => googleRegister()}
@@ -806,7 +790,6 @@ const googleRegister = useGoogleLogin({
                             <span>{isArabic ? 'التسجيل باستخدام Google' : 'Sign up with Google'}</span>
                         </button>
 
-                        {/* رابط تسجيل الدخول */}
                         <div className="login-link">
                             <p>
                                 {isArabic ? 'لديك حساب بالفعل؟' : 'Already have an account?'}{' '}
@@ -817,7 +800,6 @@ const googleRegister = useGoogleLogin({
                         </div>
                     </form>
 
-                    {/* رسالة الإشعار */}
                     {message && (
                         <div className={`notification-toast ${messageType}`}>
                             <span className="toast-icon">
@@ -839,7 +821,6 @@ const googleRegister = useGoogleLogin({
                     )}
                 </div>
 
-                {/* معلومات إضافية */}
                 <div className="register-info">
                     <div className="info-card">
                         <h3>{isArabic ? '✨ لماذا تنضم إلى LivoCare؟' : '✨ Why join LivoCare?'}</h3>
@@ -854,6 +835,9 @@ const googleRegister = useGoogleLogin({
                     </div>
                 </div>
             </div>
+
+            {showTermsModal && <TermsModal />}
+            {showPrivacyModal && <PrivacyModal />}
 
             {/* النوافذ المنبثقة */}
             {showTermsModal && <TermsModal />}
