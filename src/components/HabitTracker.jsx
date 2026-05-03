@@ -169,9 +169,10 @@ const extractDiseasesFromText = (text) => {
             }
         }
     }
-    };
+    
     // ✅ إرجاع مصفوفة سلاسل نصية فقط
     return Array.from(diseases);
+    };
 // ==================== المكون الرئيسي ====================
 
 function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
