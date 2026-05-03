@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axiosInstance from '../../services/api';
 import '../../index.css';
-
+import WeatherWidget from './WeatherWidget';
 // دالة لتقريب الأرقام
 const roundNumber = (num, decimals = 1) => {
     if (isNaN(num)) return 0;
