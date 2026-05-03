@@ -1950,7 +1950,7 @@ const SmartAnalysis = () => {
 .score-details summary {
     cursor: pointer;
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(32, 4, 4, 0.8);
     margin-bottom: 0.75rem;
 }
 
@@ -2195,8 +2195,8 @@ const SmartAnalysis = () => {
     justify-content: space-between;
     font-size: 0.7rem;
     padding: 0.25rem 0;
-    border-top: 1px solid var(--border-light, #e2e8f0);
-    color: var(--text-tertiary, #94a3b8);
+    border-top: 1px solid var(--border-light, #7a899c);
+    color: var(--text-tertiary, #63738a);
 }
 
 .dark-mode .info-row {
@@ -2205,11 +2205,11 @@ const SmartAnalysis = () => {
 
 /* بطاقة المعلومات الإضافية */
 .info-card {
-    background: var(--secondary-bg, #f8fafc);
+    background: var(--secondary-bg, #5b84ac);
     border-radius: 20px;
     padding: 1.25rem;
     margin-top: 1rem;
-    border: 1px solid var(--border-light, #e2e8f0);
+    border: 1px solid var(--border-light, #738398);
 }
 
 .dark-mode .info-card {
@@ -2242,7 +2242,7 @@ const SmartAnalysis = () => {
 }
 
 .recommendation-card {
-    background: var(--secondary-bg, #f8fafc);
+    background: var(--secondary-bg, #436180);
     border-radius: 20px;
     padding: 1.25rem;
     border: 1px solid var(--border-light, #e2e8f0);
