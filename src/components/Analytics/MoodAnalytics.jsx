@@ -354,44 +354,6 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                     </div>
                 )}
 
-                {/* رؤى من Backend */}
-                {analysis.backendData && analysis.backendData.has_data && (
-                    <div className="backend-insights">
-                        <div className="insight-header">
-                            <span className="insight-icon">🧠</span>
-                            <span className="insight-title">{isArabic ? 'تحليلات متقدمة بالذكاء الاصطناعي' : 'AI-Powered Advanced Insights'}</span>
-                        </div>
-                        {analysis.backendData.overall_sentiment && (
-                            <div className="insight-item">
-                                <span className="insight-label">{isArabic ? 'المشاعر العامة' : 'Overall Sentiment'}:</span>
-                                <span className={`insight-value ${analysis.backendData.overall_sentiment.overall === 'Positive' ? 'positive' : analysis.backendData.overall_sentiment.overall === 'Negative' ? 'negative' : 'neutral'}`}>
-                                    {analysis.backendData.overall_sentiment.overall}
-                                </span>
-                                <span className="insight-detail">
-                                    ({analysis.backendData.overall_sentiment.positive_rate}% {isArabic ? 'إيجابي' : 'positive'})
-                                </span>
-                            </div>
-                        )}
-                        {analysis.backendData.trend_analysis && analysis.backendData.trend_analysis.trend !== 'insufficient_data' && (
-                            <div className="insight-item">
-                                <span className="insight-label">{isArabic ? 'الاتجاه' : 'Trend'}:</span>
-                                <span className={`insight-value trend-${analysis.backendData.trend_analysis.trend}`}>
-                                    {analysis.backendData.trend_analysis.trend === 'improving' ? (isArabic ? '📈 تحسن' : '📈 Improving') : 
-                                     analysis.backendData.trend_analysis.trend === 'declining' ? (isArabic ? '📉 تراجع' : '📉 Declining') : 
-                                     (isArabic ? '➡️ مستقر' : '➡️ Stable')}
-                                </span>
-                                <span className="insight-detail">{analysis.backendData.trend_analysis.message}</span>
-                            </div>
-                        )}
-                        {analysis.backendData.most_common_mood && (
-                            <div className="insight-item">
-                                <span className="insight-label">{isArabic ? 'المزاج الأكثر تكراراً' : 'Most Common Mood'}:</span>
-                                <span className="insight-value">{analysis.backendData.most_common_mood}</span>
-                            </div>
-                        )}
-                    </div>
-                )}
-
                 {/* تنبيه الانخفاض */}
                 {analysis.declineAlert && (
                     <div className={`alert-card severity-${analysis.declineAlert.severity}`}>

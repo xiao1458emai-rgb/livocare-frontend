@@ -862,48 +862,6 @@ function MoodTracker({ isAuthReady }) {
                 </div>
             )}
 
-            {/* ✅ رؤى المشاعر من API */}
-            {sentimentInsights && sentimentInsights.has_data && (
-                <div className="insight-card api-insights">
-                    <div className="insight-header">
-                        <span className="insight-icon">🤖</span>
-                        <h3>{isArabic ? 'تحليلات متقدمة بالذكاء الاصطناعي' : 'AI-Powered Advanced Insights'}</h3>
-                    </div>
-                    <div className="insight-body">
-                        {sentimentInsights.overall_sentiment && (
-                            <div className="insight-item">
-                                <span className="insight-label">{isArabic ? 'المشاعر العامة' : 'Overall Sentiment'}:</span>
-                                <span className={`insight-value ${sentimentInsights.overall_sentiment.overall === 'Positive' ? 'positive' : sentimentInsights.overall_sentiment.overall === 'Negative' ? 'negative' : 'neutral'}`}>
-                                    {sentimentInsights.overall_sentiment.overall}
-                                </span>
-                                <span className="insight-detail">
-                                    ({sentimentInsights.overall_sentiment.positive_rate}% {isArabic ? 'إيجابي' : 'positive'})
-                                </span>
-                            </div>
-                        )}
-                        {sentimentInsights.trend_analysis && sentimentInsights.trend_analysis.trend !== 'insufficient_data' && (
-                            <div className="insight-item">
-                                <span className="insight-label">{isArabic ? 'الاتجاه' : 'Trend'}:</span>
-                                <span className={`insight-value trend-${sentimentInsights.trend_analysis.trend}`}>
-                                    {sentimentInsights.trend_analysis.trend === 'improving' ? (isArabic ? '📈 تحسن' : '📈 Improving') : 
-                                     sentimentInsights.trend_analysis.trend === 'declining' ? (isArabic ? '📉 تراجع' : '📉 Declining') : 
-                                     (isArabic ? '➡️ مستقر' : '➡️ Stable')}
-                                </span>
-                                <span className="insight-detail">
-                                    {sentimentInsights.trend_analysis.message}
-                                </span>
-                            </div>
-                        )}
-                        {sentimentInsights.most_common_mood && (
-                            <div className="insight-item">
-                                <span className="insight-label">{isArabic ? 'المزاج الأكثر تكراراً' : 'Most Common Mood'}:</span>
-                                <span className="insight-value">{sentimentInsights.most_common_mood}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
             {/* ✅ سجل المزاج */}
             <div className="mood-history-section">
                 <div className="section-header">
