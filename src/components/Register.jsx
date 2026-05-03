@@ -55,7 +55,7 @@ function Register({ onRegisterSuccess }) {
     const lastVerifyAttemptRef = useRef(0);
     const lastGoogleAttemptRef = useRef(0);
 
-    // ✅ التحقق من البريد باستخدام Google (بدون خدمة منفصلة)
+    // ✅ التحقق من البريد باستخدام Google
     const verifyEmailWithGoogle = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
             try {
@@ -108,7 +108,7 @@ function Register({ onRegisterSuccess }) {
         flow: 'implicit'
     });
 
-    // ✅ تسجيل مباشر باستخدام Google (بدون خدمة منفصلة) - خارج useEffect
+    // ✅ تسجيل مباشر باستخدام Google
     const googleRegister = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
             if (loading) return;
@@ -534,6 +534,7 @@ function Register({ onRegisterSuccess }) {
         }
     }, [formData, onRegisterSuccess, navigate, isArabic, passwordStrength, agreedToTerms, emailVerifiedByGoogle]);
 
+    // ✅ تنظيف عند unmount
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
