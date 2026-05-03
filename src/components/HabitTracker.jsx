@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { extractText, getDocumentProxy } from 'unpdf';
 import axios from 'axios';
 import axiosInstance from '../services/api';
 import HabitAnalytics from './Analytics/HabitAnalytics';
@@ -117,7 +118,50 @@ const getHabitIcon = (habitType) => {
         default: return '✅';
     }
 };
-
+// ✅ دالة بسيطة لاستخراج الأمراض من النص
+const extractDiseasesFromText = (text) => {
+    if (!text || !text.trim()) return [];
+    
+    const diseases = [];
+    const diseaseKeywords = {
+        'diabetes': ['سكري', 'diabetes', 'diabetic', 'type 1', 'type 2', 'سكر'],
+        'hypertension': ['ضغط', 'hypertension', 'high blood pressure', 'hypertensive', 'ارتفاع ضغط'],
+        'asthma': ['ربو', 'asthma', 'bronchial'],
+        'heart_disease': ['قلب', 'heart', 'cardiac', 'cardiovascular', 'coronary'],
+        'arthritis': ['التهاب مفاصل', 'arthritis', 'rheumatoid', 'osteoarthritis'],
+        'thyroid': ['غدة درقية', 'thyroid', 'hypothyroidism', 'hyperthyroidism'],
+        'anemia': ['أنيميا', 'anemia', 'فقر دم', 'hemoglobin'],
+        'migraine': ['صداع نصفي', 'migraine', 'شقيقة'],
+        'allergy': ['حساسية', 'allergy', 'allergic', 'hay fever'],
+        'depression': ['اكتئاب', 'depression', 'depressive'],
+        'anxiety': ['قلق', 'anxiety', 'anxious', 'panic disorder'],
+        'obesity': ['سمنة', 'obesity', 'overweight', 'obese'],
+        'kidney_disease': ['كلية', 'kidney', 'renal', 'ckd', 'kidney failure'],
+        'liver_disease': ['كبد', 'liver', 'hepatic', 'cirrhosis', 'hepatitis'],
+        'cancer': ['سرطان', 'cancer', 'tumor', 'malignant', 'carcinoma'],
+        'copd': ['copd', 'chronic obstructive', 'انسداد رئوي'],
+        'osteoporosis': ['هشاشة', 'osteoporosis', 'bone density'],
+        'psoriasis': ['صدفية', 'psoriasis', 'plaque psoriasis'],
+        'epilepsy': ['صرع', 'epilepsy', 'seizure', 'epileptic']
+    };
+    
+    const textLower = text.toLowerCase();
+    const foundDiseases = new Set();
+    
+    for (const [key, keywords] of Object.entries(diseaseKeywords)) {
+        for (const keyword of keywords) {
+            if (textLower.includes(keyword.toLowerCase())) {
+                // الحصول على الاسم العربي للمرض
+                const arabicName = diseaseKeywords[key][0] || key;
+                foundDiseases.add(arabicName);
+                break;
+            }
+        }
+    }
+    
+    // إزالة التكرارات وتحويلها إلى مصفوفة
+    return Array.from(foundDiseases);
+};
 // ==================== المكون الرئيسي ====================
 
 function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
@@ -344,71 +388,78 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
     }, [isAuthReady, isArabic, showMessage, refreshKey]);
 
     // ✅ رفع ملف PDF وتحليله
-    const handleFileUpload = useCallback(async (e) => {
-        e.preventDefault();
+// ✅ رفع ملف PDF وتحليله (باستخدام unpdf في المتصفح)
+const handleFileUpload = useCallback(async (e) => {
+    e.preventDefault();
+    
+    const file = selectedFile;
+    if (!file) {
+        showMessage(isArabic ? '❌ الرجاء اختيار ملف' : '❌ Please select a file', 'error');
+        return;
+    }
+    
+    if (!file.type.includes('pdf')) {
+        showMessage(isArabic ? '❌ يرجى رفع ملف PDF فقط' : '❌ Please upload a PDF file only', 'error');
+        return;
+    }
+    
+    if (!newMedicalRecord.event_type) {
+        showMessage(isArabic ? '❌ الرجاء إدخال نوع السجل' : '❌ Please enter record type', 'error');
+        return;
+    }
+    
+    setUploadingFile(true);
+    setUploadProgress(0);
+    
+    try {
+        // ✅ 1. استخراج النص من PDF باستخدام unpdf (في المتصفح)
+        const buffer = await file.arrayBuffer();
+        const pdf = await getDocumentProxy(new Uint8Array(buffer));
+        const { totalPages, text: extractedFullText } = await extractText(pdf, { mergePages: true });
         
-        const file = selectedFile;
-        if (!file) {
-            showMessage(isArabic ? '❌ الرجاء اختيار ملف' : '❌ Please select a file', 'error');
-            return;
-        }
+        console.log(`📄 تم استخراج النص من ${totalPages} صفحة بنجاح`);
+        console.log(`📝 النص المستخرج: ${extractedFullText.substring(0, 200)}...`);
         
-        if (!file.type.includes('pdf')) {
-            showMessage(isArabic ? '❌ يرجى رفع ملف PDF فقط' : '❌ Please upload a PDF file only', 'error');
-            return;
-        }
+        // ✅ 2. استخراج الأمراض من النص (دالة تحليل بسيطة)
+        const extractedDiseases = extractDiseasesFromText(extractedFullText);
         
-        if (!newMedicalRecord.event_type) {
-            showMessage(isArabic ? '❌ الرجاء إدخال نوع السجل' : '❌ Please enter record type', 'error');
-            return;
-        }
+        // ✅ 3. إرسال البيانات إلى الخادم للحفظ فقط (بدون معالجة ثقيلة)
+        const response = await axiosInstance.post('/medical-records/save-with-conditions/', {
+            event_type: newMedicalRecord.event_type,
+            event_date: newMedicalRecord.event_date,
+            details: newMedicalRecord.details,
+            extracted_diseases: extractedDiseases,
+            extracted_text_preview: extractedFullText.substring(0, 500)
+        });
         
-        setUploadingFile(true);
-        setUploadProgress(0);
-        
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('event_type', newMedicalRecord.event_type);
-        formData.append('event_date', newMedicalRecord.event_date);
-        formData.append('details', newMedicalRecord.details);
-        
-        try {
-            const response = await axiosInstance.post('/medical-records/upload-and-process/', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-                onUploadProgress: (progressEvent) => {
-                    const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                    setUploadProgress(percent);
-                }
-            });
+        if (response.data?.success) {
+            setProcessingResult(response.data);
+            showMessage(isArabic ? '✅ تم رفع الملف وتحليله بنجاح' : '✅ File uploaded and analyzed successfully', 'success');
             
-            if (response.data?.success) {
-                setProcessingResult(response.data);
-                showMessage(isArabic ? '✅ تم رفع الملف وتحليله بنجاح' : '✅ File uploaded and analyzed successfully', 'success');
-                
-                await fetchMedicalRecords();
-                await fetchChronicConditions();
-                
-                setTimeout(() => {
-                    setShowMedicalRecordForm(false);
-                    setSelectedFile(null);
-                    setProcessingResult(null);
-                    setNewMedicalRecord({ 
-                        event_type: '', 
-                        event_date: new Date().toISOString().split('T')[0], 
-                        details: '' 
-                    });
-                }, 3000);
-            } else {
-                showMessage(response.data?.error || (isArabic ? '❌ خطأ في رفع الملف' : '❌ Error uploading file'), 'error');
-            }
-        } catch (error) {
-            console.error('Error uploading file:', error);
-            showMessage(error.response?.data?.error || (isArabic ? '❌ خطأ في رفع الملف' : '❌ Error uploading file'), 'error');
-        } finally {
-            setUploadingFile(false);
-            setUploadProgress(0);
+            await fetchMedicalRecords();
+            await fetchChronicConditions();
+            
+            setTimeout(() => {
+                setShowMedicalRecordForm(false);
+                setSelectedFile(null);
+                setProcessingResult(null);
+                setNewMedicalRecord({ 
+                    event_type: '', 
+                    event_date: new Date().toISOString().split('T')[0], 
+                    details: '' 
+                });
+            }, 3000);
+        } else {
+            showMessage(response.data?.error || (isArabic ? '❌ خطأ في رفع الملف' : '❌ Error uploading file'), 'error');
         }
-    }, [selectedFile, newMedicalRecord, isArabic, showMessage, fetchMedicalRecords, fetchChronicConditions]);
+    } catch (error) {
+        console.error('Error processing PDF:', error);
+        showMessage(isArabic ? '❌ خطأ في قراءة وتحليل الملف' : '❌ Error reading and analyzing file', 'error');
+    } finally {
+        setUploadingFile(false);
+        setUploadProgress(0);
+    }
+}, [selectedFile, newMedicalRecord, isArabic, showMessage, fetchMedicalRecords, fetchChronicConditions]);
 
     // ✅ حذف مرض مزمن
     const handleDeleteCondition = useCallback(async (conditionId) => {

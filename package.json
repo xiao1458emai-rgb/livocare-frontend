@@ -28,6 +28,7 @@
     "react-webcam": "^7.2.0",
     "recharts": "^2.12.0",
     "simple-statistics": "^7.8.3",
+    "unpdf": "^1.6.2",
     "vite": "^5.0.0"
   },
   "devDependencies": {
