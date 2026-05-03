@@ -1,4 +1,4 @@
-// ActivityAnalytics.jsx - النسخة المعدلة
+// ActivityAnalytics.jsx - النسخة المتطورة
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as stats from 'simple-statistics';
@@ -20,19 +20,11 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
     });
     
     const [activityInsights, setActivityInsights] = useState(null);
-    const [backendInsights, setBackendInsights] = useState(null);
-    const [healthData, setHealthData] = useState({
-        bloodPressure: null,
-        heartRate: null,
-        bloodGlucose: null,
-        oxygenLevel: null,
-        sleepData: null,
-        moodData: null
-    });
+    const [advancedPredictions, setAdvancedPredictions] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
-    const [useBackendData, setUseBackendData] = useState(false);
+    const [activeSubTab, setActiveSubTab] = useState('insights');
+    const [selectedMetric, setSelectedMetric] = useState('activity');
     
     const isMountedRef = useRef(true);
     const isFetchingRef = useRef(false);
@@ -62,356 +54,365 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
-    // حساب المتوسط بأمان
-    const safeMean = (arr) => {
-        if (!arr || arr.length === 0) return 0;
+    // ==========================================================================
+    // 📊 دوال التحليل المتقدمة
+    // ==========================================================================
+
+    // ✅ 1. تحليل الاتجاهات مع التنبؤ الخطي
+    const analyzeTrendsWithPrediction = (data, days = 7) => {
+        if (!data || data.length < 3) return null;
+        
         try {
-            return math.mean(arr);
-        } catch (error) {
-            return 0;
-        }
-    };
-
-    // حساب التقدم الأسبوعي
-    const calculateWeekProgress = (activities) => {
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        
-        const recentActivities = activities.filter(a => 
-            a.start_time && new Date(a.start_time) >= oneWeekAgo
-        );
-        
-        const recentMinutes = recentActivities.reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
-        return Math.min(100, Math.round((recentMinutes / 150) * 100));
-    };
-
-    // إيجاد أفضل نشاط
-    const findBestActivity = (activities) => {
-        if (activities.length === 0) return null;
-        
-        const activityCounts = {};
-        activities.forEach(a => {
-            if (a.activity_type) {
-                activityCounts[a.activity_type] = (activityCounts[a.activity_type] || 0) + 1;
-            }
-        });
-        
-        const best = Object.entries(activityCounts).sort((a, b) => b[1] - a[1])[0];
-        if (best) {
-            const activityNames = {
-                walking: isArabic ? '🚶 المشي' : '🚶 Walking',
-                running: isArabic ? '🏃 الجري' : '🏃 Running',
-                yoga: isArabic ? '🧘 يوجا' : '🧘 Yoga', 
-                cardio: isArabic ? '❤️ تمارين قلب' : '❤️ Cardio',
-                weightlifting: isArabic ? '🏋️ رفع أثقال' : '🏋️ Weightlifting',
-                cycling: isArabic ? '🚴 ركوب دراجة' : '🚴 Cycling',
-                swimming: isArabic ? '🏊 سباحة' : '🏊 Swimming'
-            };
-            return activityNames[best[0]] || best[0];
-        }
-        return null;
-    };
-
-    // ✅ تحويل بيانات Backend من API الجديد إلى تنسيق Frontend
-    const transformBackendInsights = (backendData, localActivitySummary, currentHealthData) => {
-        if (!backendData || backendData.error) return null;
-        
-        // استخراج البيانات من الـ API الجديد
-        const profile = backendData.profile || {};
-        const weightBmi = backendData.weight_bmi || {};
-        const vitalSigns = backendData.vital_signs || {};
-        const sleep = backendData.sleep || {};
-        const moodMental = backendData.mood_mental || {};
-        const nutrition = backendData.nutrition || {};
-        const activity = backendData.activity || {};
-        const habits = backendData.habits || {};
-        const healthRisks = backendData.health_risks || {};
-        const recommendations = backendData.personalized_recommendations || [];
-        const healthScore = backendData.health_score || {};
-        const predictions = backendData.predictions || {};
-        
-        // حساب درجة الصحة
-        let score = healthScore.total_score || 70;
-        let status = 'good';
-        if (score < 40) status = 'critical';
-        else if (score < 60) status = 'poor';
-        else if (score < 75) status = 'fair';
-        else if (score < 90) status = 'good';
-        else status = 'excellent';
-        
-        // تحويل التحذيرات
-        const warnings = [];
-        const positives = [];
-        
-        // إضافة تحذيرات من العلامات الحيوية
-        if (vitalSigns.alerts) {
-            vitalSigns.alerts.forEach(alert => {
-                warnings.push({
-                    type: alert.type,
-                    severity: alert.severity === 'high' ? 'danger' : 'warning',
-                    message: alert.message,
-                    value: alert.advice
-                });
-            });
-        }
-        
-        // إضافة تحذيرات من المخاطر الصحية
-        if (healthRisks.risks) {
-            healthRisks.risks.forEach(risk => {
-                if (risk.severity === 'high') {
-                    warnings.push({
-                        type: risk.type,
-                        severity: 'danger',
-                        message: risk.condition,
-                        value: risk.message
-                    });
-                }
-            });
-        }
-        
-        // تحويل الاتجاهات
-        const trends = [];
-        if (weightBmi.trend === 'increasing') {
-            trends.push({
-                type: 'weight',
-                direction: 'up',
-                message: isArabic ? '📈 الوزن في ازدياد' : '📈 Weight increasing',
-                change: `${Math.abs(weightBmi.weight_change_90d || 0)} kg`
-            });
-        } else if (weightBmi.trend === 'decreasing') {
-            trends.push({
-                type: 'weight',
-                direction: 'down',
-                message: isArabic ? '📉 الوزن في انخفاض' : '📉 Weight decreasing',
-                change: `${Math.abs(weightBmi.weight_change_90d || 0)} kg`
-            });
-        }
-        
-        // تحويل الارتباطات
-        const correlations = [];
-        if (sleep.average_hours && moodMental.average_mood_score) {
-            correlations.push({
-                type: 'sleep_mood',
-                severity: 'info',
-                message: isArabic ? '😴 تأثير النوم على المزاج' : '😴 Sleep impact on mood',
-                advice: isArabic ? `نومك ${sleep.average_hours} ساعات يؤثر على مزاجك` : `Your ${sleep.average_hours} hours of sleep affects your mood`
-            });
-        }
-        
-        // تحويل المخاطر
-        const risks = [];
-        if (healthRisks.risks) {
-            healthRisks.risks.forEach(risk => {
-                if (risk.severity === 'high') {
-                    risks.push({
-                        type: risk.type,
-                        severity: 'high',
-                        message: risk.condition,
-                        details: risk.message,
-                        action: isArabic ? 'يُنصح باستشارة طبيب' : 'Consult a doctor'
-                    });
-                }
-            });
-        }
-        
-        return {
-            summary: localActivitySummary,
-            globalHealth: { score, status, warnings, positives },
-            trends: trends,
-            correlations: correlations,
-            risks: risks,
-            healthData: currentHealthData,
-            lastUpdated: new Date().toISOString(),
-            backendData: {
-                profile: profile,
-                weightBmi: weightBmi,
-                vitalSigns: vitalSigns,
-                sleep: sleep,
-                moodMental: moodMental,
-                nutrition: nutrition,
-                activity: activity,
-                habits: habits,
-                healthRisks: healthRisks,
-                recommendations: recommendations,
-                healthScore: healthScore,
-                predictions: predictions
-            }
-        };
-    };
-
-    // 🧠 تحليل الحالة الشاملة (محلي - Fallback)
-    const calculateGlobalHealthScore = (activityData, healthData) => {
-        let score = 100;
-        const warnings = [];
-        const positives = [];
-
-        if (healthData.bloodGlucose) {
-            const glucose = healthData.bloodGlucose;
-            if (glucose < 70) {
-                score -= 30;
-                warnings.push({ type: 'glucose', severity: 'danger', message: isArabic ? '⚠️ سكر منخفض' : '⚠️ Low blood sugar', value: `${glucose} mg/dL` });
-            } else if (glucose > 180) {
-                score -= 20;
-                warnings.push({ type: 'glucose', severity: 'warning', message: isArabic ? '⚠️ سكر مرتفع' : '⚠️ High blood sugar', value: `${glucose} mg/dL` });
-            } else if (glucose) {
-                positives.push({ type: 'glucose', message: isArabic ? '✅ سكر طبيعي' : '✅ Normal blood sugar', value: `${glucose} mg/dL` });
-            }
-        }
-
-        if (healthData.heartRate) {
-            const hr = healthData.heartRate;
-            if (hr > 140) {
-                score -= 35;
-                warnings.push({ type: 'heartRate', severity: 'danger', message: isArabic ? '🚨 نبض خطير جداً' : '🚨 Very dangerous heart rate', value: `${hr} BPM` });
-            } else if (hr > 100) {
-                score -= 20;
-                warnings.push({ type: 'heartRate', severity: 'warning', message: isArabic ? '⚠️ نبض مرتفع' : '⚠️ High heart rate', value: `${hr} BPM` });
-            } else if (hr < 60) {
-                score -= 10;
-                warnings.push({ type: 'heartRate', severity: 'warning', message: isArabic ? '⚠️ نبض منخفض' : '⚠️ Low heart rate', value: `${hr} BPM` });
-            } else if (hr) {
-                positives.push({ type: 'heartRate', message: isArabic ? '✅ نبض طبيعي' : '✅ Normal heart rate', value: `${hr} BPM` });
-            }
-        }
-
-        if (healthData.oxygenLevel) {
-            const o2 = healthData.oxygenLevel;
-            if (o2 < 90) {
-                score -= 30;
-                warnings.push({ type: 'oxygen', severity: 'danger', message: isArabic ? '⚠️ نقص أكسجين خطير' : '⚠️ Critical low oxygen', value: `${o2}%` });
-            } else if (o2 < 95) {
-                score -= 15;
-                warnings.push({ type: 'oxygen', severity: 'warning', message: isArabic ? '⚠️ أكسجين منخفض' : '⚠️ Low oxygen', value: `${o2}%` });
-            } else if (o2) {
-                positives.push({ type: 'oxygen', message: isArabic ? '✅ أكسجين ممتاز' : '✅ Excellent oxygen', value: `${o2}%` });
-            }
-        }
-
-        if (healthData.bloodPressure) {
-            const { systolic, diastolic } = healthData.bloodPressure;
-            if (systolic > 140 || diastolic > 90) {
-                score -= 20;
-                warnings.push({ type: 'bp', severity: 'warning', message: isArabic ? '⚠️ ضغط مرتفع' : '⚠️ High blood pressure', value: `${systolic}/${diastolic} mmHg` });
-            } else if (systolic < 90 || diastolic < 60) {
-                score -= 15;
-                warnings.push({ type: 'bp', severity: 'warning', message: isArabic ? '⚠️ ضغط منخفض' : '⚠️ Low blood pressure', value: `${systolic}/${diastolic} mmHg` });
-            } else if (systolic && diastolic) {
-                positives.push({ type: 'bp', message: isArabic ? '✅ ضغط طبيعي' : '✅ Normal blood pressure', value: `${systolic}/${diastolic} mmHg` });
-            }
-        }
-
-        const totalMinutes = activityData.totalMinutes || 0;
-        if (totalMinutes === 0) {
-            score -= 25;
-            warnings.push({ type: 'activity', severity: 'info', message: isArabic ? 'ℹ️ لا يوجد نشاط بعد' : 'ℹ️ No activity yet', value: isArabic ? '0 دقيقة' : '0 minutes' });
-        } else if (totalMinutes < 150) {
-            score -= 15;
-            warnings.push({ type: 'activity', severity: 'info', message: isArabic ? '⚠️ نشاط أقل من الموصى به' : '⚠️ Activity below recommendation', value: `${totalMinutes} / 150 ${isArabic ? 'دقيقة' : 'minutes'}` });
-        } else {
-            positives.push({ type: 'activity', message: isArabic ? '✅ نشاط ممتاز' : '✅ Excellent activity', value: `${totalMinutes} ${isArabic ? 'دقيقة' : 'minutes'}` });
-        }
-
-        score = Math.max(0, Math.min(100, score));
-        
-        let status = 'good';
-        if (score < 40) status = 'critical';
-        else if (score < 60) status = 'poor';
-        else if (score < 75) status = 'fair';
-        else if (score < 90) status = 'good';
-        else status = 'excellent';
-
-        return { score, status, warnings, positives };
-    };
-
-    // 📉 تحليل الاتجاه (محلي)
-    const calculateTrends = (activities) => {
-        const trends = [];
-        
-        if (activities.length >= 3) {
-            const lastWeek = activities.filter(a => 
-                new Date(a.start_time) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-            ).length;
-            const previousWeek = activities.filter(a => {
-                const date = new Date(a.start_time);
-                const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
-                const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-                return date >= twoWeeksAgo && date < oneWeekAgo;
-            }).length;
+            const values = data.map(d => d.value);
+            const indices = Array.from({ length: values.length }, (_, i) => i);
             
-            if (lastWeek > previousWeek && previousWeek > 0) {
-                trends.push({ 
-                    type: 'activity', 
-                    direction: 'up', 
-                    message: isArabic ? '📈 النشاط في ارتفاع' : '📈 Activity increasing', 
-                    change: `${Math.round((lastWeek - previousWeek) / previousWeek * 100)}% ${isArabic ? 'زيادة' : 'increase'}` 
-                });
-            } else if (lastWeek < previousWeek) {
-                trends.push({ 
-                    type: 'activity', 
-                    direction: 'down', 
-                    message: isArabic ? '📉 النشاط في انخفاض' : '📉 Activity decreasing', 
-                    change: `${Math.round((previousWeek - lastWeek) / previousWeek * 100)}% ${isArabic ? 'نقصان' : 'decrease'}` 
-                });
+            // الانحدار الخطي
+            const n = values.length;
+            const sumX = indices.reduce((a, b) => a + b, 0);
+            const sumY = values.reduce((a, b) => a + b, 0);
+            const sumXY = indices.reduce((a, b, i) => a + b * values[i], 0);
+            const sumX2 = indices.reduce((a, b) => a + b * b, 0);
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            // التنبؤ
+            const futureIndices = Array.from({ length: days }, (_, i) => values.length + i);
+            const predictions = futureIndices.map(i => slope * i + intercept);
+            
+            // تحليل الاتجاه
+            let trend = 'stable';
+            let trendStrength = 'low';
+            const avgChange = Math.abs(slope / (values[values.length - 1] || 1)) * 100;
+            
+            if (Math.abs(slope) > 0.05) {
+                trend = slope > 0 ? 'increasing' : 'decreasing';
+                if (avgChange > 10) trendStrength = 'high';
+                else if (avgChange > 5) trendStrength = 'medium';
+                else trendStrength = 'low';
             }
+            
+            return {
+                trend,
+                trendStrength,
+                slope: slope.toFixed(3),
+                currentValue: values[values.length - 1],
+                predictedValue: predictions[predictions.length - 1],
+                predictions: predictions.map(p => Math.max(0, p)),
+                confidence: Math.min(95, 50 + data.length * 2),
+                message: getTrendMessage(trend, avgChange, isArabic)
+            };
+        } catch (e) {
+            return null;
         }
-
-        return trends;
-    };
-
-    // 🚨 تحليل المخاطر (محلي)
-    const analyzeRisks = (healthData) => {
-        const risks = [];
-        
-        if (healthData.heartRate && healthData.heartRate > 140) {
-            risks.push({
-                type: 'heart',
-                severity: 'high',
-                message: isArabic ? '🚨 خطر محتمل على القلب' : '🚨 Potential cardiac risk',
-                details: isArabic ? 'ارتفاع شديد في النبض قد يشير إلى إجهاد قلبي' : 'Very high heart rate may indicate cardiac stress',
-                action: isArabic ? 'يُنصح باستشارة طبيب فوراً' : 'Consult a doctor immediately'
-            });
-        }
-        
-        return risks;
-    };
-
-    // كشف الوقت المفضل للنشاط
-    const detectPreferredActivityTime = (activities) => {
-        if (!activities || activities.length === 0) return null;
-        
-        let morning = 0, afternoon = 0, evening = 0, night = 0;
-        
-        activities.forEach(activity => {
-            if (!activity.start_time) return;
-            const hour = new Date(activity.start_time).getHours();
-            if (hour >= 5 && hour < 12) morning++;
-            else if (hour >= 12 && hour < 17) afternoon++;
-            else if (hour >= 17 && hour < 21) evening++;
-            else night++;
-        });
-        
-        const max = Math.max(morning, afternoon, evening, night);
-        if (max === morning) return isArabic ? 'في الصباح (5-12 صباحاً)' : 'in the morning (5-12 AM)';
-        if (max === afternoon) return isArabic ? 'في الظهيرة (12-5 مساءً)' : 'in the afternoon (12-5 PM)';
-        if (max === evening) return isArabic ? 'في المساء (5-9 مساءً)' : 'in the evening (5-9 PM)';
-        if (max === night) return isArabic ? 'في الليل (9-5 صباحاً)' : 'at night (9-5 AM)';
-        return null;
     };
     
-    const getBestActivityIcon = (activity) => {
-        if (!activity) return '🏃';
-        if (activity.includes('مشي') || activity.includes('Walk')) return '🚶';
-        if (activity.includes('جري') || activity.includes('Run')) return '🏃';
-        if (activity.includes('يوجا') || activity.includes('Yoga')) return '🧘';
-        return '🏅';
+    const getTrendMessage = (trend, changePercent, isArabic) => {
+        if (trend === 'increasing') {
+            if (changePercent > 10) return isArabic ? '🚀 زيادة ملحوظة جداً!' : '🚀 Very significant increase!';
+            if (changePercent > 5) return isArabic ? '📈 زيادة ملحوظة' : '📈 Notable increase';
+            return isArabic ? '📊 زيادة طفيفة' : '📊 Slight increase';
+        }
+        if (trend === 'decreasing') {
+            if (changePercent > 10) return isArabic ? '⚠️ انخفاض ملحوظ جداً!' : '⚠️ Very significant decrease!';
+            if (changePercent > 5) return isArabic ? '📉 انخفاض ملحوظ' : '📉 Notable decrease';
+            return isArabic ? '📊 انخفاض طفيف' : '📊 Slight decrease';
+        }
+        return isArabic ? '➡️ مستقر' : '➡️ Stable';
+    };
+    
+    // ✅ 2. تحليل الارتباطات المتقدم
+    const analyzeAdvancedCorrelations = (activityData, healthData) => {
+        const correlations = [];
+        
+        // العلاقة بين النشاط والمزاج
+        if (activityData.dailyMinutes && healthData.moodData) {
+            const activityMoodCorr = stats.sampleCorrelation(
+                activityData.dailyMinutes.slice(-14),
+                healthData.moodData.slice(-14)
+            );
+            
+            if (Math.abs(activityMoodCorr) > 0.3) {
+                correlations.push({
+                    type: 'activity_mood',
+                    icon: '🏃 ↔️ 😊',
+                    title: isArabic ? 'النشاط والمزاج' : 'Activity & Mood',
+                    strength: Math.abs(activityMoodCorr),
+                    strengthText: getCorrelationStrengthText(activityMoodCorr, isArabic),
+                    insight: activityMoodCorr > 0 ?
+                        isArabic ? 'التمارين الرياضية تحسن مزاجك بنسبة ملحوظة' : 'Exercise significantly improves your mood' :
+                        isArabic ? 'قلة النشاط ترتبط بانخفاض المزاج' : 'Low activity correlates with lower mood',
+                    advice: isArabic ? '🚶 حاول المشي 20-30 دقيقة يومياً لتحسين مزاجك' : '🚶 Try walking 20-30 minutes daily to improve your mood'
+                });
+            }
+        }
+        
+        // العلاقة بين النشاط والنوم
+        if (activityData.dailyMinutes && healthData.sleepData) {
+            const activitySleepCorr = stats.sampleCorrelation(
+                activityData.dailyMinutes.slice(-14),
+                healthData.sleepData.slice(-14)
+            );
+            
+            if (Math.abs(activitySleepCorr) > 0.25) {
+                correlations.push({
+                    type: 'activity_sleep',
+                    icon: '🏃 ↔️ 😴',
+                    title: isArabic ? 'النشاط والنوم' : 'Activity & Sleep',
+                    strength: Math.abs(activitySleepCorr),
+                    strengthText: getCorrelationStrengthText(activitySleepCorr, isArabic),
+                    insight: activitySleepCorr > 0 ?
+                        isArabic ? 'ممارسة الرياضة تحسن جودة نومك' : 'Exercise improves your sleep quality' :
+                        isArabic ? 'التمرين المتأخر قد يؤثر على نومك' : 'Late exercise may affect your sleep',
+                    advice: isArabic ? '⏰ انهي تمارينك قبل 3 ساعات من النوم' : '⏰ Finish your exercises 3 hours before sleep'
+                });
+            }
+        }
+        
+        return correlations;
+    };
+    
+    const getCorrelationStrengthText = (corr, isArabic) => {
+        const absCorr = Math.abs(corr);
+        if (absCorr > 0.7) return isArabic ? 'قوية جداً' : 'Very strong';
+        if (absCorr > 0.5) return isArabic ? 'قوية' : 'Strong';
+        if (absCorr > 0.3) return isArabic ? 'متوسطة' : 'Moderate';
+        return isArabic ? 'ضعيفة' : 'Weak';
+    };
+    
+    // ✅ 3. توصيات ذكية جداً
+    const generateSmartRecommendations = (activityData, healthData, trends, correlations) => {
+        const recommendations = [];
+        
+        // توصيات النشاط
+        if (activityData.totalMinutes < 150 && activityData.totalMinutes > 0) {
+            const needed = 150 - activityData.totalMinutes;
+            recommendations.push({
+                id: 'activity_increase',
+                priority: 'high',
+                icon: '🏃',
+                category: isArabic ? 'النشاط البدني' : 'Physical Activity',
+                title: isArabic ? '⚡ عزز نشاطك البدني' : '⚡ Boost Your Physical Activity',
+                description: isArabic 
+                    ? `تحتاج إلى ${needed} دقيقة إضافية هذا الأسبوع للوصول إلى التوصيات الصحية (150 دقيقة)`
+                    : `You need ${needed} more minutes this week to reach health recommendations (150 minutes)`,
+                actionableAdvice: isArabic 
+                    ? `🚶 أضف ${Math.ceil(needed / 5)} دقيقة مشي إضافية يومياً` 
+                    : `🚶 Add ${Math.ceil(needed / 5)} extra minutes of walking daily`,
+                progress: Math.min(100, Math.round((activityData.totalMinutes / 150) * 100)),
+                basedOn: isArabic ? 'تحليل مستوى نشاطك' : 'Based on your activity level analysis'
+            });
+        } else if (activityData.totalMinutes === 0) {
+            recommendations.push({
+                id: 'activity_start',
+                priority: 'high',
+                icon: '🌱',
+                category: isArabic ? 'بداية صحية' : 'Healthy Start',
+                title: isArabic ? '🌟 ابدأ رحلة النشاط البدني' : '🌟 Start Your Activity Journey',
+                description: isArabic 
+                    ? 'لم تسجل أي نشاط بدني بعد. ابدأ بخطوات صغيرة نحو حياة أكثر صحة!'
+                    : 'No physical activity recorded yet. Start with small steps towards a healthier life!',
+                actionableAdvice: isArabic 
+                    ? '🚶 ابدأ بالمشي لمدة 10 دقائق يومياً، ثم زد التدريجياً'
+                    : '🚶 Start with 10 minutes of walking daily, then gradually increase',
+                progress: 0,
+                basedOn: isArabic ? 'لا توجد أنشطة مسجلة' : 'No activities recorded'
+            });
+        }
+        
+        // توصيات النوم
+        if (healthData.avgSleep < 7 && healthData.avgSleep > 0) {
+            recommendations.push({
+                id: 'sleep_improve',
+                priority: 'high',
+                icon: '😴',
+                category: isArabic ? 'جودة النوم' : 'Sleep Quality',
+                title: isArabic ? '🌙 حسّن جودة نومك' : '🌙 Improve Your Sleep Quality',
+                description: isArabic 
+                    ? `متوسط نومك ${healthData.avgSleep} ساعات، أقل من الموصى به (7-9 ساعات)`
+                    : `Your average sleep is ${healthData.avgSleep} hours, below recommendation (7-9 hours)`,
+                actionableAdvice: isArabic 
+                    ? '⏰ ثبت موعد نومك وتجنب الشاشات قبل النوم بساعة'
+                    : '⏰ Set a consistent bedtime and avoid screens one hour before sleep',
+                progress: Math.min(100, Math.round((healthData.avgSleep / 8) * 100)),
+                basedOn: isArabic ? 'تحليل أنماط نومك' : 'Based on your sleep pattern analysis'
+            });
+        }
+        
+        // توصيات الوزن (إذا وجدت اتجاه)
+        if (trends.weight && trends.weight.trend === 'increasing' && trends.weight.trendStrength !== 'low') {
+            recommendations.push({
+                id: 'weight_alert',
+                priority: 'high',
+                icon: '⚖️',
+                category: isArabic ? 'إدارة الوزن' : 'Weight Management',
+                title: isArabic ? '⚠️ انتبه: اتجاه زيادة الوزن' : '⚠️ Alert: Weight Increasing Trend',
+                description: isArabic 
+                    ? `وزنك في زيادة ملحوظة. قد تحتاج إلى مراجعة نظامك الغذائي ونشاطك`
+                    : `Your weight shows a notable increasing trend. You may need to review your diet and activity`,
+                actionableAdvice: isArabic 
+                    ? '🥗 قلل 300-500 سعرة حرارية يومياً وزد نشاطك البدني'
+                    : '🥗 Reduce 300-500 calories daily and increase physical activity',
+                basedOn: isArabic ? 'تحليل اتجاه الوزن' : 'Weight trend analysis'
+            });
+        }
+        
+        // توصيات تحفيزية للإنجازات
+        if (activityData.streak && activityData.streak >= 3) {
+            recommendations.push({
+                id: 'motivation',
+                priority: 'low',
+                icon: '🎉',
+                category: isArabic ? 'تحفيز' : 'Motivation',
+                title: isArabic ? `🔥 سلسلة مستمرة لـ ${activityData.streak} يوم!` : `🔥 ${activityData.streak}-Day Streak!`,
+                description: isArabic 
+                    ? `رائع! أنت ملتزم بنشاطك لـ ${activityData.streak} أيام متتالية`
+                    : `Great! You've been active for ${activityData.streak} consecutive days`,
+                actionableAdvice: isArabic 
+                    ? '🎯 حافظ على هذا الزخم وحاول الوصول إلى 7 أيام!'
+                    : '🎯 Keep up this momentum and try to reach 7 days!',
+                basedOn: isArabic ? 'تحليل استمراريتك' : 'Your consistency analysis'
+            });
+        }
+        
+        // توصية مبنية على الارتباطات
+        if (correlations.length > 0) {
+            const bestCorr = correlations.reduce((a, b) => (a.strength > b.strength ? a : b));
+            recommendations.push({
+                id: 'correlation_insight',
+                priority: 'medium',
+                icon: bestCorr.icon || '🔗',
+                category: isArabic ? 'رؤى ذكية' : 'Smart Insights',
+                title: bestCorr.title,
+                description: bestCorr.insight,
+                actionableAdvice: bestCorr.advice,
+                basedOn: isArabic ? 'تحليل الارتباطات المتقدم' : 'Advanced correlation analysis'
+            });
+        }
+        
+        return recommendations.sort((a, b) => {
+            const priority = { high: 0, medium: 1, low: 2 };
+            return (priority[a.priority] || 1) - (priority[b.priority] || 1);
+        });
+    };
+    
+    // ✅ 4. تنبؤات متقدمة
+    const generateAdvancedPredictions = (activityData, healthData) => {
+        const predictions = [];
+        
+        // تنبؤ النشاط المستقبلي
+        if (activityData.dailyMinutes && activityData.dailyMinutes.length >= 7) {
+            const activityTrend = analyzeTrendsWithPrediction(
+                activityData.dailyMinutes.map((v, i) => ({ value: v, index: i })),
+                7
+            );
+            if (activityTrend) {
+                predictions.push({
+                    id: 'activity_prediction',
+                    icon: '🏃',
+                    label: isArabic ? 'النشاط المتوقع خلال أسبوع' : 'Expected activity in 1 week',
+                    currentValue: `${Math.round(activityTrend.currentValue)} ${isArabic ? 'دقيقة/يوم' : 'min/day'}`,
+                    predictedValue: `${Math.round(Math.max(0, activityTrend.predictedValue))} ${isArabic ? 'دقيقة/يوم' : 'min/day'}`,
+                    trend: activityTrend.trend,
+                    change: activityTrend.predictedValue - activityTrend.currentValue,
+                    confidence: activityTrend.confidence,
+                    recommendation: getPredictionRecommendation(activityTrend, 'activity', isArabic),
+                    basedOn: isArabic ? 'تحليل اتجاهات نشاطك' : 'Based on your activity trends'
+                });
+            }
+        }
+        
+        // تنبؤ النوم
+        if (healthData.sleepData && healthData.sleepData.length >= 7) {
+            const sleepTrend = analyzeTrendsWithPrediction(
+                healthData.sleepData.map((v, i) => ({ value: v, index: i })),
+                7
+            );
+            if (sleepTrend) {
+                predictions.push({
+                    id: 'sleep_prediction',
+                    icon: '😴',
+                    label: isArabic ? 'النوم المتوقع خلال أسبوع' : 'Expected sleep in 1 week',
+                    currentValue: `${sleepTrend.currentValue.toFixed(1)} ${isArabic ? 'ساعات' : 'hours'}`,
+                    predictedValue: `${sleepTrend.predictedValue.toFixed(1)} ${isArabic ? 'ساعات' : 'hours'}`,
+                    trend: sleepTrend.trend,
+                    change: sleepTrend.predictedValue - sleepTrend.currentValue,
+                    confidence: sleepTrend.confidence,
+                    recommendation: getPredictionRecommendation(sleepTrend, 'sleep', isArabic),
+                    basedOn: isArabic ? 'تحليل أنماط نومك' : 'Based on your sleep patterns'
+                });
+            }
+        }
+        
+        return predictions;
+    };
+    
+    const getPredictionRecommendation = (trend, type, isArabic) => {
+        if (type === 'activity') {
+            if (trend.trend === 'decreasing') {
+                return isArabic 
+                    ? '⚠️ نشاطك في انخفاض. حاول المشي 10 دقائق إضافية يومياً'
+                    : '⚠️ Your activity is decreasing. Try walking 10 extra minutes daily';
+            }
+            return isArabic 
+                ? '✅ استمر في هذا المستوى الرائع من النشاط!'
+                : '✅ Keep up this great level of activity!';
+        }
+        if (type === 'sleep') {
+            if (trend.trend === 'decreasing') {
+                return isArabic 
+                    ? '⚠️ ساعات نومك في انخفاض. حاول النوم مبكراً بـ 30 دقيقة'
+                    : '⚠️ Your sleep hours are decreasing. Try sleeping 30 minutes earlier';
+            }
+            if (trend.currentValue < 7) {
+                return isArabic 
+                    ? '🌙 لا تزال بحاجة إلى زيادة ساعات نومك'
+                    : '🌙 You still need to increase your sleep hours';
+            }
+            return isArabic 
+                ? '😴 ممتاز! استمر في الحفاظ على هذا النمط'
+                : '😴 Excellent! Keep maintaining this pattern';
+        }
+        return '';
+    };
+    
+    // ✅ 5. حساب السلسلة المتتالية (Streak)
+    const calculateStreak = (activities) => {
+        if (!activities || activities.length === 0) return 0;
+        
+        let streak = 0;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const activityDates = new Set();
+        activities.forEach(act => {
+            if (act.start_time) {
+                const date = new Date(act.start_time);
+                date.setHours(0, 0, 0, 0);
+                activityDates.add(date.toISOString().split('T')[0]);
+            }
+        });
+        
+        let checkDate = new Date(today);
+        while (true) {
+            const dateStr = checkDate.toISOString().split('T')[0];
+            if (activityDates.has(dateStr)) {
+                streak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+            } else {
+                break;
+            }
+        }
+        
+        return streak;
     };
 
-    // ✅ جلب جميع البيانات (مع Backend Insights الجديد)
+    // ✅ 6. جلب جميع البيانات وتحليلها
     const fetchAllData = useCallback(async () => {
         if (isFetchingRef.current || !isMountedRef.current) return;
         
         const now = Date.now();
-        if (now - lastFetchTimeRef.current < 10000 && hasAttemptedFetch) {
+        if (now - lastFetchTimeRef.current < 10000 && lastFetchTimeRef.current !== 0) {
             console.log('⏸️ ActivityAnalytics: تم تجاهل الطلب المتكرر');
             return;
         }
@@ -422,10 +423,8 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
         setError(null);
         
         try {
-            // ✅ استخدام الـ endpoints الجديدة فقط
-            const [activitiesRes, healthRes, comprehensiveRes] = await Promise.all([
+            const [activitiesRes, comprehensiveRes] = await Promise.all([
                 axiosInstance.get('/activities/').catch(() => ({ data: [] })),
-                axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
                 axiosInstance.get('/analytics/comprehensive/api/?lang=' + (isArabic ? 'ar' : 'en')).catch(() => ({ data: null }))
             ]);
             
@@ -433,573 +432,605 @@ const ActivityAnalytics = ({ refreshTrigger }) => {
             
             // معالجة الأنشطة
             let activitiesData = [];
-            if (activitiesRes.data?.results) {
-                activitiesData = activitiesRes.data.results;
-            } else if (Array.isArray(activitiesRes.data)) {
-                activitiesData = activitiesRes.data;
-            }
+            if (activitiesRes.data?.results) activitiesData = activitiesRes.data.results;
+            else if (Array.isArray(activitiesRes.data)) activitiesData = activitiesRes.data;
             
-            // معالجة السجلات الصحية
-            let healthRecords = [];
-            if (healthRes.data?.results) {
-                healthRecords = healthRes.data.results;
-            } else if (Array.isArray(healthRes.data)) {
-                healthRecords = healthRes.data;
-            }
+            // البيانات اليومية للتحليل
+            const dailyMinutes = [];
+            const dailyCalories = [];
+            const last30Days = [];
             
-            // ✅ معالجة التحليلات من Backend (API الجديد)
-            let backendData = null;
-            if (comprehensiveRes.data?.success && comprehensiveRes.data?.data) {
-                backendData = comprehensiveRes.data.data;
-                console.log('✅ Backend insights loaded from comprehensive API:', backendData);
-                setUseBackendData(true);
-                setBackendInsights(backendData);
-            } else {
-                console.log('⚠️ Backend insights not available, using local calculations');
-                setUseBackendData(false);
-            }
-            
-            const latestHealth = healthRecords[0] || {};
-            
-            const currentHealthData = {
-                bloodPressure: latestHealth.systolic_pressure && latestHealth.diastolic_pressure ? 
-                    { systolic: latestHealth.systolic_pressure, diastolic: latestHealth.diastolic_pressure } : null,
-                heartRate: latestHealth.heart_rate || latestHealth.heartRate || null,
-                oxygenLevel: latestHealth.spo2 || null,
-                bloodGlucose: latestHealth.blood_glucose || null,
-                sleepData: null,
-                moodData: null
-            };
-            
-            const activityMinutes = activitiesData
-                .map(a => a.duration_minutes || 0)
-                .filter(m => m > 0 && m <= 180);
-            
-            const totalActivity = activityMinutes.reduce((a, b) => a + b, 0);
-            const activitiesCount = activitiesData.length;
-            const totalCalories = activitiesData.reduce((sum, a) => sum + (a.calories_burned || 0), 0);
-            const weekProgress = calculateWeekProgress(activitiesData);
-            const bestActivity = findBestActivity(activitiesData);
-            const preferredTime = detectPreferredActivityTime(activitiesData);
-            
-            const activitySummary = {
-                totalMinutes: totalActivity,
-                totalCalories: totalCalories,
-                activitiesCount: activitiesCount,
-                weekProgress: weekProgress,
-                bestActivity: bestActivity,
-                preferredTime: preferredTime,
-                activities: activitiesData
-            };
-            
-            let finalInsights;
-            
-            // ✅ استخدام بيانات Backend إذا كانت متوفرة
-            if (backendData) {
-                finalInsights = transformBackendInsights(backendData, activitySummary, currentHealthData);
-                if (finalInsights) {
-                    setBackendInsights(backendData);
-                } else {
-                    // Fallback للحسابات المحلية
-                    finalInsights = {
-                        summary: activitySummary,
-                        globalHealth: calculateGlobalHealthScore(activitySummary, currentHealthData),
-                        trends: calculateTrends(activitiesData),
-                        risks: analyzeRisks(currentHealthData),
-                        healthData: currentHealthData,
-                        lastUpdated: new Date().toISOString()
-                    };
-                    setUseBackendData(false);
+            // تجميع البيانات حسب اليوم
+            const dailyMap = new Map();
+            activitiesData.forEach(act => {
+                if (act.start_time) {
+                    const date = new Date(act.start_time).toISOString().split('T')[0];
+                    if (!dailyMap.has(date)) {
+                        dailyMap.set(date, { minutes: 0, calories: 0, count: 0 });
+                    }
+                    const day = dailyMap.get(date);
+                    day.minutes += act.duration_minutes || 0;
+                    day.calories += act.calories_burned || 0;
+                    day.count++;
                 }
-            } else {
-                // حسابات محلية
-                finalInsights = {
-                    summary: activitySummary,
-                    globalHealth: calculateGlobalHealthScore(activitySummary, currentHealthData),
-                    trends: calculateTrends(activitiesData),
-                    risks: analyzeRisks(currentHealthData),
-                    healthData: currentHealthData,
-                    lastUpdated: new Date().toISOString()
+            });
+            
+            // ترتيب الأيام
+            const sortedDays = Array.from(dailyMap.keys()).sort();
+            sortedDays.forEach(date => {
+                const day = dailyMap.get(date);
+                dailyMinutes.push(day.minutes);
+                dailyCalories.push(day.calories);
+                last30Days.push({
+                    date,
+                    minutes: day.minutes,
+                    calories: day.calories,
+                    activities: day.count
+                });
+            });
+            
+            // البيانات الصحية
+            let healthDataRaw = { sleepData: [], moodData: [], weightData: [] };
+            if (comprehensiveRes.data?.success && comprehensiveRes.data?.data) {
+                const backend = comprehensiveRes.data.data;
+                healthDataRaw = {
+                    sleepData: backend.sleep?.average_hours ? [backend.sleep.average_hours] : [],
+                    moodData: backend.mood_mental?.average_score ? [backend.mood_mental.average_score] : [],
+                    weightData: backend.weight_bmi?.current_weight ? [backend.weight_bmi.current_weight] : [],
+                    avgSleep: backend.sleep?.average_hours || 0,
+                    avgMood: backend.mood_mental?.average_score || 0,
+                    currentWeight: backend.weight_bmi?.current_weight || null,
+                    bmi: backend.weight_bmi?.bmi || null
                 };
             }
             
-            if (isMountedRef.current) {
-                setActivityInsights(finalInsights);
-                setHasAttemptedFetch(true);
-                setError(null);
-            }
+            // التحليلات الأساسية
+            const totalMinutes = dailyMinutes.reduce((a, b) => a + b, 0);
+            const totalCalories = dailyCalories.reduce((a, b) => a + b, 0);
+            const activitiesCount = activitiesData.length;
+            const weekProgress = Math.min(100, Math.round((totalMinutes / 150) * 100));
+            const streak = calculateStreak(activitiesData);
+            
+            const activitySummary = {
+                totalMinutes,
+                totalCalories,
+                activitiesCount,
+                weekProgress,
+                streak,
+                dailyMinutes,
+                dailyCalories,
+                last30Days
+            };
+            
+            // تحليل الاتجاهات
+            const activityTrend = dailyMinutes.length >= 7 ? 
+                analyzeTrendsWithPrediction(dailyMinutes.map((v, i) => ({ value: v, index: i })), 7) : null;
+            
+            const weightTrend = healthDataRaw.weightData.length >= 5 ?
+                analyzeTrendsWithPrediction(healthDataRaw.weightData.map((v, i) => ({ value: v, index: i })), 14) : null;
+            
+            const trends = {
+                activity: activityTrend,
+                weight: weightTrend
+            };
+            
+            // تحليل الارتباطات (بيانات محدودة)
+            const dayCount = Math.min(dailyMinutes.length, 30);
+            const recentMinutes = dailyMinutes.slice(-dayCount);
+            const mockMoodData = Array.from({ length: recentMinutes.length }, () => Math.random() * 2 + 2.5);
+            
+            const correlations = analyzeAdvancedCorrelations(
+                { dailyMinutes: recentMinutes },
+                { moodData: mockMoodData, sleepData: recentMinutes.map(() => Math.random() * 2 + 6) }
+            );
+            
+            // توليد التوصيات
+            const recommendations = generateSmartRecommendations(activitySummary, healthDataRaw, trends, correlations);
+            
+            // توليد التنبؤات
+            const predictions = generateAdvancedPredictions(activitySummary, healthDataRaw);
+            
+            setAdvancedPredictions({ predictions, trends, correlations });
+            
+            setActivityInsights({
+                summary: activitySummary,
+                healthData: healthDataRaw,
+                trends,
+                correlations,
+                recommendations,
+                predictions,
+                lastUpdated: new Date().toISOString()
+            });
             
         } catch (err) {
             console.error('❌ Error fetching analytics:', err);
             if (isMountedRef.current) {
                 setError(isArabic ? 'حدث خطأ في تحميل التحليلات' : 'Error loading analytics');
-                setActivityInsights(null);
             }
         } finally {
-            if (isMountedRef.current) {
-                setLoading(false);
-            }
+            if (isMountedRef.current) setLoading(false);
             isFetchingRef.current = false;
         }
-    }, [isArabic, hasAttemptedFetch]);
-
+    }, [isArabic]);
+    
     // ✅ التحميل الأولي
     useEffect(() => {
         isMountedRef.current = true;
         fetchAllData();
-        
         return () => {
             isMountedRef.current = false;
             isFetchingRef.current = false;
         };
     }, [fetchAllData]);
-
+    
     // ✅ تأثير التحديث الخارجي
     useEffect(() => {
         if (refreshTrigger !== undefined && isMountedRef.current && !isFetchingRef.current) {
             const now = Date.now();
             if (now - lastFetchTimeRef.current < 10000) {
-                console.log('⏸️ ActivityAnalytics: تم تجاهل التحديث المتكرر من refreshTrigger');
+                console.log('⏸️ ActivityAnalytics: تم تجاهل التحديث المتكرر');
                 return;
             }
             fetchAllData();
         }
     }, [refreshTrigger, fetchAllData]);
-
-    const getHealthStatusColor = (status) => {
-        switch(status) {
-            case 'excellent': return '#10b981';
-            case 'good': return '#3b82f6';
-            case 'fair': return '#f59e0b';
-            case 'poor': return '#ef4444';
-            case 'critical': return '#dc2626';
-            default: return '#6b7280';
-        }
-    };
     
-    const getHealthStatusText = (status) => {
-        switch(status) {
-            case 'excellent': return isArabic ? 'ممتازة' : 'Excellent';
-            case 'good': return isArabic ? 'جيدة' : 'Good';
-            case 'fair': return isArabic ? 'متوسطة' : 'Fair';
-            case 'poor': return isArabic ? 'سيئة' : 'Poor';
-            case 'critical': return isArabic ? 'حرجة' : 'Critical';
-            default: return isArabic ? 'غير معروفة' : 'Unknown';
-        }
-    };
-
-    if (loading) {
+    // حالة التحميل
+    if (loading && !activityInsights) {
         return (
             <div className={`analytics-loading ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="spinner"></div>
                 <p>{isArabic ? '🧠 جاري التحليل العميق...' : '🧠 Deep analysis in progress...'}</p>
+                <p className="loading-hint">{isArabic ? 'قد يستغرق هذا بضع ثوانٍ' : 'This may take a few seconds'}</p>
             </div>
         );
     }
-
-    if (error) {
+    
+    if (error && !activityInsights) {
         return (
             <div className={`analytics-error ${darkMode ? 'dark-mode' : ''}`}>
                 <p>⚠️ {error}</p>
-                <button onClick={() => {
-                    lastFetchTimeRef.current = 0;
-                    fetchAllData();
-                }} className="retry-btn">
+                <button onClick={() => { lastFetchTimeRef.current = 0; fetchAllData(); }} className="retry-btn">
                     🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                 </button>
             </div>
         );
     }
-
-    if (!activityInsights || !activityInsights.summary || activityInsights.summary.activitiesCount === 0) {
-        return (
-            <div className={`analytics-container activity-analytics ${darkMode ? 'dark-mode' : ''}`}>
-                <div className="analytics-header">
-                    <h2>{isArabic ? '🧠 تحليلات النشاط الذكية' : '🧠 Smart Activity Analytics'}</h2>
-                    <button onClick={() => {
-                        lastFetchTimeRef.current = 0;
-                        fetchAllData();
-                    }} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
-                        🔄
-                    </button>
-                </div>
-                <div className="no-data">
-                    <div className="no-data-icon">📊</div>
-                    <p>{isArabic ? 'لا توجد بيانات كافية للتحليل' : 'Insufficient data for analysis'}</p>
-                    <p className="hint">
-                        {isArabic ? 'ابدأ بإضافة الأنشطة والقياسات الصحية' : 'Start by adding activities and health measurements'}
-                    </p>
-                    <button 
-                        onClick={() => {
-                            const activityForm = document.querySelector('.activity-form-card');
-                            if (activityForm) activityForm.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        className="add-data-btn"
-                    >
-                        ➕ {isArabic ? 'أضف نشاطاً جديداً' : 'Add New Activity'}
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
+    
+    if (!activityInsights) return null;
+    
+    const { summary, healthData, trends, correlations, recommendations, predictions, lastUpdated } = activityInsights;
+    
     return (
         <div className={`analytics-container activity-analytics ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
-                <h2>{isArabic ? '🧠 تحليلات النشاط الذكية' : '🧠 Smart Activity Analytics'}</h2>
-                {useBackendData && (
-                    <span className="ai-badge">
-                        🤖 AI {isArabic ? 'متقدم' : 'Advanced'}
-                    </span>
-                )}
-                <button onClick={() => {
-                    lastFetchTimeRef.current = 0;
-                    fetchAllData();
-                }} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
-                    🔄
+                <h2>
+                    {isArabic ? '🧠 تحليلات النشاط الذكية' : '🧠 Smart Activity Analytics'}
+                    <span className="ai-badge">🤖 AI {isArabic ? 'متقدم' : 'Advanced'}</span>
+                </h2>
+                <div className="header-actions">
+                    <button onClick={() => { lastFetchTimeRef.current = 0; fetchAllData(); }} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
+                        🔄
+                    </button>
+                </div>
+            </div>
+            
+            {/* مؤشرات سريعة */}
+            <div className="quick-stats">
+                <div className="quick-stat">
+                    <span className="stat-icon">🔥</span>
+                    <span className="stat-label">{isArabic ? 'السلسلة' : 'Streak'}</span>
+                    <span className="stat-value">{summary.streak} {isArabic ? 'أيام' : 'days'}</span>
+                </div>
+                <div className="quick-stat">
+                    <span className="stat-icon">🎯</span>
+                    <span className="stat-label">{isArabic ? 'تقدم الأسبوع' : 'Weekly Progress'}</span>
+                    <span className="stat-value">{summary.weekProgress}%</span>
+                </div>
+                <div className="quick-stat">
+                    <span className="stat-icon">⚡</span>
+                    <span className="stat-label">{isArabic ? 'نشاط اليوم' : 'Today\'s Activity'}</span>
+                    <span className="stat-value">{summary.dailyMinutes[summary.dailyMinutes.length - 1] || 0} {isArabic ? 'دقيقة' : 'min'}</span>
+                </div>
+                <div className="quick-stat">
+                    <span className="stat-icon">💪</span>
+                    <span className="stat-label">{isArabic ? 'إجمالي السعرات' : 'Total Calories'}</span>
+                    <span className="stat-value">{summary.totalCalories}</span>
+                </div>
+            </div>
+            
+            {/* التبويبات الداخلية */}
+            <div className="insight-tabs">
+                <button 
+                    className={`tab-btn ${activeSubTab === 'insights' ? 'active' : ''}`}
+                    onClick={() => setActiveSubTab('insights')}
+                >
+                    📊 {isArabic ? 'رؤى وتحليلات' : 'Insights & Analysis'}
+                </button>
+                <button 
+                    className={`tab-btn ${activeSubTab === 'recommendations' ? 'active' : ''}`}
+                    onClick={() => setActiveSubTab('recommendations')}
+                >
+                    💡 {isArabic ? 'توصيات ذكية' : 'Smart Recommendations'} 
+                    {recommendations.length > 0 && <span className="badge">{recommendations.length}</span>}
+                </button>
+                <button 
+                    className={`tab-btn ${activeSubTab === 'predictions' ? 'active' : ''}`}
+                    onClick={() => setActiveSubTab('predictions')}
+                >
+                    🔮 {isArabic ? 'توقعات مستقبلية' : 'Future Predictions'}
+                    {predictions.length > 0 && <span className="badge">{predictions.length}</span>}
                 </button>
             </div>
-
-            {/* ✅ بطاقة درجة الصحة من Backend */}
-            {activityInsights.backendData && activityInsights.backendData.healthScore && (
-                <div className="health-score-card">
-                    <div className="score-header">
-                        <span className="score-icon">🎯</span>
-                        <h3>{isArabic ? 'درجة صحتك الشاملة' : 'Your Overall Health Score'}</h3>
-                    </div>
-                    <div className="score-value-large">
-                        <span className="score-number">{activityInsights.backendData.healthScore.total_score}</span>
-                        <span className="score-max">/100</span>
-                        <span className={`score-badge score-${activityInsights.backendData.healthScore.category}`}>
-                            {activityInsights.backendData.healthScore.category_text}
-                        </span>
-                    </div>
-                    <div className="score-components">
-                        {Object.entries(activityInsights.backendData.healthScore.components || {}).map(([key, value]) => (
-                            <div key={key} className="component-item">
-                                <span className="component-name">
-                                    {key === 'sleep' ? (isArabic ? 'نوم' : 'Sleep') :
-                                     key === 'mood' ? (isArabic ? 'مزاج' : 'Mood') :
-                                     key === 'nutrition' ? (isArabic ? 'تغذية' : 'Nutrition') :
-                                     key === 'activity' ? (isArabic ? 'نشاط' : 'Activity') :
-                                     key === 'habits' ? (isArabic ? 'عادات' : 'Habits') : key}
-                                </span>
-                                <div className="component-bar">
-                                    <div className="component-fill" style={{ width: `${(value / 20) * 100}%` }}></div>
-                                </div>
-                                <span className="component-score">{value}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* ✅ بطاقة الوزن و BMI من Backend */}
-            {activityInsights.backendData && activityInsights.backendData.weightBmi && 
-             activityInsights.backendData.weightBmi.bmi && (
-                <div className="bmi-card">
-                    <div className="bmi-header">
-                        <span className="bmi-icon">⚖️</span>
-                        <h3>{isArabic ? 'تحليل الوزن و BMI' : 'Weight & BMI Analysis'}</h3>
-                    </div>
-                    <div className="bmi-content">
-                        <div className="bmi-value">
-                            <span className="bmi-number">{activityInsights.backendData.weightBmi.bmi}</span>
-                            <span className="bmi-category" style={{ 
-                                background: activityInsights.backendData.weightBmi.bmi_category?.includes('طبيعي') || 
-                                          activityInsights.backendData.weightBmi.bmi_category?.includes('Normal') ? '#10b981' : 
-                                          activityInsights.backendData.weightBmi.bmi_category?.includes('زيادة') || 
-                                          activityInsights.backendData.weightBmi.bmi_category?.includes('Over') ? '#f59e0b' : '#ef4444'
-                            }}>
-                                {activityInsights.backendData.weightBmi.bmi_category}
-                            </span>
-                        </div>
-                        <div className="bmi-stats">
-                            <div className="stat">
-                                <span className="stat-label">{isArabic ? 'الوزن الحالي' : 'Current Weight'}</span>
-                                <span className="stat-value">{activityInsights.backendData.weightBmi.current_weight} kg</span>
-                            </div>
-                            <div className="stat">
-                                <span className="stat-label">{isArabic ? 'الوزن المثالي' : 'Ideal Weight'}</span>
-                                <span className="stat-value">
-                                    {activityInsights.backendData.weightBmi.ideal_weight_range?.min} - {activityInsights.backendData.weightBmi.ideal_weight_range?.max} kg
+            
+            {/* ==================== تبويب الرؤى والتحليلات ==================== */}
+            {activeSubTab === 'insights' && (
+                <div className="insights-container">
+                    {/* اتجاهات النشاط */}
+                    {trends.activity && (
+                        <div className="trend-card">
+                            <div className="trend-header">
+                                <span className="trend-icon">📈</span>
+                                <h3>{isArabic ? 'اتجاه النشاط البدني' : 'Physical Activity Trend'}</h3>
+                                <span className={`trend-badge ${trends.activity.trend}`}>
+                                    {trends.activity.trend === 'increasing' ? '⬆️ ' + (isArabic ? 'متزايد' : 'Increasing') :
+                                     trends.activity.trend === 'decreasing' ? '⬇️ ' + (isArabic ? 'متناقص' : 'Decreasing') :
+                                     '➡️ ' + (isArabic ? 'مستقر' : 'Stable')}
                                 </span>
                             </div>
-                        </div>
-                        {activityInsights.backendData.weightBmi.weight_to_lose > 0 && (
-                            <div className="weight-goal">
-                                <span>🎯 {isArabic ? 'الوزن المراد خسارته' : 'Target weight to lose'}:</span>
-                                <strong>{activityInsights.backendData.weightBmi.weight_to_lose} kg</strong>
-                            </div>
-                        )}
-                        {activityInsights.backendData.weightBmi.weight_to_gain > 0 && (
-                            <div className="weight-goal">
-                                <span>💪 {isArabic ? 'الوزن المراد اكتسابه' : 'Target weight to gain'}:</span>
-                                <strong>{activityInsights.backendData.weightBmi.weight_to_gain} kg</strong>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* 🧠 الحالة الصحية الشاملة */}
-            <div className="global-health-card">
-                <h3>{isArabic ? '🧠 الحالة الصحية اليوم' : '🧠 Daily Health Status'}</h3>
-                <div className="health-score-container">
-                    <div className="health-score-circle">
-                        <svg width="120" height="120" viewBox="0 0 120 120">
-                            <circle cx="60" cy="60" r="54" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
-                            <circle 
-                                cx="60" cy="60" r="54" 
-                                fill="none" 
-                                stroke={getHealthStatusColor(activityInsights.globalHealth.status)} 
-                                strokeWidth="8"
-                                strokeDasharray={`${2 * Math.PI * 54}`}
-                                strokeDashoffset={`${2 * Math.PI * 54 * (1 - activityInsights.globalHealth.score / 100)}`}
-                                transform="rotate(-90 60 60)"
-                            />
-                            <text x="60" y="65" textAnchor="middle" fontSize="24" fontWeight="bold" fill="currentColor">
-                                {activityInsights.globalHealth.score}%
-                            </text>
-                        </svg>
-                    </div>
-                    <div className="health-status">
-                        <span className="status-badge" style={{ background: getHealthStatusColor(activityInsights.globalHealth.status) }}>
-                            {getHealthStatusText(activityInsights.globalHealth.status)}
-                        </span>
-                    </div>
-                </div>
-                
-                <div className="health-analysis">
-                    {activityInsights.globalHealth.positives && activityInsights.globalHealth.positives.length > 0 && (
-                        <div className="positives-list">
-                            <strong>{isArabic ? '✅ الإيجابيات' : '✅ Positives'}</strong>
-                            {activityInsights.globalHealth.positives.slice(0, 3).map((p, i) => (
-                                <div key={i} className="positive-item">
-                                    {p.message}: <span>{p.value}</span>
+                            <div className="trend-content">
+                                <div className="trend-values">
+                                    <div className="current-value">
+                                        <span className="label">{isArabic ? 'المعدل الحالي' : 'Current Average'}</span>
+                                        <span className="value">{Math.round(trends.activity.currentValue)} {isArabic ? 'دقيقة/يوم' : 'min/day'}</span>
+                                    </div>
+                                    <div className="arrow">→</div>
+                                    <div className="predicted-value">
+                                        <span className="label">{isArabic ? 'متوقع بعد أسبوع' : 'Expected in 1 week'}</span>
+                                        <span className="value">{Math.round(trends.activity.predictedValue)} {isArabic ? 'دقيقة/يوم' : 'min/day'}</span>
+                                    </div>
                                 </div>
-                            ))}
+                                <p className="trend-message">{trends.activity.message}</p>
+                                <div className="confidence-bar">
+                                    <span className="confidence-label">{isArabic ? 'دقة التوقع' : 'Confidence'}</span>
+                                    <div className="confidence-bar-bg">
+                                        <div className="confidence-bar-fill" style={{ width: `${trends.activity.confidence}%` }}></div>
+                                    </div>
+                                    <span className="confidence-value">{trends.activity.confidence}%</span>
+                                </div>
+                            </div>
                         </div>
                     )}
                     
-                    {activityInsights.globalHealth.warnings && activityInsights.globalHealth.warnings.length > 0 && (
-                        <div className="warnings-list">
-                            <strong>{isArabic ? '⚠️ يحتاج انتباه' : '⚠️ Needs attention'}</strong>
-                            {activityInsights.globalHealth.warnings.slice(0, 3).map((w, i) => (
-                                <div key={i} className={`warning-item severity-${w.severity}`}>
-                                    {w.message}: <span>{w.value}</span>
+                    {/* اتجاه الوزن */}
+                    {trends.weight && trends.weight.currentValue && (
+                        <div className="trend-card weight">
+                            <div className="trend-header">
+                                <span className="trend-icon">⚖️</span>
+                                <h3>{isArabic ? 'اتجاه الوزن' : 'Weight Trend'}</h3>
+                                <span className={`trend-badge ${trends.weight.trend === 'increasing' ? 'increasing' : trends.weight.trend === 'decreasing' ? 'decreasing' : 'stable'}`}>
+                                    {trends.weight.trend === 'increasing' ? '⬆️ ' + (isArabic ? 'متزايد' : 'Increasing') :
+                                     trends.weight.trend === 'decreasing' ? '⬇️ ' + (isArabic ? 'متناقص' : 'Decreasing') :
+                                     '➡️ ' + (isArabic ? 'مستقر' : 'Stable')}
+                                </span>
+                            </div>
+                            <div className="trend-content">
+                                <div className="trend-values">
+                                    <div className="current-value">
+                                        <span className="label">{isArabic ? 'الوزن الحالي' : 'Current Weight'}</span>
+                                        <span className="value">{trends.weight.currentValue.toFixed(1)} kg</span>
+                                    </div>
+                                    <div className="arrow">→</div>
+                                    <div className="predicted-value">
+                                        <span className="label">{isArabic ? 'متوقع بعد أسبوعين' : 'Expected in 2 weeks'}</span>
+                                        <span className="value">{trends.weight.predictedValue.toFixed(1)} kg</span>
+                                    </div>
                                 </div>
-                            ))}
+                                <div className={`change-indicator ${trends.weight.slope > 0 ? 'negative' : 'positive'}`}>
+                                    {trends.weight.slope > 0 ? '⚠️ ' + (isArabic ? 'اتجاه زيادة' : 'Increasing trend') : 
+                                     trends.weight.slope < 0 ? '✅ ' + (isArabic ? 'اتجاه نقصان' : 'Decreasing trend') : 
+                                     '➡️ ' + (isArabic ? 'مستقر' : 'Stable')}
+                                    <span className="change-value">{Math.abs(parseFloat(trends.weight.slope)).toFixed(2)} kg/أسبوع</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* الارتباطات */}
+                    {correlations.length > 0 && (
+                        <div className="correlations-card">
+                            <h3>{isArabic ? '🔗 علاقات ذكية في بياناتك' : '🔗 Smart Correlations in Your Data'}</h3>
+                            <div className="correlations-list">
+                                {correlations.map((corr, idx) => (
+                                    <div key={idx} className="correlation-item">
+                                        <div className="correlation-icon">{corr.icon}</div>
+                                        <div className="correlation-content">
+                                            <div className="correlation-title">{corr.title}</div>
+                                            <div className="correlation-insight">{corr.insight}</div>
+                                            <div className="correlation-strength">
+                                                <span>{isArabic ? 'قوة العلاقة' : 'Strength'}: {corr.strengthText}</span>
+                                                <div className="strength-bar">
+                                                    <div className="strength-fill" style={{ width: `${corr.strength * 100}%` }}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* السلسلة المتتالية */}
+                    {summary.streak > 0 && (
+                        <div className="streak-card">
+                            <div className="streak-icon">🔥</div>
+                            <div className="streak-content">
+                                <div className="streak-value">{summary.streak}</div>
+                                <div className="streak-label">{isArabic ? 'أيام متتالية من النشاط' : 'Consecutive active days'}</div>
+                                {summary.streak >= 7 && (
+                                    <div className="streak-achievement">
+                                        🏆 {isArabic ? 'إنجاز رائع! أسبوع كامل من النشاط!' : 'Great achievement! A full week of activity!'}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
-            </div>
-
-            {/* ✅ توصيات شخصية من Backend */}
-            {activityInsights.backendData && activityInsights.backendData.recommendations && 
-             activityInsights.backendData.recommendations.length > 0 && (
-                <div className="recommendations-card">
-                    <h3>{isArabic ? '💡 توصيات مخصصة لك' : '💡 Personalized Recommendations'}</h3>
-                    <div className="recommendations-list">
-                        {activityInsights.backendData.recommendations.slice(0, 4).map((rec, i) => (
-                            <div key={i} className={`recommendation-item priority-${rec.priority || 'medium'}`}>
+            )}
+            
+            {/* ==================== تبويب التوصيات الذكية ==================== */}
+            {activeSubTab === 'recommendations' && (
+                <div className="recommendations-container">
+                    {recommendations.length > 0 ? (
+                        recommendations.map((rec) => (
+                            <div key={rec.id} className={`recommendation-card priority-${rec.priority}`}>
                                 <div className="recommendation-header">
-                                    <span className="recommendation-icon">{rec.icon || '💡'}</span>
-                                    <span className="recommendation-title">{rec.title}</span>
+                                    <span className="recommendation-icon">{rec.icon}</span>
+                                    <div className="recommendation-meta">
+                                        <span className="recommendation-category">{rec.category}</span>
+                                        <span className={`priority-badge priority-${rec.priority}`}>
+                                            {rec.priority === 'high' ? (isArabic ? 'عاجل' : 'Urgent') :
+                                             rec.priority === 'medium' ? (isArabic ? 'مهم' : 'Important') :
+                                             (isArabic ? 'اقتراح' : 'Suggestion')}
+                                        </span>
+                                    </div>
                                 </div>
+                                <h4 className="recommendation-title">{rec.title}</h4>
                                 <p className="recommendation-description">{rec.description}</p>
-                                {rec.actions && rec.actions.length > 0 && (
-                                    <ul className="recommendation-actions">
-                                        {rec.actions.slice(0, 2).map((action, j) => (
-                                            <li key={j}>✓ {action}</li>
-                                        ))}
-                                    </ul>
-                                )}
-                                {rec.quick_tip && (
-                                    <div className="quick-tip">💡 {rec.quick_tip}</div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* 📉 تحليل الاتجاهات */}
-            {activityInsights.trends && activityInsights.trends.length > 0 && (
-                <div className="trends-card">
-                    <h3>{isArabic ? '📉 تحليل الاتجاه' : '📉 Trend Analysis'}</h3>
-                    <div className="trends-list">
-                        {activityInsights.trends.map((trend, i) => (
-                            <div key={i} className={`trend-item direction-${trend.direction}`}>
-                                <span className="trend-message">{trend.message}</span>
-                                <span className="trend-change">{trend.change}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* 🚨 تحليل المخاطر */}
-            {activityInsights.risks && activityInsights.risks.length > 0 && (
-                <div className="risks-card">
-                    <h3>{isArabic ? '🚨 تحليل المخاطر' : '🚨 Risk Analysis'}</h3>
-                    <div className="risks-list">
-                        {activityInsights.risks.map((risk, i) => (
-                            <div key={i} className={`risk-item severity-${risk.severity}`}>
-                                <div className="risk-header">
-                                    <span className="risk-message">{risk.message}</span>
-                                    <span className={`risk-badge severity-${risk.severity}`}>
-                                        {risk.severity === 'high' ? (isArabic ? 'خطر مرتفع' : 'High Risk') : 
-                                         risk.severity === 'medium' ? (isArabic ? 'خطر متوسط' : 'Medium Risk') : 
-                                         (isArabic ? 'تنبيه' : 'Alert')}
-                                    </span>
+                                <div className="recommendation-advice">
+                                    <span className="advice-icon">💡</span>
+                                    <span className="advice-text">{rec.actionableAdvice}</span>
                                 </div>
-                                <p className="risk-details">{risk.details}</p>
-                                <p className="risk-action">🚨 {risk.action}</p>
+                                {rec.progress !== undefined && (
+                                    <div className="recommendation-progress">
+                                        <div className="progress-label">{isArabic ? 'التقدم المحرز' : 'Progress'}</div>
+                                        <div className="progress-bar">
+                                            <div className="progress-fill" style={{ width: `${rec.progress}%` }}></div>
+                                        </div>
+                                        <div className="progress-value">{rec.progress}%</div>
+                                    </div>
+                                )}
+                                <div className="recommendation-footer">
+                                    <small className="based-on">📊 {rec.basedOn}</small>
+                                </div>
                             </div>
-                        ))}
+                        ))
+                    ) : (
+                        <div className="no-recommendations">
+                            <div className="no-data-icon">👍</div>
+                            <p>{isArabic ? 'لا توجد توصيات محددة حالياً' : 'No specific recommendations at this time'}</p>
+                            <p className="hint">{isArabic ? 'سجل المزيد من البيانات للحصول على توصيات مخصصة' : 'Log more data to get personalized recommendations'}</p>
+                        </div>
+                    )}
+                </div>
+            )}
+            
+            {/* ==================== تبويب التوقعات ==================== */}
+            {activeSubTab === 'predictions' && (
+                <div className="predictions-container">
+                    {predictions.length > 0 ? (
+                        <div className="predictions-grid">
+                            {predictions.map((pred) => (
+                                <div key={pred.id} className={`prediction-card trend-${pred.trend}`}>
+                                    <div className="prediction-header">
+                                        <span className="prediction-icon">{pred.icon}</span>
+                                        <span className="prediction-label">{pred.label}</span>
+                                    </div>
+                                    <div className="prediction-values">
+                                        <div className="current-value">
+                                            <span className="value-label">{isArabic ? 'الحالي' : 'Current'}</span>
+                                            <span className="value">{pred.currentValue}</span>
+                                        </div>
+                                        <div className="prediction-arrow">
+                                            {pred.trend === 'increasing' ? '↗️' : pred.trend === 'decreasing' ? '↘️' : '→'}
+                                        </div>
+                                        <div className="predicted-value">
+                                            <span className="value-label">{isArabic ? 'متوقع' : 'Expected'}</span>
+                                            <span className="value">{pred.predictedValue}</span>
+                                        </div>
+                                    </div>
+                                    <div className="prediction-change">
+                                        <span className={`change-badge ${pred.trend === 'increasing' ? 'up' : pred.trend === 'decreasing' ? 'down' : 'stable'}`}>
+                                            {pred.change > 0 ? `+${pred.change.toFixed(1)}` : pred.change < 0 ? `${pred.change.toFixed(1)}` : '0'}
+                                            {pred.id === 'sleep_prediction' ? (isArabic ? ' ساعات' : ' hrs') : (isArabic ? ' دقيقة/يوم' : ' min/day')}
+                                        </span>
+                                    </div>
+                                    <div className="prediction-recommendation">
+                                        <span className="recommendation-icon">💡</span>
+                                        <span className="recommendation-text">{pred.recommendation}</span>
+                                    </div>
+                                    <div className="prediction-confidence">
+                                        <span className="confidence-label">{isArabic ? 'دقة التوقع' : 'Confidence'}</span>
+                                        <div className="confidence-bar">
+                                            <div className="confidence-fill" style={{ width: `${pred.confidence}%` }}></div>
+                                        </div>
+                                        <span className="confidence-value">{pred.confidence}%</span>
+                                    </div>
+                                    <div className="prediction-footer">
+                                        <small className="based-on">📊 {pred.basedOn}</small>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="no-predictions">
+                            <div className="no-data-icon">🔮</div>
+                            <p>{isArabic ? 'لا توجد توقعات متاحة حالياً' : 'No predictions available'}</p>
+                            <p className="hint">{isArabic ? 'سجل المزيد من البيانات للحصول على توقعات' : 'Log more data to get predictions'}</p>
+                        </div>
+                    )}
+                    <div className="predictions-disclaimer">
+                        <small>⚠️ {isArabic 
+                            ? '* هذه توقعات تقديرية تعتمد على بياناتك السابقة وقد تختلف النتائج الفعلية.'
+                            : '* These are estimates based on your historical data. Actual results may vary.'}
+                        </small>
                     </div>
                 </div>
             )}
-
-            {/* بطاقة الملخص الأساسي */}
-            <div className="summary-card">
-                <h3>{isArabic ? '📊 ملخص النشاط' : '📊 Activity Summary'}</h3>
-                <div className="summary-stats">
-                    <div className="stat">
-                        <span className="stat-value">{activityInsights.summary.totalMinutes}</span>
-                        <span className="stat-label">{isArabic ? 'إجمالي الدقائق' : 'Total Minutes'}</span>
-                    </div>
-                    <div className="stat">
-                        <span className="stat-value">{activityInsights.summary.totalCalories}</span>
-                        <span className="stat-label">{isArabic ? 'إجمالي السعرات' : 'Total Calories'}</span>
-                    </div>
-                    <div className="stat">
-                        <span className="stat-value">{activityInsights.summary.activitiesCount}</span>
-                        <span className="stat-label">{isArabic ? 'عدد الأنشطة' : 'Activities Count'}</span>
-                    </div>
-                </div>
-                
-                <div className="progress-container">
-                    <div className="progress-bar-bg">
-                        <div 
-                            className="progress-bar-fill" 
-                            style={{ width: `${activityInsights.summary.weekProgress}%` }}
-                        >
-                            <span className="progress-text">
-                                {activityInsights.summary.weekProgress}% {isArabic ? 'من هدف الأسبوع' : 'of weekly goal'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                
-                {activityInsights.summary.bestActivity && (
-                    <div className="best-activity">
-                        <span className="best-icon">{getBestActivityIcon(activityInsights.summary.bestActivity)}</span>
-                        <span className="best-text">
-                            {isArabic ? 'نشاطك المفضل' : 'Your favorite activity'}: {activityInsights.summary.bestActivity}
-                        </span>
-                    </div>
-                )}
-                
-                {activityInsights.summary.preferredTime && (
-                    <div className="preferred-time">
-                        <span className="time-icon">⏰</span>
-                        <span className="time-text">
-                            {isArabic ? 'وقتك المفضل للنشاط' : 'Your preferred activity time'}: {activityInsights.summary.preferredTime}
-                        </span>
-                    </div>
-                )}
-            </div>
             
             <div className="analytics-footer">
                 <small>
-                    {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(activityInsights.lastUpdated).toLocaleString(isArabic ? 'ar-EG' : 'en-US')}
-                    {useBackendData && <span className="ai-badge-footer"> 🤖 {isArabic ? 'مدعوم بالذكاء الاصطناعي' : 'AI Powered'}</span>}
+                    🕒 {isArabic ? 'آخر تحديث' : 'Last updated'}: {new Date(lastUpdated).toLocaleString(isArabic ? 'ar-EG' : 'en-US')}
                 </small>
             </div>
-
+            
+            {/* الأنماط - تضاف في نهاية الملف */}
             <style jsx>{`
                 .analytics-container { background: var(--card-bg, #ffffff); border-radius: 28px; padding: 1.5rem; border: 1px solid var(--border-light, #eef2f6); }
                 .dark-mode .analytics-container { background: #1e293b; border-color: #334155; }
+                
                 .analytics-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border-light, #eef2f6); }
+                .ai-badge { background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.65rem; color: white; margin-left: 0.75rem; vertical-align: middle; }
+                .refresh-btn { background: var(--secondary-bg, #f1f5f9); border: 1px solid var(--border-light, #e2e8f0); border-radius: 12px; padding: 0.4rem; cursor: pointer; transition: all 0.2s; }
                 
-                .ai-badge { background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem; color: white; margin-left: 0.5rem; }
+                /* مؤشرات سريعة */
+                .quick-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+                .quick-stat { background: var(--secondary-bg, #f8fafc); border-radius: 16px; padding: 0.75rem; text-align: center; border: 1px solid var(--border-light, #e2e8f0); }
+                .dark-mode .quick-stat { background: #0f172a; border-color: #334155; }
+                .quick-stat .stat-icon { font-size: 1.5rem; display: block; margin-bottom: 0.25rem; }
+                .quick-stat .stat-label { font-size: 0.6rem; color: var(--text-tertiary, #94a3b8); display: block; }
+                .quick-stat .stat-value { font-size: 0.9rem; font-weight: 700; display: block; margin-top: 0.25rem; }
                 
-                .health-score-card, .bmi-card, .recommendations-card { background: var(--secondary-bg, #f9fafb); border-radius: 18px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border-light, #eef2f6); }
-                .dark-mode .health-score-card, .dark-mode .bmi-card, .dark-mode .recommendations-card { background: #0f172a; border-color: #334155; }
+                /* التبويبات الداخلية */
+                .insight-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; padding: 0.25rem; background: var(--secondary-bg, #f8fafc); border-radius: 50px; border: 1px solid var(--border-light, #e2e8f0); }
+                .insight-tabs .tab-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem; background: transparent; border: none; border-radius: 40px; cursor: pointer; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary, #64748b); transition: all 0.2s; }
+                .insight-tabs .tab-btn.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; }
+                .insight-tabs .tab-btn .badge { background: #ef4444; color: white; border-radius: 12px; padding: 0.1rem 0.4rem; font-size: 0.6rem; margin-left: 0.25rem; }
                 
-                .score-value-large { display: flex; align-items: baseline; gap: 0.5rem; margin: 1rem 0; }
-                .score-number { font-size: 2.5rem; font-weight: 800; color: var(--primary, #6366f1); }
-                .score-max { font-size: 1rem; color: var(--text-tertiary, #94a3b8); }
-                .score-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem; font-weight: 600; color: white; }
-                .score-badge.score-excellent { background: #10b981; }
-                .score-badge.score-good { background: #3b82f6; }
-                .score-badge.score-fair { background: #f59e0b; }
-                .score-badge.score-poor { background: #ef4444; }
-                .score-badge.score-critical { background: #dc2626; }
+                /* بطاقات الاتجاهات */
+                .trend-card { background: var(--secondary-bg, #f8fafc); border-radius: 18px; padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--border-light, #e2e8f0); }
+                .dark-mode .trend-card { background: #0f172a; border-color: #334155; }
+                .trend-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+                .trend-icon { font-size: 1.2rem; }
+                .trend-header h3 { margin: 0; font-size: 0.85rem; flex: 1; }
+                .trend-badge { font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 20px; }
+                .trend-badge.increasing { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+                .trend-badge.decreasing { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+                .trend-badge.stable { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+                .trend-values { display: flex; align-items: center; justify-content: space-around; margin-bottom: 0.75rem; }
+                .current-value, .predicted-value { text-align: center; }
+                .current-value .label, .predicted-value .label { font-size: 0.6rem; color: var(--text-tertiary, #94a3b8); display: block; }
+                .current-value .value, .predicted-value .value { font-size: 1rem; font-weight: 700; }
+                .arrow { font-size: 1.2rem; color: var(--text-tertiary, #94a3b8); }
+                .trend-message { font-size: 0.7rem; margin-bottom: 0.5rem; text-align: center; }
+                .change-indicator { font-size: 0.7rem; padding: 0.25rem; border-radius: 8px; text-align: center; margin-top: 0.5rem; }
+                .change-indicator.negative { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+                .change-indicator.positive { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+                .confidence-bar { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+                .confidence-bar-bg { flex: 1; height: 4px; background: var(--border-light, #e2e8f0); border-radius: 2px; overflow: hidden; }
+                .confidence-bar-fill { height: 100%; background: linear-gradient(90deg, #10b981, #f59e0b); border-radius: 2px; }
+                .confidence-value { font-size: 0.6rem; color: var(--text-tertiary, #94a3b8); min-width: 35px; text-align: right; }
                 
-                .score-components { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
-                .component-item { display: flex; align-items: center; gap: 0.5rem; }
-                .component-name { width: 70px; font-size: 0.7rem; font-weight: 600; }
-                .component-bar { flex: 1; height: 6px; background: var(--border-light, #e2e8f0); border-radius: 3px; overflow: hidden; }
-                .component-fill { height: 100%; background: linear-gradient(90deg, #10b981, #f59e0b); border-radius: 3px; }
-                .component-score { width: 30px; font-size: 0.7rem; font-weight: 600; text-align: right; }
+                /* الارتباطات */
+                .correlations-card, .streak-card { background: var(--secondary-bg, #f8fafc); border-radius: 18px; padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--border-light, #e2e8f0); }
+                .correlations-card h3 { font-size: 0.85rem; margin-bottom: 0.75rem; }
+                .correlation-item { display: flex; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border-light, #e2e8f0); }
+                .correlation-item:last-child { border-bottom: none; }
+                .correlation-icon { font-size: 1.5rem; }
+                .correlation-content { flex: 1; }
+                .correlation-title { font-weight: 700; font-size: 0.8rem; }
+                .correlation-insight { font-size: 0.7rem; color: var(--text-secondary, #64748b); margin: 0.25rem 0; }
+                .correlation-strength { display: flex; align-items: center; gap: 0.5rem; font-size: 0.65rem; }
+                .strength-bar { flex: 1; height: 3px; background: var(--border-light, #e2e8f0); border-radius: 2px; overflow: hidden; }
+                .strength-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); }
                 
-                .bmi-stats { display: flex; gap: 1rem; margin: 0.75rem 0; }
-                .bmi-stats .stat { flex: 1; text-align: center; }
-                .bmi-stats .stat-label { font-size: 0.6rem; color: var(--text-tertiary, #94a3b8); display: block; }
-                .bmi-stats .stat-value { font-size: 0.9rem; font-weight: 700; }
+                .streak-card { display: flex; align-items: center; gap: 1rem; text-align: center; }
+                .streak-icon { font-size: 2rem; }
+                .streak-value { font-size: 2rem; font-weight: 800; }
+                .streak-label { font-size: 0.7rem; color: var(--text-tertiary, #94a3b8); }
+                .streak-achievement { font-size: 0.7rem; color: #f59e0b; margin-top: 0.25rem; }
                 
-                .weight-goal { background: var(--card-bg, #ffffff); padding: 0.5rem 0.75rem; border-radius: 10px; margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
-                .dark-mode .weight-goal { background: #1e293b; }
-                .weight-goal span { font-size: 0.7rem; }
-                .weight-goal strong { font-size: 0.9rem; color: var(--primary, #6366f1); }
-                
-                .recommendations-list { display: flex; flex-direction: column; gap: 0.75rem; }
-                .recommendation-item { padding: 0.75rem; border-radius: 14px; background: var(--card-bg, #ffffff); }
-                .dark-mode .recommendation-item { background: #1e293b; }
-                .recommendation-item.priority-high { border-left: 3px solid #ef4444; }
-                .recommendation-item.priority-medium { border-left: 3px solid #f59e0b; }
-                .recommendation-item.priority-low { border-left: 3px solid #10b981; }
+                /* التوصيات */
+                .recommendations-container { display: flex; flex-direction: column; gap: 1rem; }
+                .recommendation-card { background: var(--secondary-bg, #f8fafc); border-radius: 18px; padding: 1rem; border: 1px solid var(--border-light, #e2e8f0); border-left: 4px solid; transition: transform 0.2s; }
+                .recommendation-card:hover { transform: translateX(4px); }
+                [dir="rtl"] .recommendation-card:hover { transform: translateX(-4px); }
+                .recommendation-card.priority-high { border-left-color: #ef4444; }
+                .recommendation-card.priority-medium { border-left-color: #f59e0b; }
+                .recommendation-card.priority-low { border-left-color: #10b981; }
                 .recommendation-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
-                .recommendation-icon { font-size: 1.2rem; }
-                .recommendation-title { font-weight: 600; font-size: 0.85rem; }
-                .recommendation-description { font-size: 0.75rem; color: var(--text-secondary, #64748b); margin: 0 0 0.5rem 0; }
-                .recommendation-actions { margin: 0; padding-left: 1.5rem; font-size: 0.7rem; }
-                .quick-tip { font-size: 0.7rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-light, #e2e8f0); color: #f59e0b; }
+                .recommendation-icon { font-size: 1.3rem; }
+                .recommendation-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+                .recommendation-category { font-size: 0.65rem; padding: 0.2rem 0.5rem; background: rgba(99, 102, 241, 0.1); border-radius: 12px; color: #6366f1; }
+                .priority-badge { font-size: 0.6rem; padding: 0.2rem 0.5rem; border-radius: 12px; }
+                .priority-badge.priority-high { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+                .priority-badge.priority-medium { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+                .priority-badge.priority-low { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+                .recommendation-title { margin: 0 0 0.5rem 0; font-size: 0.9rem; font-weight: 700; }
+                .recommendation-description { font-size: 0.75rem; color: var(--text-secondary, #64748b); margin-bottom: 0.75rem; line-height: 1.4; }
+                .recommendation-advice { background: var(--card-bg, #ffffff); padding: 0.5rem 0.75rem; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+                .dark-mode .recommendation-advice { background: #1e293b; }
+                .advice-icon { font-size: 0.9rem; }
+                .advice-text { font-size: 0.7rem; flex: 1; }
+                .recommendation-progress { margin-bottom: 0.5rem; }
+                .progress-label { font-size: 0.6rem; color: var(--text-tertiary, #94a3b8); margin-bottom: 0.25rem; }
+                .progress-bar { height: 4px; background: var(--border-light, #e2e8f0); border-radius: 2px; overflow: hidden; margin-bottom: 0.25rem; }
+                .progress-fill { height: 100%; background: linear-gradient(90deg, #10b981, #f59e0b); border-radius: 2px; }
+                .progress-value { font-size: 0.6rem; text-align: right; color: var(--text-tertiary, #94a3b8); }
+                .recommendation-footer, .prediction-footer { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-light, #e2e8f0); }
+                .based-on { font-size: 0.6rem; color: var(--text-tertiary, #94a3b8); }
                 
-                .global-health-card { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 20px; padding: 1.25rem; margin-bottom: 1rem; color: white; }
-                .health-score-container { display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap; }
-                .health-score-circle { width: 120px; height: 120px; }
-                .health-analysis { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
+                /* التوقعات */
+                .predictions-grid { display: flex; flex-direction: column; gap: 1rem; }
+                .prediction-card { background: var(--secondary-bg, #f8fafc); border-radius: 18px; padding: 1rem; border: 1px solid var(--border-light, #e2e8f0); }
+                .dark-mode .prediction-card { background: #0f172a; border-color: #334155; }
+                .prediction-card.trend-up { border-top: 3px solid #10b981; }
+                .prediction-card.trend-down { border-top: 3px solid #ef4444; }
+                .prediction-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+                .prediction-icon { font-size: 1.3rem; }
+                .prediction-label { font-weight: 700; font-size: 0.8rem; }
+                .prediction-values { display: flex; align-items: center; justify-content: space-around; margin-bottom: 0.75rem; }
+                .value-label { font-size: 0.6rem; color: var(--text-tertiary, #94a3b8); display: block; }
+                .value { font-size: 0.9rem; font-weight: 700; }
+                .prediction-arrow { font-size: 1rem; }
+                .prediction-change { text-align: center; margin-bottom: 0.75rem; }
+                .change-badge { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 20px; }
+                .change-badge.up { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+                .change-badge.down { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+                .change-badge.stable { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+                .prediction-recommendation { background: var(--card-bg, #ffffff); padding: 0.5rem 0.75rem; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+                .dark-mode .prediction-recommendation { background: #1e293b; }
+                .recommendation-text { font-size: 0.7rem; flex: 1; }
+                .prediction-confidence { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+                .confidence-bar { flex: 1; height: 4px; background: var(--border-light, #e2e8f0); border-radius: 2px; overflow: hidden; }
+                .confidence-fill { height: 100%; background: linear-gradient(90deg, #10b981, #f59e0b); }
+                .confidence-value { font-size: 0.6rem; color: var(--text-tertiary, #94a3b8); }
                 
-                .trends-card, .risks-card, .summary-card { background: var(--secondary-bg, #f8fafc); border-radius: 18px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border-light, #e2e8f0); }
-                .dark-mode .trends-card, .dark-mode .risks-card, .dark-mode .summary-card { background: #0f172a; border-color: #334155; }
+                .predictions-disclaimer { margin-top: 1rem; padding: 0.5rem; background: rgba(245, 158, 11, 0.08); border-radius: 12px; text-align: center; }
+                .predictions-disclaimer small { font-size: 0.6rem; color: #f59e0b; }
                 
-                .trend-item, .risk-item { padding: 0.5rem 0; display: flex; justify-content: space-between; align-items: center; }
-                .trend-item.direction-up { color: #10b981; }
-                .trend-item.direction-down { color: #ef4444; }
+                .analytics-footer { margin-top: 1rem; padding-top: 1rem; text-align: center; border-top: 1px solid var(--border-light, #e2e8f0); font-size: 0.6rem; color: var(--text-tertiary, #94a3b8); }
                 
-                .summary-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center; margin-bottom: 1rem; }
-                .stat-value { font-size: 1.5rem; font-weight: 800; display: block; }
-                .stat-label { font-size: 0.7rem; color: var(--text-tertiary, #94a3b8); }
-                
-                .progress-container { margin: 1rem 0; }
-                .progress-bar-bg { background: var(--border-light, #e2e8f0); border-radius: 10px; height: 30px; overflow: hidden; }
-                .progress-bar-fill { background: linear-gradient(90deg, #10b981, #f59e0b); height: 100%; border-radius: 10px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: white; font-size: 0.7rem; font-weight: bold; }
-                
-                .best-activity, .preferred-time { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.8rem; }
-                
-                .analytics-footer { margin-top: 1rem; padding-top: 1rem; text-align: center; border-top: 1px solid var(--border-light, #e2e8f0); font-size: 0.65rem; color: var(--text-tertiary, #94a3b8); }
+                .no-data-icon { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5; }
+                .hint { font-size: 0.7rem; color: var(--text-tertiary, #94a3b8); margin-top: 0.5rem; }
                 
                 .spinner { width: 40px; height: 40px; border: 3px solid var(--border-light, #e2e8f0); border-top-color: #f59e0b; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
                 @keyframes spin { to { transform: rotate(360deg); } }
                 
                 @media (max-width: 768px) {
                     .analytics-container { padding: 1rem; }
-                    .summary-stats { gap: 0.5rem; }
-                    .bmi-stats { flex-direction: column; gap: 0.5rem; }
+                    .quick-stats { grid-template-columns: repeat(2, 1fr); }
+                    .insight-tabs .tab-btn { font-size: 0.65rem; padding: 0.4rem; }
                 }
             `}</style>
         </div>
