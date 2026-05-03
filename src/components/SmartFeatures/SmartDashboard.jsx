@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axiosInstance from '../../services/api';
 import WeatherWidget from './WeatherWidget';
-import SmartAnalysis from './Analytics/smartanalysis';
+import SmartAnalysis from '../Analytics/smartanalysis';
 import '../../index.css';
 
 const SmartDashboard = () => {
