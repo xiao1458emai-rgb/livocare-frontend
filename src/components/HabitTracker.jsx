@@ -735,7 +735,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         
         setStreakDays(streak);
     }, [logs, definitions, todayLogs, refreshKey]);
-      return (
+    return (
         <div className="habit-tracker-container">
             {/* ماسح الباركود */}
             {showScanner && (

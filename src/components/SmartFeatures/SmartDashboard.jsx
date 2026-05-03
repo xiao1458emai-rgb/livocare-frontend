@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axiosInstance from '../../services/api';
 import WeatherWidget from './WeatherWidget';
+import SmartAnalysis from '../SmartAnalysis';
 import '../../index.css';
 
 const SmartDashboard = () => {
@@ -18,12 +19,13 @@ const SmartDashboard = () => {
     const [error, setError] = useState(null);
     const [healthScore, setHealthScore] = useState(null);
     const [activeTab, setActiveTab] = useState('analysis');
-    const [recommendations, setRecommendations] = useState([]);
+    const [serverRecommendations, setServerRecommendations] = useState([]);
     const [correlations, setCorrelations] = useState([]);
     const [predictions, setPredictions] = useState([]);
     const [trends, setTrends] = useState(null);
     const [anomalies, setAnomalies] = useState(null);
     const [clusters, setClusters] = useState(null);
+    const [showAdvancedInsights, setShowAdvancedInsights] = useState(true);
 
     // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
@@ -73,9 +75,9 @@ const SmartDashboard = () => {
                 const score = calculateHealthScoreFromData(data);
                 setHealthScore(score);
                 
-                // استخراج التوصيات من التحليلات الشاملة
+                // استخراج التوصيات من السيرفر
                 if (data.personalized_recommendations && data.personalized_recommendations.length > 0) {
-                    setRecommendations(data.personalized_recommendations);
+                    setServerRecommendations(data.personalized_recommendations);
                 }
                 
                 // استخراج الارتباطات (إذا وجدت)
@@ -133,11 +135,6 @@ const SmartDashboard = () => {
                 // استخراج مجموعات الأيام
                 if (advanced.clusters) {
                     setClusters(advanced.clusters);
-                }
-                
-                // دمج التوصيات من التحليل المتقدم إذا لم تكن موجودة
-                if (advanced.recommendations && advanced.recommendations.length > 0 && recommendations.length === 0) {
-                    setRecommendations(advanced.recommendations);
                 }
             }
             
@@ -338,6 +335,54 @@ const SmartDashboard = () => {
     // 🧩 المكونات الفرعية
     // ===========================================
     
+    // ✅ دمج التوصيات (السيرفر أولاً ثم الواجهة)
+    const MergedRecommendationsSection = () => {
+        // دمج التوصيات من السيرفر والتوصيات من الواجهة
+        const hasServerRecs = serverRecommendations.length > 0;
+        
+        return (
+            <section className="recommendations-section">
+                <h3>{isArabic ? 'توصيات مخصصة' : 'Personalized Recommendations'}</h3>
+                <div className="recommendations-timeline">
+                    {/* ✅ توصيات السيرفر أولاً */}
+                    {serverRecommendations.map((rec, idx) => (
+                        <div key={`server-${idx}`} className={`rec-item ${rec.priority === 'high' ? 'important' : 'suggestion'}`}>
+                            <div className="rec-header">
+                                <span className={`rec-badge ${rec.priority === 'high' ? 'important' : 'suggestion'}`}>
+                                    {rec.icon || (rec.priority === 'high' ? '⚠️' : '💡')} {rec.category || (isArabic ? 'توصية' : 'Recommendation')}
+                                </span>
+                            </div>
+                            <h4>{rec.title}</h4>
+                            <p>{rec.description || rec.message}</p>
+                            {rec.advice && (
+                                <div className="rec-meta">
+                                    <span>💡 {rec.advice}</span>
+                                </div>
+                            )}
+                            <div className="rec-basedon">
+                                <small>{isArabic ? 'بناءً على' : 'Based on'}: {isArabic ? 'تحليل بياناتك الصحية المتقدم' : 'Advanced health data analysis'}</small>
+                            </div>
+                        </div>
+                    ))}
+                    
+                    {/* ✅ توصيات الواجهة (SmartAnalysis) - تظهر كأنها استمرار للتوصيات */}
+                    {showAdvancedInsights && (
+                        <div className="smart-analysis-wrapper">
+                            <div className="smart-analysis-header">
+                                <span className="smart-badge">🧠 {isArabic ? 'تحليل أعمق' : 'Deeper Analysis'}</span>
+                            </div>
+                            <SmartAnalysis />
+                        </div>
+                    )}
+                    
+                    {!hasServerRecs && !showAdvancedInsights && (
+                        <p className="no-data">{isArabic ? 'لا توجد توصيات متاحة حالياً' : 'No recommendations available'}</p>
+                    )}
+                </div>
+            </section>
+        );
+    };
+    
     // ✅ اتجاهات البيانات
     const TrendsSection = () => {
         if (!trends || (!trends.weight_trend && !trends.activity_trend)) return null;
@@ -352,7 +397,7 @@ const SmartDashboard = () => {
                             <div className="trend-content">
                                 <div className="trend-title">{isArabic ? 'اتجاه الوزن' : 'Weight Trend'}</div>
                                 <div className="trend-message">{trends.weight_trend.message}</div>
-                                <div className="trend-direction trend-{trends.weight_trend.trend}">
+                                <div className={`trend-direction trend-${trends.weight_trend.trend}`}>
                                     {trends.weight_trend.trend === 'increasing' ? '📈 زيادة' : 
                                      trends.weight_trend.trend === 'decreasing' ? '📉 نقصان' : '➡️ مستقر'}
                                 </div>
@@ -365,7 +410,7 @@ const SmartDashboard = () => {
                             <div className="trend-content">
                                 <div className="trend-title">{isArabic ? 'اتجاه النشاط' : 'Activity Trend'}</div>
                                 <div className="trend-message">{trends.activity_trend.message}</div>
-                                <div className="trend-direction trend-{trends.activity_trend.trend}">
+                                <div className={`trend-direction trend-${trends.activity_trend.trend}`}>
                                     {trends.activity_trend.trend === 'increasing' ? '📈 زيادة' : 
                                      trends.activity_trend.trend === 'decreasing' ? '📉 نقصان' : '➡️ مستقر'}
                                 </div>
@@ -465,38 +510,6 @@ const SmartDashboard = () => {
                     ? '* هذه ملاحظات إحصائية من بياناتك الشخصية وليست تشخيصاً طبياً'
                     : '* These are statistical observations from your personal data, not medical diagnoses'}
             </p>
-        </section>
-    );
-
-    // ✅ توصيات
-    const RecommendationsSection = () => (
-        <section className="recommendations-section">
-            <h3>{isArabic ? 'توصيات مخصصة' : 'Personalized Recommendations'}</h3>
-            <div className="recommendations-timeline">
-                {recommendations.length > 0 ? recommendations.map((rec, idx) => (
-                    <div key={idx} className={`rec-item ${rec.priority === 'high' ? 'important' : 'suggestion'}`}>
-                        <div className="rec-header">
-                            <span className={`rec-badge ${rec.priority === 'high' ? 'important' : 'suggestion'}`}>
-                                {rec.icon || (rec.priority === 'high' ? '⚠️' : '💡')} {rec.category || (isArabic ? 'توصية' : 'Recommendation')}
-                            </span>
-                        </div>
-                        <h4>{rec.title}</h4>
-                        <p>{rec.description || rec.message}</p>
-                        {rec.advice && (
-                            <div className="rec-meta">
-                                <span>💡 {rec.advice}</span>
-                            </div>
-                        )}
-                        {rec.based_on && (
-                            <div className="rec-basedon">
-                                <small>{isArabic ? 'بناءً على' : 'Based on'}: {rec.based_on}</small>
-                            </div>
-                        )}
-                    </div>
-                )) : (
-                    <p className="no-data">{isArabic ? 'لا توجد توصيات متاحة حالياً' : 'No recommendations available'}</p>
-                )}
-            </div>
         </section>
     );
 
@@ -601,12 +614,252 @@ const SmartDashboard = () => {
                 {/* العمود الأيمن - المحتوى حسب التبويب */}
                 <div className="smart-column main">
                     {activeTab === 'analysis' && <CorrelationsSection />}
-                    {activeTab === 'recommendations' && <RecommendationsSection />}
+                    {activeTab === 'recommendations' && <MergedRecommendationsSection />}
                     {activeTab === 'predictions' && <PredictionsSection />}
                 </div>
             </div>
 
             <style jsx>{`
+                .smart-dashboard {
+                    background: var(--card-bg, #ffffff);
+                    border-radius: 28px;
+                    padding: 1.5rem;
+                    border: 1px solid var(--border-light, #eef2f6);
+                }
+                .dark-mode .smart-dashboard {
+                    background: #1e293b;
+                    border-color: #334155;
+                }
+                .dashboard-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid var(--border-light, #eef2f6);
+                }
+                .dashboard-header h2 {
+                    font-size: 1.35rem;
+                    font-weight: 700;
+                    margin: 0;
+                    background: linear-gradient(135deg, #10b981, #f59e0b);
+                    background-clip: text;
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                }
+                .refresh-dashboard-btn {
+                    background: var(--secondary-bg, #f1f5f9);
+                    border: 1px solid var(--border-light, #e2e8f0);
+                    border-radius: 12px;
+                    padding: 0.5rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .refresh-dashboard-btn:hover {
+                    background: linear-gradient(135deg, #10b981, #059669);
+                    color: white;
+                    transform: rotate(180deg);
+                }
+                .analytics-tabs {
+                    display: flex;
+                    gap: 0.5rem;
+                    margin-bottom: 1.5rem;
+                    padding: 0.25rem;
+                    background: var(--secondary-bg, #f8fafc);
+                    border-radius: 50px;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                .analytics-tabs button {
+                    flex: 1;
+                    padding: 0.6rem 1rem;
+                    background: transparent;
+                    border: none;
+                    border-radius: 40px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    color: var(--text-secondary, #64748b);
+                }
+                .analytics-tabs button.active {
+                    background: linear-gradient(135deg, #10b981, #059669);
+                    color: white;
+                }
+                .smart-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1.5fr;
+                    gap: 1.5rem;
+                }
+                .smart-column {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.5rem;
+                }
+                .health-score-card {
+                    background: var(--secondary-bg, #f8fafc);
+                    border-radius: 20px;
+                    padding: 1.25rem;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                .score-main {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    margin-bottom: 1rem;
+                }
+                .score-circle {
+                    width: 100px;
+                    height: 100px;
+                }
+                .circle-value {
+                    width: 100%;
+                    height: 100%;
+                    background: linear-gradient(135deg, #10b981, #f59e0b);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 2rem;
+                    font-weight: 800;
+                    color: white;
+                }
+                .score-grade {
+                    font-size: 2rem;
+                    font-weight: 800;
+                }
+                .score-grade.grade-a { color: #10b981; }
+                .score-grade.grade-b { color: #3b82f6; }
+                .score-grade.grade-c { color: #f59e0b; }
+                .score-grade.grade-d { color: #ef4444; }
+                .score-method summary {
+                    cursor: pointer;
+                    color: #10b981;
+                    font-size: 0.8rem;
+                }
+                .score-factors {
+                    margin-top: 1rem;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                }
+                .factor-item {
+                    padding: 0.75rem;
+                    background: var(--card-bg, #ffffff);
+                    border-radius: 12px;
+                    border-left: 3px solid;
+                }
+                .factor-item.good { border-left-color: #10b981; }
+                .factor-item.bad { border-left-color: #ef4444; }
+                .factor-header {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 0.5rem;
+                }
+                .factor-bar {
+                    height: 6px;
+                    background: var(--border-light, #e2e8f0);
+                    border-radius: 3px;
+                    margin-bottom: 0.5rem;
+                }
+                .factor-fill {
+                    height: 100%;
+                    border-radius: 3px;
+                }
+                .factor-item.good .factor-fill { background: #10b981; }
+                .factor-item.bad .factor-fill { background: #ef4444; }
+                .correlations-section, .recommendations-section, .predictions-section {
+                    background: var(--secondary-bg, #f8fafc);
+                    border-radius: 20px;
+                    padding: 1.25rem;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                .correlation-item, .rec-item, .pred-card {
+                    background: var(--card-bg, #ffffff);
+                    border-radius: 16px;
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                }
+                .rec-item.important { border-left: 3px solid #ef4444; }
+                .rec-item.suggestion { border-left: 3px solid #10b981; }
+                .rec-badge {
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                }
+                .rec-basedon {
+                    margin-top: 0.5rem;
+                    padding-top: 0.5rem;
+                    border-top: 1px solid var(--border-light, #e2e8f0);
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary, #94a3b8);
+                }
+                /* ✅ أنماط دمج SmartAnalysis */
+                .smart-analysis-wrapper {
+                    margin-top: 1rem;
+                    border-radius: 20px;
+                    overflow: hidden;
+                }
+                .smart-analysis-header {
+                    margin-bottom: 0.75rem;
+                    padding: 0 0.5rem;
+                }
+                .smart-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 20px;
+                    font-size: 0.7rem;
+                    font-weight: 600;
+                    color: white;
+                }
+                .strength-badge.strong { color: #ef4444; }
+                .strength-badge.medium { color: #f59e0b; }
+                .pred-card {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                }
+                .pred-trend.up { color: #10b981; }
+                .pred-trend.down { color: #ef4444; }
+                .pred-trend.stable { color: #f59e0b; }
+                .no-data {
+                    text-align: center;
+                    color: var(--text-tertiary, #94a3b8);
+                    padding: 1rem;
+                }
+                .smart-loading, .smart-error {
+                    text-align: center;
+                    padding: 3rem;
+                }
+                .spinner {
+                    width: 48px;
+                    height: 48px;
+                    border: 3px solid #e2e8f0;
+                    border-top-color: #10b981;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    margin: 0 auto 1rem;
+                }
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+                .retry-btn {
+                    padding: 0.5rem 1.25rem;
+                    background: linear-gradient(135deg, #10b981, #059669);
+                    color: white;
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                }
+                @media (max-width: 768px) {
+                    .smart-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    .analytics-tabs button {
+                        font-size: 0.7rem;
+                        padding: 0.4rem 0.5rem;
+                    }
+                }
+   
                 .smart-dashboard {
                     background: var(--card-bg, #ffffff);
                     border-radius: 28px;
