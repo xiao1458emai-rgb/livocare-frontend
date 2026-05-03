@@ -46,132 +46,130 @@ function Register({ onRegisterSuccess }) {
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     
-    // ✅ حالات Google
-    const [emailVerifiedByGoogle, setEmailVerifiedByGoogle] = useState(false);
-    const [isVerifyingWithGoogle, setIsVerifyingWithGoogle] = useState(false);
-    
-    // ✅ منع الطلبات المتكررة
-    const lastGoogleVerifyTimeRef = useRef(0);
-    const googleVerifyAttemptsRef = useRef(0);
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
+    const lastGoogleAttemptRef = useRef(0);
 
-    // رابط خدمة Google Auth المنفصلة
-    const GOOGLE_AUTH_URL = import.meta.env.VITE_GOOGLE_AUTH_URL || 'https://google-auth-service-h5m6.onrender.com';
-
-    // ✅ دالة التحقق من البريد مع منع التكرار
-    const verifyEmailWithGoogle = useGoogleLogin({
+    // ✅ تسجيل مباشر باستخدام Google (بدون خدمة منفصلة)
+    const googleRegister = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
+            if (loading) return;
+            setLoading(true);
+            setMessage('');
+            
             try {
-                setIsVerifyingWithGoogle(true);
+                console.log('🔑 Google token received');
                 
+                // 1. جلب معلومات المستخدم من Google
                 const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { 
-                        Authorization: `Bearer ${tokenResponse.access_token}` 
-                    }
+                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
                 });
-                
                 const userInfo = await userInfoResponse.json();
                 
-                console.log('✅ Google Verification:', userInfo);
+                console.log('✅ Google user:', userInfo);
                 
-                if (userInfo.email_verified === true && userInfo.email === formData.email) {
-                    setEmailVerifiedByGoogle(true);
-                    setMessage(isArabic ? '✅ تم التحقق: هذا البريد مسجل في Google' : '✅ Verified: Email registered with Google');
-                    setMessageType('success');
-                    
-                    setTimeout(() => {
-                        setMessage('');
-                    }, 3000);
-                } else if (userInfo.email !== formData.email) {
-                    setEmailVerifiedByGoogle(false);
-                    setMessage(isArabic ? '❌ البريد المدخل مختلف عن بريد Google' : '❌ Email mismatch with Google account');
+                // 2. التحقق من صحة البريد
+                if (!userInfo.email_verified) {
+                    setMessage(isArabic ? '❌ البريد الإلكتروني غير موثق في Google' : '❌ Email not verified in Google');
+                    setMessageType('error');
+                    setLoading(false);
+                    return;
+                }
+                
+                // 3. إنشاء اسم مستخدم من البريد
+                let baseUsername = userInfo.email.split('@')[0];
+                // تنظيف اسم المستخدم من الأحرف غير المسموحة
+                baseUsername = baseUsername.replace(/[^a-zA-Z0-9_]/g, '_');
+                let username = baseUsername;
+                let counter = 1;
+                
+                // 4. التحقق من وجود اسم المستخدم (تجريبي)
+                let usernameExists = false;
+                try {
+                    const checkResponse = await axiosInstance.post('/auth/check-username/', { username });
+                    usernameExists = !checkResponse.data?.available;
+                } catch {
+                    usernameExists = false;
+                }
+                
+                while (usernameExists) {
+                    username = `${baseUsername}${counter}`;
+                    counter++;
+                    try {
+                        const checkResponse = await axiosInstance.post('/auth/check-username/', { username });
+                        usernameExists = !checkResponse.data?.available;
+                    } catch {
+                        usernameExists = false;
+                    }
+                }
+                
+                // 5. إنشاء كلمة مرور عشوائية قوية
+                const randomPassword = Math.random().toString(36).slice(-12) + 'Aa1!' + Math.floor(Math.random() * 1000);
+                
+                // 6. تسجيل المستخدم
+                const registerResponse = await axiosInstance.post('/auth/register/', {
+                    username: username,
+                    email: userInfo.email,
+                    password: randomPassword,
+                    password2: randomPassword,
+                    first_name: userInfo.given_name || '',
+                    last_name: userInfo.family_name || ''
+                });
+                
+                console.log('✅ Registration success:', registerResponse.data);
+                
+                // 7. تسجيل الدخول التلقائي
+                const loginResponse = await axiosInstance.post('/auth/token/', {
+                    username: username,
+                    password: randomPassword
+                });
+                
+                localStorage.setItem('access_token', loginResponse.data.access);
+                localStorage.setItem('refresh_token', loginResponse.data.refresh);
+                localStorage.setItem('username', username);
+                
+                setMessage(isArabic ? '🎉 تم إنشاء الحساب بنجاح عبر Google!' : '🎉 Account created successfully with Google!');
+                setMessageType('success');
+                
+                setTimeout(() => {
+                    if (onRegisterSuccess) onRegisterSuccess();
+                    else navigate('/dashboard');
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Google registration error:', error);
+                
+                if (error.response?.data?.email) {
+                    setMessage(isArabic ? '❌ هذا البريد مسجل بالفعل. الرجاء تسجيل الدخول' : '❌ Email already registered. Please login');
+                    setMessageType('error');
+                } else if (error.response?.data?.username) {
+                    setMessage(isArabic ? '❌ اسم المستخدم موجود. حاول مرة أخرى' : '❌ Username exists. Try again');
                     setMessageType('error');
                 } else {
-                    setEmailVerifiedByGoogle(false);
-                    setMessage(isArabic ? '❌ هذا البريد غير مسجل في Google' : '❌ Email not registered with Google');
+                    setMessage(isArabic ? '❌ فشل التسجيل عبر Google. حاول مرة أخرى' : '❌ Google registration failed. Try again');
                     setMessageType('error');
                 }
-            } catch (error) {
-                console.error('Verification error:', error);
-                setMessage(isArabic ? '❌ فشل التحقق من البريد' : '❌ Email verification failed');
-                setMessageType('error');
             } finally {
-                setIsVerifyingWithGoogle(false);
+                setLoading(false);
             }
         },
         onError: (error) => {
             console.error('Google login error:', error);
             
-            // ✅ معالجة أخطاء Too Many Requests
-            if (error.error === 'popup_closed_by_user') {
-                setMessage(isArabic ? '⚠️ تم إغلاق نافذة Google' : '⚠️ Google window closed');
-            } else if (error.error_description?.includes('Blocked')) {
-                setMessage(isArabic ? '⚠️ تم حظر النافذة المنبثقة، سمح للنوافذ المنبثقة' : '⚠️ Popup blocked, allow popups for this site');
-            } else {
-                setMessage(isArabic ? '❌ فشل الاتصال بـ Google، حاول مرة أخرى' : '❌ Failed to connect to Google, try again');
+            // منع الطلبات المتكررة
+            const now = Date.now();
+            if (now - lastGoogleAttemptRef.current < 30000) {
+                setMessage(isArabic ? '⚠️ الرجاء الانتظار 30 ثانية قبل المحاولة مرة أخرى' : '⚠️ Please wait 30 seconds before trying again');
+                setMessageType('error');
+                return;
             }
-            setMessageType('error');
-            setIsVerifyingWithGoogle(false);
+            lastGoogleAttemptRef.current = now;
             
-            // ✅ إعادة تعيين المحاولات
-            googleVerifyAttemptsRef.current = 0;
+            setMessage(isArabic ? '❌ فشل الاتصال بـ Google. تأكد من اتصال الإنترنت' : '❌ Failed to connect to Google. Check your internet connection');
+            setMessageType('error');
         },
-        flow: 'implicit',
+        flow: 'implicit'
     });
-
-    // ✅ دالة معالجة التحقق مع منع التكرار
-    const handleGoogleEmailVerification = () => {
-        // منع الطلبات المتكررة
-        if (isVerifyingWithGoogle) return;
-        
-        const now = Date.now();
-        const timeSinceLastRequest = now - lastGoogleVerifyTimeRef.current;
-        
-        // ✅ منع الطلبات المتكررة (30 ثانية بين كل طلب)
-        if (timeSinceLastRequest < 30000 && lastGoogleVerifyTimeRef.current !== 0) {
-            const waitSeconds = Math.ceil((30000 - timeSinceLastRequest) / 1000);
-            setMessage(isArabic ? `⚠️ الرجاء الانتظار ${waitSeconds} ثانية قبل المحاولة مرة أخرى` : `⚠️ Please wait ${waitSeconds} seconds before trying again`);
-            setMessageType('error');
-            return;
-        }
-        
-        // ✅ زيادة عدد المحاولات
-        googleVerifyAttemptsRef.current++;
-        
-        // ✅ إذا كان هناك أكثر من 3 محاولات خلال 5 دقائق، امنع
-        if (googleVerifyAttemptsRef.current > 3) {
-            setMessage(isArabic ? '⚠️ عدد كبير من المحاولات. الرجاء الانتظار 5 دقائق' : '⚠️ Too many attempts. Please wait 5 minutes');
-            setMessageType('error');
-            setTimeout(() => {
-                googleVerifyAttemptsRef.current = 0;
-            }, 300000);
-            return;
-        }
-        
-        if (!formData.email) {
-            setMessage(isArabic ? '📧 أدخل البريد الإلكتروني أولاً' : '📧 Enter email first');
-            setMessageType('error');
-            return;
-        }
-        
-        if (!isValidEmail(formData.email)) {
-            setMessage(isArabic ? '📧 بريد إلكتروني غير صالح' : '📧 Invalid email address');
-            setMessageType('error');
-            return;
-        }
-        
-        if (emailVerifiedByGoogle) {
-            setMessage(isArabic ? '✅ البريد مُتحقق منه بالفعل' : '✅ Email already verified');
-            setMessageType('info');
-            return;
-        }
-        
-        // ✅ تحديث وقت آخر طلب
-        lastGoogleVerifyTimeRef.current = now;
-        
-        verifyEmailWithGoogle();
-    };
 
     // ✅ تبديل اللغة
     const toggleLanguage = () => {
@@ -285,13 +283,6 @@ function Register({ onRegisterSuccess }) {
             ...prev,
             [name]: value
         }));
-        
-        // ✅ إعادة تعيين التحقق والعدادات إذا تغير البريد
-        if (name === 'email') {
-            setEmailVerifiedByGoogle(false);
-            googleVerifyAttemptsRef.current = 0;
-            lastGoogleVerifyTimeRef.current = 0;
-        }
     };
 
     const handleBlur = (field) => {
@@ -346,11 +337,6 @@ function Register({ onRegisterSuccess }) {
         }
         if (!isValidEmail(formData.email)) {
             return isArabic ? 'البريد الإلكتروني غير صالح' : 'Invalid email address';
-        }
-        
-        // ✅ التحقق من Google
-        if (!emailVerifiedByGoogle) {
-            return isArabic ? '❌ يجب التحقق من البريد الإلكتروني عبر Google أولاً' : '❌ Email must be verified with Google first';
         }
         
         if (!formData.password) {
@@ -455,7 +441,7 @@ function Register({ onRegisterSuccess }) {
             }
             isSubmittingRef.current = false;
         }
-    }, [formData, onRegisterSuccess, navigate, isArabic, passwordStrength, agreedToTerms, emailVerifiedByGoogle]);
+    }, [formData, onRegisterSuccess, navigate, isArabic, passwordStrength, agreedToTerms]);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -463,15 +449,6 @@ function Register({ onRegisterSuccess }) {
             isMountedRef.current = false;
         };
     }, []);
-
-    // ✅ تسجيل Google مع منع التكرار
-    const handleGoogleRegister = () => {
-        // ✅ منع النقر المتكرر على زر Google
-        if (loading) return;
-        
-        localStorage.setItem('redirectAfterAuth', '/dashboard');
-        window.location.href = `${GOOGLE_AUTH_URL}/auth/google`;
-    };
 
     // ✅ نافذة الشروط والأحكام
     const TermsModal = () => (
@@ -527,12 +504,14 @@ function Register({ onRegisterSuccess }) {
 
     return (
         <div className="register-wrapper">
+            {/* خلفية متحركة */}
             <div className="register-background">
                 <div className="bg-blob bg-blob-1"></div>
                 <div className="bg-blob bg-blob-2"></div>
                 <div className="bg-blob bg-blob-3"></div>
             </div>
 
+            {/* شريط التحكم العلوي */}
             <div className="register-navbar">
                 <div className="navbar-content">
                     <Link to="/" className="logo-area">
@@ -565,6 +544,7 @@ function Register({ onRegisterSuccess }) {
                 </div>
             </div>
 
+            {/* المحتوى الرئيسي */}
             <div className="register-main">
                 <div className="register-card">
                     <div className="card-header">
@@ -638,79 +618,24 @@ function Register({ onRegisterSuccess }) {
                             )}
                         </div>
 
-                        {/* البريد الإلكتروني مع زر التحقق من Google */}
+                        {/* البريد الإلكتروني */}
                         <div className="form-field">
                             <label className="field-label required">
                                 <span className="label-icon">📧</span>
                                 {isArabic ? 'البريد الإلكتروني' : 'Email'}
                             </label>
-                            <div className="email-verification-group">
-                                <div className="input-container" style={{ flex: 1 }}>
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                        onBlur={() => handleBlur('email')}
-                                        required
-                                        placeholder={isArabic ? 'example@email.com' : 'example@email.com'}
-                                        className={`form-input ${touched.email && formData.email && !isValidEmail(formData.email) ? 'error' : ''}`}
-                                        disabled={emailVerifiedByGoogle}
-                                        style={{ width: '100%' }}
-                                    />
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handleGoogleEmailVerification}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleGoogleEmailVerification();
-                                    }}
-                                    disabled={isVerifyingWithGoogle || !formData.email || emailVerifiedByGoogle}
-                                    className="google-verify-btn"
-                                    style={{
-                                        padding: '12px 16px',
-                                        backgroundColor: emailVerifiedByGoogle ? '#10b981' : '#4285f4',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '8px',
-                                        cursor: emailVerifiedByGoogle ? 'default' : 'pointer',
-                                        fontSize: '14px',
-                                        fontWeight: '500',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        whiteSpace: 'nowrap',
-                                        opacity: emailVerifiedByGoogle ? 0.8 : 1
-                                    }}
-                                >
-                                    {isVerifyingWithGoogle ? (
-                                        <>
-                                            <span className="btn-spinner-small"></span>
-                                            {isArabic ? 'جاري التحقق...' : 'Verifying...'}
-                                        </>
-                                    ) : emailVerifiedByGoogle ? (
-                                        <>
-                                            ✓ {isArabic ? 'تم التحقق' : 'Verified'}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <img 
-                                                src="https://www.google.com/favicon.ico" 
-                                                alt="G" 
-                                                style={{ width: '16px', height: '16px' }}
-                                            />
-                                            {isArabic ? 'تحقق من Google' : 'Verify with Google'}
-                                        </>
-                                    )}
-                                </button>
+                            <div className="input-container">
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    onBlur={() => handleBlur('email')}
+                                    required
+                                    placeholder={isArabic ? 'example@email.com' : 'example@email.com'}
+                                    className={`form-input ${touched.email && formData.email && !isValidEmail(formData.email) ? 'error' : ''}`}
+                                />
                             </div>
-                            
-                            {emailVerifiedByGoogle && (
-                                <div className="field-success">
-                                    ✓ {isArabic ? 'تم التحقق من البريد بواسطة Google' : 'Email verified by Google'}
-                                </div>
-                            )}
-                            
                             {touched.email && formData.email && !isValidEmail(formData.email) && (
                                 <div className="field-error">
                                     ⚠️ {isArabic ? 'البريد الإلكتروني غير صالح' : 'Invalid email address'}
@@ -827,7 +752,7 @@ function Register({ onRegisterSuccess }) {
                             <button 
                                 type="submit" 
                                 className="register-btn"
-                                disabled={loading || !emailVerifiedByGoogle}
+                                disabled={loading}
                             >
                                 {loading ? (
                                     <>
@@ -849,10 +774,10 @@ function Register({ onRegisterSuccess }) {
                             <span className="divider-line"></span>
                         </div>
 
-                        {/* زر Google */}
+                        {/* زر Google - التسجيل المباشر */}
                         <button 
                             type="button"
-                            onClick={handleGoogleRegister}
+                            onClick={() => googleRegister()}
                             className="google-btn"
                             disabled={loading}
                         >
@@ -909,9 +834,10 @@ function Register({ onRegisterSuccess }) {
                 </div>
             </div>
 
+            {/* النوافذ المنبثقة */}
             {showTermsModal && <TermsModal />}
             {showPrivacyModal && <PrivacyModal />}
-
+    
             {/* ✅ أنماط CSS المضمنة */}
             <style jsx>{`
     /* ===========================================
