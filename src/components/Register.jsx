@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { useGoogleLogin } from '@react-oauth/google'; // ✅ إضافة مكتبة Google
+import { useGoogleLogin } from '@react-oauth/google';
 import axiosInstance from '../services/api';
 import '../index.css';
 
-// ✅ دالة عامة لتطبيق اللغة (مطابقة لما في ProfileManager)
+// ✅ دالة عامة لتطبيق اللغة
 const applyLanguage = (lang) => {
     const isArabic = lang === 'ar';
     localStorage.setItem('app_lang', lang);
@@ -46,17 +46,20 @@ function Register({ onRegisterSuccess }) {
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     
-    // ✅ حالات جديدة للتحقق من Google
+    // ✅ حالات Google
     const [emailVerifiedByGoogle, setEmailVerifiedByGoogle] = useState(false);
     const [isVerifyingWithGoogle, setIsVerifyingWithGoogle] = useState(false);
     
+    // ✅ منع الطلبات المتكررة
+    const lastGoogleVerifyTimeRef = useRef(0);
+    const googleVerifyAttemptsRef = useRef(0);
     const isMountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
 
     // رابط خدمة Google Auth المنفصلة
     const GOOGLE_AUTH_URL = import.meta.env.VITE_GOOGLE_AUTH_URL || 'https://google-auth-service-h5m6.onrender.com';
 
-    // ✅ دالة التحقق من البريد باستخدام Google
+    // ✅ دالة التحقق من البريد مع منع التكرار
     const verifyEmailWithGoogle = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
             try {
@@ -99,15 +102,53 @@ function Register({ onRegisterSuccess }) {
         },
         onError: (error) => {
             console.error('Google login error:', error);
-            setMessage(isArabic ? '❌ فشل الاتصال بـ Google' : '❌ Failed to connect to Google');
+            
+            // ✅ معالجة أخطاء Too Many Requests
+            if (error.error === 'popup_closed_by_user') {
+                setMessage(isArabic ? '⚠️ تم إغلاق نافذة Google' : '⚠️ Google window closed');
+            } else if (error.error_description?.includes('Blocked')) {
+                setMessage(isArabic ? '⚠️ تم حظر النافذة المنبثقة، سمح للنوافذ المنبثقة' : '⚠️ Popup blocked, allow popups for this site');
+            } else {
+                setMessage(isArabic ? '❌ فشل الاتصال بـ Google، حاول مرة أخرى' : '❌ Failed to connect to Google, try again');
+            }
             setMessageType('error');
             setIsVerifyingWithGoogle(false);
+            
+            // ✅ إعادة تعيين المحاولات
+            googleVerifyAttemptsRef.current = 0;
         },
         flow: 'implicit',
     });
 
+    // ✅ دالة معالجة التحقق مع منع التكرار
     const handleGoogleEmailVerification = () => {
-         if (isVerifyingWithGoogle) return;
+        // منع الطلبات المتكررة
+        if (isVerifyingWithGoogle) return;
+        
+        const now = Date.now();
+        const timeSinceLastRequest = now - lastGoogleVerifyTimeRef.current;
+        
+        // ✅ منع الطلبات المتكررة (30 ثانية بين كل طلب)
+        if (timeSinceLastRequest < 30000 && lastGoogleVerifyTimeRef.current !== 0) {
+            const waitSeconds = Math.ceil((30000 - timeSinceLastRequest) / 1000);
+            setMessage(isArabic ? `⚠️ الرجاء الانتظار ${waitSeconds} ثانية قبل المحاولة مرة أخرى` : `⚠️ Please wait ${waitSeconds} seconds before trying again`);
+            setMessageType('error');
+            return;
+        }
+        
+        // ✅ زيادة عدد المحاولات
+        googleVerifyAttemptsRef.current++;
+        
+        // ✅ إذا كان هناك أكثر من 3 محاولات خلال 5 دقائق، امنع
+        if (googleVerifyAttemptsRef.current > 3) {
+            setMessage(isArabic ? '⚠️ عدد كبير من المحاولات. الرجاء الانتظار 5 دقائق' : '⚠️ Too many attempts. Please wait 5 minutes');
+            setMessageType('error');
+            setTimeout(() => {
+                googleVerifyAttemptsRef.current = 0;
+            }, 300000);
+            return;
+        }
+        
         if (!formData.email) {
             setMessage(isArabic ? '📧 أدخل البريد الإلكتروني أولاً' : '📧 Enter email first');
             setMessageType('error');
@@ -125,6 +166,9 @@ function Register({ onRegisterSuccess }) {
             setMessageType('info');
             return;
         }
+        
+        // ✅ تحديث وقت آخر طلب
+        lastGoogleVerifyTimeRef.current = now;
         
         verifyEmailWithGoogle();
     };
@@ -221,19 +265,15 @@ function Register({ onRegisterSuccess }) {
         let strength = 0;
         const password = formData.password;
         
-        // الطول
         if (password.length >= 12) strength += 30;
         else if (password.length >= 8) strength += 20;
         else if (password.length >= 6) strength += 10;
         
-        // الأحرف الكبيرة والصغيرة
         if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength += 25;
         else if (/[a-zA-Z]/.test(password)) strength += 15;
         
-        // الأرقام
         if (/\d/.test(password)) strength += 25;
         
-        // الرموز الخاصة
         if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 20;
         
         setPasswordStrength(Math.min(100, strength));
@@ -246,9 +286,11 @@ function Register({ onRegisterSuccess }) {
             [name]: value
         }));
         
-        // ✅ إعادة تعيين التحقق إذا تغير البريد
-        if (name === 'email' && emailVerifiedByGoogle) {
+        // ✅ إعادة تعيين التحقق والعدادات إذا تغير البريد
+        if (name === 'email') {
             setEmailVerifiedByGoogle(false);
+            googleVerifyAttemptsRef.current = 0;
+            lastGoogleVerifyTimeRef.current = 0;
         }
     };
 
@@ -259,19 +301,16 @@ function Register({ onRegisterSuccess }) {
         }));
     };
 
-    // ✅ التحقق من صحة البريد الإلكتروني
     const isValidEmail = (email) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
     };
 
-    // ✅ التحقق من صحة اسم المستخدم
     const isValidUsername = (username) => {
         const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
         return usernameRegex.test(username);
     };
 
-    // ✅ الحصول على لون قوة كلمة المرور
     const getPasswordStrengthColor = () => {
         if (passwordStrength < 30) return '#ef4444';
         if (passwordStrength < 60) return '#f59e0b';
@@ -279,7 +318,6 @@ function Register({ onRegisterSuccess }) {
         return '#10b981';
     };
 
-    // ✅ الحصول على نص قوة كلمة المرور
     const getPasswordStrengthText = () => {
         if (passwordStrength < 30) return isArabic ? 'ضعيفة جداً' : 'Very Weak';
         if (passwordStrength < 60) return isArabic ? 'متوسطة' : 'Fair';
@@ -287,19 +325,15 @@ function Register({ onRegisterSuccess }) {
         return isArabic ? 'قوية جداً' : 'Very Strong';
     };
 
-    // ✅ التحقق من صحة النموذج بالكامل
     const validateForm = () => {
-        // التحقق من الاسم الأول (اختياري)
         if (formData.first_name && (formData.first_name.length < 2 || formData.first_name.length > 50)) {
             return isArabic ? 'الاسم الأول يجب أن يكون بين 2 و 50 حرفاً' : 'First name must be between 2 and 50 characters';
         }
         
-        // التحقق من اسم العائلة (اختياري)
         if (formData.last_name && (formData.last_name.length < 2 || formData.last_name.length > 50)) {
             return isArabic ? 'اسم العائلة يجب أن يكون بين 2 و 50 حرفاً' : 'Last name must be between 2 and 50 characters';
         }
         
-        // التحقق من اسم المستخدم
         if (!formData.username) {
             return isArabic ? 'اسم المستخدم مطلوب' : 'Username is required';
         }
@@ -307,7 +341,6 @@ function Register({ onRegisterSuccess }) {
             return isArabic ? 'اسم المستخدم يجب أن يحتوي على 3-20 حرف (أحرف، أرقام، شرطة سفلية فقط)' : 'Username must be 3-20 characters (letters, numbers, underscore only)';
         }
         
-        // التحقق من البريد الإلكتروني
         if (!formData.email) {
             return isArabic ? 'البريد الإلكتروني مطلوب' : 'Email is required';
         }
@@ -315,12 +348,11 @@ function Register({ onRegisterSuccess }) {
             return isArabic ? 'البريد الإلكتروني غير صالح' : 'Invalid email address';
         }
         
-        // ✅ التحقق من Google - يجب أن يكون البريد متحققاً منه
+        // ✅ التحقق من Google
         if (!emailVerifiedByGoogle) {
             return isArabic ? '❌ يجب التحقق من البريد الإلكتروني عبر Google أولاً' : '❌ Email must be verified with Google first';
         }
         
-        // التحقق من كلمة المرور
         if (!formData.password) {
             return isArabic ? 'كلمة المرور مطلوبة' : 'Password is required';
         }
@@ -331,12 +363,10 @@ function Register({ onRegisterSuccess }) {
             return isArabic ? 'كلمة المرور ضعيفة. استخدم أحرفاً كبيرة وصغيرة وأرقاماً ورموزاً' : 'Password is weak. Use uppercase, lowercase, numbers, and symbols';
         }
         
-        // التحقق من تأكيد كلمة المرور
         if (formData.password !== formData.password2) {
             return isArabic ? 'كلمة المرور غير متطابقة' : 'Passwords do not match';
         }
         
-        // التحقق من الموافقة على الشروط
         if (!agreedToTerms) {
             return isArabic ? 'يجب الموافقة على شروط الخدمة وسياسة الخصوصية' : 'You must agree to the Terms of Service and Privacy Policy';
         }
@@ -344,7 +374,6 @@ function Register({ onRegisterSuccess }) {
         return null;
     };
 
-    // ✅ إرسال النموذج
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
@@ -435,8 +464,11 @@ function Register({ onRegisterSuccess }) {
         };
     }, []);
 
-    // ✅ تسجيل Google
+    // ✅ تسجيل Google مع منع التكرار
     const handleGoogleRegister = () => {
+        // ✅ منع النقر المتكرر على زر Google
+        if (loading) return;
+        
         localStorage.setItem('redirectAfterAuth', '/dashboard');
         window.location.href = `${GOOGLE_AUTH_URL}/auth/google`;
     };
@@ -495,14 +527,12 @@ function Register({ onRegisterSuccess }) {
 
     return (
         <div className="register-wrapper">
-            {/* ✅ خلفية متحركة */}
             <div className="register-background">
                 <div className="bg-blob bg-blob-1"></div>
                 <div className="bg-blob bg-blob-2"></div>
                 <div className="bg-blob bg-blob-3"></div>
             </div>
 
-            {/* ✅ شريط التحكم العلوي */}
             <div className="register-navbar">
                 <div className="navbar-content">
                     <Link to="/" className="logo-area">
@@ -535,7 +565,6 @@ function Register({ onRegisterSuccess }) {
                 </div>
             </div>
 
-            {/* ✅ المحتوى الرئيسي */}
             <div className="register-main">
                 <div className="register-card">
                     <div className="card-header">
@@ -547,7 +576,7 @@ function Register({ onRegisterSuccess }) {
                     </div>
                     
                     <form onSubmit={handleSubmit} className="register-form">
-                        {/* ✅ الاسم الأول واسم العائلة */}
+                        {/* الاسم الأول واسم العائلة */}
                         <div className="form-row">
                             <div className="form-field">
                                 <label className="field-label">
@@ -584,7 +613,7 @@ function Register({ onRegisterSuccess }) {
                             </div>
                         </div>
 
-                        {/* ✅ اسم المستخدم */}
+                        {/* اسم المستخدم */}
                         <div className="form-field">
                             <label className="field-label required">
                                 <span className="label-icon">🔖</span>
@@ -609,7 +638,7 @@ function Register({ onRegisterSuccess }) {
                             )}
                         </div>
 
-                        {/* ✅ البريد الإلكتروني مع زر التحقق من Google */}
+                        {/* البريد الإلكتروني مع زر التحقق من Google */}
                         <div className="form-field">
                             <label className="field-label required">
                                 <span className="label-icon">📧</span>
@@ -633,6 +662,9 @@ function Register({ onRegisterSuccess }) {
                                 <button
                                     type="button"
                                     onClick={handleGoogleEmailVerification}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleGoogleEmailVerification();
+                                    }}
                                     disabled={isVerifyingWithGoogle || !formData.email || emailVerifiedByGoogle}
                                     className="google-verify-btn"
                                     style={{
@@ -686,7 +718,7 @@ function Register({ onRegisterSuccess }) {
                             )}
                         </div>
 
-                        {/* ✅ كلمة المرور */}
+                        {/* كلمة المرور */}
                         <div className="form-field">
                             <label className="field-label required">
                                 <span className="label-icon">🔒</span>
@@ -734,7 +766,7 @@ function Register({ onRegisterSuccess }) {
                             </div>
                         </div>
 
-                        {/* ✅ تأكيد كلمة المرور */}
+                        {/* تأكيد كلمة المرور */}
                         <div className="form-field">
                             <label className="field-label required">
                                 <span className="label-icon">✓</span>
@@ -767,7 +799,7 @@ function Register({ onRegisterSuccess }) {
                             )}
                         </div>
 
-                        {/* ✅ الموافقة على الشروط */}
+                        {/* الموافقة على الشروط */}
                         <div className="terms-checkbox">
                             <label className="checkbox-label">
                                 <input
@@ -790,7 +822,7 @@ function Register({ onRegisterSuccess }) {
                             </label>
                         </div>
 
-                        {/* ✅ أزرار الإجراء */}
+                        {/* أزرار الإجراء */}
                         <div className="form-buttons">
                             <button 
                                 type="submit" 
@@ -810,14 +842,14 @@ function Register({ onRegisterSuccess }) {
                             </button>
                         </div>
 
-                        {/* ✅ الفاصل */}
+                        {/* الفاصل */}
                         <div className="divider">
                             <span className="divider-line"></span>
                             <span className="divider-text">{isArabic ? 'أو' : 'OR'}</span>
                             <span className="divider-line"></span>
                         </div>
 
-                        {/* ✅ زر Google */}
+                        {/* زر Google */}
                         <button 
                             type="button"
                             onClick={handleGoogleRegister}
@@ -828,7 +860,7 @@ function Register({ onRegisterSuccess }) {
                             <span>{isArabic ? 'التسجيل باستخدام Google' : 'Sign up with Google'}</span>
                         </button>
 
-                        {/* ✅ رابط تسجيل الدخول */}
+                        {/* رابط تسجيل الدخول */}
                         <div className="login-link">
                             <p>
                                 {isArabic ? 'لديك حساب بالفعل؟' : 'Already have an account?'}{' '}
@@ -839,7 +871,7 @@ function Register({ onRegisterSuccess }) {
                         </div>
                     </form>
 
-                    {/* ✅ رسالة الإشعار */}
+                    {/* رسالة الإشعار */}
                     {message && (
                         <div className={`notification-toast ${messageType}`}>
                             <span className="toast-icon">
@@ -861,7 +893,7 @@ function Register({ onRegisterSuccess }) {
                     )}
                 </div>
 
-                {/* ✅ معلومات إضافية */}
+                {/* معلومات إضافية */}
                 <div className="register-info">
                     <div className="info-card">
                         <h3>{isArabic ? '✨ لماذا تنضم إلى LivoCare؟' : '✨ Why join LivoCare?'}</h3>
@@ -877,7 +909,6 @@ function Register({ onRegisterSuccess }) {
                 </div>
             </div>
 
-            {/* ✅ النوافذ المنبثقة */}
             {showTermsModal && <TermsModal />}
             {showPrivacyModal && <PrivacyModal />}
 
