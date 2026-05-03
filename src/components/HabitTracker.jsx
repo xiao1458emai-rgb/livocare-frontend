@@ -568,6 +568,81 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
             setShowScanner(false);
         }
     }, [searchDrugInFDA]);
+    // ✅ جلب تحليلات العادات
+const fetchHabitAnalytics = useCallback(async () => {
+    try {
+        const response = await axiosInstance.get('/habits/analytics/?lang=' + (isArabic ? 'ar' : 'en'));
+        if (response.data?.success) {
+            console.log('📊 Habit analytics loaded:', response.data);
+            return response.data;
+        }
+    } catch (error) {
+        console.error('Error fetching habit analytics:', error);
+    }
+    return null;
+}, [isArabic]);
+
+// ✅ جلب توصيات العادات
+const fetchHabitRecommendationsAPI = useCallback(async () => {
+    try {
+        const response = await axiosInstance.get('/habits/recommendations/?limit=5&lang=' + (isArabic ? 'ar' : 'en'));
+        if (response.data?.success && response.data?.recommendations) {
+            const container = document.getElementById('habit-recommendations');
+            if (container) {
+                container.innerHTML = response.data.recommendations.map(rec => `
+                    <div class="recommendation-item priority-${rec.priority || 'medium'}">
+                        <div class="rec-icon">${rec.icon || '💡'}</div>
+                        <div class="rec-content">
+                            <div class="rec-title">${rec.title}</div>
+                            <div class="rec-description">${rec.description}</div>
+                            <div class="rec-advice">${rec.advice || ''}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching recommendations:', error);
+        const container = document.getElementById('habit-recommendations');
+        if (container) {
+            container.innerHTML = `<div class="error-message">${isArabic ? '❌ فشل في تحميل التوصيات' : '❌ Failed to load recommendations'}</div>`;
+        }
+    }
+}, [isArabic]);
+
+// ✅ جلب توقعات العادات
+const fetchHabitPredictions = useCallback(async () => {
+    try {
+        const response = await axiosInstance.get('/habits/predictions/?days=7&lang=' + (isArabic ? 'ar' : 'en'));
+        if (response.data?.success && response.data?.predictions) {
+            const container = document.getElementById('habit-predictions');
+            if (container) {
+                container.innerHTML = `
+                    <div class="predictions-grid">
+                        ${response.data.predictions.map(pred => `
+                            <div class="prediction-card">
+                                <div class="prediction-date">${pred.date}</div>
+                                <div class="prediction-probability">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${pred.probability}%"></div>
+                                    </div>
+                                    <span>${pred.probability}%</span>
+                                </div>
+                                <div class="prediction-advice">${pred.advice || ''}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching predictions:', error);
+        const container = document.getElementById('habit-predictions');
+        if (container) {
+            container.innerHTML = `<div class="error-message">${isArabic ? '❌ فشل في تحميل التوقعات' : '❌ Failed to load predictions'}</div>`;
+        }
+    }
+}, [isArabic]);
 
     // ✅ تصفية البيانات
     const safeDefinitions = Array.isArray(definitions) ? definitions : [];
@@ -603,7 +678,19 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         isMountedRef.current = true;
         return () => { isMountedRef.current = false; };
     }, []);
-
+// ✅ تحميل التحليلات عند تغيير التبويب
+useEffect(() => {
+    if (activeTab === 'analytics') {
+        fetchHabitRecommendationsAPI();
+        fetchHabitPredictions();
+    }
+}, [activeTab, fetchHabitRecommendationsAPI, fetchHabitPredictions]);
+// في HabitAnalytics.jsx
+useEffect(() => {
+    if (refreshTrigger !== undefined) {
+        fetchAnalytics();
+    }
+}, [refreshTrigger]);
     // ✅ حساب النقاط
     useEffect(() => {
         if (logs.length === 0 || definitions.length === 0) return;
@@ -717,6 +804,16 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                 >
                     📄 {isArabic ? 'السجلات الطبية' : 'Medical Records'}
                 </button>
+                    <button 
+        className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`} 
+        onClick={() => {
+            setActiveTab('analytics');
+            fetchHabitRecommendationsAPI();
+            fetchHabitPredictions();
+        }}
+    >
+        🤖 {isArabic ? 'تحليلات ذكية' : 'AI Analytics'}
+    </button>
             </div>
 
             {/* ==================== تبويب العادات والأدوية ==================== */}
@@ -1005,7 +1102,6 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                     )}
                 </div>
             )}
-
             {/* ==================== تبويب السجلات الطبية ==================== */}
             {activeTab === 'records' && (
                 <div className="medical-records-section">
@@ -1196,6 +1292,62 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* ==================== تبويب تحليلات العادات الذكية (خارج records) ==================== */}
+            {activeTab === 'analytics' && (
+                <div className="habits-analytics-section">
+                    <div className="section-header-inline">
+                        <div className="section-title-icon">
+                            <span className="icon">🤖</span>
+                            <h3>{isArabic ? 'تحليلات العادات الذكية' : 'AI Habits Analytics'}</h3>
+                        </div>
+                        <p className="section-desc">
+                            {isArabic 
+                                ? 'تحليلات متقدمة باستخدام الذكاء الاصطناعي لتحسين عاداتك وأدويتك'
+                                : 'Advanced AI-powered analytics to improve your habits and medications'}
+                        </p>
+                    </div>
+
+                    {/* التحليلات العامة للعادات */}
+                    <div className="analytics-card">
+                        <div className="analytics-header">
+                            <span className="analytics-icon">📊</span>
+                            <h4>{isArabic ? 'ملخص العادات' : 'Habits Summary'}</h4>
+                        </div>
+                        <div className="analytics-content">
+                            <HabitAnalytics refreshTrigger={refreshAnalytics} isArabic={isArabic} />
+                        </div>
+                    </div>
+
+                    {/* توصيات ذكية من API */}
+                    <div className="analytics-card">
+                        <div className="analytics-header">
+                            <span className="analytics-icon">💡</span>
+                            <h4>{isArabic ? 'توصيات ذكية' : 'Smart Recommendations'}</h4>
+                        </div>
+                        <div className="recommendations-container" id="habit-recommendations">
+                            <div className="loading-recommendations">
+                                <div className="spinner-small"></div>
+                                <span>{isArabic ? 'جاري تحميل التوصيات...' : 'Loading recommendations...'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* توقعات الأداء */}
+                    <div className="analytics-card">
+                        <div className="analytics-header">
+                            <span className="analytics-icon">🔮</span>
+                            <h4>{isArabic ? 'توقعات الأداء' : 'Performance Predictions'}</h4>
+                        </div>
+                        <div className="predictions-container" id="habit-predictions">
+                            <div className="loading-predictions">
+                                <div className="spinner-small"></div>
+                                <span>{isArabic ? 'جاري تحليل البيانات...' : 'Analyzing data...'}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 
