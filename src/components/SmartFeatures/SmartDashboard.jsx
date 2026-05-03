@@ -13,6 +13,7 @@ const SmartDashboard = () => {
     const isArabic = lang === 'ar';
     
     const [comprehensiveData, setComprehensiveData] = useState(null);
+    const [advancedAnalytics, setAdvancedAnalytics] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [healthScore, setHealthScore] = useState(null);
@@ -20,13 +21,16 @@ const SmartDashboard = () => {
     const [recommendations, setRecommendations] = useState([]);
     const [correlations, setCorrelations] = useState([]);
     const [predictions, setPredictions] = useState([]);
+    const [trends, setTrends] = useState(null);
+    const [anomalies, setAnomalies] = useState(null);
+    const [clusters, setClusters] = useState(null);
 
     // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
                 setLang(event.detail.lang);
-                fetchComprehensiveData();
+                fetchAllData();
             }
         };
         
@@ -37,7 +41,146 @@ const SmartDashboard = () => {
     }, [lang]);
 
     // ===========================================
-    // 🎯 دوال حساب درجة الصحة
+    // 🎯 جلب جميع البيانات من الـ APIs الجديدة
+    // ===========================================
+    
+    const fetchAllData = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        
+        try {
+            const currentLang = isArabic ? 'ar' : 'en';
+            
+            // ✅ استخدام الـ endpoints الجديدة
+            const [comprehensiveRes, advancedRes, predictionsRes] = await Promise.all([
+                axiosInstance.get('/analytics/comprehensive/api/', {
+                    params: { lang: currentLang }
+                }),
+                axiosInstance.get('/analytics/advanced/', {
+                    params: { lang: currentLang }
+                }),
+                axiosInstance.get('/analytics/predictions/', {
+                    params: { lang: currentLang }
+                })
+            ]);
+            
+            // 1. معالجة البيانات الشاملة
+            if (comprehensiveRes.data?.success && comprehensiveRes.data.data) {
+                const data = comprehensiveRes.data.data;
+                setComprehensiveData(data);
+                
+                // حساب درجة الصحة من البيانات
+                const score = calculateHealthScoreFromData(data);
+                setHealthScore(score);
+                
+                // استخراج التوصيات من التحليلات الشاملة
+                if (data.personalized_recommendations && data.personalized_recommendations.length > 0) {
+                    setRecommendations(data.personalized_recommendations);
+                }
+                
+                // استخراج الارتباطات (إذا وجدت)
+                if (data.correlations && data.correlations.length > 0) {
+                    setCorrelations(data.correlations);
+                } else if (data.patterns_correlations?.correlations) {
+                    const corrs = [];
+                    const corrValues = data.patterns_correlations.correlations;
+                    
+                    if (corrValues.sleep_mood && Math.abs(corrValues.sleep_mood) > 0.2) {
+                        corrs.push({
+                            type: 'sleep_mood',
+                            icon: '😊 ↔️ 😴',
+                            title: isArabic ? 'النوم والمزاج' : 'Sleep & Mood',
+                            strength: Math.abs(corrValues.sleep_mood),
+                            strengthText: getStrengthText(Math.abs(corrValues.sleep_mood), isArabic),
+                            insight: corrValues.sleep_mood > 0 ? 
+                                (isArabic ? 'النوم الجيد يحسن المزاج' : 'Good sleep improves mood') :
+                                (isArabic ? 'قلة النوم تؤثر سلباً على المزاج' : 'Lack of sleep negatively affects mood')
+                        });
+                    }
+                    
+                    if (corrValues.activity_mood && Math.abs(corrValues.activity_mood) > 0.2) {
+                        corrs.push({
+                            type: 'activity_mood',
+                            icon: '🏃 ↔️ 😊',
+                            title: isArabic ? 'النشاط والمزاج' : 'Activity & Mood',
+                            strength: Math.abs(corrValues.activity_mood),
+                            strengthText: getStrengthText(Math.abs(corrValues.activity_mood), isArabic),
+                            insight: corrValues.activity_mood > 0 ?
+                                (isArabic ? 'التمارين الرياضية تحسن المزاج' : 'Exercise improves mood') :
+                                (isArabic ? 'قلة النشاط تؤثر على المزاج' : 'Low activity affects mood')
+                        });
+                    }
+                    
+                    setCorrelations(corrs);
+                }
+            }
+            
+            // 2. معالجة التحليلات المتقدمة (ML)
+            if (advancedRes.data?.success && advancedRes.data.data) {
+                const advanced = advancedRes.data.data;
+                setAdvancedAnalytics(advanced);
+                
+                // استخراج الاتجاهات
+                if (advanced.trends) {
+                    setTrends(advanced.trends);
+                }
+                
+                // استخراج الأنماط الشاذة
+                if (advanced.anomalies) {
+                    setAnomalies(advanced.anomalies);
+                }
+                
+                // استخراج مجموعات الأيام
+                if (advanced.clusters) {
+                    setClusters(advanced.clusters);
+                }
+                
+                // دمج التوصيات من التحليل المتقدم إذا لم تكن موجودة
+                if (advanced.recommendations && advanced.recommendations.length > 0 && recommendations.length === 0) {
+                    setRecommendations(advanced.recommendations);
+                }
+            }
+            
+            // 3. معالجة التوقعات
+            if (predictionsRes.data?.success && predictionsRes.data.predictions) {
+                setPredictions(predictionsRes.data.predictions);
+            } else if (advancedRes.data?.data?.weight_prediction) {
+                // Fallback: استخدام توقعات الوزن من التحليل المتقدم
+                const weightPred = advancedRes.data.data.weight_prediction;
+                if (weightPred) {
+                    setPredictions([{
+                        icon: '⚖️',
+                        label: isArabic ? 'الوزن المتوقع بعد أسبوعين' : 'Expected weight in 2 weeks',
+                        value: `${weightPred.predicted} kg`,
+                        trend: weightPred.trend === 'up' ? 'up' : weightPred.trend === 'down' ? 'down' : 'stable',
+                        confidence: weightPred.confidence,
+                        note: isArabic ? `التغيير المتوقع: ${Math.abs(weightPred.change)} كجم` : `Expected change: ${Math.abs(weightPred.change)} kg`
+                    }]);
+                }
+            }
+            
+        } catch (err) {
+            console.error('Error fetching data:', err);
+            setError(isArabic ? 'حدث خطأ في تحميل البيانات' : 'Error loading data');
+            
+            // بيانات تجريبية كـ Fallback
+            const mockData = {
+                sleep: { average_hours: 6.2 },
+                mood_mental: { average_mood_score: 3.5 },
+                activity: { average_daily_minutes: 25 },
+                nutrition: { average_daily_calories: 2100 },
+                habits: { completion_rate: 75 }
+            };
+            const mockScore = calculateHealthScoreFromData(mockData);
+            setHealthScore(mockScore);
+            
+        } finally {
+            setLoading(false);
+        }
+    }, [isArabic]);
+
+    // ===========================================
+    // 🎯 حساب درجة الصحة
     // ===========================================
     
     const calculateSleepScore = (hours) => {
@@ -82,7 +225,6 @@ const SmartDashboard = () => {
         let totalScore = 0;
         const factors = [];
 
-        // استخراج البيانات من التحليلات الشاملة
         const sleepData = data?.sleep;
         const moodData = data?.mood_mental;
         const activityData = data?.activity;
@@ -103,15 +245,15 @@ const SmartDashboard = () => {
             });
         }
 
-        if (moodData && moodData.average_mood_score) {
-            const moodResult = calculateMoodScore(moodData.average_mood_score);
+        if (moodData && moodData.average_score) {
+            const moodResult = calculateMoodScore(moodData.average_score);
             totalScore += moodResult.score;
             factors.push({
                 name: isArabic ? 'المزاج' : 'Mood',
                 icon: '😊',
                 score: moodResult.score,
                 max: 20,
-                value: `${moodData.average_mood_score.toFixed(1)}/5`,
+                value: `${moodData.average_score.toFixed(1)}/5`,
                 status: moodResult.status,
                 isGood: moodResult.isGood
             });
@@ -151,7 +293,7 @@ const SmartDashboard = () => {
             totalScore += habitsResult.score;
             factors.push({
                 name: isArabic ? 'العادات' : 'Habits',
-                icon: '💊',
+                icon: '✅',
                 score: habitsResult.score,
                 max: 15,
                 value: `${habitsData.completion_rate}%`,
@@ -181,106 +323,6 @@ const SmartDashboard = () => {
         return { total: finalScore, max: 100, factors, grade, statusText };
     }, [isArabic]);
 
-    // ===========================================
-    // 📊 جلب البيانات من API الجديد
-    // ===========================================
-    const fetchComprehensiveData = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        
-        try {
-            const currentLang = isArabic ? 'ar' : 'en';
-            
-            // ✅ استخدام الـ endpoints الجديدة
-            const [comprehensiveRes, recommendationsRes] = await Promise.all([
-                axiosInstance.get('/analytics/comprehensive/api/', {
-                    params: { lang: currentLang }
-                }),
-                axiosInstance.get('/analytics/recommendations/', {
-                    params: { limit: 5, lang: currentLang }
-                })
-            ]);
-            
-            // معالجة البيانات الشاملة
-            if (comprehensiveRes.data?.success && comprehensiveRes.data.data) {
-                const data = comprehensiveRes.data.data;
-                setComprehensiveData(data);
-                
-                // حساب درجة الصحة من البيانات
-                const score = calculateHealthScoreFromData(data);
-                setHealthScore(score);
-                
-                // استخراج الارتباطات
-                if (data.patterns_correlations?.correlations) {
-                    const corrs = [];
-                    const corrValues = data.patterns_correlations.correlations;
-                    
-                    if (corrValues.sleep_mood && Math.abs(corrValues.sleep_mood) > 0.2) {
-                        corrs.push({
-                            type: 'sleep_mood',
-                            icon: '😊 ↔️ 😴',
-                            title: isArabic ? 'النوم والمزاج' : 'Sleep & Mood',
-                            strength: Math.abs(corrValues.sleep_mood),
-                            strengthText: getStrengthText(Math.abs(corrValues.sleep_mood), isArabic),
-                            insight: corrValues.sleep_mood > 0 ? 
-                                (isArabic ? 'النوم الجيد يحسن المزاج' : 'Good sleep improves mood') :
-                                (isArabic ? 'قلة النوم تؤثر سلباً على المزاج' : 'Lack of sleep negatively affects mood')
-                        });
-                    }
-                    
-                    if (corrValues.activity_mood && Math.abs(corrValues.activity_mood) > 0.2) {
-                        corrs.push({
-                            type: 'activity_mood',
-                            icon: '🏃 ↔️ 😊',
-                            title: isArabic ? 'النشاط والمزاج' : 'Activity & Mood',
-                            strength: Math.abs(corrValues.activity_mood),
-                            strengthText: getStrengthText(Math.abs(corrValues.activity_mood), isArabic),
-                            insight: corrValues.activity_mood > 0 ?
-                                (isArabic ? 'التمارين الرياضية تحسن المزاج' : 'Exercise improves mood') :
-                                (isArabic ? 'قلة النشاط تؤثر على المزاج' : 'Low activity affects mood')
-                        });
-                    }
-                    
-                    setCorrelations(corrs);
-                }
-                
-                // استخراج التوقعات
-                if (data.predictions?.weight) {
-                    setPredictions([{
-                        icon: '⚖️',
-                        label: isArabic ? 'الوزن المتوقع' : 'Expected weight',
-                        value: `${data.predictions.weight.current} kg`,
-                        trend: data.predictions.weight.trend === 'زيادة' ? 'up' : 
-                               data.predictions.weight.trend === 'نقصان' ? 'down' : 'stable'
-                    }]);
-                }
-            }
-            
-            // معالجة التوصيات
-            if (recommendationsRes.data?.success && recommendationsRes.data.recommendations) {
-                setRecommendations(recommendationsRes.data.recommendations);
-            }
-            
-        } catch (err) {
-            console.error('Error fetching comprehensive data:', err);
-            setError(isArabic ? 'حدث خطأ في تحميل البيانات' : 'Error loading data');
-            
-            // بيانات تجريبية كـ Fallback
-            const mockData = {
-                sleep: { average_hours: 6.2 },
-                mood_mental: { average_mood_score: 3.5 },
-                activity: { average_daily_minutes: 25 },
-                nutrition: { average_daily_calories: 2100 },
-                habits: { completion_rate: 75 }
-            };
-            const mockScore = calculateHealthScoreFromData(mockData);
-            setHealthScore(mockScore);
-            
-        } finally {
-            setLoading(false);
-        }
-    }, [isArabic, calculateHealthScoreFromData]);
-
     const getStrengthText = (value, isArabic) => {
         if (value > 0.7) return isArabic ? 'قوية جداً' : 'Very strong';
         if (value > 0.5) return isArabic ? 'قوية' : 'Strong';
@@ -289,13 +331,53 @@ const SmartDashboard = () => {
     };
 
     useEffect(() => {
-        fetchComprehensiveData();
-    }, [fetchComprehensiveData]);
+        fetchAllData();
+    }, [fetchAllData]);
 
     // ===========================================
     // 🧩 المكونات الفرعية
     // ===========================================
     
+    // ✅ اتجاهات البيانات
+    const TrendsSection = () => {
+        if (!trends || (!trends.weight_trend && !trends.activity_trend)) return null;
+        
+        return (
+            <section className="trends-section">
+                <h3>{isArabic ? 'اتجاهات بياناتك' : 'Your Data Trends'}</h3>
+                <div className="trends-list">
+                    {trends.weight_trend && (
+                        <div className="trend-item">
+                            <span className="trend-icon">⚖️</span>
+                            <div className="trend-content">
+                                <div className="trend-title">{isArabic ? 'اتجاه الوزن' : 'Weight Trend'}</div>
+                                <div className="trend-message">{trends.weight_trend.message}</div>
+                                <div className="trend-direction trend-{trends.weight_trend.trend}">
+                                    {trends.weight_trend.trend === 'increasing' ? '📈 زيادة' : 
+                                     trends.weight_trend.trend === 'decreasing' ? '📉 نقصان' : '➡️ مستقر'}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {trends.activity_trend && (
+                        <div className="trend-item">
+                            <span className="trend-icon">🏃</span>
+                            <div className="trend-content">
+                                <div className="trend-title">{isArabic ? 'اتجاه النشاط' : 'Activity Trend'}</div>
+                                <div className="trend-message">{trends.activity_trend.message}</div>
+                                <div className="trend-direction trend-{trends.activity_trend.trend}">
+                                    {trends.activity_trend.trend === 'increasing' ? '📈 زيادة' : 
+                                     trends.activity_trend.trend === 'decreasing' ? '📉 نقصان' : '➡️ مستقر'}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </section>
+        );
+    };
+    
+    // ✅ درجة الصحة
     const HealthScoreCard = ({ healthScore }) => {
         if (!healthScore) return null;
         
@@ -305,13 +387,7 @@ const SmartDashboard = () => {
                     <h3>{isArabic ? 'درجة صحتك' : 'Your Health Score'}</h3>
                     <div className="score-main">
                         <div className="score-circle">
-                            <div className="circle-bg">
-                                <div className="circle-fill" style={{ 
-                                    background: `conic-gradient(#10b981 0% ${healthScore.total}%, #e2e8f0 ${healthScore.total}% 100%)`
-                                }}>
-                                    <span className="score-number">{healthScore.total}</span>
-                                </div>
-                            </div>
+                            <div className="circle-value">{healthScore.total}</div>
                         </div>
                         <div className="score-info">
                             <span className={`score-grade grade-${healthScore.grade.toLowerCase()}`}>
@@ -363,7 +439,7 @@ const SmartDashboard = () => {
         );
     };
 
-    // العلاقات
+    // ✅ العلاقات
     const CorrelationsSection = () => (
         <section className="correlations-section">
             <h3>{isArabic ? 'علاقات ملحوظة في بياناتك' : 'Notable correlations in your data'}</h3>
@@ -383,6 +459,7 @@ const SmartDashboard = () => {
                     <p className="no-data">{isArabic ? 'لا توجد علاقات كافية للتحليل' : 'Insufficient data for correlations'}</p>
                 )}
             </div>
+            {trends && <TrendsSection />}
             <p className="correlation-note">
                 ⚠️ {isArabic 
                     ? '* هذه ملاحظات إحصائية من بياناتك الشخصية وليست تشخيصاً طبياً'
@@ -391,16 +468,16 @@ const SmartDashboard = () => {
         </section>
     );
 
-    // توصيات
+    // ✅ توصيات
     const RecommendationsSection = () => (
         <section className="recommendations-section">
-            <h3>{isArabic ? 'توصيات مقترحة' : 'Suggested Recommendations'}</h3>
+            <h3>{isArabic ? 'توصيات مخصصة' : 'Personalized Recommendations'}</h3>
             <div className="recommendations-timeline">
                 {recommendations.length > 0 ? recommendations.map((rec, idx) => (
                     <div key={idx} className={`rec-item ${rec.priority === 'high' ? 'important' : 'suggestion'}`}>
                         <div className="rec-header">
                             <span className={`rec-badge ${rec.priority === 'high' ? 'important' : 'suggestion'}`}>
-                                {rec.priority === 'high' ? '⚠️' : '💡'} {rec.category || (isArabic ? 'توصية' : 'Recommendation')}
+                                {rec.icon || (rec.priority === 'high' ? '⚠️' : '💡')} {rec.category || (isArabic ? 'توصية' : 'Recommendation')}
                             </span>
                         </div>
                         <h4>{rec.title}</h4>
@@ -408,6 +485,11 @@ const SmartDashboard = () => {
                         {rec.advice && (
                             <div className="rec-meta">
                                 <span>💡 {rec.advice}</span>
+                            </div>
+                        )}
+                        {rec.based_on && (
+                            <div className="rec-basedon">
+                                <small>{isArabic ? 'بناءً على' : 'Based on'}: {rec.based_on}</small>
                             </div>
                         )}
                     </div>
@@ -418,10 +500,10 @@ const SmartDashboard = () => {
         </section>
     );
 
-    // توقعات
+    // ✅ توقعات
     const PredictionsSection = () => (
         <section className="predictions-section">
-            <h3>{isArabic ? 'توقعات تقريبية' : 'Approximate Predictions'}</h3>
+            <h3>{isArabic ? 'توقعات الأداء' : 'Performance Predictions'}</h3>
             <div className="predictions-grid">
                 {predictions.length > 0 ? predictions.map((pred, idx) => (
                     <div key={idx} className="pred-card">
@@ -429,10 +511,16 @@ const SmartDashboard = () => {
                         <div className="pred-info">
                             <span className="pred-label">{pred.label}</span>
                             <span className="pred-value">{pred.value}</span>
+                            {pred.note && <span className="pred-note">{pred.note}</span>}
                         </div>
                         <span className={`pred-trend ${pred.trend}`}>
                             {pred.trend === 'up' ? '⬆️' : pred.trend === 'down' ? '⬇️' : '➡️'}
                         </span>
+                        {pred.confidence && (
+                            <div className="pred-confidence">
+                                {isArabic ? 'دقة' : 'Confidence'}: {pred.confidence}%
+                            </div>
+                        )}
                     </div>
                 )) : (
                     <p className="no-data">{isArabic ? 'لا توجد توقعات متاحة' : 'No predictions available'}</p>
@@ -440,8 +528,8 @@ const SmartDashboard = () => {
             </div>
             <p className="prediction-note">
                 ⚠️ {isArabic 
-                    ? '* هذه توقعات تقديرية تعتمد على بياناتك السابقة. النتائج الفعلية قد تختلف.'
-                    : '* These are estimates based on your historical data. Actual results may vary.'}
+                    ? '* هذه توقعات تقديرية تعتمد على خوارزميات الذكاء الاصطناعي (Random Forest, Linear Regression)'
+                    : '* These are AI-powered estimates based on multiple ML algorithms (Random Forest, Linear Regression)'}
             </p>
         </section>
     );
@@ -453,7 +541,7 @@ const SmartDashboard = () => {
         return (
             <div className="smart-loading">
                 <div className="spinner"></div>
-                <p>🧠 {isArabic ? 'جاري تحليل بياناتك...' : 'Analyzing your data...'}</p>
+                <p>🧠 {isArabic ? 'جاري تحليل بياناتك باستخدام الذكاء الاصطناعي...' : 'Analyzing your data with AI...'}</p>
             </div>
         );
     }
@@ -462,7 +550,7 @@ const SmartDashboard = () => {
         return (
             <div className="smart-error">
                 <p>❌ {error}</p>
-                <button onClick={fetchComprehensiveData} className="retry-btn">
+                <button onClick={fetchAllData} className="retry-btn">
                     🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}
                 </button>
             </div>
@@ -476,7 +564,7 @@ const SmartDashboard = () => {
         <div className="smart-dashboard">
             <div className="dashboard-header">
                 <h2>{isArabic ? 'تحليل صحتك الذكي' : 'Smart Health Analysis'}</h2>
-                <button onClick={fetchComprehensiveData} className="refresh-dashboard-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
+                <button onClick={fetchAllData} className="refresh-dashboard-btn" title={isArabic ? 'تحديث' : 'Refresh'}>
                     🔄
                 </button>
             </div>
@@ -517,7 +605,7 @@ const SmartDashboard = () => {
                     {activeTab === 'predictions' && <PredictionsSection />}
                 </div>
             </div>
-            
+
             <style jsx>{`
                 .smart-dashboard {
                     background: var(--card-bg, #ffffff);

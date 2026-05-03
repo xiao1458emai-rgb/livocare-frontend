@@ -52,7 +52,7 @@ const SmartRecommendations = () => {
     const [darkMode, setDarkMode] = useState(false);
     const [lastUpdate, setLastUpdate] = useState(null);
     const [weather, setWeather] = useState(null);
-    const [predictions, setPredictions] = useState([]);
+    const [predictions, setPredictions] = useState(null);
     const [activeTab, setActiveTab] = useState('analysis');
     const [profile, setProfile] = useState(null);
     const [vitalSigns, setVitalSigns] = useState(null);
@@ -62,9 +62,6 @@ const SmartRecommendations = () => {
     const [nutritionData, setNutritionData] = useState(null);
     const [habitsData, setHabitsData] = useState(null);
     const [executiveSummary, setExecutiveSummary] = useState(null);
-    const [trends, setTrends] = useState(null);
-    const [anomalies, setAnomalies] = useState(null);
-    const [clusters, setClusters] = useState(null);
 
     // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
@@ -92,15 +89,15 @@ const SmartRecommendations = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // ✅ الدالة الرئيسية لجلب البيانات من الـ APIs الجديدة
+    // ✅ الدالة الرئيسية لجلب البيانات من الـ API الجديد
     const fetchAllData = async () => {
         setLoading(true);
         try {
-            // ✅ استخدام الـ endpoints المتقدمة الجديدة
+            // ✅ استخدام الـ endpoints الجديدة فقط
             const [
                 comprehensiveRes,
-                advancedRes,
-                predictionsRes,
+                recommendationsRes,
+                summaryRes,
                 weatherRes,
                 // للبيانات الخام (للحالات التي لا يعمل فيها الـ API المتقدم)
                 healthRes,
@@ -109,8 +106,8 @@ const SmartRecommendations = () => {
                 activitiesRes
             ] = await Promise.all([
                 axiosInstance.get('/analytics/comprehensive/api/?lang=' + (isArabic ? 'ar' : 'en')).catch(() => ({ data: null })),
-                axiosInstance.get('/analytics/advanced/?lang=' + (isArabic ? 'ar' : 'en')).catch(() => ({ data: null })),
-                axiosInstance.get('/analytics/predictions/?lang=' + (isArabic ? 'ar' : 'en')).catch(() => ({ data: null })),
+                axiosInstance.get('/analytics/recommendations/?limit=10&lang=' + (isArabic ? 'ar' : 'en')).catch(() => ({ data: null })),
+                axiosInstance.get('/analytics/summary/?lang=' + (isArabic ? 'ar' : 'en')).catch(() => ({ data: null })),
                 axiosInstance.get('/weather/').catch(() => ({ data: null })),
                 axiosInstance.get('/health_status/').catch(() => ({ data: [] })),
                 axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
@@ -125,41 +122,11 @@ const SmartRecommendations = () => {
                 setWeather(null);
             }
 
-            // ✅ 1. استخدام التحليلات المتقدمة (الأولوية القصوى)
-            if (advancedRes.data?.success && advancedRes.data.data) {
-                const advanced = advancedRes.data.data;
-                
-                // استخراج البيانات المتقدمة
-                if (advanced.trends) setTrends(advanced.trends);
-                if (advanced.anomalies) setAnomalies(advanced.anomalies);
-                if (advanced.clusters) setClusters(advanced.clusters);
-                
-                // استخراج التوصيات من التحليل المتقدم
-                if (advanced.recommendations && advanced.recommendations.length > 0) {
-                    const formattedRecs = advanced.recommendations.map((rec, idx) => ({
-                        id: `rec-${idx}`,
-                        icon: rec.icon || '💡',
-                        category: getCategoryName(rec.category, isArabic),
-                        priority: rec.priority || 'medium',
-                        title: rec.title,
-                        message: rec.description,
-                        advice: rec.advice,
-                        actions: rec.actions || [],
-                        basedOn: rec.basedOn || (isArabic ? 'تحليل ذكي متقدم' : 'Advanced smart analysis')
-                    }));
-                    setRecommendations(formattedRecs);
-                }
-                
-                // معلومات المستخدم
-                if (advanced.user_info) {
-                    setProfile(advanced.user_info);
-                }
-            }
-            
-            // ✅ 2. استخدام التحليلات الشاملة (كبديل)
-            else if (comprehensiveRes.data?.success && comprehensiveRes.data.data) {
+            // ✅ استخدام التحليلات الشاملة من Backend (الأولوية القصوى)
+            if (comprehensiveRes.data?.success && comprehensiveRes.data.data) {
                 const analytics = comprehensiveRes.data.data;
                 
+                // استخراج البيانات من التحليلات الشاملة
                 setProfile(analytics.profile);
                 setVitalSigns(analytics.vital_signs);
                 setSleepData(analytics.sleep);
@@ -169,7 +136,7 @@ const SmartRecommendations = () => {
                 setHabitsData(analytics.habits);
                 setExecutiveSummary(analytics.executive_summary);
                 
-                // درجة الصحة
+                // ✅ درجة الصحة
                 if (analytics.health_score) {
                     const healthScoreData = {
                         score: analytics.health_score.total_score || 70,
@@ -187,7 +154,7 @@ const SmartRecommendations = () => {
                     setHealthScore(healthScoreData);
                 }
                 
-                // الارتباطات
+                // ✅ الارتباطات
                 if (analytics.patterns_correlations?.correlations) {
                     const correlationsData = [];
                     const corrValues = analytics.patterns_correlations.correlations;
@@ -226,64 +193,82 @@ const SmartRecommendations = () => {
                     setCorrelations(correlationsData);
                 }
                 
-                // التوصيات من التحليلات الشاملة (إذا لم تكن هناك توصيات من التحليل المتقدم)
-                if ((!advancedRes.data?.success || !advancedRes.data.data?.recommendations?.length) && 
-                    analytics.personalized_recommendations?.length > 0) {
+                // ✅ التوصيات
+                if (recommendationsRes.data?.success && recommendationsRes.data.recommendations?.length > 0) {
+                    const formattedRecs = recommendationsRes.data.recommendations.map((rec, idx) => ({
+                        id: `rec-${idx}`,
+                        icon: rec.icon || '💡',
+                        category: getCategoryName(rec.category, isArabic),
+                        priority: rec.priority === 'urgent' ? 'high' : (rec.priority || 'medium'),
+                        title: rec.title,
+                        message: rec.description || rec.message,
+                        advice: rec.quick_tip || rec.advice || rec.description,
+                        actions: rec.actions || [],
+                        basedOn: isArabic ? 'تحليل ذكي متقدم' : 'Advanced smart analysis'
+                    }));
+                    setRecommendations(formattedRecs);
+                } else if (analytics.personalized_recommendations?.length > 0) {
+                    // Fallback: استخدام التوصيات من التحليلات الشاملة
                     const formattedRecs = analytics.personalized_recommendations.map((rec, idx) => ({
                         id: `rec-${idx}`,
                         icon: rec.icon || '💡',
                         category: getCategoryName(rec.category, isArabic),
-                        priority: rec.priority || 'medium',
+                        priority: rec.priority === 'urgent' ? 'high' : (rec.priority || 'medium'),
                         title: rec.title,
                         message: rec.description || rec.message,
-                        advice: rec.advice,
+                        advice: rec.quick_tip || rec.advice,
                         actions: rec.actions || [],
-                        basedOn: isArabic ? 'تحليل ذكي' : 'Smart analysis'
+                        basedOn: isArabic ? 'تحليل ذكي متقدم' : 'Advanced smart analysis'
                     }));
                     setRecommendations(formattedRecs);
                 }
-            }
-            
-            // ✅ 3. جلب التوقعات من API المخصص
-            if (predictionsRes.data?.success && predictionsRes.data.predictions) {
-                const predsData = predictionsRes.data.predictions;
-                const formattedPredictions = [];
                 
-                for (const pred of predsData) {
-                    formattedPredictions.push({
-                        icon: pred.icon || '🔮',
-                        label: pred.label,
-                        value: pred.value,
-                        trend: pred.trend,
-                        note: pred.note,
-                        confidence: pred.confidence
+                // ✅ التوقعات
+                if (analytics.predictions?.weight) {
+                    const preds = [];
+                    preds.push({
+                        icon: '⚖️',
+                        label: isArabic ? 'الوزن المتوقع بعد أسبوع' : 'Estimated weight in 1 week',
+                        value: `${analytics.predictions.weight.predictions?.[6] || analytics.predictions.weight.current} kg`,
+                        trend: analytics.predictions.weight.trend === 'زيادة' ? 'up' : 
+                               analytics.predictions.weight.trend === 'نقصان' ? 'down' : 'stable',
+                        note: isArabic ? 'تقدير يعتمد على تحليل اتجاهات وزنك' : 'Estimate based on your weight trends',
+                        confidence: analytics.predictions.weight.confidence
+                    });
+                    setPredictions(preds);
+                }
+                
+            } else if (summaryRes.data?.success) {
+                // ✅ استخدام الملخص السريع إذا لم تكن التحليلات الشاملة متوفرة
+                const summary = summaryRes.data.summary;
+                if (summary.health_score) {
+                    setHealthScore({
+                        score: summary.health_score.total_score || 70,
+                        status: summary.health_score.category_text || (isArabic ? 'جيدة' : 'Good'),
+                        statusIcon: summary.health_score.category === 'excellent' ? '🌟' : 
+                                   summary.health_score.category === 'good' ? '👍' : 
+                                   summary.health_score.category === 'fair' ? '📈' : '⚠️',
+                        factors: [],
+                        maxScore: 100
                     });
                 }
                 
-                setPredictions(formattedPredictions);
+                if (summary.top_recommendation) {
+                    setRecommendations([{
+                        id: 'top-rec',
+                        icon: '💡',
+                        category: isArabic ? 'توصية' : 'Recommendation',
+                        priority: 'medium',
+                        title: summary.top_recommendation.title,
+                        message: summary.top_recommendation.message,
+                        advice: summary.top_recommendation.advice,
+                        basedOn: isArabic ? 'تحليل سريع' : 'Quick analysis'
+                    }]);
+                }
             }
             
-            // ✅ 4. حساب درجة الصحة إذا لم تكن موجودة من الـ APIs
-            if (!healthScore && (comprehensiveRes.data?.success || advancedRes.data?.success)) {
-                let score = 60;
-                if (sleepData?.average_hours >= 7) score += 15;
-                if (activityData?.average_daily_minutes >= 30) score += 15;
-                if (moodData?.average_score >= 4) score += 10;
-                score = Math.min(100, Math.max(0, score));
-                
-                setHealthScore({
-                    score: score,
-                    status: score >= 80 ? (isArabic ? 'ممتازة' : 'Excellent') : 
-                            score >= 60 ? (isArabic ? 'جيدة' : 'Good') : 
-                            score >= 40 ? (isArabic ? 'متوسطة' : 'Fair') : 
-                            (isArabic ? 'تحتاج تحسيناً' : 'Needs Improvement'),
-                    statusIcon: score >= 80 ? '🌟' : score >= 60 ? '👍' : score >= 40 ? '📈' : '⚠️',
-                    maxScore: 100
-                });
-            }
-            
-            // ✅ 5. حساب البيانات المحلية كـ Fallback أخير
-            if (!comprehensiveRes.data?.success && !advancedRes.data?.success) {
+            // ✅ حساب البيانات المحلية كـ Fallback أخير
+            if (!comprehensiveRes.data?.success && !summaryRes.data?.success) {
                 const localData = calculateLocalAnalytics({
                     health: healthRes.data || [],
                     sleep: sleepRes.data || [],
@@ -292,7 +277,7 @@ const SmartRecommendations = () => {
                 });
                 
                 if (localData.healthScore) setHealthScore(localData.healthScore);
-                if (localData.recommendations && localData.recommendations.length > 0) setRecommendations(localData.recommendations);
+                if (localData.recommendations) setRecommendations(localData.recommendations);
                 if (localData.correlations) setCorrelations(localData.correlations);
             }
             
@@ -314,8 +299,7 @@ const SmartRecommendations = () => {
             mood: isArabic ? `الحالة المزاجية: ${value} نقطة` : `Mood: ${value} points`,
             nutrition: isArabic ? `التغذية: ${value} نقطة` : `Nutrition: ${value} points`,
             activity: isArabic ? `النشاط البدني: ${value} نقطة` : `Activity: ${value} points`,
-            habits: isArabic ? `العادات: ${value} نقطة` : `Habits: ${value} points`,
-            weight: isArabic ? `الوزن: ${value} نقطة` : `Weight: ${value} points`
+            habits: isArabic ? `العادات: ${value} نقطة` : `Habits: ${value} points`
         };
         return messages[component] || `${component}: ${value}`;
     };
@@ -337,15 +321,14 @@ const SmartRecommendations = () => {
             habits: isArabic ? 'العادات' : 'Habits',
             risk: isArabic ? 'تنبيه صحي' : 'Health Alert',
             age_specific: isArabic ? 'نصائح حسب العمر' : 'Age-specific tips',
-            chronic_condition: isArabic ? 'إدارة المرض' : 'Condition Management',
-            prediction: isArabic ? 'توقعات' : 'Predictions',
-            alert: isArabic ? 'تنبيه' : 'Alert'
+            chronic_condition: isArabic ? 'إدارة المرض' : 'Condition Management'
         };
         return names[category] || (isArabic ? 'توصية' : 'Recommendation');
     };
 
     // حساب التحليلات محلياً (Fallback)
     const calculateLocalAnalytics = (rawData) => {
+        // تحليل النوم
         let sleepAnalysis = null;
         if (rawData.sleep && rawData.sleep.length > 0) {
             let totalHours = 0;
@@ -369,6 +352,7 @@ const SmartRecommendations = () => {
             }
         }
         
+        // تحليل المزاج
         let moodAnalysis = null;
         if (rawData.mood && rawData.mood.length > 0) {
             const moodMap = { 'Excellent': 5, 'Good': 4, 'Neutral': 3, 'Stressed': 2, 'Anxious': 2, 'Sad': 1 };
@@ -381,6 +365,7 @@ const SmartRecommendations = () => {
             };
         }
         
+        // حساب درجة الصحة
         let score = 50;
         if (sleepAnalysis) {
             if (sleepAnalysis.avgHours >= 7 && sleepAnalysis.avgHours <= 8) score += 25;
@@ -499,31 +484,10 @@ const SmartRecommendations = () => {
                                     </details>
                                 </div>
                             )}
-                            
-                            {/* اتجاهات البيانات */}
-                            {trends && (trends.weight_trend || trends.activity_trend) && (
-                                <div className="trends-summary">
-                                    <h4>{isArabic ? '📈 اتجاهات بياناتك' : '📈 Your Data Trends'}</h4>
-                                    <div className="trends-list">
-                                        {trends.weight_trend && (
-                                            <div className="trend-item">
-                                                <span className="trend-icon">⚖️</span>
-                                                <span className="trend-message">{trends.weight_trend.message}</span>
-                                            </div>
-                                        )}
-                                        {trends.activity_trend && (
-                                            <div className="trend-item">
-                                                <span className="trend-icon">🏃</span>
-                                                <span className="trend-message">{trends.activity_trend.message}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
 
-                    {/* العلاقات (ارتباطات) */}
+                    {/* العلاقات */}
                     {correlations.length > 0 && (
                         <div className="correlations-section">
                             <h3>{isArabic ? 'علاقات ملحوظة في بياناتك' : 'Notable correlations in your data'}</h3>
@@ -549,27 +513,6 @@ const SmartRecommendations = () => {
                         </div>
                     )}
 
-                    {/* الأنماط الشاذة */}
-                    {anomalies && (anomalies.weight_anomalies?.length > 0 || anomalies.activity_anomalies?.length > 0) && (
-                        <div className="anomalies-section">
-                            <h3>⚠️ {isArabic ? 'أنماط غير معتادة' : 'Unusual Patterns'}</h3>
-                            <div className="anomalies-list">
-                                {anomalies.weight_anomalies?.slice(0, 3).map((anomaly, idx) => (
-                                    <div key={idx} className="anomaly-item">
-                                        <span>⚖️ {anomaly.date}</span>
-                                        <span>{isArabic ? 'تغير غير معتاد في الوزن' : 'Unusual weight change'}</span>
-                                    </div>
-                                ))}
-                                {anomalies.activity_anomalies?.slice(0, 3).map((anomaly, idx) => (
-                                    <div key={idx} className="anomaly-item">
-                                        <span>🏃 {anomaly.date}</span>
-                                        <span>{isArabic ? 'نشاط غير معتاد' : 'Unusual activity level'}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
                     {/* ملخص سريع للبيانات */}
                     <div className="quick-stats-grid">
                         {sleepData && sleepData.status !== 'no_data' && (
@@ -578,6 +521,9 @@ const SmartRecommendations = () => {
                                 <div className="stat-info">
                                     <div className="stat-label">{isArabic ? 'متوسط النوم' : 'Avg Sleep'}</div>
                                     <div className="stat-value">{sleepData.average_hours || 0} {isArabic ? 'ساعات' : 'hrs'}</div>
+                                    {sleepData.average_quality && (
+                                        <div className="stat-sub">{isArabic ? 'الجودة' : 'Quality'}: {sleepData.average_quality}/5</div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -588,6 +534,7 @@ const SmartRecommendations = () => {
                                 <div className="stat-info">
                                     <div className="stat-label">{isArabic ? 'متوسط المزاج' : 'Avg Mood'}</div>
                                     <div className="stat-value">{moodData.average_mood_score || 0}/5</div>
+                                    <div className="stat-sub">{moodData.mood_level || ''}</div>
                                 </div>
                             </div>
                         )}
@@ -598,6 +545,7 @@ const SmartRecommendations = () => {
                                 <div className="stat-info">
                                     <div className="stat-label">{isArabic ? 'النشاط اليومي' : 'Daily Activity'}</div>
                                     <div className="stat-value">{activityData.average_daily_minutes || 0} {isArabic ? 'دقيقة' : 'min'}</div>
+                                    <div className="stat-sub">{activityData.activity_level || ''}</div>
                                 </div>
                             </div>
                         )}
@@ -608,6 +556,7 @@ const SmartRecommendations = () => {
                                 <div className="stat-info">
                                     <div className="stat-label">{isArabic ? 'السعرات اليومية' : 'Daily Calories'}</div>
                                     <div className="stat-value">{nutritionData.average_daily_calories || 0}</div>
+                                    <div className="stat-sub">{isArabic ? 'سعرة' : 'cal'}</div>
                                 </div>
                             </div>
                         )}
@@ -673,7 +622,7 @@ const SmartRecommendations = () => {
             {/* تبويب التوقعات */}
             {activeTab === 'predictions' && (
                 <div className="tab-content">
-                    {predictions.length > 0 ? (
+                    {predictions && predictions.length > 0 ? (
                         <>
                             <div className="predictions-grid">
                                 {predictions.map((pred, idx) => (
