@@ -107,6 +107,7 @@ function Register({ onRegisterSuccess }) {
     });
 
     const handleGoogleEmailVerification = () => {
+         if (isVerifyingWithGoogle) return;
         if (!formData.email) {
             setMessage(isArabic ? '📧 أدخل البريد الإلكتروني أولاً' : '📧 Enter email first');
             setMessageType('error');
