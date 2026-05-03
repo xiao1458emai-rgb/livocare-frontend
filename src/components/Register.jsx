@@ -50,126 +50,147 @@ function Register({ onRegisterSuccess }) {
     const isSubmittingRef = useRef(false);
     const lastGoogleAttemptRef = useRef(0);
 
-    // ✅ تسجيل مباشر باستخدام Google (بدون خدمة منفصلة)
-    const googleRegister = useGoogleLogin({
-        onSuccess: async (tokenResponse) => {
-            if (loading) return;
-            setLoading(true);
-            setMessage('');
+// ✅ تسجيل مباشر باستخدام Google (بدون خدمة منفصلة)
+const googleRegister = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+        if (loading) return;
+        setLoading(true);
+        setMessage('');
+        
+        try {
+            console.log('🔑 Google token received');
             
-            try {
-                console.log('🔑 Google token received');
-                
-                // 1. جلب معلومات المستخدم من Google
-                const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-                });
-                const userInfo = await userInfoResponse.json();
-                
-                console.log('✅ Google user:', userInfo);
-                
-                // 2. التحقق من صحة البريد
-                if (!userInfo.email_verified) {
-                    setMessage(isArabic ? '❌ البريد الإلكتروني غير موثق في Google' : '❌ Email not verified in Google');
-                    setMessageType('error');
-                    setLoading(false);
-                    return;
-                }
-                
-                // 3. إنشاء اسم مستخدم من البريد
-                let baseUsername = userInfo.email.split('@')[0];
-                // تنظيف اسم المستخدم من الأحرف غير المسموحة
-                baseUsername = baseUsername.replace(/[^a-zA-Z0-9_]/g, '_');
-                let username = baseUsername;
-                let counter = 1;
-                
-                // 4. التحقق من وجود اسم المستخدم (تجريبي)
-                let usernameExists = false;
-                try {
-                    const checkResponse = await axiosInstance.post('/auth/check-username/', { username });
-                    usernameExists = !checkResponse.data?.available;
-                } catch {
-                    usernameExists = false;
-                }
-                
-                while (usernameExists) {
-                    username = `${baseUsername}${counter}`;
-                    counter++;
-                    try {
-                        const checkResponse = await axiosInstance.post('/auth/check-username/', { username });
-                        usernameExists = !checkResponse.data?.available;
-                    } catch {
-                        usernameExists = false;
-                    }
-                }
-                
-                // 5. إنشاء كلمة مرور عشوائية قوية
-                const randomPassword = Math.random().toString(36).slice(-12) + 'Aa1!' + Math.floor(Math.random() * 1000);
-                
-                // 6. تسجيل المستخدم
-                const registerResponse = await axiosInstance.post('/auth/register/', {
-                    username: username,
-                    email: userInfo.email,
-                    password: randomPassword,
-                    password2: randomPassword,
-                    first_name: userInfo.given_name || '',
-                    last_name: userInfo.family_name || ''
-                });
-                
-                console.log('✅ Registration success:', registerResponse.data);
-                
-                // 7. تسجيل الدخول التلقائي
-                const loginResponse = await axiosInstance.post('/auth/token/', {
-                    username: username,
-                    password: randomPassword
-                });
-                
-                localStorage.setItem('access_token', loginResponse.data.access);
-                localStorage.setItem('refresh_token', loginResponse.data.refresh);
-                localStorage.setItem('username', username);
-                
-                setMessage(isArabic ? '🎉 تم إنشاء الحساب بنجاح عبر Google!' : '🎉 Account created successfully with Google!');
-                setMessageType('success');
-                
-                setTimeout(() => {
-                    if (onRegisterSuccess) onRegisterSuccess();
-                    else navigate('/dashboard');
-                }, 2000);
-                
-            } catch (error) {
-                console.error('Google registration error:', error);
-                
-                if (error.response?.data?.email) {
-                    setMessage(isArabic ? '❌ هذا البريد مسجل بالفعل. الرجاء تسجيل الدخول' : '❌ Email already registered. Please login');
-                    setMessageType('error');
-                } else if (error.response?.data?.username) {
-                    setMessage(isArabic ? '❌ اسم المستخدم موجود. حاول مرة أخرى' : '❌ Username exists. Try again');
-                    setMessageType('error');
-                } else {
-                    setMessage(isArabic ? '❌ فشل التسجيل عبر Google. حاول مرة أخرى' : '❌ Google registration failed. Try again');
-                    setMessageType('error');
-                }
-            } finally {
-                setLoading(false);
-            }
-        },
-        onError: (error) => {
-            console.error('Google login error:', error);
+            // 1. جلب معلومات المستخدم من Google
+            const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+            });
+            const userInfo = await userInfoResponse.json();
             
-            // منع الطلبات المتكررة
-            const now = Date.now();
-            if (now - lastGoogleAttemptRef.current < 30000) {
-                setMessage(isArabic ? '⚠️ الرجاء الانتظار 30 ثانية قبل المحاولة مرة أخرى' : '⚠️ Please wait 30 seconds before trying again');
+            console.log('✅ Google user:', userInfo);
+            
+            // 2. التحقق من صحة البريد
+            if (!userInfo.email_verified) {
+                setMessage(isArabic ? '❌ البريد الإلكتروني غير موثق في Google' : '❌ Email not verified in Google');
                 setMessageType('error');
+                setLoading(false);
                 return;
             }
-            lastGoogleAttemptRef.current = now;
             
-            setMessage(isArabic ? '❌ فشل الاتصال بـ Google. تأكد من اتصال الإنترنت' : '❌ Failed to connect to Google. Check your internet connection');
+            // 3. إنشاء اسم مستخدم من البريد
+            let baseUsername = userInfo.email.split('@')[0];
+            // تنظيف اسم المستخدم من الأحرف غير المسموحة
+            baseUsername = baseUsername.replace(/[^a-zA-Z0-9_]/g, '_');
+            let username = baseUsername;
+            let counter = 1;
+            
+            // 4. ✅ تجربة التسجيل مباشرة (بدون التحقق المسبق)
+            // إذا فشل بسبب وجود اسم مستخدم، جرب اسماً آخر
+            
+            // 5. إنشاء كلمة مرور عشوائية قوية
+            const randomPassword = Math.random().toString(36).slice(-12) + 'Aa1!' + Math.floor(Math.random() * 1000);
+            
+            let registerSuccess = false;
+            let finalUsername = username;
+            let maxAttempts = 5;
+            
+            while (!registerSuccess && maxAttempts > 0) {
+                try {
+                    const registerResponse = await axiosInstance.post('/auth/register/', {
+                        username: finalUsername,
+                        email: userInfo.email,
+                        password: randomPassword,
+                        password2: randomPassword,
+                        first_name: userInfo.given_name || '',
+                        last_name: userInfo.family_name || ''
+                    });
+                    
+                    console.log('✅ Registration success:', registerResponse.data);
+                    registerSuccess = true;
+                    
+                    // 6. تسجيل الدخول التلقائي
+                    const loginResponse = await axiosInstance.post('/auth/token/', {
+                        username: finalUsername,
+                        password: randomPassword
+                    });
+                    
+                    localStorage.setItem('access_token', loginResponse.data.access);
+                    localStorage.setItem('refresh_token', loginResponse.data.refresh);
+                    localStorage.setItem('username', finalUsername);
+                    
+                    setMessage(isArabic ? '🎉 تم إنشاء الحساب بنجاح عبر Google!' : '🎉 Account created successfully with Google!');
+                    setMessageType('success');
+                    
+                    setTimeout(() => {
+                        if (onRegisterSuccess) onRegisterSuccess();
+                        else navigate('/dashboard');
+                    }, 2000);
+                    
+                } catch (error) {
+                    console.error('Registration attempt failed:', error.response?.data);
+                    
+                    // إذا كان اسم المستخدم موجوداً، جرب اسماً آخر
+                    if (error.response?.data?.username) {
+                        maxAttempts--;
+                        finalUsername = `${baseUsername}${counter}`;
+                        counter++;
+                        console.log(`Trying new username: ${finalUsername}, attempts left: ${maxAttempts}`);
+                    } else if (error.response?.data?.email) {
+                        // البريد موجود مسبقاً - حاول تسجيل الدخول
+                        setMessage(isArabic ? '📧 هذا البريد مسجل بالفعل. جاري تسجيل الدخول...' : '📧 Email already registered. Logging in...');
+                        setMessageType('info');
+                        
+                        // محاولة تسجيل الدخول
+                        const loginResponse = await axiosInstance.post('/auth/token/', {
+                            username: finalUsername,
+                            password: randomPassword
+                        });
+                        
+                        localStorage.setItem('access_token', loginResponse.data.access);
+                        localStorage.setItem('refresh_token', loginResponse.data.refresh);
+                        
+                        setTimeout(() => {
+                            if (onRegisterSuccess) onRegisterSuccess();
+                            else navigate('/dashboard');
+                        }, 1500);
+                        
+                        registerSuccess = true;
+                        break;
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+            
+            if (!registerSuccess) {
+                setMessage(isArabic ? '❌ فشل إنشاء الحساب. حاول مرة أخرى' : '❌ Account creation failed. Try again');
+                setMessageType('error');
+            }
+            
+        } catch (error) {
+            console.error('Google registration error:', error);
+            setMessage(isArabic ? '❌ فشل التسجيل عبر Google. حاول مرة أخرى' : '❌ Google registration failed. Try again');
             setMessageType('error');
-        },
-        flow: 'implicit'
-    });
+        } finally {
+            setLoading(false);
+        }
+    },
+    onError: (error) => {
+        console.error('Google login error:', error);
+        
+        // منع الطلبات المتكررة
+        const now = Date.now();
+        if (now - lastGoogleAttemptRef.current < 30000) {
+            setMessage(isArabic ? '⚠️ الرجاء الانتظار 30 ثانية قبل المحاولة مرة أخرى' : '⚠️ Please wait 30 seconds before trying again');
+            setMessageType('error');
+            return;
+        }
+        lastGoogleAttemptRef.current = now;
+        
+        setMessage(isArabic ? '❌ فشل الاتصال بـ Google. تأكد من اتصال الإنترنت' : '❌ Failed to connect to Google. Check your internet connection');
+        setMessageType('error');
+    },
+    flow: 'implicit'
+});
 
     // ✅ تبديل اللغة
     const toggleLanguage = () => {
