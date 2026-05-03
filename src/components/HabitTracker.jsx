@@ -174,41 +174,7 @@ const extractDiseasesFromText = (text) => {
     return Array.from(diseases);
     };
     // ✅ إضافة مرض مزمن يدوياً
-const handleAddManualCondition = useCallback(async (e) => {
-    e.preventDefault();
-    
-    if (!manualConditionName.trim()) {
-        showMessage(isArabic ? '❌ الرجاء إدخال اسم المرض' : '❌ Please enter condition name', 'error');
-        return;
-    }
-    
-    setAddingManualCondition(true);
-    
-    try {
-        const response = await axiosInstance.post('/conditions/', {
-            name: manualConditionName.trim(),
-            diagnosis_date: manualConditionDate || null,
-            medications: manualConditionMeds || '',
-            is_active: true
-        });
-        
-        if (response.data) {
-            setChronicConditions(prev => [...prev, response.data]);
-            showMessage(isArabic ? '✅ تم إضافة المرض بنجاح' : '✅ Condition added successfully', 'success');
-            
-            // إعادة تعيين النموذج
-            setManualConditionName('');
-            setManualConditionDate('');
-            setManualConditionMeds('');
-            setShowManualConditionForm(false);
-        }
-    } catch (error) {
-        console.error('Error adding condition:', error);
-        showMessage(isArabic ? '❌ خطأ في إضافة المرض' : '❌ Error adding condition', 'error');
-    } finally {
-        setAddingManualCondition(false);
-    }
-}, [manualConditionName, manualConditionDate, manualConditionMeds, isArabic, showMessage]);
+
 // ==================== المكون الرئيسي ====================
 
 function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
@@ -308,7 +274,41 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
             if (isMountedRef.current) setMessage('');
         }, 3000);
     }, []);
-
+  const handleAddManualCondition = useCallback(async (e) => {
+    e.preventDefault();
+    
+    if (!manualConditionName.trim()) {
+        showMessage(isArabic ? '❌ الرجاء إدخال اسم المرض' : '❌ Please enter condition name', 'error');
+        return;
+    }
+    
+    setAddingManualCondition(true);
+    
+    try {
+        const response = await axiosInstance.post('/conditions/', {
+            name: manualConditionName.trim(),
+            diagnosis_date: manualConditionDate || null,
+            medications: manualConditionMeds || '',
+            is_active: true
+        });
+        
+        if (response.data) {
+            setChronicConditions(prev => [...prev, response.data]);
+            showMessage(isArabic ? '✅ تم إضافة المرض بنجاح' : '✅ Condition added successfully', 'success');
+            
+            // إعادة تعيين النموذج
+            setManualConditionName('');
+            setManualConditionDate('');
+            setManualConditionMeds('');
+            setShowManualConditionForm(false);
+        }
+    } catch (error) {
+        console.error('Error adding condition:', error);
+        showMessage(isArabic ? '❌ خطأ في إضافة المرض' : '❌ Error adding condition', 'error');
+    } finally {
+        setAddingManualCondition(false);
+    }
+}, [manualConditionName, manualConditionDate, manualConditionMeds, isArabic, showMessage]);
     // ✅ جلب الأمراض المزمنة
     const fetchChronicConditions = useCallback(async () => {
         if (!isAuthReady) return;
