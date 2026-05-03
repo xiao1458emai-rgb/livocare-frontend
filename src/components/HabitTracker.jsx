@@ -173,6 +173,42 @@ const extractDiseasesFromText = (text) => {
     // ✅ إرجاع مصفوفة سلاسل نصية فقط
     return Array.from(diseases);
     };
+    // ✅ إضافة مرض مزمن يدوياً
+const handleAddManualCondition = useCallback(async (e) => {
+    e.preventDefault();
+    
+    if (!manualConditionName.trim()) {
+        showMessage(isArabic ? '❌ الرجاء إدخال اسم المرض' : '❌ Please enter condition name', 'error');
+        return;
+    }
+    
+    setAddingManualCondition(true);
+    
+    try {
+        const response = await axiosInstance.post('/conditions/', {
+            name: manualConditionName.trim(),
+            diagnosis_date: manualConditionDate || null,
+            medications: manualConditionMeds || '',
+            is_active: true
+        });
+        
+        if (response.data) {
+            setChronicConditions(prev => [...prev, response.data]);
+            showMessage(isArabic ? '✅ تم إضافة المرض بنجاح' : '✅ Condition added successfully', 'success');
+            
+            // إعادة تعيين النموذج
+            setManualConditionName('');
+            setManualConditionDate('');
+            setManualConditionMeds('');
+            setShowManualConditionForm(false);
+        }
+    } catch (error) {
+        console.error('Error adding condition:', error);
+        showMessage(isArabic ? '❌ خطأ في إضافة المرض' : '❌ Error adding condition', 'error');
+    } finally {
+        setAddingManualCondition(false);
+    }
+}, [manualConditionName, manualConditionDate, manualConditionMeds, isArabic, showMessage]);
 // ==================== المكون الرئيسي ====================
 
 function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
@@ -201,7 +237,14 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
     const [streakDays, setStreakDays] = useState(0);
     const [todayLogs, setTodayLogs] = useState([]);
     const [refreshKey, setRefreshKey] = useState(0);
-    
+    // ... داخل function HabitTracker
+
+    // ✅ حالات الإضافة اليدوية للأمراض المزمنة
+    const [showManualConditionForm, setShowManualConditionForm] = useState(false);
+    const [manualConditionName, setManualConditionName] = useState('');
+    const [manualConditionDate, setManualConditionDate] = useState('');
+    const [manualConditionMeds, setManualConditionMeds] = useState('');
+    const [addingManualCondition, setAddingManualCondition] = useState(false);
     // ✅ حالة البحث عن الأدوية
     const [drugSearchQuery, setDrugSearchQuery] = useState('');
     const [drugSearchResults, setDrugSearchResults] = useState([]);
@@ -1077,63 +1120,125 @@ const handleFileUpload = useCallback(async (e) => {
                 </>
             )}
 
-            {/* ==================== تبويب الأمراض المزمنة ==================== */}
-            {activeTab === 'conditions' && (
-                <div className="chronic-conditions-section">
-                    <div className="section-header-inline">
-                        <div className="section-title-icon">
-                            <span className="icon">🩺</span>
-                            <h3>{isArabic ? 'الأمراض المزمنة' : 'Chronic Conditions'}</h3>
-                        </div>
-                        <button 
-                            onClick={() => setActiveTab('records')} 
-                            className="add-record-btn"
-                        >
-                            📄 {isArabic ? 'إضافة سجل طبي' : 'Add Medical Record'}
+  {/* ==================== تبويب الأمراض المزمنة ==================== */}
+{activeTab === 'conditions' && (
+    <div className="chronic-conditions-section">
+        <div className="section-header-inline">
+            <div className="section-title-icon">
+                <span className="icon">🩺</span>
+                <h3>{isArabic ? 'الأمراض المزمنة' : 'Chronic Conditions'}</h3>
+            </div>
+            <div className="section-actions">
+                <button 
+                    onClick={() => setShowManualConditionForm(!showManualConditionForm)} 
+                    className="add-record-btn"
+                >
+                    {showManualConditionForm ? '✕' : '➕'} {isArabic ? 'إضافة يدوي' : 'Add Manually'}
+                </button>
+                <button 
+                    onClick={() => setActiveTab('records')} 
+                    className="add-record-btn secondary"
+                >
+                    📄 {isArabic ? 'رفع ملف طبي' : 'Upload Medical Record'}
+                </button>
+            </div>
+        </div>
+
+        {/* ✅ نموذج إضافة مرض مزمن يدوياً */}
+        {showManualConditionForm && (
+            <div className="manual-condition-form">
+                <form onSubmit={handleAddManualCondition} className="manual-form">
+                    <div className="form-field">
+                        <label>{isArabic ? 'اسم المرض' : 'Condition Name'} *</label>
+                        <input 
+                            type="text"
+                            value={manualConditionName}
+                            onChange={(e) => setManualConditionName(e.target.value)}
+                            placeholder={isArabic ? 'مثال: السكري من النوع الثاني' : 'Example: Type 2 Diabetes'}
+                            required
+                        />
+                    </div>
+                    <div className="form-field">
+                        <label>{isArabic ? 'تاريخ التشخيص' : 'Diagnosis Date'}</label>
+                        <input 
+                            type="date"
+                            value={manualConditionDate}
+                            onChange={(e) => setManualConditionDate(e.target.value)}
+                        />
+                    </div>
+                    <div className="form-field">
+                        <label>{isArabic ? 'الأدوية المرتبطة' : 'Related Medications'}</label>
+                        <input 
+                            type="text"
+                            value={manualConditionMeds}
+                            onChange={(e) => setManualConditionMeds(e.target.value)}
+                            placeholder={isArabic ? 'مثال: ميتفورمين، أنسولين' : 'Example: Metformin, Insulin'}
+                        />
+                    </div>
+                    <div className="form-actions">
+                        <button type="submit" disabled={addingManualCondition} className="submit-btn small">
+                            {addingManualCondition ? (isArabic ? '⏳ جاري...' : '⏳ Adding...') : (isArabic ? '✅ إضافة' : '✅ Add')}
+                        </button>
+                        <button type="button" onClick={() => {
+                            setShowManualConditionForm(false);
+                            setManualConditionName('');
+                            setManualConditionDate('');
+                            setManualConditionMeds('');
+                        }} className="cancel-btn small">
+                            {isArabic ? 'إلغاء' : 'Cancel'}
                         </button>
                     </div>
-                    
-                    {loadingConditions ? (
-                        <div className="loading-state"><div className="spinner"></div><p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p></div>
-                    ) : chronicConditions.length === 0 ? (
-                        <div className="empty-conditions">
-                            <span className="empty-icon">💊</span>
-                            <p>{isArabic ? 'لا توجد أمراض مزمنة مسجلة' : 'No chronic conditions recorded'}</p>
-                            <p className="empty-hint">
-                                {isArabic 
-                                    ? 'يمكنك إضافة سجل طبي بصيغة PDF وسيتم استخراج الأمراض تلقائياً'
-                                    : 'You can upload a medical PDF and conditions will be extracted automatically'}
-                            </p>
-                            <button onClick={() => setActiveTab('records')} className="empty-add-btn">
-                                📄 {isArabic ? 'إضافة سجل طبي' : 'Add Medical Record'}
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="conditions-list">
-                            {chronicConditions.map(condition => (
-                                <div key={condition.id} className="condition-card">
-                                    <div className="condition-info">
-                                        <span className="condition-name">{condition.name}</span>
-                                        {condition.diagnosis_date && (
-                                            <span className="condition-date">📅 {condition.diagnosis_date}</span>
-                                        )}
-                                        {condition.medications && (
-                                            <span className="condition-meds">💊 {condition.medications}</span>
-                                        )}
-                                    </div>
-                                    <button 
-                                        onClick={() => handleDeleteCondition(condition.id)}
-                                        className="delete-condition-btn"
-                                        title={isArabic ? 'حذف' : 'Delete'}
-                                    >
-                                        🗑️
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                </form>
+            </div>
+        )}
+        
+        {/* عرض قائمة الأمراض المزمنة */}
+        {loadingConditions ? (
+            <div className="loading-state"><div className="spinner"></div><p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p></div>
+        ) : chronicConditions.length === 0 ? (
+            <div className="empty-conditions">
+                <span className="empty-icon">💊</span>
+                <p>{isArabic ? 'لا توجد أمراض مزمنة مسجلة' : 'No chronic conditions recorded'}</p>
+                <p className="empty-hint">
+                    {isArabic 
+                        ? 'يمكنك إضافة أمراضك يدوياً أو رفع سجل طبي بصيغة PDF'
+                        : 'You can add conditions manually or upload a medical PDF'}
+                </p>
+                <div className="empty-buttons">
+                    <button onClick={() => setShowManualConditionForm(true)} className="empty-add-btn">
+                        ✏️ {isArabic ? 'إضافة يدوي' : 'Add Manually'}
+                    </button>
+                    <button onClick={() => setActiveTab('records')} className="empty-add-btn secondary">
+                        📄 {isArabic ? 'رفع ملف طبي' : 'Upload Medical Record'}
+                    </button>
                 </div>
-            )}
+            </div>
+        ) : (
+            <div className="conditions-list">
+                {chronicConditions.map(condition => (
+                    <div key={condition.id} className="condition-card">
+                        <div className="condition-info">
+                            <span className="condition-name">{condition.name}</span>
+                            {condition.diagnosis_date && (
+                                <span className="condition-date">📅 {condition.diagnosis_date}</span>
+                            )}
+                            {condition.medications && (
+                                <span className="condition-meds">💊 {condition.medications}</span>
+                            )}
+                        </div>
+                        <button 
+                            onClick={() => handleDeleteCondition(condition.id)}
+                            className="delete-condition-btn"
+                            title={isArabic ? 'حذف' : 'Delete'}
+                        >
+                            🗑️
+                        </button>
+                    </div>
+                ))}
+            </div>
+        )}
+    </div>
+)}
 
             {/* ==================== تبويب السجلات الطبية ==================== */}
             {activeTab === 'records' && (
@@ -1361,6 +1466,93 @@ const handleFileUpload = useCallback(async (e) => {
 
             {/* CSS */}
             <style jsx>{`
+            /* ===== الأزرار ===== */
+.section-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.add-record-btn.secondary {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.add-record-btn.secondary:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+}
+
+/* ===== نموذج الإضافة اليدوي ===== */
+.manual-condition-form {
+    background: var(--card-bg, white);
+    border-radius: 16px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .manual-condition-form {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+.manual-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.manual-form .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.manual-form .form-field label {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #64748b);
+}
+
+.manual-form .form-field input {
+    padding: 0.75rem;
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 12px;
+    font-size: 0.9rem;
+}
+
+.dark-mode .manual-form .form-field input {
+    background: #0f172a;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+.manual-form .form-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.submit-btn.small,
+.cancel-btn.small {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+}
+
+/* ===== أزرار فارغة ===== */
+.empty-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.empty-add-btn.secondary {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.empty-add-btn.secondary:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+}
                 /* الأنماط كما هي موجودة مسبقاً مع إضافة الأنماط الجديدة أدناه */
                 
                 /* ===== التبويبات ===== */
