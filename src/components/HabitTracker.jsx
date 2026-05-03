@@ -155,54 +155,23 @@ const extractDiseasesFromText = (text) => {
         'alzheimer': ['الزهايمر', 'alzheimer', 'dementia', 'memory loss']
     };
     
-    const textLower = text.toLowerCase();
+      const textLower = text.toLowerCase();
     
-    // البحث عن الأمراض
     for (const [key, keywords] of Object.entries(diseaseKeywords)) {
         for (const keyword of keywords) {
             if (textLower.includes(keyword.toLowerCase())) {
-                // الحصول على الاسم العربي للمرض
-                let diseaseName = keywords[0]; // الاسم العربي هو أول عنصر في المصفوفة
-                
-                // تحسين الأسماء
+                let diseaseName = keywords[0];
                 if (key === 'heart_disease') diseaseName = 'أمراض القلب';
                 if (key === 'kidney_disease') diseaseName = 'أمراض الكلى';
                 if (key === 'liver_disease') diseaseName = 'أمراض الكبد';
-                
                 diseases.add(diseaseName);
                 break;
             }
         }
     }
-    
-    // البحث بأنماط خاصة (مثل: "يعاني من ...")
-    const patterns = [
-        /(?:تشخيص|diagnosis|يعاني من|suffers from|مصاب بـ|has)\s*:?\s*([^،\n.]+)/gi,
-        /(?:مرض|condition|disorder|disease)\s+([^،\n.]+)/gi,
-        /diagnosed with\s+([^\.]+)/gi
-    ];
-    
-    for (const pattern of patterns) {
-        const matches = text.matchAll(pattern);
-        for (const match of matches) {
-            const potentialDisease = match[1]?.trim();
-            if (potentialDisease && potentialDisease.length > 2 && potentialDisease.length < 50) {
-                // تنظيف النص
-                const cleaned = potentialDisease.replace(/[0-9]/g, '').trim();
-                if (cleaned.length > 2 && !cleaned.includes('ب') && !cleaned.includes('ل')) {
-                    diseases.add(cleaned);
-                }
-            }
-        }
-    }
-    
-    // تحويل Set إلى مصفوفة
-    const result = Array.from(diseases);
-    console.log('🩺 Extracted diseases from PDF:', result);
-    
-    return result;
-};
-
+    };
+    // ✅ إرجاع مصفوفة سلاسل نصية فقط
+    return Array.from(diseases);
 // ==================== المكون الرئيسي ====================
 
 function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
@@ -435,21 +404,32 @@ const handleFileUpload = useCallback(async (e) => {
     e.preventDefault();
     
     const file = selectedFile;
-    // ... التحقق من الملف ...
+    if (!file) {
+        showMessage(isArabic ? '❌ الرجاء اختيار ملف' : '❌ Please select a file', 'error');
+        return;
+    }
+    
+    if (!file.type.includes('pdf')) {
+        showMessage(isArabic ? '❌ يرجى رفع ملف PDF فقط' : '❌ Please upload a PDF file only', 'error');
+        return;
+    }
+    
+    if (!newMedicalRecord.event_type) {
+        showMessage(isArabic ? '❌ الرجاء إدخال نوع السجل' : '❌ Please enter record type', 'error');
+        return;
+    }
     
     setUploadingFile(true);
     setUploadProgress(0);
     
     try {
-        // استخراج النص من PDF
         const buffer = await file.arrayBuffer();
         const pdf = await getDocumentProxy(new Uint8Array(buffer));
         const { totalPages, text: extractedFullText } = await extractText(pdf, { mergePages: true });
         
-        console.log(`📄 تم استخراج النص من ${totalPages} صفحة بنجاح`);
-        console.log(`📝 النص المستخرج: ${extractedFullText.substring(0, 500)}...`);
+        console.log(`📄 تم استخراج النص من ${totalPages} صفحة`);
         
-        // ✅ استخراج الأمراض من النص
+        // ✅ استخراج الأمراض كمصفوفة سلاسل نصية
         const extractedDiseases = extractDiseasesFromText(extractedFullText);
         console.log('🩺 الأمراض المستخرجة:', extractedDiseases);
         
@@ -458,7 +438,7 @@ const handleFileUpload = useCallback(async (e) => {
             event_type: newMedicalRecord.event_type,
             event_date: newMedicalRecord.event_date,
             details: newMedicalRecord.details,
-            extracted_diseases: extractedDiseases,  // ✅ إرسال الأمراض المستخرجة
+            extracted_diseases: extractedDiseases,  // ✅ مصفوفة السلاسل النصية
             extracted_text_preview: extractedFullText.substring(0, 500)
         });
         
@@ -469,7 +449,16 @@ const handleFileUpload = useCallback(async (e) => {
             await fetchMedicalRecords();
             await fetchChronicConditions();
             
-            // ... إعادة تعيين النموذج
+            setTimeout(() => {
+                setShowMedicalRecordForm(false);
+                setSelectedFile(null);
+                setProcessingResult(null);
+                setNewMedicalRecord({ 
+                    event_type: '', 
+                    event_date: new Date().toISOString().split('T')[0], 
+                    details: '' 
+                });
+            }, 3000);
         }
     } catch (error) {
         console.error('Error processing PDF:', error);
@@ -1311,26 +1300,36 @@ const handleFileUpload = useCallback(async (e) => {
                                             📄 {isArabic ? 'عرض الملف' : 'View File'}
                                         </a>
                                     )}
-                             {record.extracted_conditions && (() => {
-                                try {
-                                    const extracted = JSON.parse(record.extracted_conditions);
-                                    return extracted.diseases?.length > 0 ? (
-                                        <div className="record-extracted">
-                                            <small>🤖 {isArabic ? 'الأمراض المستخرجة:' : 'Extracted conditions:'}</small>
-                                            <div className="extracted-tags">
-                                                {extracted.diseases.slice(0, 3).map((d, i) => (
-                                                    <span key={i} className="extracted-tag">{d}</span>
-                                                ))}
-                                                {extracted.diseases.length > 3 && (
-                                                    <span className="extracted-tag more">+{extracted.diseases.length - 3}</span>
-                                                )}
+                                  {record.extracted_conditions && (() => {
+                                    try {
+                                        const extracted = JSON.parse(record.extracted_conditions);
+                                        const diseases = extracted.diseases || [];
+                                        
+                                        // ✅ التأكد من أن الأمراض مصفوفة من السلاسل النصية
+                                        const diseaseNames = diseases.map(d => {
+                                            if (typeof d === 'string') return d;
+                                            if (typeof d === 'object' && d.name) return d.name;
+                                            return String(d);
+                                        }).filter(d => d && d.length > 0);
+                                        
+                                        return diseaseNames.length > 0 ? (
+                                            <div className="record-extracted">
+                                                <small>🤖 {isArabic ? 'الأمراض المستخرجة:' : 'Extracted conditions:'}</small>
+                                                <div className="extracted-tags">
+                                                    {diseaseNames.slice(0, 3).map((d, i) => (
+                                                        <span key={i} className="extracted-tag">{d}</span>
+                                                    ))}
+                                                    {diseaseNames.length > 3 && (
+                                                        <span className="extracted-tag more">+{diseaseNames.length - 3}</span>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ) : null;
-                                } catch (e) {
-                                    return null;
-                                }
-                            })()}
+                                        ) : null;
+                                    } catch (e) {
+                                        console.error('Error parsing extracted conditions:', e);
+                                        return null;
+                                    }
+                                })()}
                                 </div>
                             ))}
                         </div>
