@@ -1,9 +1,10 @@
-// src/components/Analytics/MoodAnalytics.jsx - النسخة المطورة
+// src/components/Analytics/MoodAnalytics.jsx - النسخة المتكاملة مع الـ API
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axiosInstance from '../../services/api';
 import '../../index.css';
 
-// دوال مساعدة محسنة
+// ==================== دوال مساعدة محسنة ====================
+
 const roundNumber = (num, decimals = 1) => {
     if (isNaN(num)) return 0;
     return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
@@ -34,419 +35,8 @@ const getMoodText = (mood, isArabic) => {
     return (isArabic ? mapAr[mood] : mapEn[mood]) ?? mood;
 };
 
-// ✅ تحليل أيام الأسبوع
-const analyzeDayPatterns = (moodRecords, isArabic) => {
-    if (moodRecords.length < 7) return null;
-    
-    const dayScores = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
-    moodRecords.forEach(record => dayScores[record.date.getDay()].push(record.score));
-    
-    const dayNamesAr = { 0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء', 3: 'الأربعاء', 4: 'الخميس', 5: 'الجمعة', 6: 'السبت' };
-    const dayNamesEn = { 0: 'Sunday', 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday' };
-    const dayNames = isArabic ? dayNamesAr : dayNamesEn;
-    
-    let bestDay = null, worstDay = null, bestScore = 0, worstScore = 5;
-    Object.entries(dayScores).forEach(([day, scores]) => {
-        if (scores.length >= 2) {
-            const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-            if (avg > bestScore) { bestScore = avg; bestDay = dayNames[parseInt(day)]; }
-            if (avg < worstScore) { worstScore = avg; worstDay = dayNames[parseInt(day)]; }
-        }
-    });
-    
-    return bestDay && worstDay && bestDay !== worstDay ? {
-        type: 'day_pattern', icon: '📅',
-        title: isArabic ? 'نمط أيام الأسبوع' : 'Weekly Pattern',
-        bestDay, worstDay, bestScore: roundNumber(bestScore, 1), worstScore: roundNumber(worstScore, 1)
-    } : null;
-};
+// ==================== المكون الرئيسي ====================
 
-// ✅ تحليل أوقات اليوم
-const analyzeTimePatterns = (moodRecords, isArabic) => {
-    if (moodRecords.length < 5) return null;
-    
-    const timeSlots = {
-        morning: { scores: [], label: isArabic ? 'الصباح (5-12)' : 'Morning (5-12)', hours: [5, 12] },
-        afternoon: { scores: [], label: isArabic ? 'الظهيرة (12-17)' : 'Afternoon (12-17)', hours: [12, 17] },
-        evening: { scores: [], label: isArabic ? 'المساء (17-21)' : 'Evening (17-21)', hours: [17, 21] },
-        night: { scores: [], label: isArabic ? 'الليل (21-5)' : 'Night (21-5)', hours: [21, 5] }
-    };
-    
-    moodRecords.forEach(record => {
-        const hour = record.date.getHours();
-        if (hour >= 5 && hour < 12) timeSlots.morning.scores.push(record.score);
-        else if (hour >= 12 && hour < 17) timeSlots.afternoon.scores.push(record.score);
-        else if (hour >= 17 && hour < 21) timeSlots.evening.scores.push(record.score);
-        else timeSlots.night.scores.push(record.score);
-    });
-    
-    let bestTime = null, bestScore = 0;
-    Object.values(timeSlots).forEach(slot => {
-        if (slot.scores.length >= 2) {
-            const avg = slot.scores.reduce((a, b) => a + b, 0) / slot.scores.length;
-            if (avg > bestScore) { bestScore = avg; bestTime = slot.label; }
-        }
-    });
-    
-    return bestTime ? {
-        type: 'time_pattern', icon: '⏰',
-        title: isArabic ? 'أفضل وقت للمزاج' : 'Best Time for Mood',
-        bestTime, bestScore: roundNumber(bestScore, 1)
-    } : null;
-};
-
-// ✅ تحليل الاتجاه المتقدم
-const analyzeTrend = (moodRecords, isArabic) => {
-    if (moodRecords.length < 7) return null;
-    
-    const trends = [];
-    for (let i = 0; i <= moodRecords.length - 7; i++) {
-        const week = moodRecords.slice(i, i + 7);
-        const avg = week.reduce((a, b) => a + b.score, 0) / 7;
-        trends.push(avg);
-    }
-    
-    if (trends.length >= 2) {
-        const firstHalf = trends.slice(0, Math.floor(trends.length / 2));
-        const secondHalf = trends.slice(Math.floor(trends.length / 2));
-        const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
-        const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
-        const difference = secondAvg - firstAvg;
-        
-        if (Math.abs(difference) > 0.2) {
-            const isImproving = difference > 0;
-            const percentage = Math.abs(Math.round((difference / firstAvg) * 100));
-            return {
-                type: isImproving ? 'improving' : 'declining',
-                icon: isImproving ? '📈' : '📉',
-                title: isImproving ? (isArabic ? 'مزاجك يتحسن' : 'Your mood is improving') : (isArabic ? 'مزاجك في انخفاض' : 'Your mood is declining'),
-                message: isImproving ? 
-                    (isArabic ? `تحسن ملحوظ بنسبة ${percentage}% في الفترة الأخيرة` : `Notable improvement of ${percentage}% recently`) :
-                    (isArabic ? `انخفاض ملحوظ بنسبة ${percentage}% في الفترة الأخيرة` : `Notable decline of ${percentage}% recently`),
-                difference: roundNumber(Math.abs(difference), 1),
-                percentage
-            };
-        }
-    }
-    return null;
-};
-
-// ✅ تحليل تأثير النوم على المزاج
-const analyzeSleepImpact = (sleepRecords, moodRecords, isArabic) => {
-    if (sleepRecords.length < 5 || moodRecords.length < 5) return null;
-    
-    const sleepByDay = {};
-    sleepRecords.forEach(sleep => {
-        const date = new Date(sleep.sleep_start || sleep.start_time).toDateString();
-        const duration = sleep.duration_hours || ((new Date(sleep.sleep_end || sleep.end_time) - new Date(sleep.sleep_start || sleep.start_time)) / (1000 * 60 * 60));
-        if (!sleepByDay[date]) sleepByDay[date] = [];
-        sleepByDay[date].push(duration);
-    });
-    
-    Object.keys(sleepByDay).forEach(date => {
-        sleepByDay[date] = sleepByDay[date].reduce((a, b) => a + b, 0) / sleepByDay[date].length;
-    });
-    
-    const goodSleepDays = [], badSleepDays = [];
-    moodRecords.forEach(mood => {
-        const date = mood.date.toDateString();
-        const sleepHours = sleepByDay[date];
-        if (sleepHours) {
-            if (sleepHours >= 7) goodSleepDays.push(mood.score);
-            else if (sleepHours < 6) badSleepDays.push(mood.score);
-        }
-    });
-    
-    if (goodSleepDays.length >= 3 && badSleepDays.length >= 3) {
-        const goodAvg = goodSleepDays.reduce((a, b) => a + b, 0) / goodSleepDays.length;
-        const badAvg = badSleepDays.reduce((a, b) => a + b, 0) / badSleepDays.length;
-        const difference = goodAvg - badAvg;
-        if (difference > 0.5) {
-            return {
-                type: 'sleep_impact', icon: '😴',
-                title: isArabic ? 'تأثير النوم على مزاجك' : 'Sleep impact on your mood',
-                message: isArabic ? `النوم الجيد (7+ ساعات) يحسن مزاجك بمعدل ${roundNumber(difference, 1)} نقطة` : `Good sleep (7+ hours) improves your mood by ${roundNumber(difference, 1)} points`,
-                difference: roundNumber(difference, 1),
-                goodAvg, badAvg
-            };
-        }
-    }
-    return null;
-};
-
-// ✅ تحليل تأثير النشاط على المزاج
-const analyzeActivityImpact = (activities, moodRecords, isArabic) => {
-    if (activities.length < 5 || moodRecords.length < 5) return null;
-    
-    const activityByDay = {};
-    activities.forEach(activity => {
-        const date = new Date(activity.start_time || activity.created_at).toDateString();
-        const duration = activity.duration_minutes || 0;
-        activityByDay[date] = (activityByDay[date] || 0) + duration;
-    });
-    
-    const activeDays = [], inactiveDays = [];
-    moodRecords.forEach(mood => {
-        const date = mood.date.toDateString();
-        const activityMinutes = activityByDay[date] || 0;
-        if (activityMinutes >= 30) activeDays.push(mood.score);
-        else if (activityMinutes < 10) inactiveDays.push(mood.score);
-    });
-    
-    if (activeDays.length >= 3 && inactiveDays.length >= 3) {
-        const activeAvg = activeDays.reduce((a, b) => a + b, 0) / activeDays.length;
-        const inactiveAvg = inactiveDays.reduce((a, b) => a + b, 0) / inactiveDays.length;
-        const difference = activeAvg - inactiveAvg;
-        if (difference > 0.3) {
-            return {
-                type: 'activity_impact', icon: '🏃',
-                title: isArabic ? 'تأثير النشاط على مزاجك' : 'Activity impact on your mood',
-                message: isArabic ? `النشاط البدني (30+ دقيقة) يحسن مزاجك بمعدل ${roundNumber(difference, 1)} نقطة` : `Physical activity (30+ min) improves your mood by ${roundNumber(difference, 1)} points`,
-                difference: roundNumber(difference, 1),
-                activeAvg, inactiveAvg
-            };
-        }
-    }
-    return null;
-};
-
-// ✅ اكتشاف انخفاض المزاج
-const detectMoodDecline = (moodRecords, isArabic) => {
-    if (moodRecords.length < 3) return null;
-    
-    const recent = moodRecords.slice(-7);
-    let consecutiveLow = 0;
-    const lowMoods = ['Stressed', 'Anxious', 'Sad', 'Depressed'];
-    
-    for (let i = recent.length - 1; i >= 0; i--) {
-        if (lowMoods.includes(recent[i].raw)) consecutiveLow++;
-        else break;
-    }
-    
-    if (consecutiveLow >= 3) {
-        const severity = consecutiveLow >= 5 ? 'high' : consecutiveLow >= 3 ? 'medium' : 'low';
-        return {
-            type: 'decline_alert', icon: '⚠️',
-            title: isArabic ? 'انخفاض مستمر في المزاج' : 'Continuous mood decline',
-            message: isArabic ? `مزاجك منخفض لمدة ${consecutiveLow} أيام متتالية` : `Your mood has been low for ${consecutiveLow} consecutive days`,
-            severity, days: consecutiveLow
-        };
-    }
-    return null;
-};
-
-// ✅ اكتشاف أيام العطل
-const detectHolidayImpact = (moodRecords, isArabic) => {
-    if (moodRecords.length < 10) return null;
-    
-    const weekendScores = [];
-    const weekdayScores = [];
-    
-    moodRecords.forEach(record => {
-        const day = record.date.getDay();
-        if (day === 5 || day === 6) weekendScores.push(record.score);
-        else weekdayScores.push(record.score);
-    });
-    
-    if (weekendScores.length >= 3 && weekdayScores.length >= 5) {
-        const weekendAvg = weekendScores.reduce((a, b) => a + b, 0) / weekendScores.length;
-        const weekdayAvg = weekdayScores.reduce((a, b) => a + b, 0) / weekdayScores.length;
-        const difference = weekendAvg - weekdayAvg;
-        
-        if (Math.abs(difference) > 0.3) {
-            return {
-                type: 'weekend_impact', icon: '🎉',
-                title: isArabic ? 'تأثير العطلات على المزاج' : 'Weekend impact on mood',
-                message: difference > 0 ?
-                    (isArabic ? `مزاجك أفضل في العطلات بمعدل ${roundNumber(difference, 1)} نقطة` : `Your mood is better on weekends by ${roundNumber(difference, 1)} points`) :
-                    (isArabic ? `مزاجك أفضل في أيام العمل بمعدل ${roundNumber(Math.abs(difference), 1)} نقطة` : `Your mood is better on weekdays by ${roundNumber(Math.abs(difference), 1)} points`),
-                difference: roundNumber(difference, 1)
-            };
-        }
-    }
-    return null;
-};
-
-// ✅ توقع المزاج المستقبلي
-const predictMood = (moodRecords, isArabic) => {
-    if (moodRecords.length < 7) return null;
-    
-    const recentScores = moodRecords.slice(-7).map(r => r.score);
-    const avgRecent = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
-    const trend = moodRecords.slice(-3).reduce((a, b) => a + b.score, 0) - moodRecords.slice(-6, -3).reduce((a, b) => a + b.score, 0);
-    
-    let predictedScore = avgRecent;
-    if (trend > 0.5) predictedScore = Math.min(5, avgRecent + 0.3);
-    else if (trend < -0.5) predictedScore = Math.max(1, avgRecent - 0.3);
-    
-    const moodLevels = ['Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
-    const moodLevelsAr = ['سيء', 'متوسط', 'جيد', 'جيد جداً', 'ممتاز'];
-    const levelIndex = Math.min(4, Math.max(0, Math.floor(predictedScore) - 1));
-    
-    return {
-        score: roundNumber(predictedScore, 1),
-        level: isArabic ? moodLevelsAr[levelIndex] : moodLevels[levelIndex],
-        trend: trend > 0 ? 'up' : trend < 0 ? 'down' : 'stable'
-    };
-};
-
-// ✅ توليد توصيات ذكية
-const generateRecommendations = (analysis, isArabic) => {
-    const recommendations = [];
-    
-    if (analysis.trend?.type === 'declining') {
-        recommendations.push({
-            icon: '💙', priority: 'high',
-            title: isArabic ? 'اعتنِ بنفسك' : 'Take care of yourself',
-            advice: analysis.trend.message,
-            tips: isArabic ? [
-                'تحدث مع شخص تثق به',
-                'مارس نشاطاً تحبه',
-                'خذ قسطاً من الراحة',
-                'جرب تمارين التنفس العميق'
-            ] : [
-                'Talk to someone you trust',
-                'Do an activity you enjoy',
-                'Take a break',
-                'Try deep breathing exercises'
-            ]
-        });
-    }
-    
-    if (analysis.sleepImpact) {
-        recommendations.push({
-            icon: '😴', priority: 'high',
-            title: isArabic ? 'حسّن نومك' : 'Improve your sleep',
-            advice: analysis.sleepImpact.message,
-            tips: isArabic ? [
-                'النوم 7-8 ساعات يومياً',
-                'تجنب الكافيين بعد العصر',
-                'لا تستخدم الهاتف قبل النوم',
-                'اجعل غرفة النوم مظلمة وهادئة'
-            ] : [
-                'Sleep 7-8 hours daily',
-                'Avoid caffeine after 4 PM',
-                'No phone before bed',
-                'Keep bedroom dark and quiet'
-            ]
-        });
-    }
-    
-    if (analysis.activityImpact) {
-        recommendations.push({
-            icon: '🏃', priority: 'medium',
-            title: isArabic ? 'زد نشاطك البدني' : 'Increase physical activity',
-            advice: analysis.activityImpact.message,
-            tips: isArabic ? [
-                'امشِ 30 دقيقة يومياً',
-                'جرب تمارين الاسترخاء',
-                'انضم لنشاط جماعي',
-                'استمع للموسيقى أثناء المشي'
-            ] : [
-                'Walk 30 minutes daily',
-                'Try relaxation exercises',
-                'Join a group activity',
-                'Listen to music while walking'
-            ]
-        });
-    }
-    
-    if (analysis.dayPattern?.bestDay) {
-        recommendations.push({
-            icon: '📅', priority: 'low',
-            title: isArabic ? 'استغل أيامك الجيدة' : 'Make the most of good days',
-            advice: isArabic ? `أيام ${analysis.dayPattern.bestDay} هي الأفضل لمزاجك` : `${analysis.dayPattern.bestDay} are your best days`,
-            tips: isArabic ? [
-                'خطط لأنشطتك المهمة في أيامك الجيدة',
-                'كن لطيفاً مع نفسك في الأيام الأخرى'
-            ] : [
-                'Plan important activities on good days',
-                'Be kind to yourself on other days'
-            ]
-        });
-    }
-    
-    if (analysis.timePattern) {
-        recommendations.push({
-            icon: '⏰', priority: 'low',
-            title: isArabic ? 'وقتك المثالي' : 'Your ideal time',
-            advice: isArabic ? `وقت ${analysis.timePattern.bestTime} هو الأفضل لمزاجك` : `${analysis.timePattern.bestTime} is best for your mood`,
-            tips: isArabic ? [
-                'استغل هذا الوقت للإبداع والعمل المهم',
-                'خطط لمهامك الصعبة في هذا الوقت'
-            ] : [
-                'Use this time for creative work',
-                'Plan difficult tasks for this time'
-            ]
-        });
-    }
-    
-    if (analysis.weekendImpact) {
-        recommendations.push({
-            icon: '🎉', priority: 'medium',
-            title: isArabic ? 'استغل عطلاتك' : 'Make the most of weekends',
-            advice: analysis.weekendImpact.message,
-            tips: isArabic ? [
-                'خطط لأنشطة ممتعة في العطلات',
-                'تواصل مع الأصدقاء والعائلة'
-            ] : [
-                'Plan enjoyable activities on weekends',
-                'Connect with friends and family'
-            ]
-        });
-    }
-    
-    if (recommendations.length === 0 && analysis.hasData) {
-        recommendations.push({
-            icon: '🌟', priority: 'low',
-            title: isArabic ? 'استمر على ما أنت عليه' : 'Keep up the good work',
-            advice: isArabic ? 'مزاجك متوازن، استمر في عاداتك الجيدة' : 'Your mood is balanced, keep up your good habits',
-            tips: isArabic ? [
-                'واصل تسجيل مزاجك يومياً',
-                'شارك إيجابيتك مع الآخرين'
-            ] : [
-                'Continue tracking your mood daily',
-                'Share your positivity with others'
-            ]
-        });
-    }
-    
-    return recommendations.sort((a, b) => {
-        const priority = { high: 3, medium: 2, low: 1 };
-        return priority[b.priority] - priority[a.priority];
-    });
-};
-
-// ✅ حساب إحصائيات المزاج
-const calculateMoodStats = (moodRecords) => {
-    const scores = moodRecords.map(r => r.score);
-    const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-    
-    const moodFrequency = {};
-    moodRecords.forEach(r => { moodFrequency[r.raw] = (moodFrequency[r.raw] || 0) + 1; });
-    
-    let mostFrequentMood = 'Neutral', maxCount = 0;
-    for (const [mood, count] of Object.entries(moodFrequency)) {
-        if (count > maxCount) { maxCount = count; mostFrequentMood = mood; }
-    }
-    
-    const goodDays = scores.filter(s => s >= 4).length;
-    const badDays = scores.filter(s => s <= 2).length;
-    
-    const volatility = scores.length > 1 ? 
-        Math.sqrt(scores.reduce((a, b) => a + Math.pow(b - avgScore, 2), 0) / scores.length) : 0;
-    
-    return { avgScore, mostFrequentMood, goodDays, badDays, volatility, totalDays: moodRecords.length };
-};
-
-// ✅ توزيع المزاج
-const getMoodDistribution = (moodRecords) => {
-    const distribution = { Excellent: 0, Good: 0, Neutral: 0, Stressed: 0, Anxious: 0, Sad: 0, Depressed: 0 };
-    moodRecords.forEach(r => { if (distribution[r.raw] !== undefined) distribution[r.raw]++; });
-    return distribution;
-};
-
-// ✅ المكون الرئيسي
 const MoodAnalytics = ({ refreshTrigger }) => {
     const [lang, setLang] = useState(() => localStorage.getItem('app_lang') === 'en' ? 'en' : 'ar');
     const isArabic = lang === 'ar';
@@ -456,7 +46,10 @@ const MoodAnalytics = ({ refreshTrigger }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeInsight, setActiveInsight] = useState(null);
+    const [useBackendData, setUseBackendData] = useState(false);
+    const [backendInsights, setBackendInsights] = useState(null);
 
+    // ✅ الاستماع لتغييرات اللغة
     useEffect(() => {
         const handleLanguageChange = (event) => {
             if (event.detail && event.detail.lang !== lang) {
@@ -468,6 +61,7 @@ const MoodAnalytics = ({ refreshTrigger }) => {
         return () => window.removeEventListener('languageChange', handleLanguageChange);
     }, [lang]);
 
+    // ✅ الاستماع لتغييرات الثيم
     useEffect(() => {
         const savedDarkMode = localStorage.getItem('livocare_darkMode') === 'true';
         setDarkMode(savedDarkMode);
@@ -476,11 +70,95 @@ const MoodAnalytics = ({ refreshTrigger }) => {
         return () => window.removeEventListener('themeChange', handleThemeChange);
     }, []);
 
+    // ==================== دوال تحليلية متقدمة (Fallback محلي) ====================
+    
+    const analyzeDayPatterns = (moodRecords) => {
+        if (moodRecords.length < 7) return null;
+        const dayScores = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+        moodRecords.forEach(record => dayScores[record.date.getDay()].push(record.score));
+        const dayNames = isArabic ? {0:'الأحد',1:'الإثنين',2:'الثلاثاء',3:'الأربعاء',4:'الخميس',5:'الجمعة',6:'السبت'} : {0:'Sunday',1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
+        let bestDay = null, worstDay = null, bestScore = 0, worstScore = 5;
+        Object.entries(dayScores).forEach(([day, scores]) => {
+            if (scores.length >= 2) {
+                const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+                if (avg > bestScore) { bestScore = avg; bestDay = dayNames[parseInt(day)]; }
+                if (avg < worstScore) { worstScore = avg; worstDay = dayNames[parseInt(day)]; }
+            }
+        });
+        return bestDay && worstDay ? { bestDay, worstDay, bestScore: roundNumber(bestScore,1), worstScore: roundNumber(worstScore,1) } : null;
+    };
+
+    const analyzeTrend = (moodRecords) => {
+        if (moodRecords.length < 7) return null;
+        const recent = moodRecords.slice(-7).map(r => r.score);
+        const older = moodRecords.slice(-14, -7).map(r => r.score);
+        if (older.length === 0) return null;
+        const recentAvg = recent.reduce((a,b) => a+b,0) / recent.length;
+        const olderAvg = older.reduce((a,b) => a+b,0) / older.length;
+        const diff = recentAvg - olderAvg;
+        if (Math.abs(diff) > 0.2) {
+            return { isImproving: diff > 0, change: roundNumber(diff,1), percentage: Math.abs(Math.round((diff/olderAvg)*100)) };
+        }
+        return null;
+    };
+
+    const detectMoodDecline = (moodRecords) => {
+        if (moodRecords.length < 3) return null;
+        const lowMoods = ['Stressed', 'Anxious', 'Sad', 'Depressed'];
+        let consecutiveLow = 0;
+        for (let i = moodRecords.length - 1; i >= 0; i--) {
+            if (lowMoods.includes(moodRecords[i].raw)) consecutiveLow++;
+            else break;
+        }
+        if (consecutiveLow >= 3) {
+            return { days: consecutiveLow, severity: consecutiveLow >= 5 ? 'high' : consecutiveLow >= 3 ? 'medium' : 'low' };
+        }
+        return null;
+    };
+
+    const predictMood = (moodRecords) => {
+        if (moodRecords.length < 7) return null;
+        const recentScores = moodRecords.slice(-7).map(r => r.score);
+        const avgRecent = recentScores.reduce((a,b) => a+b,0) / recentScores.length;
+        const trend = moodRecords.slice(-3).reduce((a,b) => a + b.score, 0) - moodRecords.slice(-6,-3).reduce((a,b) => a + b.score, 0);
+        let predictedScore = avgRecent;
+        if (trend > 0.5) predictedScore = Math.min(5, avgRecent + 0.3);
+        else if (trend < -0.5) predictedScore = Math.max(1, avgRecent - 0.3);
+        const moodLevels = isArabic ? ['سيء', 'متوسط', 'جيد', 'جيد جداً', 'ممتاز'] : ['Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+        const levelIndex = Math.min(4, Math.max(0, Math.floor(predictedScore) - 1));
+        return { score: roundNumber(predictedScore,1), level: moodLevels[levelIndex], trend: trend > 0 ? 'up' : trend < 0 ? 'down' : 'stable' };
+    };
+
+    const calculateMoodStats = (moodRecords) => {
+        const scores = moodRecords.map(r => r.score);
+        const avgScore = scores.reduce((a,b) => a+b,0) / scores.length;
+        const moodFrequency = {};
+        moodRecords.forEach(r => { moodFrequency[r.raw] = (moodFrequency[r.raw] || 0) + 1; });
+        let mostFrequentMood = 'Neutral', maxCount = 0;
+        for (const [mood, count] of Object.entries(moodFrequency)) {
+            if (count > maxCount) { maxCount = count; mostFrequentMood = mood; }
+        }
+        return { avgScore: roundNumber(avgScore,1), mostFrequentMood, totalDays: moodRecords.length };
+    };
+
+    const getMoodDistribution = (moodRecords) => {
+        const dist = { Excellent:0, Good:0, Neutral:0, Stressed:0, Anxious:0, Sad:0, Depressed:0 };
+        moodRecords.forEach(r => { if (dist[r.raw] !== undefined) dist[r.raw]++; });
+        return dist;
+    };
+
+    // ==================== جلب البيانات من API ====================
+    
     const fetchAllData = useCallback(async () => {
         if (!isMountedRef.current) return;
-        setLoading(true); setError(null);
+        setLoading(true);
+        setError(null);
         
         try {
+            // ✅ جلب التحليلات من Backend (رؤى المشاعر)
+            const sentimentResponse = await axiosInstance.get('/sentiment/mood-insights/?lang=' + (isArabic ? 'ar' : 'en')).catch(() => ({ data: null }));
+            
+            // جلب البيانات الخام للـ Fallback
             const [moodRes, sleepRes, activitiesRes] = await Promise.all([
                 axiosInstance.get('/mood-logs/').catch(() => ({ data: [] })),
                 axiosInstance.get('/sleep/').catch(() => ({ data: [] })),
@@ -489,6 +167,7 @@ const MoodAnalytics = ({ refreshTrigger }) => {
             
             if (!isMountedRef.current) return;
             
+            // معالجة البيانات الخام
             const moodDataRaw = moodRes.data?.results || (Array.isArray(moodRes.data) ? moodRes.data : []);
             const sleepDataRaw = sleepRes.data?.results || (Array.isArray(sleepRes.data) ? sleepRes.data : []);
             const activitiesDataRaw = activitiesRes.data?.results || (Array.isArray(activitiesRes.data) ? activitiesRes.data : []);
@@ -507,25 +186,103 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                 return;
             }
             
-            const trend = analyzeTrend(moodRecords, isArabic);
-            const dayPattern = analyzeDayPatterns(moodRecords, isArabic);
-            const timePattern = analyzeTimePatterns(moodRecords, isArabic);
-            const sleepImpact = analyzeSleepImpact(sleepDataRaw, moodRecords, isArabic);
-            const activityImpact = analyzeActivityImpact(activitiesDataRaw, moodRecords, isArabic);
-            const declineAlert = detectMoodDecline(moodRecords, isArabic);
-            const weekendImpact = detectHolidayImpact(moodRecords, isArabic);
-            const moodPrediction = predictMood(moodRecords, isArabic);
+            // ✅ استخدام بيانات Backend إذا كانت متوفرة
+            let backendData = null;
+            if (sentimentResponse.data?.success && sentimentResponse.data?.data?.has_data) {
+                backendData = sentimentResponse.data.data;
+                setUseBackendData(true);
+                setBackendInsights(backendData);
+                console.log('✅ Using backend sentiment insights:', backendData);
+            } else {
+                setUseBackendData(false);
+                console.log('⚠️ Backend insights not available, using local calculations');
+            }
+            
+            // الحسابات المحلية (Fallback)
+            const localTrend = analyzeTrend(moodRecords);
+            const localDayPattern = analyzeDayPatterns(moodRecords);
+            const localDecline = detectMoodDecline(moodRecords);
+            const localPrediction = predictMood(moodRecords);
             const stats = calculateMoodStats(moodRecords);
             const distribution = getMoodDistribution(moodRecords);
             
+            // ✅ دمج بيانات Backend مع الحسابات المحلية
+            const trend = backendData?.trend_analysis ? {
+                isImproving: backendData.trend_analysis.trend === 'improving',
+                change: backendData.trend_analysis.change || 0,
+                percentage: Math.abs(backendData.trend_analysis.change || 0),
+                message: backendData.trend_analysis.message
+            } : localTrend;
+            
+            const declineAlert = backendData?.overall_sentiment?.negative > backendData?.overall_sentiment?.positive * 2 ? 
+                { days: 5, severity: 'high', message: backendData.trend_analysis?.message } : localDecline;
+            
+            const moodPrediction = backendData?.trend_analysis?.trend === 'improving' ? 
+                { score: Math.min(5, stats.avgScore + 0.3), level: stats.avgScore >= 4 ? 'ممتاز' : 'جيد', trend: 'up' } : localPrediction;
+            
+            // ✅ توليد توصيات من Backend إذا كانت متوفرة
+            let recommendations = [];
+            if (backendData?.overall_sentiment) {
+                const overall = backendData.overall_sentiment;
+                if (overall.negative > overall.positive && overall.negative > overall.neutral) {
+                    recommendations.push({
+                        icon: '💙', priority: 'high',
+                        title: isArabic ? 'دعم الصحة النفسية' : 'Mental Health Support',
+                        advice: isArabic ? 'هناك تركيز للمشاعر السلبية في سجلاتك. تواصل مع شخص تثق به أو جرب التأمل.' : 'There is a focus on negative emotions in your records. Reach out to someone you trust or try meditation.',
+                        tips: isArabic ? ['تحدث مع مختص نفسي', 'مارس التأمل يومياً', 'اكتب مشاعرك'] : ['Talk to a mental health professional', 'Practice daily meditation', 'Journal your feelings']
+                    });
+                } else if (overall.positive > overall.negative && overall.positive > overall.neutral) {
+                    recommendations.push({
+                        icon: '🌟', priority: 'low',
+                        title: isArabic ? 'مزاج إيجابي' : 'Positive Mood',
+                        advice: isArabic ? 'مزاجك إيجابي بشكل عام! استمر في العادات التي تجعلك سعيداً.' : 'Your mood is generally positive! Keep up the habits that make you happy.',
+                        tips: isArabic ? ['شارك إيجابيتك مع الآخرين', 'استمر في تسجيل مشاعرك'] : ['Share your positivity with others', 'Continue tracking your feelings']
+                    });
+                }
+            }
+            
+            if (trend && !trend.isImproving && recommendations.length === 0) {
+                recommendations.push({
+                    icon: '📉', priority: 'high',
+                    title: isArabic ? 'انخفاض في المزاج' : 'Mood Decline',
+                    advice: isArabic ? `لاحظنا انخفاضاً في مزاجك بنسبة ${trend.percentage}%. اهتم بصحتك النفسية.` : `We noticed a ${trend.percentage}% decline in your mood. Take care of your mental health.`,
+                    tips: isArabic ? ['تحدث مع شخص تثق به', 'مارس نشاطاً تحبه', 'خذ قسطاً من الراحة'] : ['Talk to someone you trust', 'Do an activity you enjoy', 'Take a break']
+                });
+            }
+            
+            if (declineAlert && recommendations.length === 0) {
+                recommendations.push({
+                    icon: '⚠️', priority: 'high',
+                    title: isArabic ? 'تنبيه: انخفاض مستمر' : 'Alert: Continuous Decline',
+                    advice: isArabic ? `مزاجك منخفض لمدة ${declineAlert.days} أيام متتالية. نوصي بالتواصل مع مختص.` : `Your mood has been low for ${declineAlert.days} consecutive days. We recommend consulting a specialist.`,
+                    tips: isArabic ? ['استشر طبيباً نفسياً', 'لا تبق وحيداً', 'مارس تمارين التنفس'] : ['Consult a psychologist', 'Don\'t stay alone', 'Practice breathing exercises']
+                });
+            }
+            
+            if (recommendations.length === 0 && stats.avgScore >= 3.5) {
+                recommendations.push({
+                    icon: '😊', priority: 'low',
+                    title: isArabic ? 'مزاجك جيد' : 'Your mood is good',
+                    advice: isArabic ? 'مزاجك مستقر وإيجابي. استمر في عاداتك الصحية!' : 'Your mood is stable and positive. Keep up your healthy habits!',
+                    tips: isArabic ? ['واصل تسجيل مزاجك', 'حافظ على روتينك'] : ['Continue tracking your mood', 'Maintain your routine']
+                });
+            }
+            
             const fullAnalysis = {
-                hasData: true, trend, dayPattern, timePattern, sleepImpact, activityImpact,
-                declineAlert, weekendImpact, moodPrediction, stats, distribution,
-                recommendations: generateRecommendations({ trend, sleepImpact, activityImpact, dayPattern, timePattern, weekendImpact, hasData: true }, isArabic)
+                hasData: true,
+                useBackendData,
+                stats,
+                distribution,
+                trend,
+                dayPattern: localDayPattern,
+                declineAlert,
+                moodPrediction,
+                recommendations,
+                backendData
             };
             
             setAnalysis(fullAnalysis);
-            setActiveInsight(fullAnalysis.declineAlert || fullAnalysis.trend || fullAnalysis.sleepImpact || fullAnalysis.activityImpact);
+            setActiveInsight(declineAlert || (trend && !trend.isImproving ? trend : null));
             
         } catch (err) {
             console.error('Error in MoodAnalytics:', err);
@@ -535,37 +292,53 @@ const MoodAnalytics = ({ refreshTrigger }) => {
         }
     }, [isArabic]);
 
-    useEffect(() => { fetchAllData(); return () => { isMountedRef.current = false; }; }, [fetchAllData, refreshTrigger]);
+    useEffect(() => {
+        fetchAllData();
+        return () => { isMountedRef.current = false; };
+    }, [fetchAllData, refreshTrigger]);
 
     if (loading) return (
         <div className={`analytics-loading ${darkMode ? 'dark-mode' : ''}`}>
-            <div className="spinner"></div><p>{isArabic ? 'جاري التحليل...' : 'Analyzing...'}</p>
+            <div className="spinner"></div>
+            <p>{isArabic ? 'جاري التحليل...' : 'Analyzing...'}</p>
         </div>
     );
     
     if (error) return (
         <div className={`analytics-error ${darkMode ? 'dark-mode' : ''}`}>
-            <p>❌ {error}</p><button onClick={fetchAllData} className="retry-btn">🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}</button>
+            <p>❌ {error}</p>
+            <button onClick={fetchAllData} className="retry-btn">🔄 {isArabic ? 'إعادة المحاولة' : 'Retry'}</button>
+        </div>
+    );
+
+    if (!analysis?.hasData) return (
+        <div className={`no-data-message ${darkMode ? 'dark-mode' : ''}`}>
+            <div className="message-icon">📝</div>
+            <p>{analysis?.message || (isArabic ? 'لا توجد بيانات' : 'No data')}</p>
         </div>
     );
 
     return (
         <div className={`analytics-container mood-analytics ${darkMode ? 'dark-mode' : ''}`}>
             <div className="analytics-header">
-                <h2>{isArabic ? 'تحليل المزاج المتقدم' : 'Advanced Mood Analytics'}</h2>
+                <h2>
+                    <span className="header-icon">😊</span>
+                    {isArabic ? 'تحليل المزاج المتقدم' : 'Advanced Mood Analytics'}
+                    {analysis.useBackendData && <span className="ai-badge">🤖 AI {isArabic ? 'متقدم' : 'Advanced'}</span>}
+                </h2>
                 <button onClick={fetchAllData} className="refresh-btn" title={isArabic ? 'تحديث' : 'Refresh'}>🔄</button>
             </div>
 
-            {analysis?.hasData ? (
-                <div className="insights-container">
-                    {/* الإحصائيات السريعة */}
-                    <div className="quick-stats">
-                        <div className="stat-box"><div className="stat-value">{analysis.stats.avgScore}</div><div className="stat-label">{isArabic ? 'متوسط المزاج' : 'Average Mood'}</div></div>
-                        <div className="stat-box"><div className="stat-value">{analysis.stats.totalDays}</div><div className="stat-label">{isArabic ? 'أيام مسجلة' : 'Days Recorded'}</div></div>
-                        <div className="stat-box"><div className="stat-value">{getMoodEmoji(analysis.stats.mostFrequentMood)} {getMoodText(analysis.stats.mostFrequentMood, isArabic)}</div><div className="stat-label">{isArabic ? 'الأكثر تكراراً' : 'Most Frequent'}</div></div>
-                    </div>
+            <div className="insights-container">
+                {/* الإحصائيات السريعة */}
+                <div className="quick-stats">
+                    <div className="stat-box"><div className="stat-value">{analysis.stats.avgScore}</div><div className="stat-label">{isArabic ? 'متوسط المزاج' : 'Average Mood'}</div></div>
+                    <div className="stat-box"><div className="stat-value">{analysis.stats.totalDays}</div><div className="stat-label">{isArabic ? 'أيام مسجلة' : 'Days Recorded'}</div></div>
+                    <div className="stat-box"><div className="stat-value">{getMoodEmoji(analysis.stats.mostFrequentMood)} {getMoodText(analysis.stats.mostFrequentMood, isArabic)}</div><div className="stat-label">{isArabic ? 'الأكثر تكراراً' : 'Most Frequent'}</div></div>
+                </div>
 
-                    {/* توزيع المزاج */}
+                {/* توزيع المزاج */}
+                {Object.values(analysis.distribution).some(v => v > 0) && (
                     <div className="distribution-section">
                         <h3>{isArabic ? 'توزيع الحالة المزاجية' : 'Mood Distribution'}</h3>
                         <div className="distribution-bars">
@@ -579,41 +352,302 @@ const MoodAnalytics = ({ refreshTrigger }) => {
                             ))}
                         </div>
                     </div>
+                )}
 
-                    {/* التنبؤ */}
-                    {analysis.moodPrediction && (
-                        <div className="prediction-box">
-                            <span className="prediction-icon">🔮</span>
-                            <span className="prediction-text">{isArabic ? 'توقع المزاج غداً' : 'Tomorrow\'s mood prediction'}: <strong>{analysis.moodPrediction.score}/5</strong> ({analysis.moodPrediction.level})</span>
-                            <span className="prediction-trend">{analysis.moodPrediction.trend === 'up' ? '📈' : analysis.moodPrediction.trend === 'down' ? '📉' : '➡️'}</span>
+                {/* رؤى من Backend */}
+                {analysis.backendData && analysis.backendData.has_data && (
+                    <div className="backend-insights">
+                        <div className="insight-header">
+                            <span className="insight-icon">🧠</span>
+                            <span className="insight-title">{isArabic ? 'تحليلات متقدمة بالذكاء الاصطناعي' : 'AI-Powered Advanced Insights'}</span>
                         </div>
-                    )}
+                        {analysis.backendData.overall_sentiment && (
+                            <div className="insight-item">
+                                <span className="insight-label">{isArabic ? 'المشاعر العامة' : 'Overall Sentiment'}:</span>
+                                <span className={`insight-value ${analysis.backendData.overall_sentiment.overall === 'Positive' ? 'positive' : analysis.backendData.overall_sentiment.overall === 'Negative' ? 'negative' : 'neutral'}`}>
+                                    {analysis.backendData.overall_sentiment.overall}
+                                </span>
+                                <span className="insight-detail">
+                                    ({analysis.backendData.overall_sentiment.positive_rate}% {isArabic ? 'إيجابي' : 'positive'})
+                                </span>
+                            </div>
+                        )}
+                        {analysis.backendData.trend_analysis && analysis.backendData.trend_analysis.trend !== 'insufficient_data' && (
+                            <div className="insight-item">
+                                <span className="insight-label">{isArabic ? 'الاتجاه' : 'Trend'}:</span>
+                                <span className={`insight-value trend-${analysis.backendData.trend_analysis.trend}`}>
+                                    {analysis.backendData.trend_analysis.trend === 'improving' ? (isArabic ? '📈 تحسن' : '📈 Improving') : 
+                                     analysis.backendData.trend_analysis.trend === 'declining' ? (isArabic ? '📉 تراجع' : '📉 Declining') : 
+                                     (isArabic ? '➡️ مستقر' : '➡️ Stable')}
+                                </span>
+                                <span className="insight-detail">{analysis.backendData.trend_analysis.message}</span>
+                            </div>
+                        )}
+                        {analysis.backendData.most_common_mood && (
+                            <div className="insight-item">
+                                <span className="insight-label">{isArabic ? 'المزاج الأكثر تكراراً' : 'Most Common Mood'}:</span>
+                                <span className="insight-value">{analysis.backendData.most_common_mood}</span>
+                            </div>
+                        )}
+                    </div>
+                )}
 
-                    {/* تنبيه الانخفاض */}
-                    {analysis.declineAlert && <div className={`alert-card ${analysis.declineAlert.severity}`}><div className="alert-header"><span className="alert-icon">⚠️</span><span className="alert-title">{analysis.declineAlert.title}</span></div><p className="alert-message">{analysis.declineAlert.message}</p></div>}
+                {/* تنبيه الانخفاض */}
+                {analysis.declineAlert && (
+                    <div className={`alert-card severity-${analysis.declineAlert.severity}`}>
+                        <div className="alert-header"><span className="alert-icon">⚠️</span><span className="alert-title">{isArabic ? 'انخفاض مستمر في المزاج' : 'Continuous mood decline'}</span></div>
+                        <p className="alert-message">{isArabic ? `مزاجك منخفض لمدة ${analysis.declineAlert.days} أيام متتالية` : `Your mood has been low for ${analysis.declineAlert.days} consecutive days`}</p>
+                        {analysis.declineAlert.message && <p className="alert-detail">{analysis.declineAlert.message}</p>}
+                    </div>
+                )}
 
-                    {/* الاتجاه */}
-                    {analysis.trend && (<div className="trend-card"><div className="trend-header"><span className="trend-icon">{analysis.trend.icon}</span><span className="trend-title">{analysis.trend.title}</span></div><p className="trend-message">{analysis.trend.message}</p></div>)}
+                {/* الاتجاه */}
+                {analysis.trend && (
+                    <div className={`trend-card ${analysis.trend.isImproving ? 'improving' : 'declining'}`}>
+                        <div className="trend-header">
+                            <span className="trend-icon">{analysis.trend.isImproving ? '📈' : '📉'}</span>
+                            <span className="trend-title">{analysis.trend.isImproving ? (isArabic ? 'مزاجك يتحسن' : 'Your mood is improving') : (isArabic ? 'مزاجك في انخفاض' : 'Your mood is declining')}</span>
+                        </div>
+                        <p className="trend-message">{analysis.trend.message || (analysis.trend.isImproving ? 
+                            (isArabic ? `تحسن ملحوظ بنسبة ${analysis.trend.percentage}% في الفترة الأخيرة` : `Notable improvement of ${analysis.trend.percentage}% recently`) :
+                            (isArabic ? `انخفاض ملحوظ بنسبة ${analysis.trend.percentage}% في الفترة الأخيرة` : `Notable decline of ${analysis.trend.percentage}% recently`))}
+                        </p>
+                    </div>
+                )}
 
-                    {/* الأنماط */}
-                    {analysis.dayPattern && (<div className="pattern-card"><div className="pattern-header"><span className="pattern-icon">📅</span><span className="pattern-title">{analysis.dayPattern.title}</span></div><div className="pattern-content"><span className="good">👍 {analysis.dayPattern.bestDay}</span><span className="separator"> | </span><span className="bad">👎 {analysis.dayPattern.worstDay}</span></div></div>)}
-                    {analysis.timePattern && (<div className="pattern-card"><div className="pattern-header"><span className="pattern-icon">⏰</span><span className="pattern-title">{analysis.timePattern.title}</span></div><p className="pattern-content">{analysis.timePattern.bestTime}</p></div>)}
-                    {analysis.weekendImpact && (<div className="pattern-card"><div className="pattern-header"><span className="pattern-icon">🎉</span><span className="pattern-title">{analysis.weekendImpact.title}</span></div><p className="pattern-content">{analysis.weekendImpact.message}</p></div>)}
+                {/* التنبؤ */}
+                {analysis.moodPrediction && (
+                    <div className="prediction-box">
+                        <span className="prediction-icon">🔮</span>
+                        <span className="prediction-text">{isArabic ? 'توقع المزاج' : 'Mood prediction'}: <strong>{analysis.moodPrediction.score}/5</strong> ({analysis.moodPrediction.level})</span>
+                        <span className="prediction-trend">{analysis.moodPrediction.trend === 'up' ? '📈' : analysis.moodPrediction.trend === 'down' ? '📉' : '➡️'}</span>
+                    </div>
+                )}
 
-                    {/* التأثيرات */}
-                    {analysis.sleepImpact && (<div className="impact-card"><div className="impact-header"><span className="impact-icon">😴</span><span className="impact-title">{analysis.sleepImpact.title}</span></div><p className="impact-message">{analysis.sleepImpact.message}</p></div>)}
-                    {analysis.activityImpact && (<div className="impact-card"><div className="impact-header"><span className="impact-icon">🏃</span><span className="impact-title">{analysis.activityImpact.title}</span></div><p className="impact-message">{analysis.activityImpact.message}</p></div>)}
+                {/* الأنماط */}
+                {analysis.dayPattern && (
+                    <div className="pattern-card">
+                        <div className="pattern-header"><span className="pattern-icon">📅</span><span className="pattern-title">{isArabic ? 'نمط أيام الأسبوع' : 'Weekly Pattern'}</span></div>
+                        <div className="pattern-content">
+                            <span className="good">👍 {analysis.dayPattern.bestDay}</span>
+                            <span className="separator"> | </span>
+                            <span className="bad">👎 {analysis.dayPattern.worstDay}</span>
+                        </div>
+                    </div>
+                )}
 
-                    {/* التوصيات */}
-                    <div className="recommendations-section"><h3>💡 {isArabic ? 'توصيات مخصصة' : 'Personalized Recommendations'}</h3>{analysis.recommendations?.map((rec, i) => (<div key={i} className={`recommendation-card priority-${rec.priority}`}><div className="rec-header"><span className="rec-icon">{rec.icon}</span><span className="rec-title">{rec.title}</span></div><p className="rec-advice">{rec.advice}</p><ul className="rec-tips">{rec.tips?.map((tip, j) => <li key={j}>{tip}</li>)}</ul></div>))}</div>
-                </div>
-            ) : (<div className="no-data-message"><div className="message-icon">📝</div><p>{analysis?.message}</p></div>)}
+                {/* التوصيات */}
+                {analysis.recommendations && analysis.recommendations.length > 0 && (
+                    <div className="recommendations-section">
+                        <h3>💡 {isArabic ? 'توصيات مخصصة' : 'Personalized Recommendations'}</h3>
+                        {analysis.recommendations.map((rec, i) => (
+                            <div key={i} className={`recommendation-card priority-${rec.priority}`}>
+                                <div className="rec-header">
+                                    <span className="rec-icon">{rec.icon}</span>
+                                    <span className="rec-title">{rec.title}</span>
+                                </div>
+                                <p className="rec-advice">{rec.advice}</p>
+                                {rec.tips && rec.tips.length > 0 && (
+                                    <ul className="rec-tips">
+                                        {rec.tips.map((tip, j) => <li key={j}>{tip}</li>)}
+                                    </ul>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
 
-            {/* الأنماط - محفوظة كما هي */}
-            <style jsx>{`/* الأنماط السابقة محفوظة */`}</style>
-
-
-                               <style jsx>{`
+            <style jsx>{`
+                .analytics-container {
+                    background: var(--card-bg, #ffffff);
+                    border-radius: 28px;
+                    padding: 1.5rem;
+                    border: 1px solid var(--border-light, #eef2f6);
+                }
+                .dark-mode .analytics-container {
+                    background: #1e293b;
+                    border-color: #334155;
+                }
+                .analytics-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid var(--border-light, #eef2f6);
+                }
+                .analytics-header h2 {
+                    font-size: 1.2rem;
+                    font-weight: 700;
+                    margin: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                .ai-badge {
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    padding: 0.2rem 0.6rem;
+                    border-radius: 20px;
+                    font-size: 0.6rem;
+                    color: white;
+                }
+                .refresh-btn {
+                    background: var(--secondary-bg, #f1f5f9);
+                    border: none;
+                    width: 38px;
+                    height: 38px;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-size: 1.2rem;
+                }
+                .refresh-btn:hover {
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    color: white;
+                    transform: rotate(180deg);
+                }
+                .quick-stats {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                }
+                .stat-box {
+                    background: var(--secondary-bg, #f8fafc);
+                    border-radius: 18px;
+                    padding: 1rem;
+                    text-align: center;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                .dark-mode .stat-box {
+                    background: #0f172a;
+                    border-color: #334155;
+                }
+                .stat-value {
+                    font-size: 1.8rem;
+                    font-weight: 800;
+                    color: var(--text-primary, #0f172a);
+                }
+                .stat-label {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary, #94a3b8);
+                }
+                .distribution-section {
+                    margin-bottom: 1.5rem;
+                }
+                .distribution-section h3 {
+                    font-size: 0.9rem;
+                    margin-bottom: 0.75rem;
+                }
+                .distribution-bars {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+                .distribution-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-size: 0.8rem;
+                }
+                .dist-emoji { width: 32px; }
+                .dist-label { width: 70px; }
+                .dist-bar { flex: 1; height: 8px; background: var(--border-light, #e2e8f0); border-radius: 4px; overflow: hidden; }
+                .dist-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+                .dist-count { width: 30px; text-align: right; font-weight: 600; }
+                .backend-insights {
+                    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+                    border-radius: 18px;
+                    padding: 1rem;
+                    margin-bottom: 1.5rem;
+                    color: white;
+                }
+                .insight-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin-bottom: 0.75rem;
+                }
+                .insight-item {
+                    margin-bottom: 0.5rem;
+                    font-size: 0.8rem;
+                }
+                .insight-label { opacity: 0.8; margin-right: 0.5rem; }
+                .insight-value.positive { color: #10b981; }
+                .insight-value.negative { color: #ef4444; }
+                .insight-value.neutral { color: #f59e0b; }
+                .alert-card {
+                    border-radius: 16px;
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                    border-left: 4px solid;
+                }
+                .alert-card.severity-high { background: rgba(239,68,68,0.1); border-left-color: #ef4444; }
+                .alert-card.severity-medium { background: rgba(245,158,11,0.1); border-left-color: #f59e0b; }
+                .alert-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 700; }
+                .alert-message { font-size: 0.8rem; margin: 0; }
+                .alert-detail { font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.8; }
+                .trend-card {
+                    background: var(--secondary-bg, #f8fafc);
+                    border-radius: 16px;
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                .trend-card.improving { border-left: 4px solid #10b981; }
+                .trend-card.declining { border-left: 4px solid #ef4444; }
+                .trend-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 700; }
+                .trend-message { font-size: 0.8rem; margin: 0; }
+                .prediction-box {
+                    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+                    border-radius: 16px;
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }
+                .pattern-card {
+                    background: var(--secondary-bg, #f8fafc);
+                    border-radius: 14px;
+                    padding: 0.75rem;
+                    margin-bottom: 1rem;
+                    border: 1px solid var(--border-light, #e2e8f0);
+                }
+                .pattern-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 700; font-size: 0.8rem; }
+                .pattern-content { font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
+                .recommendations-section { margin-top: 1rem; }
+                .recommendations-section h3 { font-size: 0.9rem; margin-bottom: 0.75rem; }
+                .recommendation-card {
+                    background: var(--secondary-bg, #f8fafc);
+                    border-radius: 16px;
+                    padding: 1rem;
+                    margin-bottom: 0.75rem;
+                    border-left: 4px solid;
+                }
+                .recommendation-card.priority-high { border-left-color: #ef4444; }
+                .recommendation-card.priority-medium { border-left-color: #f59e0b; }
+                .recommendation-card.priority-low { border-left-color: #10b981; }
+                .rec-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+                .rec-icon { font-size: 1.2rem; }
+                .rec-title { font-weight: 700; font-size: 0.85rem; }
+                .rec-advice { font-size: 0.75rem; margin-bottom: 0.5rem; color: var(--text-secondary, #64748b); }
+                .rec-tips { margin: 0; padding-left: 1.5rem; font-size: 0.7rem; }
+                .no-data-message { text-align: center; padding: 2rem; background: var(--secondary-bg, #f8fafc); border-radius: 20px; }
+                .message-icon { font-size: 3rem; opacity: 0.5; margin-bottom: 0.5rem; }
+                .spinner { width: 40px; height: 40px; border: 3px solid var(--border-light, #e2e8f0); border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+                @keyframes spin { to { transform: rotate(360deg); } }
+                @media (max-width: 768px) {
+                    .analytics-container { padding: 1rem; }
+                    .quick-stats { gap: 0.5rem; }
+                    .stat-value { font-size: 1.2rem; }
+                    .distribution-item { font-size: 0.7rem; gap: 0.25rem; }
+                    .dist-label { width: 60px; }
+                }
+       
 /* ===========================================
    MoodAnalytics.css - الأنماط الداخلية فقط
    ✅ تحليل المزاج - ألوان وأشكال مميزة
