@@ -119,39 +119,24 @@ const getHabitIcon = (habitType) => {
     }
 };
 
-// ✅ دالة متقدمة لاستخراج الأمراض من النص
+// دالة متقدمة لاستخراج الأمراض من النص
 const extractDiseasesFromText = (text) => {
     if (!text || !text.trim()) return [];
     
     const diseases = new Set();
     
     const diseaseKeywords = {
-        'diabetes': ['سكري', 'diabetes', 'diabetic', 'type 1', 'type 2', 'سكر', 'sugar'],
-        'hypertension': ['ضغط', 'hypertension', 'high blood pressure', 'hypertensive', 'ارتفاع ضغط'],
-        'asthma': ['ربو', 'asthma', 'bronchial', 'azma', 'respiratory'],
-        'heart_disease': ['قلب', 'heart', 'cardiac', 'cardiovascular', 'coronary', 'angina', 'نوبة قلبية', 'heart attack'],
-        'arthritis': ['التهاب مفاصل', 'arthritis', 'rheumatoid', 'osteoarthritis', 'rheumatic', 'joint pain'],
-        'thyroid': ['غدة درقية', 'thyroid', 'hypothyroidism', 'hyperthyroidism', 'thyroiditis'],
-        'anemia': ['أنيميا', 'anemia', 'فقر دم', 'hemoglobin', 'iron deficiency'],
-        'migraine': ['صداع نصفي', 'migraine', 'شقيقة', 'headache chronic'],
-        'allergy': ['حساسية', 'allergy', 'allergic', 'hay fever', 'skin rash'],
-        'depression': ['اكتئاب', 'depression', 'depressive', 'major depression', 'mood disorder'],
-        'anxiety': ['قلق', 'anxiety', 'anxious', 'panic disorder', 'stress'],
-        'obesity': ['سمنة', 'obesity', 'overweight', 'obese', 'weight gain'],
-        'kidney_disease': ['كلية', 'kidney', 'renal', 'ckd', 'kidney failure', 'renal disease'],
-        'liver_disease': ['كبد', 'liver', 'hepatic', 'cirrhosis', 'hepatitis', 'fatty liver'],
-        'cancer': ['سرطان', 'cancer', 'tumor', 'malignant', 'carcinoma', 'chemotherapy'],
-        'copd': ['copd', 'chronic obstructive', 'انسداد رئوي', 'bronchitis chronic', 'emphysema'],
-        'osteoporosis': ['هشاشة', 'osteoporosis', 'bone density', 'osteopenia', 'fragile bones'],
-        'psoriasis': ['صدفية', 'psoriasis', 'plaque psoriasis', 'skin disease'],
-        'epilepsy': ['صرع', 'epilepsy', 'seizure', 'epileptic', 'convulsions'],
-        'stroke': ['سكتة دماغية', 'stroke', 'cerebrovascular', 'brain attack', 'cva'],
-        'pneumonia': ['التهاب رئوي', 'pneumonia', 'lung infection', 'respiratory infection'],
-        'gastritis': ['التهاب معدة', 'gastritis', 'stomach inflammation', 'indigestion'],
-        'ulcer': ['قرحة', 'ulcer', 'peptic ulcer', 'stomach ulcer'],
-        'cholesterol': ['كوليسترول', 'cholesterol', 'hyperlipidemia', 'high cholesterol', 'ldl'],
-        'gout': ['نقرس', 'gout', 'uric acid', 'joint inflammation'],
-        'alzheimer': ['الزهايمر', 'alzheimer', 'dementia', 'memory loss']
+        'diabetes': ['سكري', 'diabetes', 'diabetic', 'type 1', 'type 2', 'سكر'],
+        'hypertension': ['ضغط', 'hypertension', 'high blood pressure', 'ارتفاع ضغط'],
+        'asthma': ['ربو', 'asthma', 'bronchial'],
+        'heart_disease': ['قلب', 'heart', 'cardiac', 'cardiovascular', 'angina'],
+        'arthritis': ['التهاب مفاصل', 'arthritis', 'rheumatoid'],
+        'thyroid': ['غدة درقية', 'thyroid', 'hypothyroidism'],
+        'anemia': ['أنيميا', 'anemia', 'فقر دم'],
+        'depression': ['اكتئاب', 'depression', 'depressive'],
+        'anxiety': ['قلق', 'anxiety', 'anxious'],
+        'obesity': ['سمنة', 'obesity', 'overweight'],
+        'cancer': ['سرطان', 'cancer', 'tumor']
     };
     
     const textLower = text.toLowerCase();
@@ -161,8 +146,7 @@ const extractDiseasesFromText = (text) => {
             if (textLower.includes(keyword.toLowerCase())) {
                 let diseaseName = keywords[0];
                 if (key === 'heart_disease') diseaseName = 'أمراض القلب';
-                if (key === 'kidney_disease') diseaseName = 'أمراض الكلى';
-                if (key === 'liver_disease') diseaseName = 'أمراض الكبد';
+                if (key === 'thyroid') diseaseName = 'مشاكل الغدة الدرقية';
                 diseases.add(diseaseName);
                 break;
             }
@@ -175,7 +159,7 @@ const extractDiseasesFromText = (text) => {
 // ==================== المكون الرئيسي ====================
 
 function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
-    // ✅ إعدادات اللغة
+    // إعدادات اللغة
     const [lang, setLang] = useState(() => {
         const saved = localStorage.getItem('app_lang');
         return saved === 'en' ? 'en' : 'ar';
@@ -201,13 +185,13 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
     const [todayLogs, setTodayLogs] = useState([]);
     const [refreshKey, setRefreshKey] = useState(0);
     
-    // ✅ حالة البحث عن الأدوية
+    // حالة البحث عن الأدوية
     const [drugSearchQuery, setDrugSearchQuery] = useState('');
     const [drugSearchResults, setDrugSearchResults] = useState([]);
     const [searchingDrug, setSearchingDrug] = useState(false);
     const [searchType, setSearchType] = useState('name');
     
-    // ✅ حالات الأمراض المزمنة والسجلات الطبية
+    // حالات الأمراض المزمنة والسجلات الطبية
     const [chronicConditions, setChronicConditions] = useState([]);
     const [medicalRecords, setMedicalRecords] = useState([]);
     const [showMedicalRecordForm, setShowMedicalRecordForm] = useState(false);
@@ -223,49 +207,20 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
     });
     const [activeTab, setActiveTab] = useState('habits');
     
-    // ✅ حالات تحليلات العادات
-    const [habitAnalyticsData, setHabitAnalyticsData] = useState(null);
-    const [habitRecommendations, setHabitRecommendations] = useState([]);
-    const [habitPredictions, setHabitPredictions] = useState([]);
-    const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-    
-    // ✅ حالات الإضافة اليدوية للأمراض المزمنة
+    // حالات الإضافة اليدوية للأمراض المزمنة
     const [showManualConditionForm, setShowManualConditionForm] = useState(false);
     const [manualConditionName, setManualConditionName] = useState('');
     const [manualConditionDate, setManualConditionDate] = useState('');
     const [manualConditionMeds, setManualConditionMeds] = useState('');
     const [addingManualCondition, setAddingManualCondition] = useState(false);
-
-    // ✅ الاستماع لتغييرات اللغة
-    useEffect(() => {
-        const handleLanguageChange = (event) => {
-            if (event.detail && event.detail.lang !== lang) {
-                setLang(event.detail.lang);
-            }
-        };
-        window.addEventListener('languageChange', handleLanguageChange);
-        return () => window.removeEventListener('languageChange', handleLanguageChange);
-    }, [lang]);
-
-    // ✅ الاستماع لتغيير نوع العادة
-    useEffect(() => {
-        const handleTypeChange = () => {
-            setRefreshKey(prev => prev + 1);
-            fetchHabitDefinitions();
-            fetchHabitAnalyticsData();
-        };
-        window.addEventListener('habitTypeChanged', handleTypeChange);
-        return () => window.removeEventListener('habitTypeChanged', handleTypeChange);
-    }, []);
     
-    // ✅ تحميل التحليلات عند تغيير التبويب
-    useEffect(() => {
-        if (activeTab === 'analytics') {
-            setRefreshAnalytics(prev => prev + 1);
-        }
-    }, [activeTab]);
-    
-    // ✅ عرض رسالة مؤقتة
+    // حالات تعديل وحذف العادات/الأدوية
+    const [editingDefinition, setEditingDefinition] = useState(null);
+    const [editHabitName, setEditHabitName] = useState('');
+    const [editHabitDescription, setEditHabitDescription] = useState('');
+    const [showEditModal, setShowEditModal] = useState(false);
+
+    // عرض رسالة مؤقتة
     const showMessage = useCallback((msg, type = 'success') => {
         setMessage(msg);
         setMessageType(type);
@@ -274,7 +229,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }, 3000);
     }, []);
 
-    // ✅ جلب الأمراض المزمنة
+    // جلب الأمراض المزمنة
     const fetchChronicConditions = useCallback(async () => {
         if (!isAuthReady) return;
         setLoadingConditions(true);
@@ -294,7 +249,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [isAuthReady]);
 
-    // ✅ جلب السجلات الطبية
+    // جلب السجلات الطبية
     const fetchMedicalRecords = useCallback(async () => {
         if (!isAuthReady) return;
         try {
@@ -311,15 +266,14 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [isAuthReady]);
 
-    // ✅ جلب تحليلات العادات
+    // جلب تحليلات العادات
     const fetchHabitAnalyticsData = useCallback(async () => {
         if (!isAuthReady) return;
         setLoadingAnalytics(true);
         try {
             const response = await axiosInstance.get('/habits/analytics/?lang=' + (isArabic ? 'ar' : 'en'));
             if (response.data?.success) {
-                setHabitAnalyticsData(response.data.data);
-                console.log('📊 Habit analytics loaded:', response.data.data);
+                console.log('📊 Habit analytics loaded');
             }
         } catch (error) {
             console.error('Error fetching habit analytics:', error);
@@ -328,37 +282,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [isAuthReady, isArabic]);
 
-    // ✅ جلب توصيات العادات
-    const fetchHabitRecommendationsData = useCallback(async () => {
-        if (!isAuthReady) return;
-        try {
-            const response = await axiosInstance.get('/habits/recommendations/?limit=5&lang=' + (isArabic ? 'ar' : 'en'));
-            if (response.data?.success) {
-                setHabitRecommendations(response.data.recommendations || []);
-                console.log('💡 Habit recommendations loaded:', response.data.recommendations);
-            }
-        } catch (error) {
-            console.error('Error fetching habit recommendations:', error);
-            setHabitRecommendations([]);
-        }
-    }, [isAuthReady, isArabic]);
-
-    // ✅ جلب توقعات العادات
-    const fetchHabitPredictionsData = useCallback(async () => {
-        if (!isAuthReady) return;
-        try {
-            const response = await axiosInstance.get('/habits/predictions/?days=7&lang=' + (isArabic ? 'ar' : 'en'));
-            if (response.data?.success) {
-                setHabitPredictions(response.data.predictions || []);
-                console.log('🔮 Habit predictions loaded:', response.data.predictions);
-            }
-        } catch (error) {
-            console.error('Error fetching habit predictions:', error);
-            setHabitPredictions([]);
-        }
-    }, [isAuthReady, isArabic]);
-
-    // ✅ دالة جلب تعريفات العادات
+    // دالة جلب تعريفات العادات
     const fetchHabitDefinitions = useCallback(async () => {
         if (!isAuthReady || isFetchingRef.current || !isMountedRef.current) return;
         
@@ -406,7 +330,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [isAuthReady, isArabic, showMessage, refreshKey]);
 
-    // ✅ إضافة مرض مزمن يدوياً
+    // إضافة مرض مزمن يدوياً
     const handleAddManualCondition = useCallback(async (e) => {
         e.preventDefault();
         
@@ -442,7 +366,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [manualConditionName, manualConditionDate, manualConditionMeds, isArabic, showMessage]);
 
-    // ✅ رفع ملف PDF وتحليله
+    // رفع ملف PDF وتحليله
     const handleFileUpload = useCallback(async (e) => {
         e.preventDefault();
         
@@ -510,7 +434,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [selectedFile, newMedicalRecord, isArabic, showMessage, fetchMedicalRecords, fetchChronicConditions]);
 
-    // ✅ حذف مرض مزمن
+    // حذف مرض مزمن
     const handleDeleteCondition = useCallback(async (conditionId) => {
         if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا المرض؟' : 'Are you sure you want to delete this condition?')) return;
         
@@ -524,7 +448,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [isArabic, showMessage]);
 
-    // ✅ حذف سجل طبي
+    // حذف سجل طبي
     const handleDeleteMedicalRecord = useCallback(async (recordId) => {
         if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا السجل؟' : 'Are you sure you want to delete this record?')) return;
         
@@ -538,12 +462,73 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [isArabic, showMessage]);
 
-    // ✅ البحث في FDA (اختصاراً - الكود الكامل موجود في نسختك الأصلية)
+    // البحث في FDA
     const searchDrugInFDA = useCallback(async (query, type = 'name') => {
-        // ... (احتفظ بدالة البحث الأصلية كما هي)
+        if (!query || query.trim() === '') {
+            showMessage(isArabic ? '⚠️ الرجاء إدخال اسم الدواء أو رمز NDC' : '⚠️ Please enter drug name or NDC code', 'error');
+            return;
+        }
+        
+        setSearchingDrug(true);
+        setDrugSearchResults([]);
+        
+        try {
+            let endpoint = '', searchParam = '';
+            
+            if (type === 'name') {
+                endpoint = 'drug/drugsfda.json';
+                searchParam = `search=openfda.brand_name:"${encodeURIComponent(query)}"+or+openfda.generic_name:"${encodeURIComponent(query)}"&limit=10`;
+            } else {
+                endpoint = 'drug/ndc.json';
+                let cleanNDC = query.replace(/-/g, '');
+                if (cleanNDC.length === 10 && !cleanNDC.includes('-')) {
+                    searchParam = `search=product_ndc:"${cleanNDC.slice(0,2)}-${cleanNDC.slice(2,5)}-${cleanNDC.slice(5)}"&limit=5`;
+                } else {
+                    searchParam = `search=product_ndc:"${cleanNDC}"&limit=5`;
+                }
+            }
+            
+            const response = await axios.get(`https://api.fda.gov/${endpoint}?${searchParam}`, { timeout: 15000 });
+            
+            if (response.data && response.data.results && response.data.results.length > 0) {
+                const results = response.data.results.map(drug => {
+                    const openfda = drug.openfda || {};
+                    const products = drug.products || [];
+                    return {
+                        brand_name: openfda.brand_name?.[0] || '',
+                        generic_name: openfda.generic_name?.[0] || '',
+                        manufacturer: openfda.manufacturer_name?.[0] || products[0]?.manufacturer_name || '',
+                        route: products[0]?.route || '',
+                        dosage_form: products[0]?.dosage_form || '',
+                        product_ndc: openfda.product_ndc?.[0] || ''
+                    };
+                }).filter(d => d.brand_name || d.generic_name);
+                
+                const uniqueResults = [];
+                const seen = new Set();
+                for (const drug of results) {
+                    const key = drug.brand_name || drug.generic_name;
+                    if (key && !seen.has(key)) {
+                        seen.add(key);
+                        uniqueResults.push(drug);
+                    }
+                }
+                
+                setDrugSearchResults(uniqueResults.slice(0, 10));
+                showMessage(isArabic ? `✅ تم العثور على ${uniqueResults.length} دواء` : `✅ Found ${uniqueResults.length} medications`, 'success');
+            } else {
+                setDrugSearchResults([]);
+                showMessage(isArabic ? `⚠️ لم يتم العثور على دواء: ${query}` : `⚠️ No medication found: ${query}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error searching FDA:', error);
+            showMessage(isArabic ? '❌ خطأ في الاتصال بقاعدة البيانات' : '❌ Error connecting to database', 'error');
+        } finally {
+            setSearchingDrug(false);
+        }
     }, [isArabic, showMessage]);
 
-    // ✅ اختيار دواء
+    // اختيار دواء
     const selectDrug = useCallback((drug) => {
         setNewHabitName(drug.brand_name || drug.generic_name);
         const descriptionParts = [];
@@ -558,22 +543,95 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         setDrugSearchQuery('');
     }, [isArabic, showMessage]);
 
-    // ✅ إضافة عادة/دواء جديد
+    // حذف عادة/دواء
+    const handleDeleteDefinition = useCallback(async (definitionId, definitionName) => {
+        if (!confirm(isArabic ? `⚠️ هل أنت متأكد من حذف "${definitionName}"؟` : `⚠️ Are you sure you want to delete "${definitionName}"?`)) return;
+        
+        setLoading(true);
+        try {
+            await axiosInstance.delete(`/habit-definitions/${definitionId}/`);
+            showMessage(isArabic ? `✅ تم حذف "${definitionName}" بنجاح` : `✅ "${definitionName}" deleted successfully`, 'success');
+            
+            await fetchHabitDefinitions();
+            await fetchHabitAnalyticsData();
+            setRefreshAnalytics(prev => prev + 1);
+            setRefreshKey(prev => prev + 1);
+            localStorage.removeItem(`habit_type_${definitionId}`);
+            
+        } catch (error) {
+            console.error('Error deleting definition:', error);
+            showMessage(isArabic ? '❌ فشل في حذف العنصر' : '❌ Failed to delete item', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [isArabic, showMessage, fetchHabitDefinitions, fetchHabitAnalyticsData]);
+
+    // تعديل عادة/دواء
+    const handleEditDefinition = useCallback((definition) => {
+        setEditingDefinition(definition);
+        setEditHabitName(definition.name);
+        setEditHabitDescription(definition.description || '');
+        setShowEditModal(true);
+    }, []);
+
+    const handleUpdateDefinition = useCallback(async (e) => {
+        e.preventDefault();
+        
+        if (!editingDefinition) return;
+        
+        if (!editHabitName.trim()) {
+            showMessage(isArabic ? '⚠️ الرجاء إدخال اسم' : '⚠️ Please enter a name', 'error');
+            return;
+        }
+        
+        setLoading(true);
+        try {
+            const response = await axiosInstance.put(`/habit-definitions/${editingDefinition.id}/`, {
+                name: editHabitName.trim(),
+                description: editHabitDescription.trim(),
+                frequency: editingDefinition.frequency || 'Daily',
+                is_active: editingDefinition.is_active !== undefined ? editingDefinition.is_active : true
+            });
+            
+            showMessage(isArabic ? `✅ تم تحديث "${editHabitName}" بنجاح` : `✅ "${editHabitName}" updated successfully`, 'success');
+            
+            setShowEditModal(false);
+            setEditingDefinition(null);
+            setEditHabitName('');
+            setEditHabitDescription('');
+            
+            await fetchHabitDefinitions();
+            await fetchHabitAnalyticsData();
+            setRefreshAnalytics(prev => prev + 1);
+            setRefreshKey(prev => prev + 1);
+            
+        } catch (error) {
+            console.error('Error updating definition:', error);
+            showMessage(isArabic ? '❌ فشل في تحديث العنصر' : '❌ Failed to update item', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [editingDefinition, editHabitName, editHabitDescription, isArabic, showMessage, fetchHabitDefinitions, fetchHabitAnalyticsData]);
+
+    // إضافة عادة/دواء جديد
     const handleAddDefinition = useCallback(async (e) => {
         e.preventDefault();
         if (!isAuthReady) {
             showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
             return;
         }
+        
         const existingHabit = definitions.find(d => d.name.toLowerCase() === newHabitName.trim().toLowerCase());
         if (existingHabit) {
             showMessage(isArabic ? `⚠️ "${newHabitName}" موجود مسبقاً` : `⚠️ "${newHabitName}" already exists`, 'error');
             return;
         }
+        
         if (!newHabitName.trim() || !newHabitDescription.trim()) {
             showMessage(isArabic ? '⚠️ الرجاء إدخال اسم ووصف' : '⚠️ Please enter name and description', 'error');
             return;
         }
+        
         setLoading(true);
         try {
             const response = await axiosInstance.post('/habit-definitions/', { 
@@ -581,17 +639,21 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                 description: newHabitDescription.trim(),
                 frequency: 'Daily'
             });
+            
             const isDrug = newHabitDescription.includes('💊') || newHabitDescription.includes('mg') || newHabitDescription.includes('ملجم');
             if (isDrug && response.data?.id) {
                 setStoredHabitType(response.data.id, 'medication');
             }
+            
             showMessage(isArabic ? `✅ تم إضافة "${newHabitName}" بنجاح` : `✅ Successfully added "${newHabitName}"`, 'success');
+            
             setNewHabitName('');
             setNewHabitDescription('');
             await fetchHabitDefinitions();
             await fetchHabitAnalyticsData();
             setRefreshAnalytics(prev => prev + 1);
             setRefreshKey(prev => prev + 1);
+            
         } catch (error) {
             console.error('Failed to add:', error);
             showMessage(isArabic ? '❌ فشل في الإضافة' : '❌ Failed to add', 'error');
@@ -600,15 +662,17 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [isAuthReady, definitions, newHabitName, newHabitDescription, isArabic, showMessage, fetchHabitDefinitions, fetchHabitAnalyticsData]);
 
-    // ✅ تبديل حالة إنجاز العادة/الدواء
+    // تبديل حالة إنجاز العادة/الدواء
     const handleToggleLog = useCallback(async (habitId) => {
         if (!isAuthReady) {
             showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
             return;
         }
+        
         const existingLog = todayLogs.find(log => (log.habit?.id || log.habit) === habitId);
         const habit = definitions.find(d => d.id === habitId);
         const habitType = habit ? detectHabitType(habit.name, habit.description, habit.id) : 'habit';
+        
         setLoading(true);
         try {
             if (existingLog && existingLog.id) {
@@ -623,10 +687,12 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                     showMessage(isArabic ? `✅ تم إنجاز "${habit?.name}"` : `✅ Completed "${habit?.name}"`, 'success');
                 }
             }
+            
             await fetchHabitDefinitions();
             await fetchHabitAnalyticsData();
             setRefreshAnalytics(prev => prev + 1);
             setRefreshKey(prev => prev + 1);
+            
         } catch (error) {
             console.error('Failed to update:', error);
             showMessage(isArabic ? '❌ فشل في التحديث' : '❌ Failed to update', 'error');
@@ -635,7 +701,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [isAuthReady, todayLogs, definitions, isArabic, showMessage, fetchHabitDefinitions, fetchHabitAnalyticsData]);
 
-    // ✅ مسح الباركود
+    // مسح الباركود
     const handleScanComplete = useCallback((result) => {
         if (result) {
             searchDrugInFDA(result, 'ndc');
@@ -643,7 +709,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         }
     }, [searchDrugInFDA]);
 
-    // ✅ تصفية البيانات
+    // تصفية البيانات
     const safeDefinitions = Array.isArray(definitions) ? definitions : [];
     const getItemType = (item) => detectHabitType(item.name, item.description, item.id);
     const medications = safeDefinitions.filter(h => getItemType(h) === 'medication');
@@ -656,7 +722,29 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
     }).length;
     const completionPercentage = regularHabits.length > 0 ? Math.round((completedTodayCount / regularHabits.length) * 100) : 0;
 
-    // ✅ تحميل البيانات الأولية
+    // الاستماع لتغييرات اللغة
+    useEffect(() => {
+        const handleLanguageChange = (event) => {
+            if (event.detail && event.detail.lang !== lang) {
+                setLang(event.detail.lang);
+            }
+        };
+        window.addEventListener('languageChange', handleLanguageChange);
+        return () => window.removeEventListener('languageChange', handleLanguageChange);
+    }, [lang]);
+
+    // الاستماع لتغيير نوع العادة
+    useEffect(() => {
+        const handleTypeChange = () => {
+            setRefreshKey(prev => prev + 1);
+            fetchHabitDefinitions();
+            fetchHabitAnalyticsData();
+        };
+        window.addEventListener('habitTypeChanged', handleTypeChange);
+        return () => window.removeEventListener('habitTypeChanged', handleTypeChange);
+    }, []);
+
+    // تحميل البيانات الأولية
     useEffect(() => {
         if (isAuthReady) {
             fetchHabitDefinitions();
@@ -671,15 +759,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         return () => { isMountedRef.current = false; };
     }, []);
 
-    // ✅ تحميل التوصيات والتوقعات عند تغيير التبويب
-    useEffect(() => {
-        if (activeTab === 'analytics') {
-            fetchHabitRecommendationsData();
-            fetchHabitPredictionsData();
-        }
-    }, [activeTab, fetchHabitRecommendationsData, fetchHabitPredictionsData]);
-
-    // ✅ حساب النقاط
+    // حساب النقاط
     useEffect(() => {
         if (logs.length === 0 || definitions.length === 0) return;
         
@@ -735,6 +815,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
         
         setStreakDays(streak);
     }, [logs, definitions, todayLogs, refreshKey]);
+
     return (
         <div className="habit-tracker-container">
             {/* ماسح الباركود */}
@@ -773,28 +854,16 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
 
             {/* التبويبات */}
             <div className="analytics-tabs">
-                <button 
-                    className={`tab-btn ${activeTab === 'habits' ? 'active' : ''}`} 
-                    onClick={() => setActiveTab('habits')}
-                >
+                <button className={`tab-btn ${activeTab === 'habits' ? 'active' : ''}`} onClick={() => setActiveTab('habits')}>
                     ✅ {isArabic ? 'العادات والأدوية' : 'Habits & Meds'}
                 </button>
-                <button 
-                    className={`tab-btn ${activeTab === 'conditions' ? 'active' : ''}`} 
-                    onClick={() => setActiveTab('conditions')}
-                >
+                <button className={`tab-btn ${activeTab === 'conditions' ? 'active' : ''}`} onClick={() => setActiveTab('conditions')}>
                     🩺 {isArabic ? 'الأمراض المزمنة' : 'Chronic Conditions'}
                 </button>
-                <button 
-                    className={`tab-btn ${activeTab === 'records' ? 'active' : ''}`} 
-                    onClick={() => setActiveTab('records')}
-                >
+                <button className={`tab-btn ${activeTab === 'records' ? 'active' : ''}`} onClick={() => setActiveTab('records')}>
                     📄 {isArabic ? 'السجلات الطبية' : 'Medical Records'}
                 </button>
-                <button 
-                    className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`} 
-                    onClick={() => setActiveTab('analytics')}
-                >
+                <button className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
                     🤖 {isArabic ? 'تحليلات ذكية' : 'AI Analytics'}
                 </button>
             </div>
@@ -962,13 +1031,11 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                                                     </div>
                                                 </div>
                                                 <div className="habit-actions">
-                                                    <button onClick={() => toggleHabitType(habit.id, habitType, habit.name, showMessage, isArabic)}
-                                                        className="type-toggle habit" title={isArabic ? 'تغيير النوع' : 'Change type'}>
-                                                        🔄
-                                                    </button>
+                                                    <button onClick={() => handleEditDefinition(habit)} className="edit-definition-btn" title={isArabic ? 'تعديل' : 'Edit'} disabled={loading}>✏️</button>
+                                                    <button onClick={() => handleDeleteDefinition(habit.id, habit.name)} className="delete-definition-btn" title={isArabic ? 'حذف' : 'Delete'} disabled={loading}>🗑️</button>
+                                                    <button onClick={() => toggleHabitType(habit.id, habitType, habit.name, showMessage, isArabic)} className="type-toggle habit" title={isArabic ? 'تغيير النوع' : 'Change type'} disabled={loading}>🔄</button>
                                                     {isCompleted && points > 0 && <span className="points-badge">+{points}</span>}
-                                                    <button onClick={() => handleToggleLog(habit.id)} disabled={loading || !isAuthReady}
-                                                        className={`complete-btn ${isCompleted ? 'undo' : ''}`}>
+                                                    <button onClick={() => handleToggleLog(habit.id)} disabled={loading || !isAuthReady} className={`complete-btn ${isCompleted ? 'undo' : ''}`}>
                                                         {isCompleted ? '↩️' : '✅'}
                                                         <span>{isCompleted ? (isArabic ? 'تراجع' : 'Undo') : (isArabic ? 'تم' : 'Complete')}</span>
                                                     </button>
@@ -1004,12 +1071,10 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                                                 </div>
                                             </div>
                                             <div className="medication-actions">
-                                                <button onClick={() => toggleHabitType(med.id, medType, med.name, showMessage, isArabic)}
-                                                    className="type-toggle medication" title={isArabic ? 'تغيير النوع' : 'Change type'}>
-                                                    🔄
-                                                </button>
-                                                <button onClick={() => handleToggleLog(med.id)} disabled={loading || !isAuthReady}
-                                                    className={`take-btn ${isCompleted ? 'undo' : ''}`}>
+                                                <button onClick={() => handleEditDefinition(med)} className="edit-definition-btn" title={isArabic ? 'تعديل' : 'Edit'} disabled={loading}>✏️</button>
+                                                <button onClick={() => handleDeleteDefinition(med.id, med.name)} className="delete-definition-btn" title={isArabic ? 'حذف' : 'Delete'} disabled={loading}>🗑️</button>
+                                                <button onClick={() => toggleHabitType(med.id, medType, med.name, showMessage, isArabic)} className="type-toggle medication" title={isArabic ? 'تغيير النوع' : 'Change type'} disabled={loading}>🔄</button>
+                                                <button onClick={() => handleToggleLog(med.id)} disabled={loading || !isAuthReady} className={`take-btn ${isCompleted ? 'undo' : ''}`}>
                                                     {isCompleted ? '↩️' : '✅'}
                                                     <span>{isCompleted ? (isArabic ? 'تراجع' : 'Undo') : (isArabic ? 'تم' : 'Taken')}</span>
                                                 </button>
@@ -1020,128 +1085,117 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                             </div>
                         </div>
                     )}
+
+                    {/* نافذة تعديل العادة/الدواء */}
+                    {showEditModal && editingDefinition && (
+                        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+                            <div className="edit-modal" onClick={(e) => e.stopPropagation()}>
+                                <div className="modal-header">
+                                    <h3>{isArabic ? '✏️ تعديل' : '✏️ Edit'} {editingDefinition.name}</h3>
+                                    <button className="modal-close" onClick={() => setShowEditModal(false)}>✕</button>
+                                </div>
+                                <form onSubmit={handleUpdateDefinition} className="edit-form">
+                                    <div className="form-field">
+                                        <label>{isArabic ? 'الاسم' : 'Name'} *</label>
+                                        <input type="text" value={editHabitName} onChange={(e) => setEditHabitName(e.target.value)} required autoFocus />
+                                    </div>
+                                    <div className="form-field">
+                                        <label>{isArabic ? 'الوصف' : 'Description'}</label>
+                                        <textarea value={editHabitDescription} onChange={(e) => setEditHabitDescription(e.target.value)} rows="3" />
+                                    </div>
+                                    <div className="form-actions">
+                                        <button type="button" onClick={() => setShowEditModal(false)} className="cancel-btn">{isArabic ? 'إلغاء' : 'Cancel'}</button>
+                                        <button type="submit" disabled={loading} className="submit-btn">{loading ? (isArabic ? 'جاري الحفظ...' : 'Saving...') : (isArabic ? '💾 حفظ' : '💾 Save')}</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
 
-  {/* ==================== تبويب الأمراض المزمنة ==================== */}
-{activeTab === 'conditions' && (
-    <div className="chronic-conditions-section">
-        <div className="section-header-inline">
-            <div className="section-title-icon">
-                <span className="icon">🩺</span>
-                <h3>{isArabic ? 'الأمراض المزمنة' : 'Chronic Conditions'}</h3>
-            </div>
-            <div className="section-actions">
-                <button 
-                    onClick={() => setShowManualConditionForm(!showManualConditionForm)} 
-                    className="add-record-btn"
-                >
-                    {showManualConditionForm ? '✕' : '➕'} {isArabic ? 'إضافة يدوي' : 'Add Manually'}
-                </button>
-                <button 
-                    onClick={() => setActiveTab('records')} 
-                    className="add-record-btn secondary"
-                >
-                    📄 {isArabic ? 'رفع ملف طبي' : 'Upload Medical Record'}
-                </button>
-            </div>
-        </div>
-
-        {/* ✅ نموذج إضافة مرض مزمن يدوياً */}
-        {showManualConditionForm && (
-            <div className="manual-condition-form">
-                <form onSubmit={handleAddManualCondition} className="manual-form">
-                    <div className="form-field">
-                        <label>{isArabic ? 'اسم المرض' : 'Condition Name'} *</label>
-                        <input 
-                            type="text"
-                            value={manualConditionName}
-                            onChange={(e) => setManualConditionName(e.target.value)}
-                            placeholder={isArabic ? 'مثال: السكري من النوع الثاني' : 'Example: Type 2 Diabetes'}
-                            required
-                        />
-                    </div>
-                    <div className="form-field">
-                        <label>{isArabic ? 'تاريخ التشخيص' : 'Diagnosis Date'}</label>
-                        <input 
-                            type="date"
-                            value={manualConditionDate}
-                            onChange={(e) => setManualConditionDate(e.target.value)}
-                        />
-                    </div>
-                    <div className="form-field">
-                        <label>{isArabic ? 'الأدوية المرتبطة' : 'Related Medications'}</label>
-                        <input 
-                            type="text"
-                            value={manualConditionMeds}
-                            onChange={(e) => setManualConditionMeds(e.target.value)}
-                            placeholder={isArabic ? 'مثال: ميتفورمين، أنسولين' : 'Example: Metformin, Insulin'}
-                        />
-                    </div>
-                    <div className="form-actions">
-                        <button type="submit" disabled={addingManualCondition} className="submit-btn small">
-                            {addingManualCondition ? (isArabic ? '⏳ جاري...' : '⏳ Adding...') : (isArabic ? '✅ إضافة' : '✅ Add')}
-                        </button>
-                        <button type="button" onClick={() => {
-                            setShowManualConditionForm(false);
-                            setManualConditionName('');
-                            setManualConditionDate('');
-                            setManualConditionMeds('');
-                        }} className="cancel-btn small">
-                            {isArabic ? 'إلغاء' : 'Cancel'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        )}
-        
-        {/* عرض قائمة الأمراض المزمنة */}
-        {loadingConditions ? (
-            <div className="loading-state"><div className="spinner"></div><p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p></div>
-        ) : chronicConditions.length === 0 ? (
-            <div className="empty-conditions">
-                <span className="empty-icon">💊</span>
-                <p>{isArabic ? 'لا توجد أمراض مزمنة مسجلة' : 'No chronic conditions recorded'}</p>
-                <p className="empty-hint">
-                    {isArabic 
-                        ? 'يمكنك إضافة أمراضك يدوياً أو رفع سجل طبي بصيغة PDF'
-                        : 'You can add conditions manually or upload a medical PDF'}
-                </p>
-                <div className="empty-buttons">
-                    <button onClick={() => setShowManualConditionForm(true)} className="empty-add-btn">
-                        ✏️ {isArabic ? 'إضافة يدوي' : 'Add Manually'}
-                    </button>
-                    <button onClick={() => setActiveTab('records')} className="empty-add-btn secondary">
-                        📄 {isArabic ? 'رفع ملف طبي' : 'Upload Medical Record'}
-                    </button>
-                </div>
-            </div>
-        ) : (
-            <div className="conditions-list">
-                {chronicConditions.map(condition => (
-                    <div key={condition.id} className="condition-card">
-                        <div className="condition-info">
-                            <span className="condition-name">{condition.name}</span>
-                            {condition.diagnosis_date && (
-                                <span className="condition-date">📅 {condition.diagnosis_date}</span>
-                            )}
-                            {condition.medications && (
-                                <span className="condition-meds">💊 {condition.medications}</span>
-                            )}
+            {/* ==================== تبويب الأمراض المزمنة ==================== */}
+            {activeTab === 'conditions' && (
+                <div className="chronic-conditions-section">
+                    <div className="section-header-inline">
+                        <div className="section-title-icon">
+                            <span className="icon">🩺</span>
+                            <h3>{isArabic ? 'الأمراض المزمنة' : 'Chronic Conditions'}</h3>
                         </div>
-                        <button 
-                            onClick={() => handleDeleteCondition(condition.id)}
-                            className="delete-condition-btn"
-                            title={isArabic ? 'حذف' : 'Delete'}
-                        >
-                            🗑️
-                        </button>
+                        <div className="section-actions">
+                            <button onClick={() => setShowManualConditionForm(!showManualConditionForm)} className="add-record-btn">
+                                {showManualConditionForm ? '✕' : '➕'} {isArabic ? 'إضافة يدوي' : 'Add Manually'}
+                            </button>
+                            <button onClick={() => setActiveTab('records')} className="add-record-btn secondary">
+                                📄 {isArabic ? 'رفع ملف طبي' : 'Upload Medical Record'}
+                            </button>
+                        </div>
                     </div>
-                ))}
-            </div>
-        )}
-    </div>
-)}
+
+                    {/* نموذج إضافة مرض مزمن يدوياً */}
+                    {showManualConditionForm && (
+                        <div className="manual-condition-form">
+                            <form onSubmit={handleAddManualCondition} className="manual-form">
+                                <div className="form-field">
+                                    <label>{isArabic ? 'اسم المرض' : 'Condition Name'} *</label>
+                                    <input type="text" value={manualConditionName} onChange={(e) => setManualConditionName(e.target.value)} placeholder={isArabic ? 'مثال: السكري من النوع الثاني' : 'Example: Type 2 Diabetes'} required />
+                                </div>
+                                <div className="form-field">
+                                    <label>{isArabic ? 'تاريخ التشخيص' : 'Diagnosis Date'}</label>
+                                    <input type="date" value={manualConditionDate} onChange={(e) => setManualConditionDate(e.target.value)} />
+                                </div>
+                                <div className="form-field">
+                                    <label>{isArabic ? 'الأدوية المرتبطة' : 'Related Medications'}</label>
+                                    <input type="text" value={manualConditionMeds} onChange={(e) => setManualConditionMeds(e.target.value)} placeholder={isArabic ? 'مثال: ميتفورمين، أنسولين' : 'Example: Metformin, Insulin'} />
+                                </div>
+                                <div className="form-actions">
+                                    <button type="submit" disabled={addingManualCondition} className="submit-btn small">
+                                        {addingManualCondition ? (isArabic ? '⏳ جاري...' : '⏳ Adding...') : (isArabic ? '✅ إضافة' : '✅ Add')}
+                                    </button>
+                                    <button type="button" onClick={() => {
+                                        setShowManualConditionForm(false);
+                                        setManualConditionName('');
+                                        setManualConditionDate('');
+                                        setManualConditionMeds('');
+                                    }} className="cancel-btn small">
+                                        {isArabic ? 'إلغاء' : 'Cancel'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+                    
+                    {/* عرض قائمة الأمراض المزمنة */}
+                    {loadingConditions ? (
+                        <div className="loading-state"><div className="spinner"></div><p>{isArabic ? 'جاري التحميل...' : 'Loading...'}</p></div>
+                    ) : chronicConditions.length === 0 ? (
+                        <div className="empty-conditions">
+                            <span className="empty-icon">💊</span>
+                            <p>{isArabic ? 'لا توجد أمراض مزمنة مسجلة' : 'No chronic conditions recorded'}</p>
+                            <p className="empty-hint">
+                                {isArabic ? 'يمكنك إضافة أمراضك يدوياً أو رفع سجل طبي بصيغة PDF' : 'You can add conditions manually or upload a medical PDF'}
+                            </p>
+                            <div className="empty-buttons">
+                                <button onClick={() => setShowManualConditionForm(true)} className="empty-add-btn">✏️ {isArabic ? 'إضافة يدوي' : 'Add Manually'}</button>
+                                <button onClick={() => setActiveTab('records')} className="empty-add-btn secondary">📄 {isArabic ? 'رفع ملف طبي' : 'Upload Medical Record'}</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="conditions-list">
+                            {chronicConditions.map(condition => (
+                                <div key={condition.id} className="condition-card">
+                                    <div className="condition-info">
+                                        <span className="condition-name">{condition.name}</span>
+                                        {condition.diagnosis_date && (<span className="condition-date">📅 {condition.diagnosis_date}</span>)}
+                                        {condition.medications && (<span className="condition-meds">💊 {condition.medications}</span>)}
+                                    </div>
+                                    <button onClick={() => handleDeleteCondition(condition.id)} className="delete-condition-btn" title={isArabic ? 'حذف' : 'Delete'}>🗑️</button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* ==================== تبويب السجلات الطبية ==================== */}
             {activeTab === 'records' && (
@@ -1151,10 +1205,7 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                             <span className="icon">📄</span>
                             <h3>{isArabic ? 'السجلات الطبية' : 'Medical Records'}</h3>
                         </div>
-                        <button 
-                            onClick={() => setShowMedicalRecordForm(!showMedicalRecordForm)} 
-                            className="add-record-btn"
-                        >
+                        <button onClick={() => setShowMedicalRecordForm(!showMedicalRecordForm)} className="add-record-btn">
                             {showMedicalRecordForm ? '✕' : '➕'} {isArabic ? 'إضافة سجل' : 'Add Record'}
                         </button>
                     </div>
@@ -1165,119 +1216,27 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                             <form onSubmit={handleFileUpload} className="record-form">
                                 <div className="form-field">
                                     <label>{isArabic ? 'نوع السجل' : 'Record Type'} *</label>
-                                    <input 
-                                        type="text"
-                                        value={newMedicalRecord.event_type}
-                                        onChange={(e) => setNewMedicalRecord({...newMedicalRecord, event_type: e.target.value})}
-                                        placeholder={isArabic ? 'مثال: تقرير طبي، تحليل مخبر، تشخيص...' : 'Example: Medical report, lab analysis...'}
-                                        required
-                                        disabled={uploadingFile}
-                                    />
+                                    <input type="text" value={newMedicalRecord.event_type} onChange={(e) => setNewMedicalRecord({...newMedicalRecord, event_type: e.target.value})} placeholder={isArabic ? 'مثال: تقرير طبي، تحليل مخبر، تشخيص...' : 'Example: Medical report, lab analysis...'} required disabled={uploadingFile} />
                                 </div>
-                                
                                 <div className="form-field">
                                     <label>{isArabic ? 'تاريخ السجل' : 'Record Date'} *</label>
-                                    <input 
-                                        type="date"
-                                        value={newMedicalRecord.event_date}
-                                        onChange={(e) => setNewMedicalRecord({...newMedicalRecord, event_date: e.target.value})}
-                                        required
-                                        disabled={uploadingFile}
-                                    />
+                                    <input type="date" value={newMedicalRecord.event_date} onChange={(e) => setNewMedicalRecord({...newMedicalRecord, event_date: e.target.value})} required disabled={uploadingFile} />
                                 </div>
-                                
                                 <div className="form-field">
                                     <label>{isArabic ? 'تفاصيل إضافية' : 'Additional Details'}</label>
-                                    <textarea 
-                                        value={newMedicalRecord.details}
-                                        onChange={(e) => setNewMedicalRecord({...newMedicalRecord, details: e.target.value})}
-                                        placeholder={isArabic ? 'أي معلومات إضافية عن هذا السجل...' : 'Any additional information...'}
-                                        rows="3"
-                                        disabled={uploadingFile}
-                                    />
+                                    <textarea value={newMedicalRecord.details} onChange={(e) => setNewMedicalRecord({...newMedicalRecord, details: e.target.value})} placeholder={isArabic ? 'أي معلومات إضافية عن هذا السجل...' : 'Any additional information...'} rows="3" disabled={uploadingFile} />
                                 </div>
-                                
                                 <div className="form-field file-upload-field">
                                     <label>{isArabic ? 'رفع ملف PDF' : 'Upload PDF File'} *</label>
                                     <div className="file-upload-area">
-                                        <input 
-                                            type="file"
-                                            accept=".pdf"
-                                            onChange={(e) => setSelectedFile(e.target.files[0])}
-                                            required
-                                            disabled={uploadingFile}
-                                        />
-                                        {selectedFile && (
-                                            <div className="selected-file">
-                                                📄 {selectedFile.name}
-                                                <button type="button" onClick={() => setSelectedFile(null)}>✕</button>
-                                            </div>
-                                        )}
+                                        <input type="file" accept=".pdf" onChange={(e) => setSelectedFile(e.target.files[0])} required disabled={uploadingFile} />
+                                        {selectedFile && (<div className="selected-file">📄 {selectedFile.name}<button type="button" onClick={() => setSelectedFile(null)}>✕</button></div>)}
                                     </div>
-                                    <p className="file-hint">
-                                        {isArabic 
-                                            ? 'سيتم تحليل الملف تلقائياً لاستخراج الأمراض المزمنة'
-                                            : 'The file will be automatically analyzed to extract conditions'}
-                                    </p>
+                                    <p className="file-hint">{isArabic ? 'سيتم تحليل الملف تلقائياً لاستخراج الأمراض المزمنة' : 'The file will be automatically analyzed to extract conditions'}</p>
                                 </div>
-                                
-                                {uploadingFile && (
-                                    <div className="upload-progress">
-                                        <div className="progress-bar">
-                                            <div className="progress-fill" style={{ width: `${uploadProgress}%` }}></div>
-                                        </div>
-                                        <span>{uploadProgress}%</span>
-                                    </div>
-                                )}
-                                
-                                {processingResult && (
-                                    <div className="processing-result">
-                                        <div className="result-header">
-                                            <span className="result-icon">🤖</span>
-                                            <span>{isArabic ? 'نتائج التحليل' : 'Analysis Results'}</span>
-                                        </div>
-                                        {processingResult.extracted_conditions?.diseases?.length > 0 && (
-                                            <div className="extracted-diseases">
-                                                <strong>{isArabic ? 'الأمراض المستخرجة:' : 'Extracted Conditions:'}</strong>
-                                                <ul>
-                                                    {processingResult.extracted_conditions.diseases.map((disease, idx) => (
-                                                        <li key={idx}>
-                                                            {disease.name}
-                                                            {disease.confidence === 'high' && <span className="confidence-high"> ✓</span>}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                        {processingResult.added_conditions?.length > 0 && (
-                                            <div className="added-conditions">
-                                                <strong>{isArabic ? 'تمت الإضافة إلى ملفك:' : 'Added to your profile:'}</strong>
-                                                <ul>
-                                                    {processingResult.added_conditions.map((cond, idx) => (
-                                                        <li key={idx}>✅ {cond.name}</li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                
-                                <div className="form-actions">
-                                    <button type="submit" disabled={uploadingFile || !selectedFile} className="submit-btn">
-                                        {uploadingFile ? (
-                                            <><span className="spinner-small"></span> {isArabic ? 'جاري الرفع والتحليل...' : 'Uploading & Analyzing...'}</>
-                                        ) : (
-                                            <>{isArabic ? '📤 رفع وتحليل' : '📤 Upload & Analyze'}</>
-                                        )}
-                                    </button>
-                                    <button type="button" onClick={() => {
-                                        setShowMedicalRecordForm(false);
-                                        setSelectedFile(null);
-                                        setProcessingResult(null);
-                                    }} className="cancel-btn">
-                                        {isArabic ? 'إلغاء' : 'Cancel'}
-                                    </button>
-                                </div>
+                                {uploadingFile && (<div className="upload-progress"><div className="progress-bar"><div className="progress-fill" style={{ width: `${uploadProgress}%` }}></div></div><span>{uploadProgress}%</span></div>)}
+                                {processingResult && (<div className="processing-result"><div className="result-header"><span className="result-icon">🤖</span><span>{isArabic ? 'نتائج التحليل' : 'Analysis Results'}</span></div>{processingResult.extracted_conditions?.diseases?.length > 0 && (<div className="extracted-diseases"><strong>{isArabic ? 'الأمراض المستخرجة:' : 'Extracted Conditions:'}</strong><ul>{processingResult.extracted_conditions.diseases.map((disease, idx) => (<li key={idx}>{disease.name}{disease.confidence === 'high' && <span className="confidence-high"> ✓</span>}</li>))}</ul></div>)}{processingResult.added_conditions?.length > 0 && (<div className="added-conditions"><strong>{isArabic ? 'تمت الإضافة إلى ملفك:' : 'Added to your profile:'}</strong><ul>{processingResult.added_conditions.map((cond, idx) => (<li key={idx}>✅ {cond.name}</li>))}</ul></div>)}</div>)}
+                                <div className="form-actions"><button type="submit" disabled={uploadingFile || !selectedFile} className="submit-btn">{uploadingFile ? (<><span className="spinner-small"></span> {isArabic ? 'جاري الرفع والتحليل...' : 'Uploading & Analyzing...'}</>) : (<>{isArabic ? '📤 رفع وتحليل' : '📤 Upload & Analyze'}</>)}</button><button type="button" onClick={() => { setShowMedicalRecordForm(false); setSelectedFile(null); setProcessingResult(null); }} className="cancel-btn">{isArabic ? 'إلغاء' : 'Cancel'}</button></div>
                             </form>
                         </div>
                     )}
@@ -1288,63 +1247,31 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                             <div className="empty-icon">📂</div>
                             <h4>{isArabic ? 'لا توجد سجلات طبية' : 'No Medical Records'}</h4>
                             <p>{isArabic ? 'أضف سجلك الطبي الأول بصيغة PDF' : 'Add your first medical record as PDF'}</p>
-                            <button onClick={() => setShowMedicalRecordForm(true)} className="empty-add-btn">
-                                📄 {isArabic ? 'إضافة سجل طبي' : 'Add Medical Record'}
-                            </button>
+                            <button onClick={() => setShowMedicalRecordForm(true)} className="empty-add-btn">📄 {isArabic ? 'إضافة سجل طبي' : 'Add Medical Record'}</button>
                         </div>
                     ) : (
                         <div className="records-list">
                             {medicalRecords.map(record => (
                                 <div key={record.id} className="record-card">
-                                    <div className="record-header">
-                                        <span className="record-type">{record.event_type}</span>
-                                        <button onClick={() => handleDeleteMedicalRecord(record.id)} className="delete-record-btn">
-                                            🗑️
-                                        </button>
-                                    </div>
+                                    <div className="record-header"><span className="record-type">{record.event_type}</span><button onClick={() => handleDeleteMedicalRecord(record.id)} className="delete-record-btn">🗑️</button></div>
                                     <div className="record-date">📅 {record.event_date}</div>
                                     {record.details && <div className="record-details">{record.details}</div>}
-                                    {record.uploaded_file && (
-                                        <a href={record.uploaded_file} target="_blank" rel="noopener noreferrer" className="view-file-link">
-                                            📄 {isArabic ? 'عرض الملف' : 'View File'}
-                                        </a>
-                                    )}
-                                  {record.extracted_conditions && (() => {
-                                    try {
-                                        const extracted = JSON.parse(record.extracted_conditions);
-                                        const diseases = extracted.diseases || [];
-                                        
-                                        // ✅ التأكد من أن الأمراض مصفوفة من السلاسل النصية
-                                        const diseaseNames = diseases.map(d => {
-                                            if (typeof d === 'string') return d;
-                                            if (typeof d === 'object' && d.name) return d.name;
-                                            return String(d);
-                                        }).filter(d => d && d.length > 0);
-                                        
-                                        return diseaseNames.length > 0 ? (
-                                            <div className="record-extracted">
-                                                <small>🤖 {isArabic ? 'الأمراض المستخرجة:' : 'Extracted conditions:'}</small>
-                                                <div className="extracted-tags">
-                                                    {diseaseNames.slice(0, 3).map((d, i) => (
-                                                        <span key={i} className="extracted-tag">{d}</span>
-                                                    ))}
-                                                    {diseaseNames.length > 3 && (
-                                                        <span className="extracted-tag more">+{diseaseNames.length - 3}</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ) : null;
-                                    } catch (e) {
-                                        console.error('Error parsing extracted conditions:', e);
-                                        return null;
-                                    }
-                                })()}
+                                    {record.uploaded_file && (<a href={record.uploaded_file} target="_blank" rel="noopener noreferrer" className="view-file-link">📄 {isArabic ? 'عرض الملف' : 'View File'}</a>)}
+                                    {record.extracted_conditions && (() => {
+                                        try {
+                                            const extracted = JSON.parse(record.extracted_conditions);
+                                            const diseases = extracted.diseases || [];
+                                            const diseaseNames = diseases.map(d => typeof d === 'string' ? d : (d.name || String(d))).filter(d => d && d.length > 0);
+                                            return diseaseNames.length > 0 ? (<div className="record-extracted"><small>🤖 {isArabic ? 'الأمراض المستخرجة:' : 'Extracted conditions:'}</small><div className="extracted-tags">{diseaseNames.slice(0, 3).map((d, i) => (<span key={i} className="extracted-tag">{d}</span>))}{diseaseNames.length > 3 && (<span className="extracted-tag more">+{diseaseNames.length - 3}</span>)}</div></div>) : null;
+                                        } catch (e) { return null; }
+                                    })()}
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
             )}
+
             {/* ==================== تبويب تحليلات العادات الذكية ==================== */}
             {activeTab === 'analytics' && (
                 <div className="habits-analytics-section">
@@ -1354,21 +1281,193 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
                             <h3>{isArabic ? 'تحليلات العادات الذكية' : 'AI Habits Analytics'}</h3>
                         </div>
                         <p className="section-desc">
-                            {isArabic 
-                                ? 'تحليلات متقدمة باستخدام الذكاء الاصطناعي لتحسين عاداتك وأدويتك'
-                                : 'Advanced AI-powered analytics to improve your habits and medications'}
+                            {isArabic ? 'تحليلات متقدمة باستخدام الذكاء الاصطناعي لتحسين عاداتك وأدويتك' : 'Advanced AI-powered analytics to improve your habits and medications'}
                         </p>
                     </div>
-
-                    {/* ✅ استخدم HabitAnalytics الموجود مباشرة */}
                     <HabitAnalytics refreshTrigger={refreshAnalytics} />
                 </div>
             )}
-            
- 
 
-            {/* CSS */}
+            {/* CSS Styles */}
             <style jsx>{`
+          
+                /* ===== أزرار التعديل والحذف ===== */
+.edit-definition-btn,
+.delete-definition-btn {
+    background: transparent;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    opacity: 0.6;
+}
+
+.edit-definition-btn:hover {
+    opacity: 1;
+    background: rgba(59, 130, 246, 0.1);
+    transform: scale(1.1);
+}
+
+.delete-definition-btn:hover {
+    opacity: 1;
+    background: rgba(239, 68, 68, 0.1);
+    transform: scale(1.1);
+}
+
+/* ===== نافذة التعديل المنبثقة ===== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+}
+
+.edit-modal {
+    background: var(--card-bg, #ffffff);
+    border-radius: 24px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 35px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .edit-modal {
+    background: #1e293b;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .modal-header {
+    border-bottom-color: #334155;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .modal-header h3 {
+    color: #f1f5f9;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--text-secondary, #64748b);
+}
+
+.modal-close:hover {
+    color: #ef4444;
+}
+
+.edit-form {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.edit-form .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.edit-form .form-field label {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #64748b);
+}
+
+.edit-form .form-field input,
+.edit-form .form-field textarea {
+    padding: 0.75rem;
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 12px;
+    font-size: 0.9rem;
+    color: var(--text-primary, #0f172a);
+}
+
+.dark-mode .edit-form .form-field input,
+.dark-mode .edit-form .form-field textarea {
+    background: #0f172a;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+.edit-form .form-field input:focus,
+.edit-form .form-field textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.edit-form .form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.edit-form .form-actions .cancel-btn {
+    flex: 1;
+    padding: 0.6rem;
+    background: var(--secondary-bg, #f8fafc);
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .edit-form .form-actions .cancel-btn {
+    background: #0f172a;
+    border-color: #475569;
+    color: #94a3b8;
+}
+
+.edit-form .form-actions .submit-btn {
+    flex: 2;
+    padding: 0.6rem;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.edit-form .form-actions .submit-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.edit-form .form-actions .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
             /* ===== الأزرار ===== */
 .section-actions {
     display: flex;
