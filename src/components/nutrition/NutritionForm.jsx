@@ -93,28 +93,29 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         return true;
     }, [isArabic, showMessage]);
     
-    const clearForm = useCallback(() => {
-        setMealData({ 
-            meal_type: 'Breakfast',
-            meal_time: new Date().toISOString().slice(0, 16),
-            notes: ''
-        });
-        setFoodItems([{ 
-            name: '', 
-            quantity: '100', 
-            unit: 'gram', 
-            calories: '', 
-            protein: '', 
-            carbs: '', 
-            fat: '',
-            isSearching: false,
-            searchResults: [],
-            showResults: false,
-            selectedFood: null,
-            manualEdit: false,
-            barcode: null
-        }]);
-    }, []);
+// ✅ دالة مسح النموذج - نسخة مصححة
+const clearForm = useCallback(() => {
+    setMealData({ 
+        meal_type: 'Breakfast',
+        meal_time: new Date().toISOString().slice(0, 16),
+        notes: ''
+    });
+    setFoodItems([{ 
+        name: '', 
+        quantity: '100', 
+        unit: 'gram', 
+        calories: '', 
+        protein: '', 
+        carbs: '', 
+        fat: '',
+        isSearching: false,
+        searchResults: [],
+        showResults: false,
+        selectedFood: null,
+        manualEdit: false,
+        barcode: null
+    }]);
+}, []);
     
     // ✅ ==================== 6. دوال جلب البيانات ====================
     const fetchMeals = useCallback(async () => {
@@ -365,64 +366,102 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         setIsLoading(false);
     }
 }, [isAuthReady, isArabic, foodItems, mealData, fetchMeals, clearForm, onDataSubmitted, showMessage]);
-    const handleUpdateMeal = useCallback(async (e) => {
-        e.preventDefault();
-        if (!isAuthReady || !editingMeal) {
-            showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
-            return;
-        }
-        
-        setIsLoading(true);
-        const validItems = foodItems.filter(item => item.name && item.quantity);
-        
-        if (validItems.length === 0) {
-            showMessage(isArabic ? '⚠️ أضف مكون واحد على الأقل' : '⚠️ Add at least one ingredient', 'error');
-            setIsLoading(false);
-            return;
-        }
-        
-        const ingredients = validItems.map(item => ({
-            name: item.name,
-            quantity: parseFloat(item.quantity) || 0,
-            unit: item.unit,
-            calories: parseFloat(item.calories) || 0,
-            protein: parseFloat(item.protein) || 0,
-            carbs: parseFloat(item.carbs) || 0,
-            fat: parseFloat(item.fat) || 0,
-            barcode: item.barcode || null
-        }));
-        
-        const totalCalories = ingredients.reduce((sum, ing) => sum + (ing.calories || 0), 0);
-        const totalProtein = ingredients.reduce((sum, ing) => sum + (ing.protein || 0), 0);
-        const totalCarbs = ingredients.reduce((sum, ing) => sum + (ing.carbs || 0), 0);
-        const totalFat = ingredients.reduce((sum, ing) => sum + (ing.fat || 0), 0);
-        
-        try {
-            await axiosInstance.put(`/meals/${editingMeal.id}/`, {
-                meal_type: mealData.meal_type,
-                meal_time: mealData.meal_time,
-                notes: mealData.notes,
-                ingredients,
-                total_calories: totalCalories,
-                total_protein: totalProtein,
-                total_carbs: totalCarbs,
-                total_fat: totalFat
-            });
-            
-            showMessage(isArabic ? '✅ تم تحديث الوجبة بنجاح' : '✅ Meal updated successfully', 'success');
-            setRefreshAnalytics(prev => prev + 1);
-            setShowEditForm(false);
-            setEditingMeal(null);
-            clearForm();
-            await fetchMeals();
-        } catch (error) {
-            console.error('Update error:', error);
-            showMessage(isArabic ? '❌ فشل تحديث الوجبة' : '❌ Failed to update meal', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [isAuthReady, isArabic, editingMeal, foodItems, mealData, fetchMeals, clearForm, showMessage]);
+    // ✅ دالة تحديث الوجبة - نسخة مصححة
+const handleUpdateMeal = useCallback(async (e) => {
+    e.preventDefault();
     
+    // التحقق من وجود وجبة جاري تعديلها
+    if (!editingMeal) {
+        showMessage(isArabic ? '⚠️ لا توجد وجبة جاري تعديلها' : '⚠️ No meal is being edited', 'error');
+        return;
+    }
+    
+    if (!isAuthReady) {
+        showMessage(isArabic ? '⚠️ الرجاء تسجيل الدخول' : '⚠️ Please login', 'error');
+        return;
+    }
+    
+    setIsLoading(true);
+    
+    // التحقق من وجود مكونات صالحة
+    const validItems = foodItems.filter(item => item.name && item.name.trim() !== '');
+    
+    if (validItems.length === 0) {
+        showMessage(isArabic ? '⚠️ أضف مكون واحد على الأقل' : '⚠️ Add at least one ingredient', 'error');
+        setIsLoading(false);
+        return;
+    }
+    
+    // تجهيز المكونات
+    const ingredients = validItems.map(item => ({
+        name: item.name.trim(),
+        quantity: parseFloat(item.quantity) || 100,
+        unit: item.unit || 'g',
+        calories: parseFloat(item.calories) || 0,
+        protein: parseFloat(item.protein) || 0,
+        carbs: parseFloat(item.carbs) || 0,
+        fat: parseFloat(item.fat) || 0,
+        barcode: item.barcode || null
+    }));
+    
+    // حساب الإجماليات
+    const totalCalories = ingredients.reduce((sum, ing) => sum + (ing.calories || 0), 0);
+    const totalProtein = ingredients.reduce((sum, ing) => sum + (ing.protein || 0), 0);
+    const totalCarbs = ingredients.reduce((sum, ing) => sum + (ing.carbs || 0), 0);
+    const totalFat = ingredients.reduce((sum, ing) => sum + (ing.fat || 0), 0);
+    
+    // تجهيز بيانات التحديث
+    const updateData = {
+        meal_type: mealData.meal_type,
+        meal_time: mealData.meal_time,
+        notes: mealData.notes || '',
+        ingredients: ingredients,
+        total_calories: totalCalories,
+        total_protein: totalProtein,
+        total_carbs: totalCarbs,
+        total_fat: totalFat
+    };
+    
+    console.log('📤 Updating meal:', editingMeal.id, updateData);
+    
+    try {
+        // إرسال طلب التحديث
+        const response = await axiosInstance.put(`/meals/${editingMeal.id}/`, updateData);
+        
+        console.log('✅ Update response:', response.data);
+        showMessage(isArabic ? '✅ تم تحديث الوجبة بنجاح' : '✅ Meal updated successfully', 'success');
+        
+        // إعادة تعيين النموذج وإخفاء نموذج التعديل
+        setShowEditForm(false);
+        setEditingMeal(null);
+        clearForm();
+        
+        // تحديث قائمة الوجبات
+        await fetchMeals();
+        setRefreshAnalytics(prev => prev + 1);
+        
+        // إعلام المكون الأب بتحديث البيانات
+        if (onDataSubmitted) onDataSubmitted();
+        
+    } catch (error) {
+        console.error('❌ Update error:', error);
+        console.error('❌ Response data:', error.response?.data);
+        
+        let errorMsg = isArabic ? '❌ فشل تحديث الوجبة' : '❌ Failed to update meal';
+        if (error.response?.data) {
+            const errData = error.response.data;
+            if (typeof errData === 'object') {
+                const firstError = Object.values(errData)[0];
+                if (firstError) {
+                    errorMsg += `: ${Array.isArray(firstError) ? firstError[0] : firstError}`;
+                }
+            }
+        }
+        showMessage(errorMsg, 'error');
+    } finally {
+        setIsLoading(false);
+    }
+}, [editingMeal, isAuthReady, isArabic, foodItems, mealData, fetchMeals, clearForm, onDataSubmitted, showMessage]);
     // ✅ ==================== 10. دوال أخرى ====================
     const handleMealChange = useCallback((e) => {
         const { name, value } = e.target;
@@ -443,36 +482,61 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
         }
     }, [isArabic, showMessage]);
     
-    const handleEditMeal = useCallback((meal) => {
-        setEditingMeal(meal);
-        setMealData({
-            meal_type: meal.meal_type,
-            meal_time: meal.meal_time.slice(0, 16),
-            notes: meal.notes || ''
-        });
-        
-        if (meal.ingredients && meal.ingredients.length > 0) {
-            setFoodItems(meal.ingredients.map(item => ({
-                name: item.name,
-                quantity: item.quantity.toString(),
-                unit: item.unit || 'gram',
-                calories: item.calories?.toString() || '',
-                protein: item.protein?.toString() || '',
-                carbs: item.carbs?.toString() || '',
-                fat: item.fat?.toString() || '',
-                isSearching: false,
-                searchResults: [],
-                showResults: false,
-                selectedFood: item,
-                manualEdit: true,
-                barcode: item.barcode || null
-            })));
-        } else {
-            clearForm();
-        }
-        setShowEditForm(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, [clearForm]);
+    // ✅ دالة تعديل الوجبة - نسخة مصححة
+const handleEditMeal = useCallback((meal) => {
+    console.log('✏️ Editing meal:', meal);
+    
+    // تعيين الوجبة التي يتم تعديلها
+    setEditingMeal(meal);
+    
+    // تعبئة بيانات الوجبة في النموذج
+    setMealData({
+        meal_type: meal.meal_type || 'Breakfast',
+        meal_time: meal.meal_time ? meal.meal_time.slice(0, 16) : new Date().toISOString().slice(0, 16),
+        notes: meal.notes || ''
+    });
+    
+    // تعبئة المكونات
+    if (meal.ingredients && meal.ingredients.length > 0) {
+        const items = meal.ingredients.map(item => ({
+            name: item.name || '',
+            quantity: item.quantity?.toString() || '100',
+            unit: item.unit || 'gram',
+            calories: item.calories?.toString() || '',
+            protein: item.protein?.toString() || '',
+            carbs: item.carbs?.toString() || '',
+            fat: item.fat?.toString() || '',
+            isSearching: false,
+            searchResults: [],
+            showResults: false,
+            selectedFood: item,
+            manualEdit: true,
+            barcode: item.barcode || null
+        }));
+        setFoodItems(items);
+    } else {
+        // إذا لم توجد مكونات، استخدم مكوناً افتراضياً واحداً
+        setFoodItems([{ 
+            name: '', 
+            quantity: '100', 
+            unit: 'gram', 
+            calories: '', 
+            protein: '', 
+            carbs: '', 
+            fat: '',
+            isSearching: false,
+            searchResults: [],
+            showResults: false,
+            selectedFood: null,
+            manualEdit: false,
+            barcode: null
+        }]);
+    }
+    
+    // إظهار نموذج التعديل والتمرير للأعلى
+    setShowEditForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}, []);
     
     // ✅ معالجة الباركود
     const handleBarcodeScanned = useCallback(async (result) => {
@@ -630,7 +694,16 @@ function NutritionForm({ onDataSubmitted, isAuthReady }) {
                         📷 {!isMobile && (isArabic ? 'مسح باركود' : 'Scan Barcode')}
                     </button>
                     {showEditForm && (
-                        <button type="button" onClick={() => { setShowEditForm(false); setEditingMeal(null); clearForm(); }} className="cancel-edit-btn">
+                        <button 
+                            type="button" 
+                            onClick={() => { 
+                                setShowEditForm(false); 
+                                setEditingMeal(null); 
+                                clearForm(); 
+                                showMessage(isArabic ? 'تم إلغاء التعديل' : 'Edit cancelled', 'info');
+                            }} 
+                            className="cancel-edit-btn"
+                        >
                             ✖ {isArabic ? 'إلغاء التعديل' : 'Cancel Edit'}
                         </button>
                     )}
