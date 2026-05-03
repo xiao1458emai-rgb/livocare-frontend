@@ -184,6 +184,8 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
     const [streakDays, setStreakDays] = useState(0);
     const [todayLogs, setTodayLogs] = useState([]);
     const [refreshKey, setRefreshKey] = useState(0);
+    // أضف هذا السطر مع بقية حالات useState
+    const [loadingAnalytics, setLoadingAnalytics] = useState(false);
     
     // حالة البحث عن الأدوية
     const [drugSearchQuery, setDrugSearchQuery] = useState('');
