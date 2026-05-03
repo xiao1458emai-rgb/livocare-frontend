@@ -2,8 +2,8 @@
 // src/components/SmartAnalysis.jsx
 'use client'
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import axiosInstance from '../services/api';
-import '../index.css';
+import axiosInstance from '../../services/api';
+import '../../index.css';
 
 // ============================================
 // دوال مساعدة للتحليل والتوصيات
