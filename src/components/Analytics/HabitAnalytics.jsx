@@ -428,61 +428,87 @@ const HabitAnalytics = ({ refreshTrigger }) => {
         };
     };
 
-    const fetchData = useCallback(async () => {
-        if (isFetchingRef.current || !isMountedRef.current) return;
+const fetchData = useCallback(async () => {
+    if (isFetchingRef.current || !isMountedRef.current) return;
+    
+    isFetchingRef.current = true;
+    setLoading(true);
+    setError(null);
+    
+    try {
+        // ✅ استدعاء API التحليلات المتقدم من الخلفية (scikit-learn)
+        const response = await axiosInstance.get('/habits/analytics/?lang=' + (isArabic ? 'ar' : 'en'));
         
-        isFetchingRef.current = true;
-        setLoading(true);
-        setError(null);
+        if (!isMountedRef.current) return;
         
-        try {
-            // جلب الأمراض المزمنة أولاً
-            await fetchUserConditions();
+        if (response.data?.success && response.data?.data) {
+            const analyticsData = response.data.data;
+            console.log('📊 Deep ML analytics loaded:', analyticsData);
             
-            const [habitsRes, logsRes] = await Promise.all([
-                axiosInstance.get('/habit-definitions/').catch(() => ({ data: [] })),
-                axiosInstance.get('/habit-logs/').catch(() => ({ data: [] }))
-            ]);
-
-            const habits = extractData(habitsRes.data);
-            const logs = extractData(logsRes.data);
-
-            if (!isMountedRef.current) return;
-
-            console.log('📊 Habits for analytics:', habits.length);
-            console.log('📊 Logs for analytics:', logs.length);
-            console.log('🩺 User conditions for analysis:', userConditions);
-
-            if (habits.length === 0) {
-                setData(null);
-                setError(isArabic ? 'لا توجد عادات مسجلة' : 'No habits recorded');
-                setLoading(false);
-                return;
-            }
-
-            const analysis = analyzeHabits(habits, logs);
+            // ✅ تحويل بيانات API إلى الصيغة التي يتوقعها المكون
+            const transformedData = {
+                medications: {
+                    list: [],
+                    count: analyticsData.summary?.active_medications || 0,
+                    stats: {
+                        total: analyticsData.summary?.total_habits || 0,
+                        completed: analyticsData.summary?.completed_today || 0,
+                        totalLogs: analyticsData.summary?.total_logs_30d || 0
+                    },
+                    adherenceRate: analyticsData.summary?.medication_adherence || 0,
+                    streak: analyticsData.summary?.streak || 0,
+                    complianceMessage: analyticsData.summary?.medication_adherence >= 90 ? 'التزام ممتاز! استمر' : 
+                                       analyticsData.summary?.medication_adherence >= 70 ? 'التزام جيد' : 
+                                       analyticsData.summary?.medication_adherence > 0 ? 'التزام منخفض' : 'لا توجد أدوية',
+                    deepAnalysis: null
+                },
+                habits: {
+                    list: [],
+                    count: analyticsData.summary?.total_habits || 0,
+                    stats: {
+                        total: analyticsData.summary?.total_logs_30d || 0,
+                        completed: analyticsData.summary?.completed_today || 0,
+                        totalLogs: analyticsData.summary?.total_logs_30d || 0
+                    },
+                    completionRate: analyticsData.summary?.completion_rate || 0
+                },
+                recommendations: (analyticsData.recommendations || []).map(rec => ({
+                    icon: rec.icon,
+                    title: rec.title,
+                    advice: rec.description,
+                    action: rec.quick_tip || rec.actions?.[0] || ''
+                })),
+                quickTips: [
+                    { icon: '💊', text: isArabic ? 'سجل أدويتك يومياً' : 'Log your medications daily' },
+                    { icon: '📅', text: isArabic ? 'حافظ على روتين ثابت' : 'Maintain a consistent routine' },
+                    { icon: '✅', text: isArabic ? 'أنجز عاداتك اليومية' : 'Complete your daily habits' }
+                ],
+                strongestHabit: analyticsData.summary?.best_habit,
+                strongestHabitRate: analyticsData.summary?.habit_completion_rates?.[analyticsData.summary?.best_habit] || 0,
+                userConditions: [],
+                lastUpdated: new Date().toISOString(),
+                // ✅ بيانات متقدمة من API
+                correlations: analyticsData.correlations || [],
+                predictions: analyticsData.predictions || [],
+                anomalies: analyticsData.anomalies || {},
+                distribution: analyticsData.distribution || {},
+                streakAnalysis: analyticsData.streak_analysis || {}
+            };
             
-            // ✅ تحليل متقدم للأدوية مع مراعاة الأمراض المزمنة
-            if (analysis.medications.list.length > 0 && userConditions.length > 0) {
-                const deepAnalysis = await analyzeMedicationsDeep(analysis.medications.list, userConditions.map(c => c.name));
-                analysis.medications.deepAnalysis = deepAnalysis;
-            } else if (analysis.medications.list.length > 0) {
-                const deepAnalysis = await analyzeMedicationsDeep(analysis.medications.list, []);
-                analysis.medications.deepAnalysis = deepAnalysis;
-            }
-            
-            console.log('📊 Analysis result - Medications count:', analysis.medications.count);
-            setData(analysis);
-        } catch (err) {
-            console.error('Error fetching data:', err);
-            if (isMountedRef.current) {
-                setError(isArabic ? 'حدث خطأ في تحميل البيانات' : 'Error loading data');
-            }
-        } finally {
-            if (isMountedRef.current) setLoading(false);
-            isFetchingRef.current = false;
+            setData(transformedData);
+        } else {
+            throw new Error(response.data?.message || 'Failed to load analytics');
         }
-    }, [isArabic, fetchUserConditions, userConditions]);
+    } catch (err) {
+        console.error('Error fetching deep ML analytics:', err);
+        if (isMountedRef.current) {
+            setError(isArabic ? 'حدث خطأ في تحميل التحليلات المتقدمة' : 'Error loading advanced analytics');
+        }
+    } finally {
+        if (isMountedRef.current) setLoading(false);
+        isFetchingRef.current = false;
+    }
+}, [isArabic]);
 
     useEffect(() => {
         fetchData();
