@@ -547,7 +547,6 @@ const SmartDashboard = () => {
                 {/* العمود الأيسر - الطقس ودرجة الصحة */}
                 <div className="smart-column">
                     <WeatherWidget />
-                    <HealthScoreCard healthScore={healthScore} />
                 </div>
 
                 {/* العمود الأيمن - المحتوى حسب التبويب */}
