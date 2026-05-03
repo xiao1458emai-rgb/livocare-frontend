@@ -686,11 +686,7 @@ useEffect(() => {
     }
 }, [activeTab, fetchHabitRecommendationsAPI, fetchHabitPredictions]);
 // في HabitAnalytics.jsx
-useEffect(() => {
-    if (refreshTrigger !== undefined) {
-        fetchAnalytics();
-    }
-}, [refreshTrigger]);
+
     // ✅ حساب النقاط
     useEffect(() => {
         if (logs.length === 0 || definitions.length === 0) return;
