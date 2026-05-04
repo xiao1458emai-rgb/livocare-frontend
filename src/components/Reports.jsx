@@ -480,7 +480,7 @@ const analyzeHabitsData = (habitLogs, habitDefinitions) => {
     }
     
     // ✅ استخدام is_completed بشكل صحيح
-    const completed = habitLogs.filter(h => h.is_completed === true || h.is_completed === 1).length;
+    const completed = habitLogs.filter(h => h.isCompleted=== true || h.isCompleted === 1).length;
     const total = habitLogs.length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     
@@ -494,7 +494,7 @@ const analyzeHabitsData = (habitLogs, habitDefinitions) => {
             byHabit[habitId] = { total: 0, completed: 0, name: habitName };
         }
         byHabit[habitId].total++;
-        if (log.is_completed === true || log.is_completed === 1) byHabit[habitId].completed++;
+        if (log.isCompleted === true || log.isCompleted === 1) byHabit[habitId].completed++;
     });
     
     Object.keys(byHabit).forEach(habitId => {
