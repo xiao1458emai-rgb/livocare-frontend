@@ -1292,6 +1292,510 @@ function HabitTracker({ isAuthReady, isArabic: propIsArabic }) {
 
             {/* CSS Styles */}
             <style jsx>{`
+            /* ===========================================
+   Medical Record Form - Styles
+   نموذج السجلات الطبية
+   =========================================== */
+
+/* الحاوية الرئيسية للنموذج */
+.medical-record-form {
+    background: var(--card-bg, #ffffff);
+    border-radius: 24px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-light, #eef2f6);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+}
+
+.dark-mode .medical-record-form {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* نموذج الإدخال */
+.record-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* حقول النموذج */
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-field label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary, #64748b);
+    letter-spacing: 0.3px;
+}
+
+.dark-mode .form-field label {
+    color: #94a3b8;
+}
+
+.form-field input,
+.form-field textarea,
+.form-field select {
+    padding: 0.875rem 1rem;
+    background: var(--input-bg, #f8fafc);
+    border: 1.5px solid var(--border-light, #e2e8f0);
+    border-radius: 14px;
+    font-size: 0.9rem;
+    color: var(--text-primary, #0f172a);
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.dark-mode .form-field input,
+.dark-mode .form-field textarea,
+.dark-mode .form-field select {
+    background: #0f172a;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+.form-field input:focus,
+.form-field textarea:focus,
+.form-field select:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.form-field textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* حقل رفع الملف */
+.file-upload-field {
+    margin-top: 0.25rem;
+}
+
+.file-upload-area {
+    border: 2px dashed var(--border-light, #e2e8f0);
+    border-radius: 16px;
+    padding: 1.25rem;
+    background: var(--upload-bg, #fafcff);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.dark-mode .file-upload-area {
+    border-color: #475569;
+    background: #0f172a;
+}
+
+.file-upload-area:hover {
+    border-color: #6366f1;
+    background: var(--upload-hover, #f5f7ff);
+}
+
+.dark-mode .file-upload-area:hover {
+    background: #1a2744;
+}
+
+.file-upload-area input[type="file"] {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #64748b);
+    background: transparent;
+    border: none;
+}
+
+.file-upload-area input[type="file"]::-webkit-file-upload-button {
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-right: 1rem;
+    transition: all 0.2s;
+}
+
+.file-upload-area input[type="file"]::-webkit-file-upload-button:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+}
+
+/* الملف المحدد */
+.selected-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--selected-bg, #f1f5f9);
+    padding: 0.5rem 1rem;
+    border-radius: 40px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary, #0f172a);
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.dark-mode .selected-file {
+    background: #334155;
+    color: #f1f5f9;
+}
+
+.selected-file button {
+    background: rgba(239, 68, 68, 0.15);
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #ef4444;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.selected-file button:hover {
+    background: #ef4444;
+    color: white;
+    transform: scale(1.05);
+}
+
+/* نص المساعدة */
+.file-hint {
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.file-hint::before {
+    content: "💡";
+    font-size: 0.8rem;
+}
+
+/* شريط التقدم */
+.upload-progress {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.upload-progress .progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--progress-bg, #e2e8f0);
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.dark-mode .upload-progress .progress-bar {
+    background: #334155;
+}
+
+.upload-progress .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    border-radius: 20px;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.upload-progress span {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6366f1;
+    min-width: 45px;
+}
+
+/* نتائج التحليل */
+.processing-result {
+    background: rgba(16, 185, 129, 0.08);
+    border-radius: 16px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.dark-mode .processing-result {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.result-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #10b981;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.result-icon {
+    font-size: 1rem;
+}
+
+.extracted-diseases,
+.added-conditions {
+    margin-bottom: 0.75rem;
+}
+
+.extracted-diseases strong,
+.added-conditions strong {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #64748b);
+    margin-bottom: 0.5rem;
+}
+
+.dark-mode .extracted-diseases strong,
+.dark-mode .added-conditions strong {
+    color: #94a3b8;
+}
+
+.extracted-diseases ul,
+.added-conditions ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    list-style: none;
+}
+
+[dir="rtl"] .extracted-diseases ul,
+[dir="rtl"] .added-conditions ul {
+    padding-left: 0;
+    padding-right: 1.25rem;
+}
+
+.extracted-diseases li,
+.added-conditions li {
+    font-size: 0.8rem;
+    padding: 0.25rem 0;
+    color: var(--text-primary, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dark-mode .extracted-diseases li,
+.dark-mode .added-conditions li {
+    color: #f1f5f9;
+}
+
+.extracted-diseases li::before {
+    content: "🩺";
+    font-size: 0.7rem;
+}
+
+.added-conditions li::before {
+    content: "✅";
+    font-size: 0.7rem;
+}
+
+.confidence-high {
+    color: #10b981;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+/* أزرار النموذج */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.form-actions .submit-btn,
+.form-actions .cancel-btn {
+    padding: 0.875rem 1.5rem;
+    border-radius: 14px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    flex: 1;
+}
+
+.form-actions .submit-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.form-actions .submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+}
+
+.form-actions .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.form-actions .cancel-btn {
+    background: var(--cancel-bg, #f1f5f9);
+    color: var(--text-secondary, #64748b);
+    border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.dark-mode .form-actions .cancel-btn {
+    background: #0f172a;
+    border-color: #475569;
+    color: #94a3b8;
+}
+
+.form-actions .cancel-btn:hover {
+    background: #e2e8f0;
+    transform: translateY(-1px);
+}
+
+.dark-mode .form-actions .cancel-btn:hover {
+    background: #334155;
+}
+
+/* سبينر صغير */
+.spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== دعم RTL ===== */
+[dir="rtl"] .file-upload-area input[type="file"]::-webkit-file-upload-button {
+    margin-right: 0;
+    margin-left: 1rem;
+}
+
+[dir="rtl"] .selected-file button {
+    margin-right: auto;
+    margin-left: 0;
+}
+
+[dir="rtl"] .extracted-diseases ul,
+[dir="rtl"] .added-conditions ul {
+    padding-right: 1.25rem;
+}
+
+/* ===== تأثيرات إضافية ===== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.medical-record-form {
+    animation: fadeInUp 0.3s ease;
+}
+
+/* حالة التركيز على الحقول */
+.form-field input:focus,
+.form-field textarea:focus {
+    border-width: 1.5px;
+}
+
+/* حالة الخطأ (اختياري) */
+.form-field.error input,
+.form-field.error textarea {
+    border-color: #ef4444;
+}
+
+.form-field.error label {
+    color: #ef4444;
+}
+
+.error-message {
+    font-size: 0.7rem;
+    color: #ef4444;
+    margin-top: 0.25rem;
+}
+
+/* ===== حركة التقدم الناعمة ===== */
+.upload-progress .progress-fill {
+    position: relative;
+    overflow: hidden;
+}
+
+.upload-progress .progress-fill::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* ===== دقة الشاشات الصغيرة ===== */
+@media (max-width: 640px) {
+    .medical-record-form {
+        padding: 1rem;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .form-actions .submit-btn,
+    .form-actions .cancel-btn {
+        padding: 0.75rem;
+    }
+    
+    .file-upload-area {
+        padding: 0.875rem;
+    }
+    
+    .selected-file {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
           
                 /* ===== أزرار التعديل والحذف ===== */
 .edit-definition-btn,
