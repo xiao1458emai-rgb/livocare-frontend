@@ -465,7 +465,7 @@ const analyzeMoodData = (moodData) => {
     };
 };
 
-// ✅ الدالة المصححة - تفريق بين المنجز وغير المنجز حسب النطاق الزمني
+// ✅ الدالة النهائية المصححة
 const analyzeHabitsData = (habitLogs, habitDefinitions, dateRange) => {
     if (!habitLogs || habitLogs.length === 0) { 
         return { 
@@ -476,65 +476,85 @@ const analyzeHabitsData = (habitLogs, habitDefinitions, dateRange) => {
             status: 'no_data',
             message: '',
             byHabit: {},
-            expectedTotal: 0  // العدد المتوقع حسب الأيام
+            expectedTotal: 0,
+            actualTotal: 0
         }; 
     }
+    
+    // ✅ تصحيح بيانات السجلات أولاً
+    const normalizedLogs = habitLogs.map(log => ({
+        ...log,
+        isCompleted: log.isCompleted === true || 
+                     log.is_completed === true || 
+                     log.is_completed === 1 ||
+                     log.completed === true,
+        habit_id: log.habit?.id || log.habit_id || log.habit,
+        log_date: log.log_date || log.date || log.recorded_at
+    }));
     
     // ✅ حساب الأيام في النطاق الزمني
     const startDate = new Date(dateRange.start);
     const endDate = new Date(dateRange.end);
     const daysDifference = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-    const totalDays = Math.max(1, daysDifference);
+    const totalDays = Math.max(1, daysDifference + 1); // +1 لتشمل اليوم الأخير
     
-    // ✅ عدد العادات النشطة
+    // ✅ العادات النشطة (غير المحذوفة)
     const activeHabits = habitDefinitions.filter(h => h.is_active !== false).length;
-    const expectedTotal = activeHabits * totalDays; // العدد المتوقع للإنجازات
+    const expectedTotal = activeHabits * totalDays;
     
-    // ✅ تصفية السجلات في النطاق الزمني فقط
-    const logsInRange = habitLogs.filter(log => {
-        const logDate = new Date(log.log_date || log.recorded_at || log.date);
+    // ✅ تصفية السجلات في النطاق الزمني
+    const logsInRange = normalizedLogs.filter(log => {
+        if (!log.log_date) return false;
+        const logDate = new Date(log.log_date);
         return logDate >= startDate && logDate <= endDate;
     });
     
-    // ✅ حساب المنجزات في النطاق الزمني فقط
-    const completed = logsInRange.filter(log => 
-        log.isCompleted === true || log.isCompleted === 1 || log.completed === true
-    ).length;
-    
+    // ✅ حساب المنجزات (مع التحقق المضاعف)
+    const completed = logsInRange.filter(log => log.isCompleted === true).length;
     const total = logsInRange.length;
-    const completionRate = expectedTotal > 0 
-        ? Math.round((completed / expectedTotal) * 100) 
-        : (total > 0 ? Math.round((completed / total) * 100) : 0);
     
-    // ✅ تحليل كل عادة على حدة (في النطاق الزمني فقط)
+    // ✅ نسبة الإنجاز
+    let completionRate = 0;
+    if (expectedTotal > 0) {
+        completionRate = Math.round((completed / expectedTotal) * 100);
+    } else if (total > 0) {
+        completionRate = Math.round((completed / total) * 100);
+    }
+    
+    // ✅ تحليل كل عادة
     const byHabit = {};
     
-    // إعداد كل العادات بقيم صفرية
+    // تهيئة كل العادات
     habitDefinitions.forEach(habit => {
         if (habit.is_active !== false) {
             byHabit[habit.id] = { 
-                total: totalDays,  // العدد المتوقع لهذه العادة
+                expectedTotal: totalDays,
                 completed: 0, 
                 name: habit.name,
-                rate: 0
+                rate: 0,
+                actualLogs: []
             };
         }
     });
     
-    // تجميع الإنجازات الفعلية
+    // تجميع الإنجازات
     logsInRange.forEach(log => {
-        const habitId = log.habit?.id || log.habit_id || log.habit;
-        const isCompleted = log.isCompleted === true || log.isCompleted === 1 || log.completed === true;
+        const habitId = log.habit_id;
+        const isCompleted = log.isCompleted === true;
         
-        if (byHabit[habitId] && isCompleted) {
-            byHabit[habitId].completed++;
+        if (byHabit[habitId]) {
+            byHabit[habitId].actualLogs.push(log);
+            if (isCompleted) {
+                byHabit[habitId].completed++;
+            }
         }
     });
     
-    // حساب النسب المئوية لكل عادة
+    // حساب النسب
     Object.keys(byHabit).forEach(habitId => {
-        byHabit[habitId].rate = byHabit[habitId].total > 0 
-            ? Math.round((byHabit[habitId].completed / byHabit[habitId].total) * 100) 
+        const habit = byHabit[habitId];
+        habit.rate = habit.expectedTotal > 0 
+            ? Math.round((habit.completed / habit.expectedTotal) * 100) 
             : 0;
     });
     
@@ -553,20 +573,25 @@ const analyzeHabitsData = (habitLogs, habitDefinitions, dateRange) => {
     } else if (completionRate > 0) {
         status = 'low';
         message = '⚠️ يمكن تحسين الالتزام';
+    } else if (total > 0 && completed === 0) {
+        status = 'none';
+        message = '⚠️ لم يتم إنجاز أي عادة';
     }
     
     return {
         completionRate,
         completed,
-        total: expectedTotal,  // استخدام العدد المتوقع بدلاً من المسجل
-        actualTotal: total,    // العدد المسجل فعلياً
+        total: expectedTotal,
+        actualTotal: total,
         expectedTotal,
         totalDays,
         activeHabits,
         hasData: logsInRange.length > 0,
+        hasAnyCompletion: completed > 0,
         status,
         message,
-        byHabit
+        byHabit,
+        rawLogs: logsInRange  // للتصحيح
     };
 };
 
