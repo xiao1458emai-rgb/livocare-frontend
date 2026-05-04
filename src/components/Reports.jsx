@@ -465,8 +465,8 @@ const analyzeMoodData = (moodData) => {
     };
 };
 
-// ✅ تحليل بيانات العادات (تم الإصلاح - استخدام is_completed)
-const analyzeHabitsData = (habitLogs, habitDefinitions) => {
+// ✅ الدالة المصححة - تفريق بين المنجز وغير المنجز حسب النطاق الزمني
+const analyzeHabitsData = (habitLogs, habitDefinitions, dateRange) => {
     if (!habitLogs || habitLogs.length === 0) { 
         return { 
             completionRate: 0, 
@@ -475,34 +475,70 @@ const analyzeHabitsData = (habitLogs, habitDefinitions) => {
             hasData: false,
             status: 'no_data',
             message: '',
-            byHabit: {}
+            byHabit: {},
+            expectedTotal: 0  // العدد المتوقع حسب الأيام
         }; 
     }
     
-    // ✅ استخدام is_completed بشكل صحيح
-    const completed = habitLogs.filter(h => h.isCompleted=== true || h.isCompleted === 1).length;
-    const total = habitLogs.length;
-    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    // ✅ حساب الأيام في النطاق الزمني
+    const startDate = new Date(dateRange.start);
+    const endDate = new Date(dateRange.end);
+    const daysDifference = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    const totalDays = Math.max(1, daysDifference);
     
-    // تحليل كل عادة على حدة
-    const byHabit = {};
-    habitLogs.forEach(log => {
-        const habitId = log.habit?.id || log.habit_id || log.habit;
-        const habitName = log.habit?.name || log.habit_name || (habitId ? `Habit ${habitId}` : 'Habit');
-        
-        if (!byHabit[habitId]) {
-            byHabit[habitId] = { total: 0, completed: 0, name: habitName };
-        }
-        byHabit[habitId].total++;
-        if (log.isCompleted === true || log.isCompleted === 1) byHabit[habitId].completed++;
+    // ✅ عدد العادات النشطة
+    const activeHabits = habitDefinitions.filter(h => h.is_active !== false).length;
+    const expectedTotal = activeHabits * totalDays; // العدد المتوقع للإنجازات
+    
+    // ✅ تصفية السجلات في النطاق الزمني فقط
+    const logsInRange = habitLogs.filter(log => {
+        const logDate = new Date(log.log_date || log.recorded_at || log.date);
+        return logDate >= startDate && logDate <= endDate;
     });
     
+    // ✅ حساب المنجزات في النطاق الزمني فقط
+    const completed = logsInRange.filter(log => 
+        log.isCompleted === true || log.isCompleted === 1 || log.completed === true
+    ).length;
+    
+    const total = logsInRange.length;
+    const completionRate = expectedTotal > 0 
+        ? Math.round((completed / expectedTotal) * 100) 
+        : (total > 0 ? Math.round((completed / total) * 100) : 0);
+    
+    // ✅ تحليل كل عادة على حدة (في النطاق الزمني فقط)
+    const byHabit = {};
+    
+    // إعداد كل العادات بقيم صفرية
+    habitDefinitions.forEach(habit => {
+        if (habit.is_active !== false) {
+            byHabit[habit.id] = { 
+                total: totalDays,  // العدد المتوقع لهذه العادة
+                completed: 0, 
+                name: habit.name,
+                rate: 0
+            };
+        }
+    });
+    
+    // تجميع الإنجازات الفعلية
+    logsInRange.forEach(log => {
+        const habitId = log.habit?.id || log.habit_id || log.habit;
+        const isCompleted = log.isCompleted === true || log.isCompleted === 1 || log.completed === true;
+        
+        if (byHabit[habitId] && isCompleted) {
+            byHabit[habitId].completed++;
+        }
+    });
+    
+    // حساب النسب المئوية لكل عادة
     Object.keys(byHabit).forEach(habitId => {
         byHabit[habitId].rate = byHabit[habitId].total > 0 
             ? Math.round((byHabit[habitId].completed / byHabit[habitId].total) * 100) 
             : 0;
     });
     
+    // ✅ تحديد الحالة
     let status = 'unknown';
     let message = '';
     if (completionRate >= 80) {
@@ -522,8 +558,12 @@ const analyzeHabitsData = (habitLogs, habitDefinitions) => {
     return {
         completionRate,
         completed,
-        total,
-        hasData: habitLogs.length > 0,
+        total: expectedTotal,  // استخدام العدد المتوقع بدلاً من المسجل
+        actualTotal: total,    // العدد المسجل فعلياً
+        expectedTotal,
+        totalDays,
+        activeHabits,
+        hasData: logsInRange.length > 0,
         status,
         message,
         byHabit
@@ -876,7 +916,9 @@ const generateSmartReports = (currentData, range, isArabic) => {
     const activity = analyzeActivityData(currentData.activities);
     const healthMetrics = analyzeHealthMetricsData(currentData.health);
     const mood = analyzeMoodData(currentData.mood);
-    const habits = analyzeHabitsData(currentData.habits, currentData.habitDefinitions);
+    
+    // ✅ تمرير range للدالة
+    const habits = analyzeHabitsData(currentData.habits, currentData.habitDefinitions, range);
     
     const healthScore = calculateHealthScore(sleep, nutrition, activity, healthMetrics, mood, habits);
     const story = generateSmartStory(sleep, nutrition, activity, healthMetrics, mood, habits, isArabic);
