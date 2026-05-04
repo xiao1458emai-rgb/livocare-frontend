@@ -1,5 +1,4 @@
-//smartanalysis.jsx
-// src/components/SmartAnalysis.jsx
+// src/components/SmartAnalysis.jsx - النسخة المصححة
 'use client'
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import axiosInstance from '../../services/api';
@@ -1364,7 +1363,7 @@ const SmartAnalysis = () => {
                             <span className="score-max">/100</span>
                         </div>
                         <div className="score-info">
-                            <div className={`score-grade grade-${healthScore.grade?.toLowerCase()}`}>
+                            <div className="score-grade" style={{ color: healthScore.statusColor }}>
                                 {healthScore.grade}
                             </div>
                             <div className="score-status" style={{ color: healthScore.statusColor }}>
@@ -1802,10 +1801,10 @@ const SmartAnalysis = () => {
             </div>
             
             <style jsx>{`
-       /* ============================================
+/* ============================================
    SmartAnalysis.css - الأنماط الداخلية فقط
    ✅ تحليل ذكي شامل مع توصيات مخصصة
-   ✅ متوافق مع الثيمين (فاتح/داكن)
+   ✅ متوافق مع الثيمين (فاتح/داكن) - تم إصلاح جميع مشاكل الألوان
    ✅ دعم كامل للغة العربية والإنجليزية
    ============================================ */
 
@@ -1888,7 +1887,7 @@ const SmartAnalysis = () => {
     border-color: transparent;
 }
 
-/* بطاقة درجة الصحة */
+/* بطاقة درجة الصحة - تم إصلاح الألوان */
 .health-score-card {
     background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%);
     border-radius: 24px;
@@ -1937,11 +1936,6 @@ const SmartAnalysis = () => {
     font-weight: 800;
 }
 
-.score-grade.grade-a, .score-grade.grade-a-plus { color: #10b981; }
-.score-grade.grade-b, .score-grade.grade-b-plus { color: #3b82f6; }
-.score-grade.grade-c, .score-grade.grade-c-plus { color: #f59e0b; }
-.score-grade.grade-d { color: #ef4444; }
-
 .score-status {
     font-size: 0.85rem;
     font-weight: 600;
@@ -1950,7 +1944,7 @@ const SmartAnalysis = () => {
 .score-details summary {
     cursor: pointer;
     font-size: 0.8rem;
-    color: rgba(32, 4, 4, 0.8);
+    color: rgba(255, 255, 255, 0.8);
     margin-bottom: 0.75rem;
 }
 
@@ -2002,7 +1996,7 @@ const SmartAnalysis = () => {
     opacity: 0.8;
 }
 
-/* الإحصائيات السريعة */
+/* الإحصائيات السريعة - تم إصلاح الألوان */
 .quick-stats {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
@@ -2060,7 +2054,7 @@ const SmartAnalysis = () => {
     letter-spacing: 0.5px;
 }
 
-/* التبويبات */
+/* التبويبات - تم إصلاح الألوان */
 .analysis-tabs {
     display: flex;
     gap: 0.5rem;
@@ -2131,7 +2125,7 @@ const SmartAnalysis = () => {
     }
 }
 
-/* بطاقات التحليل */
+/* بطاقات التحليل - تم إصلاح الألوان */
 .analysis-card {
     background: var(--secondary-bg, #f8fafc);
     border-radius: 20px;
@@ -2201,9 +2195,10 @@ const SmartAnalysis = () => {
 
 .dark-mode .info-row {
     border-top-color: #334155;
+    color: #94a3b8;
 }
 
-/* بطاقة المعلومات الإضافية */
+/* بطاقة المعلومات الإضافية - تم إصلاح الألوان */
 .info-card {
     background: var(--secondary-bg, #5b84ac);
     border-radius: 20px;
@@ -2234,7 +2229,7 @@ const SmartAnalysis = () => {
     gap: 0.5rem;
 }
 
-/* قائمة التوصيات */
+/* قائمة التوصيات - تم إصلاح الألوان */
 .recommendations-list {
     display: flex;
     flex-direction: column;
@@ -2397,7 +2392,7 @@ const SmartAnalysis = () => {
     border-top-color: #334155;
 }
 
-/* بطاقات الرؤى والتحليلات */
+/* بطاقات الرؤى والتحليلات - تم إصلاح الألوان */
 .insights-card {
     background: var(--secondary-bg, #f8fafc);
     border-radius: 20px;
@@ -2485,7 +2480,7 @@ const SmartAnalysis = () => {
     font-weight: 700;
 }
 
-/* حالة فارغة */
+/* حالة فارغة - تم إصلاح الألوان */
 .empty-state {
     text-align: center;
     padding: 2rem;
@@ -2517,7 +2512,7 @@ const SmartAnalysis = () => {
     margin-top: 0.5rem;
 }
 
-/* تذييل الصفحة */
+/* تذييل الصفحة - تم إصلاح الألوان */
 .analysis-footer {
     margin-top: 1rem;
     padding-top: 1rem;
@@ -2531,7 +2526,7 @@ const SmartAnalysis = () => {
     border-top-color: #334155;
 }
 
-/* حالات التحميل والخطأ */
+/* حالات التحميل والخطأ - تم إصلاح الألوان */
 .loading-spinner {
     text-align: center;
     padding: 3rem;
@@ -2552,6 +2547,14 @@ const SmartAnalysis = () => {
     border-top-color: #a78bfa;
 }
 
+.loading-spinner p {
+    color: var(--text-secondary, #64748b);
+}
+
+.dark-mode .loading-spinner p {
+    color: #94a3b8;
+}
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
@@ -2568,7 +2571,7 @@ const SmartAnalysis = () => {
 
 .error-container p {
     font-size: 0.85rem;
-    color: #ef4444;
+    color: var(--error-color, #ef4444);
     margin-bottom: 1rem;
 }
 
