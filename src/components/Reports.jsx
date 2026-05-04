@@ -1,4 +1,4 @@
-// src/components/Reports.jsx
+// src/components/Reports.jsx - النسخة المصححة مع تصدير PDF
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axiosInstance from '../services/api';
@@ -465,7 +465,7 @@ const analyzeMoodData = (moodData) => {
     };
 };
 
-// ✅ تحليل بيانات العادات
+// ✅ تحليل بيانات العادات (تم الإصلاح - استخدام is_completed)
 const analyzeHabitsData = (habitLogs, habitDefinitions) => {
     if (!habitLogs || habitLogs.length === 0) { 
         return { 
@@ -479,23 +479,28 @@ const analyzeHabitsData = (habitLogs, habitDefinitions) => {
         }; 
     }
     
-    const completed = habitLogs.filter(h => h.is_completed === true).length;
+    // ✅ استخدام is_completed بشكل صحيح
+    const completed = habitLogs.filter(h => h.is_completed === true || h.is_completed === 1).length;
     const total = habitLogs.length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     
     // تحليل كل عادة على حدة
     const byHabit = {};
     habitLogs.forEach(log => {
-        const habitId = log.habit?.id || log.habit;
+        const habitId = log.habit?.id || log.habit_id || log.habit;
+        const habitName = log.habit?.name || log.habit_name || (habitId ? `Habit ${habitId}` : 'Habit');
+        
         if (!byHabit[habitId]) {
-            byHabit[habitId] = { total: 0, completed: 0, name: log.habit?.name || 'Habit' };
+            byHabit[habitId] = { total: 0, completed: 0, name: habitName };
         }
         byHabit[habitId].total++;
-        if (log.is_completed) byHabit[habitId].completed++;
+        if (log.is_completed === true || log.is_completed === 1) byHabit[habitId].completed++;
     });
     
     Object.keys(byHabit).forEach(habitId => {
-        byHabit[habitId].rate = Math.round((byHabit[habitId].completed / byHabit[habitId].total) * 100);
+        byHabit[habitId].rate = byHabit[habitId].total > 0 
+            ? Math.round((byHabit[habitId].completed / byHabit[habitId].total) * 100) 
+            : 0;
     });
     
     let status = 'unknown';
@@ -1098,68 +1103,376 @@ const Reports = ({ isAuthReady }) => {
         };
     }, []);
 
-    // ✅ تصدير البيانات
-    const exportReport = useCallback((format) => {
+    // ✅ تصدير PDF باستخدام window.print()
+    const exportToPDF = useCallback(() => {
         if (!reports) return;
         
         setIsExporting(true);
         
         try {
-            const exportData = {
-                generatedAt: new Date().toISOString(),
-                period: reports.summary.period,
-                healthScore: reports.summary.healthScore,
-                topRecommendation: reports.summary.topRecommendation,
-                story: reports.summary.story,
-                sleep: reports.sleep,
-                nutrition: reports.nutrition,
-                activity: reports.activity,
-                healthMetrics: reports.healthMetrics,
-                mood: reports.mood,
-                habits: reports.habits
-            };
-            
-            const dataStr = JSON.stringify(exportData, null, 2);
-            
-            if (format === 'json') {
-                const blob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `health-report-${new Date().toISOString().split('T')[0]}.json`;
-                link.click();
-                URL.revokeObjectURL(url);
-            } else if (format === 'csv') {
-                // تبسيط لتصدير CSV
-                const csvRows = [
-                    ['Metric', 'Value'],
-                    ['Health Score', `${reports.summary.healthScore.score}/${reports.summary.healthScore.maxScore}`],
-                    ['Grade', reports.summary.healthScore.grade],
-                    ['Status', reports.summary.healthScore.statusText],
-                    [''],
-                    ['Sleep', `${reports.sleep.avgHours} hours`],
-                    ['Nutrition', `${reports.nutrition.avgCaloriesPerDay} calories`],
-                    ['Activity', `${reports.activity.avgMinutesPerDay} minutes/day`],
-                    ['Blood Pressure', `${reports.healthMetrics.avgSystolic}/${reports.healthMetrics.avgDiastolic} mmHg`],
-                    ['Mood', `${reports.mood.avgMood}/5`],
-                    ['Habits', `${reports.habits.completionRate}%`]
-                ];
-                
-                const csvContent = csvRows.map(row => row.join(',')).join('\n');
-                const blob = new Blob([csvContent], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `health-report-${new Date().toISOString().split('T')[0]}.csv`;
-                link.click();
-                URL.revokeObjectURL(url);
+            // إنشاء نافذة جديدة للطباعة
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                alert(isArabic ? 'الرجاء السماح بالنوافذ المنبثقة' : 'Please allow popups');
+                return;
             }
             
-            alert(isArabic ? '✅ تم تصدير التقرير بنجاح' : '✅ Report exported successfully');
+            const currentDate = new Date().toLocaleDateString(isArabic ? 'ar-EG' : 'en-US');
+            const title = isArabic ? 'التقرير الصحي' : 'Health Report';
+            
+            // بناء HTML للتقرير
+            let content = `
+                <!DOCTYPE html>
+                <html dir="${isArabic ? 'rtl' : 'ltr'}">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>${title} - ${currentDate}</title>
+                    <style>
+                        * {
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            padding: 40px;
+                            background: white;
+                            color: #333;
+                        }
+                        .report-header {
+                            text-align: center;
+                            margin-bottom: 30px;
+                            padding-bottom: 20px;
+                            border-bottom: 2px solid #6366f1;
+                        }
+                        .report-header h1 {
+                            color: #6366f1;
+                            margin-bottom: 10px;
+                        }
+                        .report-header .period {
+                            color: #666;
+                            font-size: 14px;
+                        }
+                        .health-score-card {
+                            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                            color: white;
+                            padding: 20px;
+                            border-radius: 16px;
+                            margin-bottom: 24px;
+                        }
+                        .score-main {
+                            display: flex;
+                            align-items: center;
+                            gap: 20px;
+                            margin-bottom: 20px;
+                        }
+                        .score-circle {
+                            width: 100px;
+                            height: 100px;
+                            border-radius: 50%;
+                            background: white;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            color: #6366f1;
+                        }
+                        .score-value {
+                            font-size: 32px;
+                            font-weight: bold;
+                        }
+                        .score-grade {
+                            font-size: 28px;
+                            font-weight: bold;
+                        }
+                        .stats-grid {
+                            display: grid;
+                            grid-template-columns: repeat(2, 1fr);
+                            gap: 16px;
+                            margin-bottom: 24px;
+                        }
+                        .stat-card {
+                            border: 1px solid #e2e8f0;
+                            border-radius: 12px;
+                            padding: 16px;
+                            background: #f8fafc;
+                        }
+                        .stat-icon {
+                            font-size: 24px;
+                            margin-bottom: 8px;
+                        }
+                        .stat-value {
+                            font-size: 24px;
+                            font-weight: bold;
+                            color: #1e293b;
+                        }
+                        .story-section {
+                            background: #f1f5f9;
+                            padding: 20px;
+                            border-radius: 16px;
+                            margin-bottom: 24px;
+                        }
+                        .story-paragraph {
+                            margin-bottom: 12px;
+                            line-height: 1.6;
+                        }
+                        .recommendation-card {
+                            background: #fef3c7;
+                            padding: 20px;
+                            border-radius: 16px;
+                            margin-bottom: 24px;
+                            border-left: 4px solid #f59e0b;
+                        }
+                        .detail-card {
+                            border: 1px solid #e2e8f0;
+                            border-radius: 12px;
+                            padding: 20px;
+                            margin-bottom: 20px;
+                        }
+                        .detail-header {
+                            display: flex;
+                            align-items: center;
+                            gap: 12px;
+                            margin-bottom: 16px;
+                            padding-bottom: 12px;
+                            border-bottom: 1px solid #e2e8f0;
+                        }
+                        .detail-stats {
+                            display: grid;
+                            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                            gap: 12px;
+                            margin-bottom: 16px;
+                        }
+                        .footer {
+                            text-align: center;
+                            margin-top: 40px;
+                            padding-top: 20px;
+                            border-top: 1px solid #e2e8f0;
+                            font-size: 12px;
+                            color: #94a3b8;
+                        }
+                        @media print {
+                            body {
+                                padding: 20px;
+                            }
+                            .no-print {
+                                display: none;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="report-header">
+                        <h1>📊 ${title}</h1>
+                        <div class="period">${reports.summary.period.start} - ${reports.summary.period.end}</div>
+                        <div style="margin-top: 8px; font-size: 12px;">تم التصدير: ${currentDate}</div>
+                    </div>
+            `;
+            
+            // درجة الصحة
+            content += `
+                <div class="health-score-card">
+                    <div class="score-main">
+                        <div class="score-circle">
+                            <div class="score-value">${reports.summary.healthScore.score}</div>
+                            <div style="font-size: 12px;">/${reports.summary.healthScore.maxScore}</div>
+                        </div>
+                        <div>
+                            <div class="score-grade">${reports.summary.healthScore.grade}</div>
+                            <div>${reports.summary.healthScore.statusText}</div>
+                        </div>
+                    </div>
+            `;
+            
+            // تفاصيل الدرجة
+            content += `<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;">`;
+            reports.summary.healthScore.details.forEach(detail => {
+                content += `
+                    <div style="background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 20px; font-size: 12px;">
+                        ${detail.icon} ${detail.message}: ${detail.points}/${detail.category === 'sleep' ? 25 : detail.category === 'nutrition' ? 25 : detail.category === 'activity' ? 20 : detail.category === 'healthMetrics' ? 15 : detail.category === 'mood' ? 8 : 7}
+                    </div>
+                `;
+            });
+            content += `</div></div>`;
+            
+            // إحصائيات سريعة
+            content += `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🌙</div>
+                        <div class="stat-value">${reports.sleep.hasData ? reports.sleep.avgHours : 0} ${isArabic ? 'ساعات' : 'hrs'}</div>
+                        <div>${isArabic ? 'متوسط النوم' : 'Avg Sleep'}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🥗</div>
+                        <div class="stat-value">${reports.nutrition.hasData ? reports.nutrition.avgCaloriesPerDay : 0}</div>
+                        <div>${isArabic ? 'سعرات يومية' : 'Daily Calories'}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏃</div>
+                        <div class="stat-value">${reports.activity.hasData ? reports.activity.avgMinutesPerDay : 0} ${isArabic ? 'دقيقة' : 'min'}</div>
+                        <div>${isArabic ? 'نشاط يومي' : 'Daily Activity'}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">❤️</div>
+                        <div class="stat-value">${reports.healthMetrics.hasData ? `${reports.healthMetrics.avgSystolic}/${reports.healthMetrics.avgDiastolic}` : '—'}</div>
+                        <div>${isArabic ? 'ضغط الدم' : 'Blood Pressure'}</div>
+                    </div>
+                </div>
+            `;
+            
+            // القصة الذكية
+            content += `
+                <div class="story-section">
+                    <h3 style="margin-bottom: 16px;">📖 ${isArabic ? 'القصة الذكية لصحتك' : 'Your Health Story'}</h3>
+                    ${reports.summary.story.map(p => `<p class="story-paragraph">${p}</p>`).join('')}
+                </div>
+            `;
+            
+            // التوصية
+            content += `
+                <div class="recommendation-card">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 32px;">${reports.summary.topRecommendation.icon}</span>
+                        <div>
+                            <div style="font-weight: bold; margin-bottom: 4px;">${reports.summary.topRecommendation.title}</div>
+                            <div style="color: #666;">${reports.summary.topRecommendation.advice}</div>
+                        </div>
+                    </div>
+                    <div style="background: white; padding: 12px; border-radius: 8px;">
+                        💡 ${reports.summary.topRecommendation.action}
+                    </div>
+                </div>
+            `;
+            
+            // تفاصيل النوم
+            if (reports.sleep.hasData) {
+                content += `
+                    <div class="detail-card">
+                        <div class="detail-header">
+                            <span style="font-size: 24px;">🌙</span>
+                            <h3>${isArabic ? 'تحليل النوم' : 'Sleep Analysis'}</h3>
+                        </div>
+                        <div class="detail-stats">
+                            <div><strong>${isArabic ? 'المتوسط' : 'Average'}:</strong> ${reports.sleep.avgHours} ${isArabic ? 'ساعات' : 'hours'}</div>
+                            <div><strong>${isArabic ? 'الليالي' : 'Nights'}:</strong> ${reports.sleep.totalNights}</div>
+                            <div><strong>${isArabic ? 'الاتساق' : 'Consistency'}:</strong> ${reports.sleep.consistency}%</div>
+                        </div>
+                        <div>${reports.sleep.message}</div>
+                    </div>
+                `;
+            }
+            
+            // تفاصيل التغذية
+            if (reports.nutrition.hasData) {
+                content += `
+                    <div class="detail-card">
+                        <div class="detail-header">
+                            <span style="font-size: 24px;">🥗</span>
+                            <h3>${isArabic ? 'تحليل التغذية' : 'Nutrition Analysis'}</h3>
+                        </div>
+                        <div class="detail-stats">
+                            <div><strong>${isArabic ? 'سعرات' : 'Calories'}:</strong> ${reports.nutrition.avgCaloriesPerDay}</div>
+                            <div><strong>${isArabic ? 'بروتين' : 'Protein'}:</strong> ${reports.nutrition.avgProtein}g</div>
+                            <div><strong>${isArabic ? 'كربوهيدرات' : 'Carbs'}:</strong> ${reports.nutrition.avgCarbs}g</div>
+                            <div><strong>${isArabic ? 'دهون' : 'Fat'}:</strong> ${reports.nutrition.avgFat}g</div>
+                        </div>
+                        <div>${reports.nutrition.message}</div>
+                    </div>
+                `;
+            }
+            
+            // تفاصيل النشاط
+            if (reports.activity.hasData) {
+                content += `
+                    <div class="detail-card">
+                        <div class="detail-header">
+                            <span style="font-size: 24px;">🏃</span>
+                            <h3>${isArabic ? 'تحليل النشاط' : 'Activity Analysis'}</h3>
+                        </div>
+                        <div class="detail-stats">
+                            <div><strong>${isArabic ? 'متوسط يومي' : 'Daily avg'}:</strong> ${reports.activity.avgMinutesPerDay} ${isArabic ? 'دقيقة' : 'min'}</div>
+                            <div><strong>${isArabic ? 'إجمالي' : 'Total'}:</strong> ${reports.activity.totalMinutes} ${isArabic ? 'دقيقة' : 'min'}</div>
+                            <div><strong>${isArabic ? 'أنشطة' : 'Activities'}:</strong> ${reports.activity.records}</div>
+                        </div>
+                        <div>${reports.activity.message}</div>
+                    </div>
+                `;
+            }
+            
+            // تفاصيل القياسات الحيوية
+            if (reports.healthMetrics.hasData) {
+                content += `
+                    <div class="detail-card">
+                        <div class="detail-header">
+                            <span style="font-size: 24px;">❤️</span>
+                            <h3>${isArabic ? 'القياسات الحيوية' : 'Health Metrics'}</h3>
+                        </div>
+                        <div class="detail-stats">
+                            ${reports.healthMetrics.avgWeight > 0 ? `<div><strong>${isArabic ? 'الوزن' : 'Weight'}:</strong> ${reports.healthMetrics.avgWeight} kg</div>` : ''}
+                            <div><strong>${isArabic ? 'ضغط الدم' : 'BP'}:</strong> ${reports.healthMetrics.avgSystolic}/${reports.healthMetrics.avgDiastolic} mmHg</div>
+                            ${reports.healthMetrics.avgGlucose > 0 ? `<div><strong>${isArabic ? 'السكر' : 'Glucose'}:</strong> ${reports.healthMetrics.avgGlucose} mg/dL</div>` : ''}
+                            ${reports.healthMetrics.avgHeartRate > 0 ? `<div><strong>${isArabic ? 'النبض' : 'Heart Rate'}:</strong> ${reports.healthMetrics.avgHeartRate} BPM</div>` : ''}
+                        </div>
+                        <div>${reports.healthMetrics.bpMessage}</div>
+                    </div>
+                `;
+            }
+            
+            // تفاصيل المزاج
+            if (reports.mood.hasData) {
+                content += `
+                    <div class="detail-card">
+                        <div class="detail-header">
+                            <span style="font-size: 24px;">😊</span>
+                            <h3>${isArabic ? 'تحليل المزاج' : 'Mood Analysis'}</h3>
+                        </div>
+                        <div class="detail-stats">
+                            <div><strong>${isArabic ? 'متوسط المزاج' : 'Avg Mood'}:</strong> ${reports.mood.avgMood}/5</div>
+                            <div><strong>${isArabic ? 'الأيام' : 'Days'}:</strong> ${reports.mood.totalDays}</div>
+                        </div>
+                        <div>${reports.mood.message}</div>
+                    </div>
+                `;
+            }
+            
+            // تفاصيل العادات
+            if (reports.habits.hasData) {
+                content += `
+                    <div class="detail-card">
+                        <div class="detail-header">
+                            <span style="font-size: 24px;">✅</span>
+                            <h3>${isArabic ? 'تحليل العادات' : 'Habits Analysis'}</h3>
+                        </div>
+                        <div class="detail-stats">
+                            <div><strong>${isArabic ? 'نسبة الإنجاز' : 'Completion'}:</strong> ${reports.habits.completionRate}%</div>
+                            <div><strong>${isArabic ? 'مكتملة' : 'Completed'}:</strong> ${reports.habits.completed}/${reports.habits.total}</div>
+                        </div>
+                        <div>${reports.habits.message}</div>
+                    </div>
+                `;
+            }
+            
+            content += `
+                    <div class="footer">
+                        🤖 ${isArabic ? 'تم إنشاء هذا التقرير بواسطة نظام التحليل الذكي LivoCare' : 'This report was generated by LivoCare Smart Analysis System'}
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            printWindow.document.write(content);
+            printWindow.document.close();
+            
+            // تأخير الطباعة قليلاً للتأكد من تحميل المحتوى
+            setTimeout(() => {
+                printWindow.print();
+                setIsExporting(false);
+            }, 500);
+            
         } catch (err) {
-            console.error('Export error:', err);
-            alert(isArabic ? '❌ حدث خطأ في تصدير التقرير' : '❌ Error exporting report');
-        } finally {
+            console.error('PDF export error:', err);
+            alert(isArabic ? '❌ حدث خطأ في تصدير PDF' : '❌ Error exporting PDF');
             setIsExporting(false);
         }
     }, [reports, isArabic]);
@@ -1240,18 +1553,11 @@ const Reports = ({ isAuthReady }) => {
                     
                     <div className="export-buttons">
                         <button 
-                            onClick={() => exportReport('json')} 
-                            className="export-btn json"
+                            onClick={exportToPDF} 
+                            className="export-btn pdf"
                             disabled={isExporting}
                         >
-                            📄 JSON
-                        </button>
-                        <button 
-                            onClick={() => exportReport('csv')} 
-                            className="export-btn csv"
-                            disabled={isExporting}
-                        >
-                            📊 CSV
+                            📄 {isArabic ? 'تصدير PDF' : 'Export PDF'}
                         </button>
                     </div>
                 </div>
@@ -1311,7 +1617,7 @@ const Reports = ({ isAuthReady }) => {
                 </div>
             </div>
 
-            {/* ✅ التبويبات */}
+            {/* ✅ التبويبات - نفس الهيكل السابق ولكنه يعمل مع إصلاح العادات */}
             <div className="reports-tabs">
                 <button 
                     className={`tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
@@ -1357,7 +1663,7 @@ const Reports = ({ isAuthReady }) => {
                 </button>
             </div>
 
-            {/* ✅ محتوى التبويبات */}
+            {/* ✅ محتوى التبويبات - استمرار بنفس الهيكل السابق */}
             <div className="tab-content">
                 {/* ملخص */}
                 {activeTab === 'summary' && (
@@ -1960,13 +2266,8 @@ const Reports = ({ isAuthReady }) => {
     transition: all 0.2s;
 }
 
-.export-btn.json {
+.export-btn.pdf {
     background: linear-gradient(135deg, #ef4444, #dc2626);
-    color: white;
-}
-
-.export-btn.csv {
-    background: linear-gradient(135deg, #10b981, #059669);
     color: white;
 }
 
@@ -2239,7 +2540,6 @@ const Reports = ({ isAuthReady }) => {
 }
 
 /* ===== محتوى التبويبات ===== */
-/* ملخص */
 .summary-tab .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
