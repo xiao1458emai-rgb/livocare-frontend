@@ -10,12 +10,26 @@ const WeatherWidget = () => {
     });
     const isArabic = lang === 'ar';
     
+    const [darkMode, setDarkMode] = useState(() => {
+        const saved = localStorage.getItem('livocare_darkMode') === 'true';
+        return saved || window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+    
     const [weather, setWeather] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [city, setCity] = useState('Cairo');
     const [showCityInput, setShowCityInput] = useState(false);
     const [tempCity, setTempCity] = useState('');
+
+    // الاستماع لتغييرات الوضع المظلم
+    useEffect(() => {
+        const handleThemeChange = (e) => {
+            setDarkMode(e.detail?.darkMode ?? false);
+        };
+        window.addEventListener('themeChange', handleThemeChange);
+        return () => window.removeEventListener('themeChange', handleThemeChange);
+    }, []);
 
     useEffect(() => {
         const handleLanguageChange = (event) => {
@@ -46,28 +60,25 @@ const WeatherWidget = () => {
                 localStorage.setItem('weather_city', cityName);
                 setCity(cityName);
             } else {
-                // ✅ استخدام بيانات تجريبية إذا فشل الـ API
                 useMockData(cityName);
             }
         } catch (err) {
             console.error('Weather fetch error:', err);
-            // ✅ استخدام بيانات تجريبية في حالة الخطأ
             useMockData(cityName);
         } finally {
             setLoading(false);
         }
     };
 
-    // ✅ دالة استخدام بيانات تجريبية
     const useMockData = (cityName) => {
         console.log('🌤️ Using mock weather data for:', cityName);
         setWeather({
             city: cityName,
-            temperature: Math.floor(Math.random() * 20) + 15, // 15-35 درجة
+            temperature: Math.floor(Math.random() * 20) + 15,
             condition: 'Clear',
             description: isArabic ? 'سماء صافية' : 'Clear sky',
-            humidity: Math.floor(Math.random() * 40) + 40, // 40-80%
-            wind_speed: Math.floor(Math.random() * 20) + 5, // 5-25 km/h
+            humidity: Math.floor(Math.random() * 40) + 40,
+            wind_speed: Math.floor(Math.random() * 20) + 5,
             pressure: 1013,
             success: true
         });
@@ -155,9 +166,9 @@ const WeatherWidget = () => {
 
     if (loading) {
         return (
-            <div className="weather-widget loading">
+            <div className={`weather-widget loading ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="weather-loading">
-                    <span className="weather-icon">🌤️</span>
+                    <div className="weather-icon-pulse">🌤️</div>
                     <p>{isArabic ? 'جاري تحميل الطقس...' : 'Loading weather...'}</p>
                 </div>
             </div>
@@ -166,7 +177,7 @@ const WeatherWidget = () => {
 
     if (error && !weather) {
         return (
-            <div className="weather-widget error">
+            <div className={`weather-widget error ${darkMode ? 'dark-mode' : ''}`}>
                 <div className="weather-error">
                     <span>⚠️</span>
                     <p>{error}</p>
@@ -209,11 +220,11 @@ const WeatherWidget = () => {
     const clothingSuggestion = getClothingSuggestion(weather);
 
     return (
-        <div className="weather-widget">
+        <div className={`weather-widget ${darkMode ? 'dark-mode' : ''}`}>
             <div className="weather-header">
                 <div className="weather-title">
                     <span className="weather-icon-large">🌤️</span>
-                    <h3>{isArabic ? 'الطقس في' : 'Weather in'} {weather.city}</h3>
+                    <h3>{isArabic ? 'الطقس في' : 'Weather in'} <span className="city-name">{weather.city}</span></h3>
                 </div>
                 <div className="weather-actions">
                     <button 
@@ -237,6 +248,7 @@ const WeatherWidget = () => {
                         onChange={(e) => setTempCity(e.target.value)}
                         placeholder={isArabic ? 'اسم المدينة' : 'City name'}
                         className="city-input"
+                        autoFocus
                     />
                     <button type="submit" className="submit-city-btn">
                         {isArabic ? 'حفظ' : 'Save'}
@@ -248,30 +260,32 @@ const WeatherWidget = () => {
             )}
             
             <div className="weather-main">
-                <div className="weather-temp" style={{ color: tempColor }}>
-                    {Math.round(weather.temperature)}°C
+                <div className="weather-temp-container">
+                    <div className="weather-temp" style={{ color: tempColor }}>
+                        {Math.round(weather.temperature)}<span className="temp-unit">°C</span>
+                    </div>
                 </div>
                 <div className="weather-icon-temp">
-                    <span className="weather-icon-big">{weatherIcon}</span>
+                    <div className="weather-animation">{weatherIcon}</div>
                     <span className="weather-desc">{weather.description}</span>
                 </div>
                 
                 <div className="weather-details-grid">
                     <div className="weather-detail">
-                        <span className="detail-icon">💧</span>
-                        <span className="detail-label">{isArabic ? 'الرطوبة' : 'Humidity'}</span>
-                        <span className="detail-value">{weather.humidity}%</span>
+                        <div className="detail-icon">💧</div>
+                        <div className="detail-label">{isArabic ? 'الرطوبة' : 'Humidity'}</div>
+                        <div className="detail-value">{weather.humidity}%</div>
                     </div>
                     <div className="weather-detail">
-                        <span className="detail-icon">🌬️</span>
-                        <span className="detail-label">{isArabic ? 'الرياح' : 'Wind'}</span>
-                        <span className="detail-value">{weather.wind_speed} km/h</span>
+                        <div className="detail-icon">🌬️</div>
+                        <div className="detail-label">{isArabic ? 'الرياح' : 'Wind'}</div>
+                        <div className="detail-value">{weather.wind_speed} <span className="detail-unit">km/h</span></div>
                     </div>
                     {weather.pressure && (
                         <div className="weather-detail">
-                            <span className="detail-icon">📊</span>
-                            <span className="detail-label">{isArabic ? 'الضغط' : 'Pressure'}</span>
-                            <span className="detail-value">{weather.pressure} hPa</span>
+                            <div className="detail-icon">📊</div>
+                            <div className="detail-label">{isArabic ? 'الضغط' : 'Pressure'}</div>
+                            <div className="detail-value">{weather.pressure} <span className="detail-unit">hPa</span></div>
                         </div>
                     )}
                 </div>
@@ -309,9 +323,545 @@ const WeatherWidget = () => {
 
             <div className="weather-footer">
                 <small>
-                    {isArabic ? 'آخر تحديث' : 'Last update'}: {new Date().toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
+                    🕐 {isArabic ? 'آخر تحديث' : 'Last update'}: {new Date().toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US')}
                 </small>
             </div>
+
+            {/* أنماط CSS المحسنة */}
+            <style jsx>{`
+                /* ===== الحاوية الرئيسية ===== */
+                .weather-widget {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border-radius: 28px;
+                    padding: 1.25rem;
+                    transition: all 0.3s ease;
+                    color: white;
+                    overflow: hidden;
+                    position: relative;
+                }
+                
+                .weather-widget::before {
+                    content: '';
+                    position: absolute;
+                    top: -50%;
+                    left: -50%;
+                    width: 200%;
+                    height: 200%;
+                    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+                    opacity: 0;
+                    transition: opacity 0.5s ease;
+                }
+                
+                .weather-widget:hover::before {
+                    opacity: 1;
+                }
+                
+                .weather-widget.dark-mode {
+                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                }
+                
+                .weather-widget:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+                }
+                
+                /* ===== الرأس ===== */
+                .weather-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1rem;
+                    padding-bottom: 0.5rem;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+                }
+                
+                .weather-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                
+                .weather-icon-large {
+                    font-size: 1.5rem;
+                    filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.2));
+                }
+                
+                .weather-title h3 {
+                    margin: 0;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    letter-spacing: 0.5px;
+                }
+                
+                .city-name {
+                    font-weight: 800;
+                    background: rgba(255,255,255,0.2);
+                    padding: 0.2rem 0.5rem;
+                    border-radius: 20px;
+                    display: inline-block;
+                }
+                
+                /* ===== أزرار التحكم ===== */
+                .weather-actions {
+                    display: flex;
+                    gap: 0.5rem;
+                }
+                
+                .change-city-btn-small,
+                .refresh-btn-small {
+                    background: rgba(255, 255, 255, 0.15);
+                    border: none;
+                    border-radius: 12px;
+                    padding: 0.4rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    font-size: 0.9rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    backdrop-filter: blur(4px);
+                }
+                
+                .change-city-btn-small:hover,
+                .refresh-btn-small:hover {
+                    background: rgba(255, 255, 255, 0.3);
+                    transform: scale(1.05);
+                }
+                
+                .refresh-btn-small:hover {
+                    transform: rotate(180deg);
+                }
+                
+                /* ===== نموذج تغيير المدينة ===== */
+                .city-form {
+                    display: flex;
+                    gap: 0.5rem;
+                    margin-bottom: 1rem;
+                    flex-wrap: wrap;
+                }
+                
+                .city-input {
+                    flex: 1;
+                    padding: 0.6rem 0.75rem;
+                    background: rgba(255, 255, 255, 0.15);
+                    border: 1px solid rgba(255, 255, 255, 0.25);
+                    border-radius: 14px;
+                    font-size: 0.8rem;
+                    color: white;
+                    backdrop-filter: blur(4px);
+                }
+                
+                .city-input::placeholder {
+                    color: rgba(255, 255, 255, 0.6);
+                }
+                
+                .city-input:focus {
+                    outline: none;
+                    border-color: rgba(255, 255, 255, 0.5);
+                    background: rgba(255, 255, 255, 0.2);
+                }
+                
+                .submit-city-btn,
+                .cancel-city-btn {
+                    padding: 0.5rem 1rem;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-size: 0.75rem;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                    border: none;
+                }
+                
+                .submit-city-btn {
+                    background: #10b981;
+                    color: white;
+                }
+                
+                .submit-city-btn:hover {
+                    background: #059669;
+                    transform: translateY(-2px);
+                }
+                
+                .cancel-city-btn {
+                    background: rgba(239, 68, 68, 0.8);
+                    color: white;
+                }
+                
+                .cancel-city-btn:hover {
+                    background: #dc2626;
+                    transform: translateY(-2px);
+                }
+                
+                /* ===== المحتوى الرئيسي ===== */
+                .weather-main {
+                    text-align: center;
+                    margin-bottom: 1rem;
+                }
+                
+                .weather-temp-container {
+                    margin-bottom: 0.5rem;
+                }
+                
+                .weather-temp {
+                    font-size: 3rem;
+                    font-weight: 800;
+                    line-height: 1;
+                    transition: color 0.3s ease;
+                    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+                }
+                
+                .temp-unit {
+                    font-size: 1.2rem;
+                    font-weight: 500;
+                    margin-left: 0.25rem;
+                }
+                
+                .weather-icon-temp {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                    margin-bottom: 1rem;
+                }
+                
+                .weather-animation {
+                    font-size: 2.5rem;
+                    animation: weatherFloat 3s ease-in-out infinite;
+                }
+                
+                @keyframes weatherFloat {
+                    0%, 100% { transform: translateY(0px); }
+                    50% { transform: translateY(-5px); }
+                }
+                
+                .weather-desc {
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    text-transform: capitalize;
+                    background: rgba(255, 255, 255, 0.15);
+                    padding: 0.2rem 0.8rem;
+                    border-radius: 20px;
+                }
+                
+                /* ===== شبكة التفاصيل ===== */
+                .weather-details-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 0.75rem;
+                    margin-bottom: 1rem;
+                }
+                
+                .weather-detail {
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 14px;
+                    padding: 0.5rem;
+                    text-align: center;
+                    backdrop-filter: blur(4px);
+                    transition: all 0.2s;
+                }
+                
+                .weather-detail:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                    transform: scale(1.02);
+                }
+                
+                .detail-icon {
+                    font-size: 1.2rem;
+                    margin-bottom: 0.25rem;
+                    display: block;
+                }
+                
+                .detail-label {
+                    font-size: 0.6rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    opacity: 0.8;
+                }
+                
+                .detail-value {
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    margin-top: 0.25rem;
+                }
+                
+                .detail-unit {
+                    font-size: 0.6rem;
+                    font-weight: 400;
+                }
+                
+                /* ===== التوصيات ===== */
+                .weather-recommendation,
+                .weather-activity,
+                .weather-clothing {
+                    background: rgba(255, 255, 255, 0.12);
+                    border-radius: 14px;
+                    padding: 0.75rem;
+                    margin-bottom: 0.75rem;
+                    backdrop-filter: blur(4px);
+                    transition: all 0.2s;
+                }
+                
+                .weather-recommendation:hover,
+                .weather-activity:hover,
+                .weather-clothing:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                    transform: translateX(4px);
+                }
+                
+                [dir="rtl"] .weather-recommendation:hover,
+                [dir="rtl"] .weather-activity:hover,
+                [dir="rtl"] .weather-clothing:hover {
+                    transform: translateX(-4px);
+                }
+                
+                .weather-recommendation {
+                    border-left: 3px solid #fbbf24;
+                }
+                
+                .weather-activity {
+                    border-left: 3px solid #34d399;
+                }
+                
+                .weather-clothing {
+                    border-left: 3px solid #a78bfa;
+                }
+                
+                [dir="rtl"] .weather-recommendation {
+                    border-left: none;
+                    border-right: 3px solid #fbbf24;
+                }
+                
+                [dir="rtl"] .weather-activity {
+                    border-left: none;
+                    border-right: 3px solid #34d399;
+                }
+                
+                [dir="rtl"] .weather-clothing {
+                    border-left: none;
+                    border-right: 3px solid #a78bfa;
+                }
+                
+                .recommendation-header,
+                .activity-header,
+                .clothing-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin-bottom: 0.5rem;
+                }
+                
+                .recommendation-header span,
+                .activity-header span,
+                .clothing-header span {
+                    font-size: 1rem;
+                }
+                
+                .recommendation-header strong,
+                .activity-header strong,
+                .clothing-header strong {
+                    font-size: 0.7rem;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+                
+                .weather-recommendation p,
+                .weather-activity p,
+                .weather-clothing p {
+                    margin: 0;
+                    font-size: 0.75rem;
+                    line-height: 1.4;
+                    opacity: 0.95;
+                }
+                
+                /* ===== التذييل ===== */
+                .weather-footer {
+                    margin-top: 0.75rem;
+                    padding-top: 0.5rem;
+                    text-align: center;
+                    border-top: 1px solid rgba(255, 255, 255, 0.12);
+                }
+                
+                .weather-footer small {
+                    font-size: 0.6rem;
+                    opacity: 0.7;
+                }
+                
+                /* ===== حالات التحميل والخطأ ===== */
+                .weather-widget.loading,
+                .weather-widget.error {
+                    text-align: center;
+                    padding: 1.5rem;
+                }
+                
+                .weather-loading {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                
+                .weather-icon-pulse {
+                    font-size: 2rem;
+                    animation: weatherPulse 1.5s ease-in-out infinite;
+                }
+                
+                @keyframes weatherPulse {
+                    0%, 100% { opacity: 0.6; transform: scale(1); }
+                    50% { opacity: 1; transform: scale(1.1); }
+                }
+                
+                .weather-loading p {
+                    font-size: 0.8rem;
+                    opacity: 0.8;
+                }
+                
+                .weather-error {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                
+                .weather-error span {
+                    font-size: 2rem;
+                }
+                
+                .weather-error p {
+                    font-size: 0.8rem;
+                    opacity: 0.9;
+                }
+                
+                .retry-btn {
+                    margin-top: 0.5rem;
+                    padding: 0.4rem 1rem;
+                    background: rgba(255, 255, 255, 0.2);
+                    color: white;
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-size: 0.7rem;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                    backdrop-filter: blur(4px);
+                }
+                
+                .retry-btn:hover {
+                    background: rgba(255, 255, 255, 0.35);
+                    transform: translateY(-2px);
+                }
+                
+                .change-city-btn {
+                    margin-top: 0.75rem;
+                    padding: 0.4rem 1rem;
+                    background: rgba(255, 255, 255, 0.15);
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-size: 0.7rem;
+                    color: white;
+                    transition: all 0.2s;
+                    backdrop-filter: blur(4px);
+                }
+                
+                .change-city-btn:hover {
+                    background: rgba(255, 255, 255, 0.3);
+                    transform: translateY(-2px);
+                }
+                
+                /* ===== دعم RTL ===== */
+                [dir="rtl"] .weather-title {
+                    flex-direction: row-reverse;
+                }
+                
+                [dir="rtl"] .weather-actions {
+                    flex-direction: row-reverse;
+                }
+                
+                [dir="rtl"] .weather-details-grid {
+                    direction: rtl;
+                }
+                
+                [dir="rtl"] .recommendation-header,
+                [dir="rtl"] .activity-header,
+                [dir="rtl"] .clothing-header {
+                    flex-direction: row-reverse;
+                }
+                
+                /* ===== تقليل الحركة ===== */
+                @media (prefers-reduced-motion: reduce) {
+                    .weather-widget:hover {
+                        transform: none;
+                    }
+                    
+                    .weather-animation {
+                        animation: none;
+                    }
+                    
+                    .weather-icon-pulse {
+                        animation: none;
+                    }
+                    
+                    .refresh-btn-small:hover {
+                        transform: none;
+                    }
+                    
+                    .submit-city-btn:hover,
+                    .cancel-city-btn:hover,
+                    .retry-btn:hover,
+                    .change-city-btn:hover {
+                        transform: none;
+                    }
+                    
+                    .weather-detail:hover {
+                        transform: none;
+                    }
+                    
+                    .weather-recommendation:hover,
+                    .weather-activity:hover,
+                    .weather-clothing:hover {
+                        transform: none;
+                    }
+                }
+                
+                /* ===== دعم الشاشات الصغيرة ===== */
+                @media (max-width: 480px) {
+                    .weather-widget {
+                        padding: 1rem;
+                    }
+                    
+                    .weather-temp {
+                        font-size: 2.2rem;
+                    }
+                    
+                    .weather-animation {
+                        font-size: 2rem;
+                    }
+                    
+                    .weather-details-grid {
+                        gap: 0.5rem;
+                    }
+                    
+                    .weather-detail {
+                        padding: 0.4rem;
+                    }
+                    
+                    .detail-value {
+                        font-size: 0.7rem;
+                    }
+                    
+                    .city-form {
+                        flex-direction: column;
+                    }
+                    
+                    .submit-city-btn,
+                    .cancel-city-btn {
+                        width: 100%;
+                    }
+                }
+            `}</style>
         </div>
     );
 };
